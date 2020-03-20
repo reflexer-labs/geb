@@ -44,7 +44,7 @@
 // OF ANY KIND, either express or implied. See the Older Version License for the specific
 // language governing permissions and limitations under the Older Version License.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.5.15;
 
 contract Exp {
     uint256 private constant ONE = 1;
