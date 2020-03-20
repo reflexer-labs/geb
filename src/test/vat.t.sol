@@ -288,35 +288,6 @@ contract FrobTest is DSTest {
         assertTrue( this.try_frob("gold",  5 ether, 1 ether));
     }
 
-    function testFail_thin_greater_than_fat() public {
-        vat.file("gold", "fat", 1);
-        vat.file("gold", "thin", 1);
-        vat.file("gold", "thin", 2);
-    }
-
-    function testFail_set_fat_twice() public {
-        vat.file("gold", "fat", 1);
-        vat.file("gold", "fat", 1);
-    }
-
-    function test_fine_frob() public {
-        vat.file("gold", "thin", 2000000000000000000);
-        vat.frob("gold", me, me, me, 10 ether, 5 ether);
-        assertTrue( try_frob("gold",  0 ether, -3 ether));
-        assertTrue( !try_frob("gold",  0 ether, 4 ether));
-        vat.frob("gold", me, me, me, 0, 3 ether);
-        assertTrue( try_frob("gold",  -10 ether, -5 ether));
-        vat.frob("gold", me, me, me, 10 ether, 5 ether);
-        assertTrue( try_frob("gold",  -1 ether, -1 ether));
-        vat.file("gold", "thin", 2500000000000000000);
-        assertTrue( !try_frob("gold", 0.1 ether, 0.1 ether));
-        vat.file("gold", "thin", 0);
-        assertTrue( try_frob("gold", 0, 2 ether));
-        vat.file("gold", "thin", 2500000000000000000);
-        assertTrue( try_frob("gold", 1 ether, 0));
-        assertTrue( try_frob("gold", 0, -1 ether));
-    }
-
     function test_locked_frob() public {
         vat.file("close", 1);
         vat.frob("gold", me, me, me, 10 ether, 5 ether);
@@ -698,8 +669,6 @@ contract BiteTest is DSTest {
         gov.approve(address(flap));
 
         me = address(this);
-
-        vat.file("gold", "thin", 2000000000000000000);
     }
 
     function test_bite_under_lump() public {

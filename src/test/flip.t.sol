@@ -138,8 +138,6 @@ contract FlipTest is DSTest {
         vat.slip("gems", address(this), 1000 ether);
         vat.mint(ali, 200 ether);
         vat.mint(bob, 200 ether);
-
-        vat.file("gold", "thin", 2500000000000000000);
     }
     function test_kick() public {
         flip.kick({ lot: 100 ether

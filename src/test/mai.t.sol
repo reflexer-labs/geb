@@ -380,7 +380,7 @@ contract MaiTest is DSTest {
     }
 
     function testDomain_Separator() public {
-        assertEq(token.DOMAIN_SEPARATOR(), 0x495b30d66d6dc5f971613b199bcf79b08083366cb14473d17ec835dc44c591d7);
+        assertEq(token.DOMAIN_SEPARATOR(), 0x198ebdd248a623f1024e205d5da141719fb9869cd528047b2893b4f9b70473ef);
     }
 
     //TODO: remake with v,r,s for mai now that we changed the DOMAIN SEPARATOR because of the dai->mai rename

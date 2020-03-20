@@ -52,19 +52,19 @@ contract Vox is LibNote, Exp {
     uint256 public trim; // deviation from tpr at which rate is recalculated
     uint256 public live; // access flag
 
-    mapping(uint256 => mapping(uint256 => uint256)) public how; // adjustment multiplier when pulling toward tpr
+    mapping(int256 => mapping(int256 => uint256)) public how; // adjustment multiplier when pulling toward tpr
 
     PipLike  public pip;
-    MaiLike  public mai;
+    MaiLike  public tkn;
     SpotLike public spot;
 
     constructor(
-      address mai_,
+      address tkn_,
       address spot_,
       uint256 tpr_
     ) public {
         wards[msg.sender] = 1;
-        mai = MaiLike(mai_);
+        tkn = MaiLike(tkn_);
         spot = SpotLike(spot_);
         tpr = tpr_;
         live = 1;
@@ -82,9 +82,11 @@ contract Vox is LibNote, Exp {
         if (what == "trim") trim = val;
         else revert("Vox/file-unrecognized-param");
     }
-    function file(bytes32 what, uint256 trg, uint256 val) external note auth {
+    function file(bytes32 what, int256 side, int256 way, uint256 val) external note auth {
         require(live == 1, "Vox/not-live");
-        if (what == "how") how[trg] = val;
+        require(side == -1 || side == 1, "Vox/invalid-side");
+        require(way == -1 || way == 1, "Vox/invalid-side");
+        if (what == "how") how[side][way] = val;
         else revert("Vox/file-unrecognized-param");
     }
     function cage() external note auth {
@@ -174,7 +176,7 @@ contract Vox is LibNote, Exp {
         }
     }
     function pull(uint msr) internal note {
-        mai.drip();
-        mai.file("msr", msr);
+        tkn.drip();
+        tkn.file("msr", msr);
     }
 }
