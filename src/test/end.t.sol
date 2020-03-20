@@ -21,7 +21,7 @@ pragma solidity ^0.5.15;
 
 import "ds-test/test.sol";
 import "ds-token/token.sol";
-import "ds-value/value.sol";
+//import "ds-value/value.sol";
 
 import {Vat}  from '../vat.sol';
 import {Cat}  from '../cat.sol';
