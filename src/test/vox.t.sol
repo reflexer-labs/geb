@@ -171,7 +171,14 @@ contract VoxTest is DSTest {
         assertTrue(now > token.rho());
         token.drip();
         jug.drip();
+        (uint rho, ) = jug.ilks("gold");
+        assertEq(rho, now);
         assertEq(spot.par(), 1004999999999999999993941765);
+        assertEq(vat.mai(address(user)), int(635947200));
+        assertEq(vat.sin(address(user)), 4999999999999999993941765000);
+        assertEq(vat.mai(address(token)), 4999999999999999993941765000);
+        assertEq(vat.vice(), 4999999999999999993941765000);
+        assertEq(vat.debt(), 5025000000000000004969708824999999993941765000);
     }
 
     function testBackPositiveDeviation() public {
@@ -187,7 +194,14 @@ contract VoxTest is DSTest {
         assertTrue(now > token.rho());
         token.drip();
         jug.drip();
+        (uint rho, ) = jug.ilks("gold");
+        assertEq(rho, now);
         assertEq(spot.par(), 995024875621105672471661507);
+        assertEq(vat.mai(address(user)), int(635947200));
+        assertEq(vat.sin(address(user)), -4975124378894327528338493000);
+        assertEq(vat.mai(address(token)), -4975124378894327528338493000);
+        assertEq(vat.vice(), -4975124378894327528338493000);
+        assertEq(vat.debt(), 4975124378105528357383183156105672471661507000);
     }
 
     function testRateSpread() public {
@@ -205,6 +219,11 @@ contract VoxTest is DSTest {
         jug.drip();
 
         assertEq(spot.par(), 1002499999999999999998720538);
+        assertEq(vat.mai(address(user)), 0);
+        assertEq(vat.sin(address(user)), 2499999999999999998720538000);
+        assertEq(vat.mai(address(token)), 2499999999999999998720538000);
+        assertEq(vat.vice(), 2499999999999999998720538000);
+        assertEq(vat.debt(), 5025000000000000002469708824999999998720538000);
 
         stableFeed.poke(1.005 ether);
         vox.back();
@@ -217,6 +236,11 @@ contract VoxTest is DSTest {
         jug.drip();
 
         assertEq(spot.par(), 997512437810158436651567564);
+        assertEq(vat.mai(address(user)), 0);
+        assertEq(vat.sin(address(user)), -2487562189841563348432436000);
+        assertEq(vat.mai(address(token)), -2487562189841563348432436000);
+        assertEq(vat.vice(), -2487562189841563348432436000);
+        assertEq(vat.debt(), 5012468827929183636763264230158436651567564000);
     }
 
     function testBackPositivePar() public {
@@ -237,6 +261,11 @@ contract VoxTest is DSTest {
         token.drip();
         jug.drip();
         assertEq(spot.par(), 999999999999211200859527677);
+        assertEq(vat.mai(address(user)), 0);
+        assertEq(vat.sin(address(user)), -788799140472323000);
+        assertEq(vat.mai(address(token)), -788799140472323000);
+        assertEq(vat.vice(), -788799140472323000);
+        assertEq(vat.debt(), 4999999999996056004297638384211200859527677000);
     }
 
     function testBackNegativePar() public {
@@ -257,6 +286,11 @@ contract VoxTest is DSTest {
         token.drip();
         jug.drip();
         assertEq(spot.par(), 999975248137414531327262378);
+        assertEq(vat.mai(address(user)), 0);
+        assertEq(vat.sin(address(user)), -24751862585468672737622000);
+        assertEq(vat.mai(address(token)), -24751862585468672737622000);
+        assertEq(vat.vice(), -24751862585468672737622000);
+        assertEq(vat.debt(), 4999876240687072656611560027414531327262378000);
     }
 
     function testAdjustedRateOfChange() public {
