@@ -4,7 +4,9 @@ This repository contains the core smart contract code for Mai Reflex-Bond System
 
 ## LICENSE
 
-Copyright (C) 2017-2020 MakerDAO
+Copyright (C) 2016-2020 Maker Ecosystem Growth Holdings, Inc
+
+Copyright (C) 2017-2020 DappHub, LLC
 
 Copyright (C) 2020      Stefan C. Ionescu <stefanionescu@protonmail.com>
 

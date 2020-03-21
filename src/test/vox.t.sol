@@ -208,4 +208,25 @@ contract VoxTest is DSTest {
         token.drip();
         assertEq(spot.par(), 999975248137414531327262378);
     }
+
+    function testAdjustedRateOfChange() public {
+        vox.file("how", -1, -6000);
+        vox.file("how", 1, -6000);
+
+        stableFeed.poke(1.005 ether);
+        vox.back();
+        hevm.warp(now + 31536000 seconds);
+        token.drip();
+
+        assertEq(spot.par(), 995023931239465677276119760);
+        assertEq(token.msr(), 999999999841816000271692096);
+
+        stableFeed.poke(0.995 ether);
+        vox.back();
+        hevm.warp(now + 31536000 seconds);
+        token.drip();
+
+        assertEq(spot.par(), 999999999999210900609744205);
+        assertEq(token.msr(), 1000000000158183999728307904);
+    }
 }

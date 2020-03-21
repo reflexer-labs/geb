@@ -52,7 +52,7 @@ contract Vox is LibNote, Exp {
     uint256 public trim; // deviation from tpr at which rate is recalculated
     uint256 public live; // access flag
 
-    mapping(int256 => mapping(int256 => uint256)) public how; // adjustment multiplier when pulling toward tpr
+    mapping(int256 => int256) public how; // adjustment multiplier when pulling toward tpr
 
     PipLike  public pip;
     MaiLike  public tkn;
@@ -82,11 +82,11 @@ contract Vox is LibNote, Exp {
         if (what == "trim") trim = val;
         else revert("Vox/file-unrecognized-param");
     }
-    function file(bytes32 what, int256 side, int256 way, uint256 val) external note auth {
+    function file(bytes32 what, int256 side, int256 val) external note auth {
         require(live == 1, "Vox/not-live");
         require(side == -1 || side == 1, "Vox/invalid-side");
-        require(way == -1 || way == 1, "Vox/invalid-side");
-        if (what == "how") how[side][way] = val;
+        require(val <= SPY && val >= -SPY, "Vox/val-exceeds-limits");
+        if (what == "how") how[side] = val;
         else revert("Vox/file-unrecognized-param");
     }
     function cage() external note auth {
@@ -95,7 +95,7 @@ contract Vox is LibNote, Exp {
 
     // --- Math ---
     uint256 constant RAY = 10 ** 27;
-    uint32  constant SPY = 31536000;
+    int256  constant SPY = 31536000;
     function add(uint x, uint y) internal pure returns (uint z) {
         z = x + y;
         require(z >= x);
@@ -148,9 +148,10 @@ contract Vox is LibNote, Exp {
         return y + delt(x, y);
     }
     function adj(uint val) public view returns (uint256) {
-        (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, SPY);
+        int way_ = way(val, tpr);
+        (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
         uint adj = (raw * RAY) / (2 ** precision);
-        adj = (way(val, tpr) == 1) ? adj : tpr - sub(adj, tpr);
+        adj = (way_ == 1) ? adj : tpr - sub(adj, tpr);
         return adj;
     }
 
