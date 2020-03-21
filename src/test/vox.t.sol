@@ -174,7 +174,7 @@ contract VoxTest is DSTest {
         (uint rho, ) = jug.ilks("gold");
         assertEq(rho, now);
         assertEq(spot.par(), 1004999999999999999993941765);
-        assertEq(vat.mai(address(user)), int(635947200));
+        assertTrue(vat.mai(address(user)) == int(0));
         assertEq(vat.sin(address(user)), 4999999999999999993941765000);
         assertEq(vat.mai(address(token)), 4999999999999999993941765000);
         assertEq(vat.vice(), 4999999999999999993941765000);
@@ -197,7 +197,7 @@ contract VoxTest is DSTest {
         (uint rho, ) = jug.ilks("gold");
         assertEq(rho, now);
         assertEq(spot.par(), 995024875621105672471661507);
-        assertEq(vat.mai(address(user)), int(635947200));
+        assertTrue(vat.mai(address(user)) == int(0));
         assertEq(vat.sin(address(user)), -4975124378894327528338493000);
         assertEq(vat.mai(address(token)), -4975124378894327528338493000);
         assertEq(vat.vice(), -4975124378894327528338493000);
@@ -243,7 +243,7 @@ contract VoxTest is DSTest {
         assertEq(vat.debt(), 5012468827929183636763264230158436651567564000);
     }
 
-    function testBackPositivePar() public {
+    function testBackParPositive() public {
         stableFeed.poke(0.995 ether);
         vox.back();
         hevm.warp(now + SPY * 1 seconds);
@@ -268,7 +268,7 @@ contract VoxTest is DSTest {
         assertEq(vat.debt(), 4999999999996056004297638384211200859527677000);
     }
 
-    function testBackNegativePar() public {
+    function testBackParNegative() public {
         stableFeed.poke(1.005 ether);
         vox.back();
         hevm.warp(now + SPY * 1 seconds);

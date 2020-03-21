@@ -1,6 +1,7 @@
 /// cat.sol -- Mai liquidation module
 
 // Copyright (C) 2018 Rain <rainbreak@riseup.net>
+// Copyright (C) 2020 Stefan C. Ionescu <stefanionescu@protonmail.com>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -28,7 +29,10 @@ contract VatLike {
     function ilks(bytes32) external view returns (
         uint256 Art,   // wad
         uint256 rate,  // ray
-        uint256 spot   // ray
+        uint256 spot,  // ray
+        uint256 line.  // rad
+        uint256 dust,  // rad
+        uint256 risk   // ray
     );
     function urns(bytes32,address) external view returns (
         uint256 ink,   // wad
@@ -118,11 +122,11 @@ contract Cat is LibNote {
 
     // --- CDP Liquidation ---
     function bite(bytes32 ilk, address urn) external returns (uint id) {
-        (, uint rate, uint spot) = vat.ilks(ilk);
+        (, uint rate, , , , uint risk) = vat.ilks(ilk);
         (uint ink, uint art) = vat.urns(ilk, urn);
 
         require(live == 1, "Cat/not-live");
-        require(spot > 0 && mul(ink, spot) < mul(art, rate), "Cat/not-unsafe");
+        require(risk > 0 && mul(ink, risk) < mul(art, rate), "Cat/not-unsafe");
 
         uint lot = min(ink, ilks[ilk].lump);
         art      = min(art, mul(lot, art) / ink);

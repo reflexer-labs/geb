@@ -39,6 +39,7 @@ contract Spotter is LibNote {
     struct Ilk {
         PipLike pip;
         uint256 mat;
+        uint256 tam;
     }
 
     mapping (bytes32 => Ilk) public ilks;
@@ -51,7 +52,8 @@ contract Spotter is LibNote {
     event Poke(
       bytes32 ilk,
       bytes32 val,
-      uint256 spot
+      uint256 spot,
+      uint256 risk
     );
 
     // --- Init ---
@@ -86,6 +88,7 @@ contract Spotter is LibNote {
     function file(bytes32 ilk, bytes32 what, uint data) external note auth {
         require(live == 1, "Spotter/not-live");
         if (what == "mat") ilks[ilk].mat = data;
+        else if (what == "tam") ilks[ilk].tam = data;
         else revert("Spotter/file-unrecognized-param");
     }
 
@@ -93,8 +96,10 @@ contract Spotter is LibNote {
     function poke(bytes32 ilk) external {
         (bytes32 val, bool has) = ilks[ilk].pip.peek();
         uint256 spot = has ? rdiv(rdiv(mul(uint(val), 10 ** 9), par), ilks[ilk].mat) : 0;
+        uint256 risk = has ? rdiv(rdiv(mul(uint(val), 10 ** 9), par), ilks[ilk].tam) : 0;
         vat.file(ilk, "spot", spot);
-        emit Poke(ilk, val, spot);
+        vat.file(ilk, "risk", risk);
+        emit Poke(ilk, val, spot, risk);
     }
 
     function cage() external note auth {
@@ -103,6 +108,10 @@ contract Spotter is LibNote {
 
     function mat(bytes32 ilk) public view returns (uint256) {
         return ilks[ilk].mat;
+    }
+
+    function tam(bytes32 ilk) public view returns (uint256) {
+        return ilks[ilk].tam;
     }
 
     function pip(bytes32 ilk) public view returns (address) {

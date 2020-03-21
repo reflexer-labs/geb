@@ -27,7 +27,8 @@ contract VatLike {
         uint256 rate,
         uint256 spot,
         uint256 line,
-        uint256 dust
+        uint256 dust,
+        uint256 risk
     );
     function urns(bytes32 ilk, address urn) external returns (
         uint256 ink,
@@ -80,7 +81,8 @@ contract Spotty {
     function par() external view returns (uint256);
     function ilks(bytes32) external view returns (
         PipLike pip,
-        uint256 mat
+        uint256 mat,
+        uint256 tam
     );
     function cage() external;
 }
@@ -267,8 +269,8 @@ contract End is LibNote {
     function cage(bytes32 ilk) external note {
         require(live == 0, "End/still-live");
         require(tag[ilk] == 0, "End/tag-ilk-already-defined");
-        (Art[ilk],,,,) = vat.ilks(ilk);
-        (PipLike pip,) = spot.ilks(ilk);
+        (Art[ilk],,,,,) = vat.ilks(ilk);
+        (PipLike pip,,) = spot.ilks(ilk);
         // par is a ray, pip returns a wad
         tag[ilk] = wdiv(spot.par(), uint(pip.read()));
     }
@@ -278,7 +280,7 @@ contract End is LibNote {
 
         (address flipV,,) = cat.ilks(ilk);
         Flippy flip = Flippy(flipV);
-        (, uint rate,,,) = vat.ilks(ilk);
+        (, uint rate,,,,) = vat.ilks(ilk);
         (uint bid, uint lot,,,, address usr,, uint tab) = flip.bids(id);
 
         vat.suck(address(vow), address(vow),  int(tab));
@@ -294,7 +296,7 @@ contract End is LibNote {
 
     function skim(bytes32 ilk, address urn) external note {
         require(tag[ilk] != 0, "End/tag-ilk-not-defined");
-        (, uint rate,,,) = vat.ilks(ilk);
+        (, uint rate,,,,) = vat.ilks(ilk);
         (uint ink, uint art) = vat.urns(ilk, urn);
 
         uint owe = rmul(rmul(art, rate), tag[ilk]);
@@ -324,7 +326,7 @@ contract End is LibNote {
         require(debt != 0, "End/debt-zero");
         require(fix[ilk] == 0, "End/fix-ilk-already-defined");
 
-        (, uint rate,,,) = vat.ilks(ilk);
+        (, uint rate,,,,) = vat.ilks(ilk);
         uint256 wad = rmul(rmul(Art[ilk], rate), tag[ilk]);
         fix[ilk] = rdiv(mul(sub(wad, gap[ilk]), RAY), debt);
     }

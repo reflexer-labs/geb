@@ -39,9 +39,10 @@ contract Vat {
     struct Ilk {
         uint256 Art;   // Total Normalised Debt     [wad]
         uint256 rate;  // Accumulated Rates         [ray]
-        uint256 spot;  // Price with Safety Margin  [ray]
+        uint256 spot;  // Minimum Permitted Price   [ray]
         uint256 line;  // Debt Ceiling              [rad]
         uint256 dust;  // Urn Debt Floor            [rad]
+        uint256 risk;  // Liquidation Price         [ray]
     }
     struct Urn {
         uint256 ink;   // Locked Collateral  [wad]
@@ -148,6 +149,7 @@ contract Vat {
     function file(bytes32 ilk, bytes32 what, uint data) external note auth {
         require(live == 1, "Vat/not-live");
         if (what == "spot") ilks[ilk].spot = data;
+        else if (what == "risk") ilks[ilk].risk = data;
         else if (what == "line") ilks[ilk].line = data;
         else if (what == "dust") ilks[ilk].dust = data;
         else revert("Vat/file-unrecognized-param");
