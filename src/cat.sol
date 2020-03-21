@@ -30,7 +30,7 @@ contract VatLike {
         uint256 Art,   // wad
         uint256 rate,  // ray
         uint256 spot,  // ray
-        uint256 line.  // rad
+        uint256 line,  // rad
         uint256 dust,  // rad
         uint256 risk   // ray
     );
@@ -119,14 +119,22 @@ contract Cat is LibNote {
         }
         else revert("Cat/file-unrecognized-param");
     }
+    function cage() external note auth {
+        live = 0;
+    }
 
     // --- CDP Liquidation ---
+    function fang(bytes32 ilk) internal view returns (uint, uint) {
+        (, uint rate, uint spot, , , uint risk) = vat.ilks(ilk);
+        uint tag = (risk > 0) ? risk : spot;
+        return (rate, tag);
+    }
     function bite(bytes32 ilk, address urn) external returns (uint id) {
-        (, uint rate, , , , uint risk) = vat.ilks(ilk);
+        (uint rate, uint tag) = fang(ilk);
         (uint ink, uint art) = vat.urns(ilk, urn);
 
         require(live == 1, "Cat/not-live");
-        require(risk > 0 && mul(ink, risk) < mul(art, rate), "Cat/not-unsafe");
+        require(tag > 0 && mul(ink, tag) < mul(art, rate), "Cat/not-unsafe");
 
         uint lot = min(ink, ilks[ilk].lump);
         art      = min(art, mul(lot, art) / ink);
@@ -135,6 +143,7 @@ contract Cat is LibNote {
         vat.grab(ilk, urn, address(this), address(vow), -int(lot), -int(art));
 
         vow.fess(mul(art, rate));
+
         id = Kicker(ilks[ilk].flip).kick({ urn: urn
                                          , gal: address(vow)
                                          , tab: rmul(mul(art, rate), ilks[ilk].chop)
@@ -143,9 +152,5 @@ contract Cat is LibNote {
                                          });
 
         emit Bite(ilk, urn, lot, art, mul(art, rate), ilks[ilk].flip, id);
-    }
-
-    function cage() external note auth {
-        live = 0;
     }
 }

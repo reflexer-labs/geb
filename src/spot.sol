@@ -87,8 +87,14 @@ contract Spotter is LibNote {
     }
     function file(bytes32 ilk, bytes32 what, uint data) external note auth {
         require(live == 1, "Spotter/not-live");
-        if (what == "mat") ilks[ilk].mat = data;
-        else if (what == "tam") ilks[ilk].tam = data;
+        if (what == "mat") {
+          require(data >= ilks[ilk].tam, "Spotter/mat-lower-than-tam");
+          ilks[ilk].mat = data;
+        }
+        else if (what == "tam") {
+          require(data <= ilks[ilk].mat, "Spotter/tam-bigger-than-mat");
+          ilks[ilk].tam = data;
+        }
         else revert("Spotter/file-unrecognized-param");
     }
 
@@ -96,7 +102,7 @@ contract Spotter is LibNote {
     function poke(bytes32 ilk) external {
         (bytes32 val, bool has) = ilks[ilk].pip.peek();
         uint256 spot = has ? rdiv(rdiv(mul(uint(val), 10 ** 9), par), ilks[ilk].mat) : 0;
-        uint256 risk = has ? rdiv(rdiv(mul(uint(val), 10 ** 9), par), ilks[ilk].tam) : 0;
+        uint256 risk = (has && ilks[ilk].tam > 0) ? rdiv(rdiv(mul(uint(val), 10 ** 9), par), ilks[ilk].tam) : 0;
         vat.file(ilk, "spot", spot);
         vat.file(ilk, "risk", risk);
         emit Poke(ilk, val, spot, risk);

@@ -172,7 +172,7 @@ contract EndTest is DSTest {
         return art_;
     }
     function Art(bytes32 ilk) internal view returns (uint) {
-        (uint Art_, uint rate_, uint spot_, uint line_, uint dust_) = vat.ilks(ilk);
+        (uint Art_, uint rate_, uint spot_, uint line_, uint dust_, ) = vat.ilks(ilk);
         rate_; spot_; line_; dust_;
         return Art_;
     }

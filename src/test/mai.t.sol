@@ -214,7 +214,7 @@ contract MaiTest is DSTest {
         token.mint(self, 0);
         assertEq(token.rho(), now);
         assertEq(token.msr(), 10 ** 27);
-        (,,uint price,,) = vat.ilks("gold");
+        (,,uint price,,,) = vat.ilks("gold");
         assertEq(price, ray(1 ether));
     }
 
@@ -460,7 +460,7 @@ contract MaiTest is DSTest {
         token.drip();
 
         spot.poke("gold");
-        (,,uint price,,) = vat.ilks("gold");
+        (,,uint price,,,) = vat.ilks("gold");
         assertEq(price, 995942407351067072547712742);
 
         token.file("msr", 999999706969857929985428567);
@@ -468,7 +468,7 @@ contract MaiTest is DSTest {
         token.drip();
 
         spot.poke("gold");
-        (,,price,,) = vat.ilks("gold");
+        (,,price,,,) = vat.ilks("gold");
         assertEq(price, 999626403121623126487339967);
     }
 }

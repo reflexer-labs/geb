@@ -60,7 +60,7 @@ contract Vat {
     int256  public vice;  // Total Unbacked Mai  [rad]
     uint256 public Line;  // Total Debt Ceiling  [rad]
     uint256 public live;  // Access Flag
-    uint256 public close; // Enforce FLASH Blocks Between Opening and Closing an Urn
+    uint256 public close; // Enforce Flash Blocks Between Opening and Closing an Urn
 
     uint256 public constant FLASH = 1;
     uint256 public constant WAD   = 10 ** 18;

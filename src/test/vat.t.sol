@@ -818,7 +818,7 @@ contract FoldTest is DSTest {
     }
     function tab(bytes32 ilk, address urn) internal view returns (uint) {
         (uint ink_, uint art_) = vat.urns(ilk, urn); ink_;
-        (uint Art_, uint rate, uint spot, uint line, uint dust) = vat.ilks(ilk);
+        (uint Art_, uint rate, uint spot, uint line, uint dust, uint risk) = vat.ilks(ilk);
         Art_; spot; line; dust;
         return art_ * rate;
     }

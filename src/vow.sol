@@ -162,7 +162,7 @@ contract Vow is LibNote {
         Ash = add(Ash, sump);
         id = flopper.kick(address(this), dump, sump);
     }
-    // Surplus auction
+    // Surplus buyout
     function flap() external note returns (uint id) {
         require(vat.mai(address(this)) >= add(add(vat.sin(address(this)), bump), hump), "Vow/insufficient-surplus");
         require(sub(sub(vat.sin(address(this)), Sin), Ash) == 0, "Vow/debt-not-zero");

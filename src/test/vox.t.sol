@@ -171,10 +171,10 @@ contract VoxTest is DSTest {
         assertTrue(now > token.rho());
         token.drip();
         jug.drip();
-        (uint rho, ) = jug.ilks("gold");
+        (, uint rho) = jug.ilks("gold");
         assertEq(rho, now);
         assertEq(spot.par(), 1004999999999999999993941765);
-        assertTrue(vat.mai(address(user)) == int(0));
+        assertEq(vat.mai(address(user)), 0);
         assertEq(vat.sin(address(user)), 4999999999999999993941765000);
         assertEq(vat.mai(address(token)), 4999999999999999993941765000);
         assertEq(vat.vice(), 4999999999999999993941765000);
@@ -194,10 +194,10 @@ contract VoxTest is DSTest {
         assertTrue(now > token.rho());
         token.drip();
         jug.drip();
-        (uint rho, ) = jug.ilks("gold");
+        (, uint rho) = jug.ilks("gold");
         assertEq(rho, now);
         assertEq(spot.par(), 995024875621105672471661507);
-        assertTrue(vat.mai(address(user)) == int(0));
+        assertEq(vat.mai(address(user)), 0);
         assertEq(vat.sin(address(user)), -4975124378894327528338493000);
         assertEq(vat.mai(address(token)), -4975124378894327528338493000);
         assertEq(vat.vice(), -4975124378894327528338493000);
