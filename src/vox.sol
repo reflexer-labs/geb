@@ -36,6 +36,11 @@ contract SpotLike {
     function par() external returns (uint256);
 }
 
+contract JugLike {
+    function file(bytes32, uint) external;
+    function drip() external;
+}
+
 contract Vox is LibNote, Exp {
     // --- Auth ---
     mapping (address => uint) public wards;
@@ -48,14 +53,16 @@ contract Vox is LibNote, Exp {
 
     uint256 public mpr;  // market price
     uint256 public tpr;  // target price
+    uint256 public span; // spread between msr and sf
     uint256 public age;  // when mpr was last updated
-    uint256 public trim; // deviation from tpr at which rate is recalculated
+    uint256 public trim; // deviation from tpr at which rates are recalculated
     uint256 public live; // access flag
 
-    mapping(int256 => int256) public how; // adjustment multiplier when pulling toward tpr
+    mapping(int256 => int256) public how; // adjustment multiplier when pulling towards tpr
 
     PipLike  public pip;
     MaiLike  public tkn;
+    JugLike  public jug;
     SpotLike public spot;
 
     constructor(
@@ -64,9 +71,10 @@ contract Vox is LibNote, Exp {
       uint256 tpr_
     ) public {
         wards[msg.sender] = 1;
+        tpr = tpr_;
+        span = 10 ** 27;
         tkn = MaiLike(tkn_);
         spot = SpotLike(spot_);
-        tpr = tpr_;
         live = 1;
     }
 
@@ -74,12 +82,14 @@ contract Vox is LibNote, Exp {
     function file(bytes32 what, address addr) external note auth {
         require(live == 1, "Vox/not-live");
         if (what == "pip") pip = PipLike(addr);
+        else if (what == "jug") jug = JugLike(addr);
         else if (what == "spot") spot = SpotLike(addr);
         else revert("Vox/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 val) external note auth {
         require(live == 1, "Vox/not-live");
         if (what == "trim") trim = val;
+        else if (what == "span") span = val;
         else revert("Vox/file-unrecognized-param");
     }
     function file(bytes32 what, int256 side, int256 val) external note auth {
@@ -130,8 +140,8 @@ contract Vox is LibNote, Exp {
     function mul(int x, uint y) internal pure returns (int z) {
         require(y == 0 || (z = x * int(y)) / int(y) == x);
     }
-    function rdiv(uint x, uint y) internal pure returns (uint z) {
-        z = add(mul(x, RAY), y / 2) / y;
+    function div(uint x, uint y) internal pure returns (uint z) {
+        return x / y;
     }
 
     // --- Utils ---
@@ -147,12 +157,25 @@ contract Vox is LibNote, Exp {
     function prj(uint256 x, uint256 y) internal pure returns (uint256 z) {
         return y + delt(x, y);
     }
-    function adj(uint val) public view returns (uint256) {
+    function inj(uint256 x, uint256 y) internal view returns (uint256 z) {
+        return y + div(mul(delt(x, y), RAY), span);
+    }
+    function adj(uint val) public view returns (uint256, uint256) {
         int way_ = way(val, tpr);
+
         (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
-        uint adj = (raw * RAY) / (2 ** precision);
-        adj = (way_ == 1) ? adj : tpr - sub(adj, tpr);
-        return adj;
+        uint sf = (raw * RAY) / (2 ** precision);
+        sf = (way_ == 1) ? sf : tpr - sub(sf, tpr);
+
+        (raw, precision) = pow(inj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
+        uint msr = (raw * RAY) / (2 ** precision);
+        msr = (way_ == 1) ? msr : tpr - sub(msr, tpr);
+
+        if (way_ == 1) {
+          return (msr, sf);
+        }
+
+        return (sf, msr);
     }
 
     // --- Feedback Mechanism ---
@@ -160,24 +183,29 @@ contract Vox is LibNote, Exp {
         require(live == 1, "Vox/not-live");
         require(sub(era(), age) > 0, "Vox/optimized");
         (bytes32 val, bool has) = pip.peek();
-        require(uint(val) != mpr, "Vox/same-mpr");
+        uint msr; uint sf;
         if (has) {
           uint dev = delt(mul(uint(val), 10 ** 9), tpr);
           if (dev >= trim) {
-            pull(adj(mul(uint(val), 10 ** 9)));
+            (msr, sf) = adj(mul(uint(val), 10 ** 9));
+            pull(msr, sf);
           }
           else {
             uint par = spot.par();
             if (par != tpr) {
-              pull(adj(par));
+              (msr, sf) = adj(par);
+              pull(msr, sf);
             }
           }
           mpr = mul(uint(val), 10 ** 9);
           age = era();
         }
     }
-    function pull(uint msr) internal note {
+    function pull(uint msr, uint sf) internal note {
         tkn.drip();
         tkn.file("msr", msr);
+
+        jug.drip();
+        jug.file("base", sf);
     }
 }

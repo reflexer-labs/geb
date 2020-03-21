@@ -1,3 +1,16 @@
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 pragma solidity ^0.5.15;
 
 import "./lib.sol";
@@ -30,6 +43,8 @@ contract Jug is LibNote {
     VatLike                  public vat;
     address                  public vow;
     uint256                  public base;
+
+    bytes32[] public bank;
 
     // --- Init ---
     constructor(address vat_) public {
@@ -82,6 +97,7 @@ contract Jug is LibNote {
         require(i.duty == 0, "Jug/ilk-already-init");
         i.duty = RAY;
         i.rho  = now;
+        bank.push(ilk);
     }
     function file(bytes32 ilk, bytes32 what, uint data) external note auth {
         require(now == ilks[ilk].rho, "Jug/rho-not-updated");
@@ -98,7 +114,13 @@ contract Jug is LibNote {
     }
 
     // --- Stability Fee Collection ---
-    function drip(bytes32 ilk) external note returns (uint rate) {
+    function drip() external note {
+        for (uint i = 0; i < bank.length; i++) {
+            if (now >= ilks[bank[i]].rho) {drip(bank[i]);}
+        }
+    }
+
+    function drip(bytes32 ilk) public note returns (uint rate) {
         require(now >= ilks[ilk].rho, "Jug/invalid-now");
         (, uint prev) = vat.ilks(ilk);
         rate = rmul(rpow(add(base, ilks[ilk].duty), now - ilks[ilk].rho, RAY), prev);

@@ -23,6 +23,7 @@ import "ds-token/token.sol";
 
 import {Mai} from "../mai.sol";
 import {Vat} from '../vat.sol';
+import {Jug} from "../jug.sol";
 import {Vow} from '../vow.sol';
 import {Vox} from '../vox.sol';
 import {GemJoin} from '../join.sol';
@@ -39,7 +40,7 @@ contract Feed {
     function poke(uint256 val_) external {
         val = bytes32(val_);
     }
-    function peek() external returns (bytes32, bool) {
+    function peek() external view returns (bytes32, bool) {
         return (val, has);
     }
 }
@@ -51,6 +52,7 @@ contract Hevm {
 contract VoxTest is DSTest {
     Vat     vat;
     Spotter spot;
+    Jug jug;
     Vox vox;
     Feed stableFeed;
 
@@ -63,6 +65,8 @@ contract VoxTest is DSTest {
 
     address user;
     address self;
+
+    uint constant SPY = 31536000;
 
     function ray(uint wad) internal pure returns (uint) {
         return wad * 10 ** 9;
@@ -79,6 +83,12 @@ contract VoxTest is DSTest {
         vat = new Vat();
         spot = new Spotter(address(vat));
         vat.rely(address(spot));
+
+        jug = new Jug(address(vat));
+        vat.rely(address(jug));
+        jug.init("gold");
+        jug.file("gold", "duty", 0);
+        jug.file("base", ray(1 ether));
 
         gold = new DSToken("GEM");
         gold.mint(1000 ether);
@@ -101,10 +111,13 @@ contract VoxTest is DSTest {
 
         token = createToken();
         stableFeed = new Feed(1 ether, true);
+
         vox = new Vox(address(token), address(spot), 10 ** 27);
         vox.file("pip", address(stableFeed));
+        vox.file("jug", address(jug));
         vox.file("trim", 5 * 10 ** 24);
         token.rely(address(vox));
+        jug.rely(address(vox));
 
         spot.rely(address(token));
         vat.rely(address(token));
@@ -153,9 +166,11 @@ contract VoxTest is DSTest {
         assertEq(vox.tpr(), ray(1 ether));
         assertEq(spot.par(), vox.tpr());
         assertEq(token.msr(), 1000000000158153903837946258);
-        hevm.warp(now + 31536000 seconds);
+        assertEq(jug.base(), 1000000000158153903837946258);
+        hevm.warp(now + SPY * 1 seconds);
         assertTrue(now > token.rho());
         token.drip();
+        jug.drip();
         assertEq(spot.par(), 1004999999999999999993941765);
     }
 
@@ -167,16 +182,47 @@ contract VoxTest is DSTest {
         assertEq(vox.tpr(), ray(1 ether));
         assertEq(spot.par(), vox.tpr());
         assertEq(token.msr(), 999999999841846096162053742);
-        hevm.warp(now + 31536000 seconds);
+        assertEq(jug.base(), 999999999841846096162053742);
+        hevm.warp(now + SPY * 1 seconds);
         assertTrue(now > token.rho());
         token.drip();
+        jug.drip();
         assertEq(spot.par(), 995024875621105672471661507);
+    }
+
+    function testRateSpread() public {
+        vox.file("span", ray(2 ether));
+
+        stableFeed.poke(0.995 ether);
+        vox.back();
+
+        assertEq(spot.par(), vox.tpr());
+        assertEq(token.msr(), 1000000000079175551708715275);
+        assertEq(jug.base(), 1000000000158153903837946258);
+        hevm.warp(now + SPY * 1 seconds);
+
+        token.drip();
+        jug.drip();
+
+        assertEq(spot.par(), 1002499999999999999998720538);
+
+        stableFeed.poke(1.005 ether);
+        vox.back();
+
+        assertEq(token.msr(), 999999999841846096162053742);
+        assertEq(jug.base(), 999999999920824448291284725);
+
+        hevm.warp(now + SPY * 1 seconds);
+        token.drip();
+        jug.drip();
+
+        assertEq(spot.par(), 997512437810158436651567564);
     }
 
     function testBackPositivePar() public {
         stableFeed.poke(0.995 ether);
         vox.back();
-        hevm.warp(now + 31536000 seconds);
+        hevm.warp(now + SPY * 1 seconds);
         token.drip();
         stableFeed.poke(1 ether);
         vox.back();
@@ -185,16 +231,18 @@ contract VoxTest is DSTest {
         assertEq(vox.tpr(), ray(1 ether));
         assertEq(spot.par(), 1004999999999999999993941765);
         assertEq(token.msr(), 999999999841846096162053743);
-        hevm.warp(now + 31536000 seconds);
+        assertEq(jug.base(), 999999999841846096162053743);
+        hevm.warp(now + SPY * 1 seconds);
         assertTrue(now > token.rho());
         token.drip();
+        jug.drip();
         assertEq(spot.par(), 999999999999211200859527677);
     }
 
     function testBackNegativePar() public {
         stableFeed.poke(1.005 ether);
         vox.back();
-        hevm.warp(now + 31536000 seconds);
+        hevm.warp(now + SPY * 1 seconds);
         token.drip();
         stableFeed.poke(1 ether);
         vox.back();
@@ -203,9 +251,11 @@ contract VoxTest is DSTest {
         assertEq(vox.tpr(), ray(1 ether));
         assertEq(spot.par(), 995024875621105672471661507);
         assertEq(token.msr(), 1000000000157369017735302294);
-        hevm.warp(now + 31536000 seconds);
+        assertEq(jug.base(), 1000000000157369017735302294);
+        hevm.warp(now + SPY * 1 seconds);
         assertTrue(now > token.rho());
         token.drip();
+        jug.drip();
         assertEq(spot.par(), 999975248137414531327262378);
     }
 
@@ -215,18 +265,22 @@ contract VoxTest is DSTest {
 
         stableFeed.poke(1.005 ether);
         vox.back();
-        hevm.warp(now + 31536000 seconds);
+        hevm.warp(now + SPY * 1 seconds);
         token.drip();
+        jug.drip();
 
         assertEq(spot.par(), 995023931239465677276119760);
         assertEq(token.msr(), 999999999841816000271692096);
+        assertEq(jug.base(), 999999999841816000271692096);
 
         stableFeed.poke(0.995 ether);
         vox.back();
-        hevm.warp(now + 31536000 seconds);
+        hevm.warp(now + SPY * 1 seconds);
         token.drip();
+        jug.drip();
 
         assertEq(spot.par(), 999999999999210900609744205);
         assertEq(token.msr(), 1000000000158183999728307904);
+        assertEq(jug.base(), 1000000000158183999728307904);
     }
 }

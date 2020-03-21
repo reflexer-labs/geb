@@ -215,7 +215,6 @@ contract Mai is LibNote {
 
     // --- Enter and Exit ---
     function mint(address usr, uint wad) external auth {
-        if (now > rho) {drip();}
         balanceOf[usr] = add(balanceOf[usr], wad);
         totalSupply    = add(totalSupply, wad);
         emit Transfer(address(0), usr, wad);
@@ -226,7 +225,6 @@ contract Mai is LibNote {
             require(allowance[usr][msg.sender] >= wad, "Mai/insufficient-allowance");
             allowance[usr][msg.sender] = sub(allowance[usr][msg.sender], wad);
         }
-        if (now > rho) {drip();}
         balanceOf[usr] = sub(balanceOf[usr], wad);
         totalSupply    = sub(totalSupply, wad);
         emit Transfer(usr, address(0), wad);
