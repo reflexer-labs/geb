@@ -254,7 +254,7 @@ contract Vat {
         if (v.art == 0 && dart > 0) {
           open[ilk][dst] = block.number;
         } else if (both(-int(dart) == int(v.art), v.art > 0)) {
-          if (close > 0) require(block.number - open[ilk][dst] >= FLASH, "Vat/too-early-to-close");
+          if (close > 0) require(sub(block.number, open[ilk][dst]) >= FLASH, "Vat/too-early-to-close");
           open[ilk][dst] = 0;
         }
 

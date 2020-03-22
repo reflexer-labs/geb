@@ -22,7 +22,6 @@ contract SpotLike {
     function par() external view returns (uint256);
     function file(bytes32,uint256) external;
 }
-
 contract VatLike {
     function suck(address,address,int256) external;
 }

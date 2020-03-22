@@ -23,13 +23,14 @@ contract VatLike {
     function move(address,address,int) external;
     function flux(bytes32,address,address,uint) external;
 }
-
 contract SpotLike {
     function par() public returns (uint256);
 }
-
 contract FeedLike {
     function peek() external returns (bytes32, bool);
+}
+contract CareLike {
+    function ping(bytes32,uint) external;
 }
 
 /*
@@ -69,8 +70,9 @@ contract Flipper is LibNote {
 
     mapping (uint => Bid) public bids;
 
-    VatLike public   vat;
-    bytes32 public   ilk;
+    VatLike  public   vat;
+    CareLike public  care;
+    bytes32  public   ilk;
 
     uint256 constant ONE = 1.00E18;
     uint256 public   beg = 1.05E18;  // 5% minimum bid increase
@@ -126,6 +128,7 @@ contract Flipper is LibNote {
     function file(bytes32 what, address data) external note auth {
         if (what == "spot") spot = SpotLike(data);
         else if (what == "feed") feed = FeedLike(data);
+        else if (what == "care") care = CareLike(data);
         else revert("Flipper/file-unrecognized-param");
     }
 
@@ -200,6 +203,9 @@ contract Flipper is LibNote {
     function deal(uint id) external note {
         require(bids[id].tic != 0 && (bids[id].tic < now || bids[id].end < now), "Flipper/not-finished");
         vat.flux(ilk, address(this), bids[id].guy, bids[id].lot);
+        if (address(care) != address(0)) {
+          care.ping("flip", id);
+        }
         delete bids[id];
     }
 
@@ -208,6 +214,9 @@ contract Flipper is LibNote {
         require(bids[id].bid < bids[id].tab, "Flipper/already-dent-phase");
         vat.flux(ilk, address(this), msg.sender, bids[id].lot);
         vat.move(msg.sender, bids[id].guy, int(bids[id].bid));
+        if (address(care) != address(0)) {
+          care.ping("flip", id);
+        }
         delete bids[id];
     }
 }
