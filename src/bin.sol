@@ -18,6 +18,7 @@
 pragma solidity ^0.5.15;
 
 import "./lib.sol";
+import {IERC20} from "./dex/kyber.sol";
 
 contract UniLike {
     function tokenToTokenInputRate(

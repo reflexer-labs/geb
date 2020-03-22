@@ -180,7 +180,7 @@ contract Vox1 is Vox {
     }
 
     // --- Utils ---
-    function adj(uint val) public view returns (uint256, uint256) {
+    function adj(uint val) internal view returns (uint256, uint256) {
         int way_ = way(val, tpr);
 
         (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
@@ -230,6 +230,19 @@ contract Vox2 is Vox {
 
     uint256 constant public MAX = 2 ** 255;
 
+    constructor(
+      address tkn_,
+      address spot_,
+      uint256 tpr_
+    ) public {
+        wards[msg.sender] = 1;
+        tpr = tpr_;
+        span = 10 ** 27;
+        tkn = MaiLike(tkn_);
+        spot = SpotLike(spot_);
+        live = 1;
+    }
+
     // --- Administration ---
     function file(bytes32 what, uint256 val) external note auth {
         require(live == 1, "Vox/not-live");
@@ -242,7 +255,7 @@ contract Vox2 is Vox {
     }
 
     // --- Utils ---
-    function adj(uint val) public view returns (uint256, uint256) {
+    function adj(uint val) internal view returns (uint256, uint256) {
         int way_ = way(val, tpr);
 
         (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
@@ -290,6 +303,19 @@ contract Vox2 is Vox {
 
 // --- TRFM that doesn't force par to go back to tpr ---
 contract Vox3 is Vox {
+    constructor(
+      address tkn_,
+      address spot_,
+      uint256 tpr_
+    ) public {
+        wards[msg.sender] = 1;
+        tpr = tpr_;
+        span = 10 ** 27;
+        tkn = MaiLike(tkn_);
+        spot = SpotLike(spot_);
+        live = 1;
+    }
+
     // --- Administration ---
     function file(bytes32 what, uint256 val) external note auth {
         require(live == 1, "Vox/not-live");
@@ -300,7 +326,7 @@ contract Vox3 is Vox {
     }
 
     // --- Utils ---
-    function adj(uint val) public view returns (uint256, uint256) {
+    function adj(uint val) internal view returns (uint256, uint256) {
         int way_ = way(val, tpr);
 
         (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
@@ -329,6 +355,121 @@ contract Vox3 is Vox {
           if (dev >= trim) {
             (msr, sf) = adj(mul(uint(val), SUP));
             pull(msr, sf);
+          }
+          mpr = mul(uint(val), SUP);
+          age = era();
+        }
+    }
+}
+
+// --- TRFM that doesn't force par back to tpr AND applies a weight on the current rates ---
+contract Vox4 is Vox {
+    uint256 public hike; // weight applied to current rates if deviation is kept constantly positive/negative
+    uint256 public bowl; // accrued time since the deviation has been positive/negative
+    int256  public path; // latest type of deviation (positive/negative)
+
+    constructor(
+      address tkn_,
+      address spot_,
+      uint256 tpr_
+    ) public {
+        wards[msg.sender] = 1;
+        tpr = tpr_;
+        span = 10 ** 27;
+        hike = 10 ** 27;
+        tkn = MaiLike(tkn_);
+        spot = SpotLike(spot_);
+        live = 1;
+    }
+
+    // --- Administration ---
+    function file(bytes32 what, uint256 val) external note auth {
+        require(live == 1, "Vox/not-live");
+        if (what == "trim") trim = val;
+        else if (what == "span") span = val;
+        else if (what == "rest") rest = val;
+        else if (what == "hike") {
+          require(hike >= RAY, "Vox/invalid-hike");
+          hike = val;
+        }
+        else revert("Vox/file-unrecognized-param");
+    }
+
+    // --- Math ---
+    function rmul(uint x, uint y) internal pure returns (uint z) {
+        // always rounds down
+        z = mul(x, y) / RAY;
+    }
+    function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
+        assembly {
+            switch x case 0 {switch n case 0 {z := base} default {z := 0}}
+            default {
+                switch mod(n, 2) case 0 { z := base } default { z := x }
+                let half := div(base, 2)  // for rounding.
+                for { n := div(n, 2) } n { n := div(n,2) } {
+                    let xx := mul(x, x)
+                    if iszero(eq(div(xx, x), x)) { revert(0,0) }
+                    let xxRound := add(xx, half)
+                    if lt(xxRound, xx) { revert(0,0) }
+                    x := div(xxRound, base)
+                    if mod(n,2) {
+                        let zx := mul(z, x)
+                        if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
+                        let zxRound := add(zx, half)
+                        if lt(zxRound, zx) { revert(0,0) }
+                        z := div(zxRound, base)
+                    }
+                }
+            }
+        }
+    }
+
+    // --- Utils ---
+    function grab(uint x) internal {
+        bowl = add(bowl, x);
+    }
+    function wipe() internal {
+        bowl = 0;
+        path = 0;
+    }
+    function rash() internal {
+        bowl = 0;
+        path = -path;
+    }
+    function adj(uint val, int way) internal view returns (uint256, uint256) {
+        uint drop = (bowl == 0) ? val : rmul(rpow(hike, bowl, RAY), val);
+
+        (uint raw, uint precision) = pow(prj(drop, tpr), RAY, 1, uint32(add(uint(SPY), how[way])));
+        uint sf = (raw * RAY) / (2 ** precision);
+        sf = (way == 1) ? sf : tpr - sub(sf, tpr);
+
+        (raw, precision) = pow(inj(drop, tpr), RAY, 1, uint32(add(uint(SPY), how[way])));
+        uint msr = (raw * RAY) / (2 ** precision);
+        msr = (way == 1) ? msr : tpr - sub(msr, tpr);
+
+        if (way == 1) {
+          (sf, msr) = (msr, sf);
+        }
+
+        return (sf, msr);
+    }
+
+    // --- Feedback Mechanism ---
+    function back() external note {
+        require(live == 1, "Vox/not-live");
+        uint gap = sub(era(), age);
+        require(gap > rest, "Vox/optimized");
+        (bytes32 val, bool has) = pip.peek();
+        uint msr; uint sf;
+        if (has) {
+          uint dev = delt(mul(uint(val), SUP), tpr);
+          int way_ = way(uint256(val), tpr);
+          if (dev >= trim) {
+            (way_ == path) ? grab(gap) : rash();
+            (msr, sf) = adj(mul(uint(val), SUP), way_);
+            pull(msr, sf);
+          } else {
+            wipe();
           }
           mpr = mul(uint(val), SUP);
           age = era();
