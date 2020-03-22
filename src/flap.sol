@@ -110,7 +110,7 @@ contract Flapper is LibNote {
         }
     }
 
-    // --- Auction ---
+    // --- Buyout ---
     function kick(uint lot) external auth returns (uint id) {
         require(live == 1, "Flapper/not-live");
         require(kicks < uint(-1), "Flapper/overflow");
