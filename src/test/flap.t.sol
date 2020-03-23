@@ -26,7 +26,7 @@ contract FlapTest is DSTest {
         vat = new Vat();
         gem = new DSToken('');
 
-        flap = new Flapper(address(vat), address(gem));
+        flap = new Flapper(address(vat));
 
         vat.hope(address(flap));
         gem.approve(address(flap));

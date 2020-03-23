@@ -21,7 +21,7 @@ contract Uni is LibNote {
         address sell,
         address buy,
         uint256 wad
-    ) external returns (uint256, uint256) {
+    ) external view returns (uint256, uint256) {
         uint core = UniLike(sell).getTokenToEthInputPrice(wad);
         uint gem = UniLike(buy).getEthToTokenInputPrice(core);
         return (core, gem);
@@ -31,7 +31,7 @@ contract Uni is LibNote {
         address sell,
         address buy,
         uint256 wad
-    ) external returns (uint256, uint256) {
+    ) external view returns (uint256, uint256) {
         uint core = UniLike(buy).getTokenToEthInputPrice(wad);
         uint gem = UniLike(sell).getEthToTokenInputPrice(core);
         return (core, gem);

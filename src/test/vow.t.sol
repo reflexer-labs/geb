@@ -35,7 +35,8 @@ contract VowTest is DSTest {
 
         gov  = new Gem();
         flop = new Flop(address(vat), address(gov));
-        flap = new Flap(address(vat), address(gov));
+        flap = new Flap(address(vat));
+        //TODO: add gov and bond to flapper
 
         vow = new Vow(address(vat), address(flap), address(flop));
         flap.rely(address(vow));
@@ -107,7 +108,7 @@ contract VowTest is DSTest {
     }
 
     function test_change_flap_flop() public {
-        Flap newFlap = new Flap(address(vat), address(gov));
+        Flap newFlap = new Flap(address(vat));
         Flop newFlop = new Flop(address(vat), address(gov));
 
         newFlap.rely(address(vow));

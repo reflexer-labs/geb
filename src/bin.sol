@@ -25,12 +25,12 @@ contract UniLike {
         address sell,
         address buy,
         uint256 wad
-    ) external returns (uint256, uint256);
+    ) external view returns (uint256, uint256);
     function tokenToTokenOutputRate(
         address sell,
         address buy,
         uint256 wad
-    ) external returns (uint256, uint256);
+    ) external view returns (uint256, uint256);
     function tokenToTokenTransferInput(
         address sold_token,
         uint256 tokens_sold,

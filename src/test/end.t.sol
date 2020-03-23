@@ -228,7 +228,7 @@ contract EndTest is DSTest {
         vat = new Vat();
         DSToken gov = new DSToken('GOV');
 
-        flap = new Flapper(address(vat), address(gov));
+        flap = new Flapper(address(vat));
         flop = new Flopper(address(vat), address(gov));
         gov.setOwner(address(flop));
 
