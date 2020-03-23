@@ -30,6 +30,7 @@ contract PipLike {
 contract MaiLike {
     function file(bytes32, uint256) external;
     function drip() public returns (uint);
+    function rho() public view returns (uint);
 }
 
 contract SpotLike {
@@ -38,6 +39,7 @@ contract SpotLike {
 
 contract JugLike {
     function file(bytes32, uint) external;
+    function late() external view returns (bool);
     function drip() external;
 }
 
@@ -64,8 +66,11 @@ contract Vox is LibNote, Exp {
     uint256 public fury; // whether we force par to go back to tpr or not
     uint256 public live; // access flag
 
-    uint256 public up   = 2 ** 255; // upper per-second bound for sf
-    uint256 public down = 2 ** 255; // bottom per-second bound for sf
+    uint256 public dawn; // default per-second sf                                                             [ray]
+    uint256 public dusk; // default per-second msr                                                            [ray]
+
+    uint256 public up;   // upper per-second bound for sf
+    uint256 public down; // bottom per-second bound for sf
 
     PipLike  public pip;
     MaiLike  public tkn;
@@ -80,10 +85,15 @@ contract Vox is LibNote, Exp {
       uint256 tpr_
     ) public {
         wards[msg.sender] = 1;
-        tpr = tpr_;
+        tpr  = tpr_;
+        mpr  = tpr;
         span = 10 ** 27;
         hike = 10 ** 27;
-        tkn = MaiLike(tkn_);
+        dawn = 10 ** 27;
+        dusk = 10 ** 27;
+        up   = 2 ** 255;
+        down = 2 ** 255;
+        tkn  = MaiLike(tkn_);
         spot = SpotLike(spot_);
         live = 1;
     }
@@ -101,6 +111,12 @@ contract Vox is LibNote, Exp {
         if (what == "trim") trim = val;
         else if (what == "span") span = val;
         else if (what == "rest") rest = val;
+        else if (what == "dawn") {
+          dawn = val;
+        }
+        else if (what == "dusk") {
+          dusk = val;
+        }
         else if (what == "fury") {
           require(val <= 1, "Vox/invalid-fury");
           fury = val;
@@ -114,10 +130,12 @@ contract Vox is LibNote, Exp {
         }
         else if (what == "up") {
           require(val >= RAY, "Vox/invalid-up");
+          if (down != MAX) require(val > down, "Vox/small-up");
           up = val;
         }
         else if (what == "down") {
           require(val <= RAY, "Vox/invalid-down");
+          if (up != MAX) require(val < up, "Vox/big-down");
           down = val;
         }
         else revert("Vox/file-unrecognized-param");
@@ -221,64 +239,61 @@ contract Vox is LibNote, Exp {
         bowl = 0;
         path = 0;
     }
-    function rash() internal {
-        bowl = 0;
-        path = -path;
+    function rash(int way_) internal {
+        path = (path == 0) ? way_ : -path;
     }
-    function adj(uint val, int way_) internal view returns (uint256, uint256) {
+    function adj(uint val, int way_) public view returns (uint256, uint256) {
         uint drop = (bowl == 0) ? val : rmul(rpow(hike, bowl, RAY), val);
 
         (uint raw, uint precision) = pow(prj(drop, tpr), RAY, 1, SPY);
-        uint sf = (raw * RAY) / (2 ** precision);
-        sf = (way_ == 1) ? sf : sub(tpr, sub(sf, tpr));
+        uint sf_ = (raw * RAY) / (2 ** precision);
+        sf_ = (way_ == 1) ? sf_ : tpr - sub(sf_, tpr);
 
         (raw, precision) = pow(inj(drop, tpr), RAY, 1, SPY);
-        uint msr = (raw * RAY) / (2 ** precision);
-        msr = (way_ == 1) ? msr : tpr - sub(msr, tpr);
+        uint msr_ = (raw * RAY) / (2 ** precision);
+        msr_ = (way_ == 1) ? msr_ : tpr - sub(msr_, tpr);
 
-        if (way_ == 1) {
-          (sf, msr) = (msr, sf);
+        if (way_ == -1) {
+          (sf_, msr_) = (msr_, sf_);
         }
 
-        sf = (sf < down && down != MAX) ? down : sf;
-        sf = (sf > up && up != MAX)     ? up : sf;
+        sf_ = (sf_ < down && down != MAX) ? down : sf_;
+        sf_ = (sf_ > up && up != MAX)     ? up : sf_;
 
-        return (sf, msr);
+        return (sf_, msr_);
     }
 
     // --- Feedback Mechanism ---
     function back() external note {
         require(live == 1, "Vox/not-live");
+        require(both(tkn.rho() == now, jug.late() == false), "Vox/not-dripped");
         uint gap = sub(era(), age);
-        require(gap > rest, "Vox/optimized");
+        require(gap >= rest, "Vox/optimized");
         (bytes32 val, bool has) = pip.peek();
-        uint msr; uint sf;
+        uint sf; uint msr;
         if (has) {
           uint dev = delt(mul(uint(val), SUP), tpr);
           int way_ = way(mul(uint(val), SUP), tpr);
           if (dev >= trim) {
-            (way_ == path) ? grab(gap) : rash();
-            (msr, sf) = adj(mul(uint(val), SUP), way_);
-            pull(msr, sf);
+            (way_ == path) ? grab(gap) : rash(way_);
+            (sf, msr) = adj(mul(uint(val), SUP), way_);
+            pull(sf, msr);
           } else {
             wipe();
             uint par = spot.par();
             if (both(both(fury == 1, par != tpr), way(par, tpr) == way_)) {
-              (msr, sf) = adj(par, way_);
-              pull(msr, sf);
+              (sf, msr) = adj(par, way_);
+              pull(sf, msr);
+            } else {
+              pull(dawn, dusk);
             }
           }
           mpr = mul(uint(val), SUP);
           age = era();
         }
     }
-
-    // --- Rate Setter ---
-    function pull(uint msr, uint sf) internal note {
-        tkn.drip();
+    function pull(uint sf, uint msr) internal note {
         tkn.file("msr", msr);
-
-        jug.drip();
         jug.file("base", sf);
     }
 }

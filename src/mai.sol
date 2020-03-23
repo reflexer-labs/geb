@@ -149,11 +149,11 @@ contract Mai is LibNote {
         require(now >= rho, "Mai/invalid-now");
         uint par = spot.par();
         tmp = rmul(rpow(msr, now - rho, RAY), par);
-        spot.file("par", tmp);
         rho = now;
         uint par_ = (msr <= RAY) ? sub(par, tmp) : sub(tmp, par);
-        int vol = (msr <= RAY) ? -int(mul(totalSupply, par_)) : int(mul(totalSupply, par_));
+        int vol   = (msr <= RAY) ? -int(mul(totalSupply, par_)) : int(mul(totalSupply, par_));
         vat.suck(address(vow), address(this), vol);
+        spot.file("par", tmp);
     }
 
     // --- Token ---

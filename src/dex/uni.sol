@@ -2,7 +2,7 @@ pragma solidity ^0.5.15;
 
 import "../lib.sol";
 
-contract UniLike {
+contract UniOneLike {
     // Get Prices
     function getEthToTokenInputPrice(uint256 eth_sold) external view returns (uint256 tokens_bought);
     function getEthToTokenOutputPrice(uint256 tokens_bought) external view returns (uint256 eth_sold);
@@ -15,15 +15,15 @@ contract UniLike {
     function tokenToTokenTransferOutput(uint256 tokens_bought, uint256 max_tokens_sold, uint256 max_eth_sold, uint256 deadline, address recipient, address token_addr) external returns (uint256  tokens_sold);
 }
 
-contract Uni is LibNote {
+contract UniOne is LibNote {
     // --- Swapping ---
     function tokenToTokenInputRate(
         address sell,
         address buy,
         uint256 wad
     ) external view returns (uint256, uint256) {
-        uint core = UniLike(sell).getTokenToEthInputPrice(wad);
-        uint gem = UniLike(buy).getEthToTokenInputPrice(core);
+        uint core = UniOneLike(sell).getTokenToEthInputPrice(wad);
+        uint gem = UniOneLike(buy).getEthToTokenInputPrice(core);
         return (core, gem);
     }
 
@@ -32,8 +32,8 @@ contract Uni is LibNote {
         address buy,
         uint256 wad
     ) external view returns (uint256, uint256) {
-        uint core = UniLike(buy).getTokenToEthInputPrice(wad);
-        uint gem = UniLike(sell).getEthToTokenInputPrice(core);
+        uint core = UniOneLike(buy).getTokenToEthInputPrice(wad);
+        uint gem = UniOneLike(sell).getEthToTokenInputPrice(core);
         return (core, gem);
     }
 
@@ -45,7 +45,7 @@ contract Uni is LibNote {
         uint256 deadline,
         address recipient,
         address bought_token) external returns (uint256) {
-        UniLike(sold_token).tokenToTokenTransferInput(
+        UniOneLike(sold_token).tokenToTokenTransferInput(
           tokens_sold,
           min_tokens_bought,
           min_eth_bought,
@@ -63,7 +63,7 @@ contract Uni is LibNote {
         uint256 deadline,
         address recipient,
         address bought_token) external returns (uint256) {
-        UniLike(sold_token).tokenToTokenTransferInput(
+        UniOneLike(sold_token).tokenToTokenTransferInput(
           tokens_bought,
           max_tokens_sold,
           max_eth_sold,

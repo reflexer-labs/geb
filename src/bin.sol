@@ -20,7 +20,7 @@ pragma solidity ^0.5.15;
 import "./lib.sol";
 import {ERC20} from "./dex/kyber.sol";
 
-contract UniLike {
+contract UniOneLike {
     function tokenToTokenInputRate(
         address sell,
         address buy,
@@ -88,7 +88,7 @@ contract Bin is LibNote {
     }
 
     KyberLike   public kyber;
-    UniLike     public uni;
+    UniOneLike     public uni;
 
     uint256 public slip;
     uint256 public live;
@@ -102,7 +102,7 @@ contract Bin is LibNote {
       address src_,
       address dst_
     ) public {
-        uni = UniLike(uni_);
+        uni = UniOneLike(uni_);
         kyber = KyberLike(kyber_);
         live = 1;
     }
@@ -111,7 +111,7 @@ contract Bin is LibNote {
     function file(bytes32 what, address addr) external note auth {
         require(live == 1, "Bin/not-live");
         require(addr != address(0), "Bin/null-addr");
-        if (what == "uni") uni = UniLike(addr);
+        if (what == "uni") uni = UniOneLike(addr);
         else if (what == "kyber") kyber = KyberLike(addr);
         else revert("Bin/file-unrecognized-param");
     }
