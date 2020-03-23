@@ -23,51 +23,51 @@
 pragma solidity ^0.5.15;
 
 interface ERC20 {
-    function totalSupply() public view returns (uint supply);
-    function balanceOf(address _owner) public view returns (uint balance);
-    function transfer(address _to, uint _value) public returns (bool success);
-    function transferFrom(address _from, address _to, uint _value) public returns (bool success);
-    function approve(address _spender, uint _value) public returns (bool success);
-    function allowance(address _owner, address _spender) public view returns (uint remaining);
-    function decimals() public view returns(uint digits);
+    function totalSupply() external view returns (uint supply);
+    function balanceOf(address _owner) external view returns (uint balance);
+    function transfer(address _to, uint _value) external returns (bool success);
+    function transferFrom(address _from, address _to, uint _value) external returns (bool success);
+    function approve(address _spender, uint _value) external returns (bool success);
+    function allowance(address _owner, address _spender) external view returns (uint remaining);
+    function decimals() external view returns(uint digits);
     event Approval(address indexed _owner, address indexed _spender, uint _value);
 }
 
 /// @title Kyber Network interface
 interface KyberNetworkInterface {
-    function maxGasPrice() public view returns(uint);
-    function getUserCapInWei(address user) public view returns(uint);
-    function getUserCapInTokenWei(address user, ERC20 token) public view returns(uint);
-    function enabled() public view returns(bool);
-    function info(bytes32 id) public view returns(uint);
+    function maxGasPrice() external view returns(uint);
+    function getUserCapInWei(address user) external view returns(uint);
+    function getUserCapInTokenWei(address user, ERC20 token) external view returns(uint);
+    function enabled() external view returns(bool);
+    function info(bytes32 id) external view returns(uint);
 
-    function getExpectedRate(ERC20 src, ERC20 dest, uint srcQty) public view
+    function getExpectedRate(ERC20 src, ERC20 dest, uint srcQty) external view
         returns (uint expectedRate, uint slippageRate);
 
     function tradeWithHint(address trader, ERC20 src, uint srcAmount, ERC20 dest, address destAddress,
-        uint maxDestAmount, uint minConversionRate, address walletId, bytes memory hint) public payable returns(uint);
+        uint maxDestAmount, uint minConversionRate, address walletId, bytes calldata hint) external payable returns(uint);
 }
 
 /// @title Kyber Network interface
 interface KyberNetworkProxyInterface {
-    function maxGasPrice() public view returns(uint);
-    function getUserCapInWei(address user) public view returns(uint);
-    function getUserCapInTokenWei(address user, ERC20 token) public view returns(uint);
-    function enabled() public view returns(bool);
-    function info(bytes32 id) public view returns(uint);
+    function maxGasPrice() external view returns(uint);
+    function getUserCapInWei(address user) external view returns(uint);
+    function getUserCapInTokenWei(address user, ERC20 token) external view returns(uint);
+    function enabled() external view returns(bool);
+    function info(bytes32 id) external view returns(uint);
 
-    function getExpectedRate(ERC20 src, ERC20 dest, uint srcQty) public view
+    function getExpectedRate(ERC20 src, ERC20 dest, uint srcQty) external view
         returns (uint expectedRate, uint slippageRate);
 
     function tradeWithHint(ERC20 src, uint srcAmount, ERC20 dest, address destAddress, uint maxDestAmount,
-        uint minConversionRate, address walletId, bytes memory hint) public payable returns(uint);
+        uint minConversionRate, address walletId, bytes calldata hint) external payable returns(uint);
 }
 
 /// @title simple interface for Kyber Network
 interface SimpleNetworkInterface {
-    function swapTokenToToken(ERC20 src, uint srcAmount, ERC20 dest, uint minConversionRate) public returns(uint);
-    function swapEtherToToken(ERC20 token, uint minConversionRate) public payable returns(uint);
-    function swapTokenToEther(ERC20 token, uint srcAmount, uint minConversionRate) public returns(uint);
+    function swapTokenToToken(ERC20 src, uint srcAmount, ERC20 dest, uint minConversionRate) external returns(uint);
+    function swapEtherToToken(ERC20 token, uint minConversionRate) external payable returns(uint);
+    function swapTokenToEther(ERC20 token, uint srcAmount, uint minConversionRate) external returns(uint);
 }
 
 /// @title Kyber constants contract
@@ -82,13 +82,13 @@ contract Utils {
     mapping(address=>uint) internal decimals;
 
     function setDecimals(ERC20 token) internal {
-        if (token == ETH_TOKEN_ADDRESS) decimals[token] = ETH_DECIMALS;
-        else decimals[token] = token.decimals();
+        if (token == ETH_TOKEN_ADDRESS) decimals[address(token)] = ETH_DECIMALS;
+        else decimals[address(token)] = token.decimals();
     }
 
     function getDecimals(ERC20 token) internal view returns(uint) {
         if (token == ETH_TOKEN_ADDRESS) return ETH_DECIMALS; // save storage access
-        uint tokenDecimals = decimals[token];
+        uint tokenDecimals = decimals[address(token)];
         // technically, there might be token with decimals 0
         // moreover, very possible that old tokens have decimals 0
         // these tokens will just have higher gas fees.
@@ -144,11 +144,11 @@ contract Utils2 is Utils {
 
     function getDecimalsSafe(ERC20 token) internal returns(uint) {
 
-        if (decimals[token] == 0) {
+        if (decimals[address(token)] == 0) {
             setDecimals(token);
         }
 
-        return decimals[token];
+        return decimals[address(token)];
     }
 
     function calcDestAmount(ERC20 src, ERC20 dest, uint srcAmount, uint rate) public view returns(uint) {
@@ -185,7 +185,7 @@ contract PermissionGroups {
     address[] internal alertersGroup;
     uint constant internal MAX_GROUP_SIZE = 50;
 
-    function PermissionGroups() public {
+    constructor() public {
         admin = msg.sender;
     }
 
@@ -334,7 +334,7 @@ contract KyberNetworkProxy is KyberNetworkProxyInterface, SimpleNetworkInterface
 
     KyberNetworkInterface public kyberNetworkContract;
 
-    function KyberNetworkProxy(address _admin) public {
+    constructor(address _admin) public {
         require(_admin != address(0));
         admin = _admin;
     }
@@ -400,7 +400,7 @@ contract KyberNetworkProxy is KyberNetworkProxyInterface, SimpleNetworkInterface
             msg.sender,
             MAX_QTY,
             minConversionRate,
-            0,
+            address(0),
             hint
         );
     }
@@ -419,7 +419,7 @@ contract KyberNetworkProxy is KyberNetworkProxyInterface, SimpleNetworkInterface
             msg.sender,
             MAX_QTY,
             minConversionRate,
-            0,
+            address(0),
             hint
         );
     }
@@ -439,7 +439,7 @@ contract KyberNetworkProxy is KyberNetworkProxyInterface, SimpleNetworkInterface
             msg.sender,
             MAX_QTY,
             minConversionRate,
-            0,
+            address(0),
             hint
         );
     }
@@ -486,7 +486,7 @@ contract KyberNetworkProxy is KyberNetworkProxyInterface, SimpleNetworkInterface
         if (src == ETH_TOKEN_ADDRESS) {
             userBalanceBefore.srcBalance += msg.value;
         } else {
-            require(src.transferFrom(msg.sender, kyberNetworkContract, srcAmount));
+            require(src.transferFrom(msg.sender, address(kyberNetworkContract), srcAmount));
         }
 
         uint reportedDestAmount = kyberNetworkContract.tradeWithHint.value(msg.value)(

@@ -25,7 +25,7 @@ import {Mai} from "../mai.sol";
 import {Vat} from '../vat.sol';
 import {Jug} from "../jug.sol";
 import {Vow} from '../vow.sol';
-import {Vox1, Vox2} from '../vox.sol';
+import {Vox} from '../vox.sol';
 import {GemJoin} from '../join.sol';
 import {Spotter} from '../spot.sol';
 import {Exp} from "../exp.sol";
@@ -53,7 +53,7 @@ contract VoxTest is DSTest {
     Vat     vat;
     Spotter spot;
     Jug jug;
-    Vox1 vox;
+    Vox vox;
     Feed stableFeed;
 
     GemJoin gemA;
@@ -112,7 +112,7 @@ contract VoxTest is DSTest {
         token = createToken();
         stableFeed = new Feed(1 ether, true);
 
-        vox = new Vox1(address(token), address(spot), 10 ** 27);
+        vox = new Vox(address(token), address(spot), 10 ** 27);
         vox.file("pip", address(stableFeed));
         vox.file("jug", address(jug));
         vox.file("trim", 5 * 10 ** 24);

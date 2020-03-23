@@ -25,7 +25,7 @@ import "ds-token/token.sol";
 import {Vat}  from '../vat.sol';
 import {Cat}  from '../cat.sol';
 import {Vow}  from '../vow.sol';
-import {Vox1}  from '../vox.sol';
+import {Vox}  from '../vox.sol';
 import {Mai}  from '../mai.sol';
 import {Flipper} from '../flip.sol';
 import {Flapper} from '../flap.sol';
@@ -118,7 +118,7 @@ contract EndTest is DSTest {
     End   end;
     Vow   vow;
     Cat   cat;
-    Vox1   vox;
+    Vox   vox;
     Mai   token;
 
     Spotter spot;
@@ -245,7 +245,7 @@ contract EndTest is DSTest {
         vat.rely(address(spot));
 
         token = new Mai(99, address(vat));
-        vox = new Vox1(address(token), address(spot), 10 ** 27);
+        vox = new Vox(address(token), address(spot), 10 ** 27);
 
         end = new End();
         end.file("vat", address(vat));
