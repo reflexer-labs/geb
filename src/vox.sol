@@ -41,7 +41,7 @@ contract JugLike {
     function drip() external;
 }
 
-// --- Base TRFM setup contract that other models inherit from ---
+// --- TRFM that doesn't force par to go back to tpr ---
 contract Vox is LibNote, Exp {
     // --- Auth ---
     mapping (address => uint) public wards;
@@ -52,20 +52,40 @@ contract Vox is LibNote, Exp {
         _;
     }
 
-    uint256 public mpr;  // market price
-    uint256 public tpr;  // target price
+    int256  public path; // latest type of deviation (positive/negative)
+    uint256 public mpr;  // market price                                                                      [ray]
+    uint256 public tpr;  // target price                                                                      [ray]
     uint256 public span; // spread between msr and sf
     uint256 public age;  // when mpr was last updated
-    uint256 public trim; // deviation from tpr at which rates are recalculated
+    uint256 public trim; // deviation from tpr at which rates are recalculated                                [ray]
     uint256 public rest; // minimum time between updates
+    uint256 public hike; // weight applied to current rates if deviation is kept constantly positive/negative [ray]
+    uint256 public bowl; // accrued time since the deviation has been positive/negative
     uint256 public live; // access flag
 
-    mapping(int256 => int256) public how; // adjustment multiplier when pulling towards tpr
+    uint256 public up = 2 ** 255; // upper per-second bound for sf
+    int256  public down = -up;    // bottom per-second bound for sf
 
     PipLike  public pip;
     MaiLike  public tkn;
     JugLike  public jug;
     SpotLike public spot;
+
+    uint256 public constant MAX = 2 ** 255;
+
+    constructor(
+      address tkn_,
+      address spot_,
+      uint256 tpr_
+    ) public {
+        wards[msg.sender] = 1;
+        tpr = tpr_;
+        span = 10 ** 27;
+        hike = 10 ** 27;
+        tkn = MaiLike(tkn_);
+        spot = SpotLike(spot_);
+        live = 1;
+    }
 
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
@@ -75,11 +95,24 @@ contract Vox is LibNote, Exp {
         else if (what == "spot") spot = SpotLike(addr);
         else revert("Vox/file-unrecognized-param");
     }
-    function file(bytes32 what, int256 side, int256 val) external note auth {
+    function file(bytes32 what, uint256 val) external note auth {
         require(live == 1, "Vox/not-live");
-        require(side == -1 || side == 1, "Vox/invalid-side");
-        require(val <= SPY && val >= -SPY, "Vox/val-exceeds-limits");
-        if (what == "how") how[side] = val;
+        if (what == "trim") trim = val;
+        else if (what == "span") span = val;
+        else if (what == "rest") rest = val;
+        else if (what == "hike") {
+          require(hike >= RAY, "Vox/invalid-hike");
+          hike = val;
+        }
+        else if (what == "up") up = val;
+        else revert("Vox/file-unrecognized-param");
+    }
+    function file(bytes32 what, int val) external note auth {
+        require(live == 1, "Vox/not-live");
+        if (what == "down") {
+          require(val <= 0, "Vox/invalid-down");
+          down = val;
+        }
         else revert("Vox/file-unrecognized-param");
     }
     function cage() external note auth {
@@ -127,275 +160,6 @@ contract Vox is LibNote, Exp {
     function div(uint x, uint y) internal pure returns (uint z) {
         return x / y;
     }
-
-    // --- Utils ---
-    function era() internal view returns (uint) {
-        return block.timestamp;
-    }
-    function delt(uint x, uint y) internal pure returns (uint z) {
-        z = (x >= y) ? x - y : y - x;
-    }
-    function way(uint x, uint y) internal view returns (int z) {
-        z = (x >= y) ? int(-1) : int(1);
-    }
-    function prj(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        return y + delt(x, y);
-    }
-    function inj(uint256 x, uint256 y) internal view returns (uint256 z) {
-        return y + div(mul(delt(x, y), RAY), span);
-    }
-
-    // --- Rate Setter ---
-    function pull(uint msr, uint sf) internal note {
-        tkn.drip();
-        tkn.file("msr", msr);
-
-        jug.drip();
-        jug.file("base", sf);
-    }
-}
-
-// --- TRFM that allows both savings rate and stability fee to go negative ---
-contract Vox1 is Vox {
-    constructor(
-      address tkn_,
-      address spot_,
-      uint256 tpr_
-    ) public {
-        wards[msg.sender] = 1;
-        tpr = tpr_;
-        span = 10 ** 27;
-        tkn = MaiLike(tkn_);
-        spot = SpotLike(spot_);
-        live = 1;
-    }
-
-    // --- Administration ---
-    function file(bytes32 what, uint256 val) external note auth {
-        require(live == 1, "Vox/not-live");
-        if (what == "trim") trim = val;
-        else if (what == "span") span = val;
-        else if (what == "rest") rest = val;
-        else revert("Vox/file-unrecognized-param");
-    }
-
-    // --- Utils ---
-    function adj(uint val) internal view returns (uint256, uint256) {
-        int way_ = way(val, tpr);
-
-        (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
-        uint sf = (raw * RAY) / (2 ** precision);
-        sf = (way_ == 1) ? sf : tpr - sub(sf, tpr);
-
-        (raw, precision) = pow(inj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
-        uint msr = (raw * RAY) / (2 ** precision);
-        msr = (way_ == 1) ? msr : tpr - sub(msr, tpr);
-
-        if (way_ == 1) {
-          (sf, msr) = (msr, sf);
-        }
-
-        return (sf, msr);
-    }
-
-    // --- Feedback Mechanism ---
-    function back() external note {
-        require(live == 1, "Vox/not-live");
-        require(sub(era(), age) > rest, "Vox/optimized");
-        (bytes32 val, bool has) = pip.peek();
-        uint msr; uint sf;
-        if (has) {
-          uint dev = delt(mul(uint(val), SUP), tpr);
-          if (dev >= trim) {
-            (msr, sf) = adj(mul(uint(val), SUP));
-            pull(msr, sf);
-          }
-          else {
-            uint par = spot.par();
-            if (par != tpr) {
-              (msr, sf) = adj(par);
-              pull(msr, sf);
-            }
-          }
-          mpr = mul(uint(val), SUP);
-          age = era();
-        }
-    }
-}
-
-// --- TRFM that bounds the stability fee ---
-contract Vox2 is Vox {
-    uint256 public up = 2 ** 255;   // upper per-second bound for sf
-    uint256 public down = 2 ** 255; // bottom per-second bound for sf
-
-    uint256 constant public MAX = 2 ** 255;
-
-    constructor(
-      address tkn_,
-      address spot_,
-      uint256 tpr_
-    ) public {
-        wards[msg.sender] = 1;
-        tpr = tpr_;
-        span = 10 ** 27;
-        tkn = MaiLike(tkn_);
-        spot = SpotLike(spot_);
-        live = 1;
-    }
-
-    // --- Administration ---
-    function file(bytes32 what, uint256 val) external note auth {
-        require(live == 1, "Vox/not-live");
-        if (what == "trim") trim = val;
-        else if (what == "span") span = val;
-        else if (what == "up") up = val;
-        else if (what == "down") down = val;
-        else if (what == "rest") rest = val;
-        else revert("Vox/file-unrecognized-param");
-    }
-
-    // --- Utils ---
-    function adj(uint val) internal view returns (uint256, uint256) {
-        int way_ = way(val, tpr);
-
-        (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
-        uint sf = (raw * RAY) / (2 ** precision);
-        sf = (way_ == 1) ? sf : tpr - sub(sf, tpr);
-
-        (raw, precision) = pow(inj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
-        uint msr = (raw * RAY) / (2 ** precision);
-        msr = (way_ == 1) ? msr : tpr - sub(msr, tpr);
-
-        if (way_ == 1) {
-          (sf, msr) = (msr, sf);
-        }
-
-        sf = (sf < down && down != MAX) ? down : sf;
-        sf = (sf > up && down != MAX)   ? up : sf;
-
-        return (sf, msr);
-    }
-
-    // --- Feedback Mechanism ---
-    function back() external note {
-        require(live == 1, "Vox/not-live");
-        require(sub(era(), age) > rest, "Vox/optimized");
-        (bytes32 val, bool has) = pip.peek();
-        uint msr; uint sf;
-        if (has) {
-          uint dev = delt(mul(uint(val), SUP), tpr);
-          if (dev >= trim) {
-            (msr, sf) = adj(mul(uint(val), SUP));
-            pull(msr, sf);
-          }
-          else {
-            uint par = spot.par();
-            if (par != tpr) {
-              (msr, sf) = adj(par);
-              pull(msr, sf);
-            }
-          }
-          mpr = mul(uint(val), SUP);
-          age = era();
-        }
-    }
-}
-
-// --- TRFM that doesn't force par to go back to tpr ---
-contract Vox3 is Vox {
-    constructor(
-      address tkn_,
-      address spot_,
-      uint256 tpr_
-    ) public {
-        wards[msg.sender] = 1;
-        tpr = tpr_;
-        span = 10 ** 27;
-        tkn = MaiLike(tkn_);
-        spot = SpotLike(spot_);
-        live = 1;
-    }
-
-    // --- Administration ---
-    function file(bytes32 what, uint256 val) external note auth {
-        require(live == 1, "Vox/not-live");
-        if (what == "trim") trim = val;
-        else if (what == "span") span = val;
-        else if (what == "rest") rest = val;
-        else revert("Vox/file-unrecognized-param");
-    }
-
-    // --- Utils ---
-    function adj(uint val) internal view returns (uint256, uint256) {
-        int way_ = way(val, tpr);
-
-        (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
-        uint sf = (raw * RAY) / (2 ** precision);
-        sf = (way_ == 1) ? sf : tpr - sub(sf, tpr);
-
-        (raw, precision) = pow(inj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
-        uint msr = (raw * RAY) / (2 ** precision);
-        msr = (way_ == 1) ? msr : tpr - sub(msr, tpr);
-
-        if (way_ == 1) {
-          (sf, msr) = (msr, sf);
-        }
-
-        return (sf, msr);
-    }
-
-    // --- Feedback Mechanism ---
-    function back() external note {
-        require(live == 1, "Vox/not-live");
-        require(sub(era(), age) > rest, "Vox/optimized");
-        (bytes32 val, bool has) = pip.peek();
-        uint msr; uint sf;
-        if (has) {
-          uint dev = delt(mul(uint(val), SUP), tpr);
-          if (dev >= trim) {
-            (msr, sf) = adj(mul(uint(val), SUP));
-            pull(msr, sf);
-          }
-          mpr = mul(uint(val), SUP);
-          age = era();
-        }
-    }
-}
-
-// --- TRFM that doesn't force par back to tpr AND applies a weight on the current rates ---
-contract Vox4 is Vox {
-    uint256 public hike; // weight applied to current rates if deviation is kept constantly positive/negative
-    uint256 public bowl; // accrued time since the deviation has been positive/negative
-    int256  public path; // latest type of deviation (positive/negative)
-
-    constructor(
-      address tkn_,
-      address spot_,
-      uint256 tpr_
-    ) public {
-        wards[msg.sender] = 1;
-        tpr = tpr_;
-        span = 10 ** 27;
-        hike = 10 ** 27;
-        tkn = MaiLike(tkn_);
-        spot = SpotLike(spot_);
-        live = 1;
-    }
-
-    // --- Administration ---
-    function file(bytes32 what, uint256 val) external note auth {
-        require(live == 1, "Vox/not-live");
-        if (what == "trim") trim = val;
-        else if (what == "span") span = val;
-        else if (what == "rest") rest = val;
-        else if (what == "hike") {
-          require(hike >= RAY, "Vox/invalid-hike");
-          hike = val;
-        }
-        else revert("Vox/file-unrecognized-param");
-    }
-
-    // --- Math ---
     function rmul(uint x, uint y) internal pure returns (uint z) {
         // always rounds down
         z = mul(x, y) / RAY;
@@ -425,6 +189,21 @@ contract Vox4 is Vox {
     }
 
     // --- Utils ---
+    function era() internal view returns (uint) {
+        return block.timestamp;
+    }
+    function delt(uint x, uint y) internal pure returns (uint z) {
+        z = (x >= y) ? x - y : y - x;
+    }
+    function way(uint x, uint y) internal view returns (int z) {
+        z = (x >= y) ? int(-1) : int(1);
+    }
+    function prj(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        return y + delt(x, y);
+    }
+    function inj(uint256 x, uint256 y) internal view returns (uint256 z) {
+        return y + div(mul(delt(x, y), RAY), span);
+    }
     function grab(uint x) internal {
         bowl = add(bowl, x);
     }
@@ -436,20 +215,23 @@ contract Vox4 is Vox {
         bowl = 0;
         path = -path;
     }
-    function adj(uint val, int way) internal view returns (uint256, uint256) {
+    function adj(uint val, int way_) internal view returns (uint256, uint256) {
         uint drop = (bowl == 0) ? val : rmul(rpow(hike, bowl, RAY), val);
 
-        (uint raw, uint precision) = pow(prj(drop, tpr), RAY, 1, uint32(add(uint(SPY), how[way])));
+        (uint raw, uint precision) = pow(prj(drop, tpr), RAY, 1, SPY);
         uint sf = (raw * RAY) / (2 ** precision);
-        sf = (way == 1) ? sf : tpr - sub(sf, tpr);
+        sf = (way_ == 1) ? sf : tpr - sub(sf, tpr);
 
-        (raw, precision) = pow(inj(drop, tpr), RAY, 1, uint32(add(uint(SPY), how[way])));
+        (raw, precision) = pow(inj(drop, tpr), RAY, 1, SPY);
         uint msr = (raw * RAY) / (2 ** precision);
-        msr = (way == 1) ? msr : tpr - sub(msr, tpr);
+        msr = (way_ == 1) ? msr : tpr - sub(msr, tpr);
 
-        if (way == 1) {
+        if (way_ == 1) {
           (sf, msr) = (msr, sf);
         }
+
+        sf = (int(sf) < down && down != int(-MAX)) ? down : sf;
+        sf = (sf > up && up != MAX)                ? up : sf;
 
         return (sf, msr);
     }
@@ -475,4 +257,159 @@ contract Vox4 is Vox {
           age = era();
         }
     }
+
+    // --- Rate Setter ---
+    function pull(uint msr, uint sf) internal note {
+        tkn.drip();
+        tkn.file("msr", msr);
+
+        jug.drip();
+        jug.file("base", sf);
+    }
 }
+
+// // --- TRFM that allows both savings rate and stability fee to go negative ---
+// contract Vox1 is Vox {
+//     constructor(
+//       address tkn_,
+//       address spot_,
+//       uint256 tpr_
+//     ) public {
+//         wards[msg.sender] = 1;
+//         tpr = tpr_;
+//         span = 10 ** 27;
+//         tkn = MaiLike(tkn_);
+//         spot = SpotLike(spot_);
+//         live = 1;
+//     }
+//
+//     // --- Administration ---
+//     function file(bytes32 what, uint256 val) external note auth {
+//         require(live == 1, "Vox/not-live");
+//         if (what == "trim") trim = val;
+//         else if (what == "span") span = val;
+//         else if (what == "rest") rest = val;
+//         else revert("Vox/file-unrecognized-param");
+//     }
+//
+//     // --- Utils ---
+//     function adj(uint val) internal view returns (uint256, uint256) {
+//         int way_ = way(val, tpr);
+//
+//         (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
+//         uint sf = (raw * RAY) / (2 ** precision);
+//         sf = (way_ == 1) ? sf : tpr - sub(sf, tpr);
+//
+//         (raw, precision) = pow(inj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
+//         uint msr = (raw * RAY) / (2 ** precision);
+//         msr = (way_ == 1) ? msr : tpr - sub(msr, tpr);
+//
+//         if (way_ == 1) {
+//           (sf, msr) = (msr, sf);
+//         }
+//
+//         return (sf, msr);
+//     }
+//
+//     // --- Feedback Mechanism ---
+//     function back() external note {
+//         require(live == 1, "Vox/not-live");
+//         require(sub(era(), age) > rest, "Vox/optimized");
+//         (bytes32 val, bool has) = pip.peek();
+//         uint msr; uint sf;
+//         if (has) {
+//           uint dev = delt(mul(uint(val), SUP), tpr);
+//           if (dev >= trim) {
+//             (msr, sf) = adj(mul(uint(val), SUP));
+//             pull(msr, sf);
+//           }
+//           else {
+//             uint par = spot.par();
+//             if (par != tpr) {
+//               (msr, sf) = adj(par);
+//               pull(msr, sf);
+//             }
+//           }
+//           mpr = mul(uint(val), SUP);
+//           age = era();
+//         }
+//     }
+// }
+//
+// // --- TRFM that bounds the stability fee ---
+// contract Vox2 is Vox {
+//     uint256 public up = 2 ** 255;   // upper per-second bound for sf
+//     uint256 public down = 2 ** 255; // bottom per-second bound for sf
+//
+//     uint256 constant public MAX = 2 ** 255;
+//
+//     constructor(
+//       address tkn_,
+//       address spot_,
+//       uint256 tpr_
+//     ) public {
+//         wards[msg.sender] = 1;
+//         tpr = tpr_;
+//         span = 10 ** 27;
+//         tkn = MaiLike(tkn_);
+//         spot = SpotLike(spot_);
+//         live = 1;
+//     }
+//
+//     // --- Administration ---
+//     function file(bytes32 what, uint256 val) external note auth {
+//         require(live == 1, "Vox/not-live");
+//         if (what == "trim") trim = val;
+//         else if (what == "span") span = val;
+//         else if (what == "up") up = val;
+//         else if (what == "down") down = val;
+//         else if (what == "rest") rest = val;
+//         else revert("Vox/file-unrecognized-param");
+//     }
+//
+//     // --- Utils ---
+//     function adj(uint val) internal view returns (uint256, uint256) {
+//         int way_ = way(val, tpr);
+//
+//         (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
+//         uint sf = (raw * RAY) / (2 ** precision);
+//         sf = (way_ == 1) ? sf : tpr - sub(sf, tpr);
+//
+//         (raw, precision) = pow(inj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
+//         uint msr = (raw * RAY) / (2 ** precision);
+//         msr = (way_ == 1) ? msr : tpr - sub(msr, tpr);
+//
+//         if (way_ == 1) {
+//           (sf, msr) = (msr, sf);
+//         }
+//
+//         sf = (sf < down && down != MAX) ? down : sf;
+//         sf = (sf > up && down != MAX)   ? up : sf;
+//
+//         return (sf, msr);
+//     }
+//
+//     // --- Feedback Mechanism ---
+//     function back() external note {
+//         require(live == 1, "Vox/not-live");
+//         require(sub(era(), age) > rest, "Vox/optimized");
+//         (bytes32 val, bool has) = pip.peek();
+//         uint msr; uint sf;
+//         if (has) {
+//           uint dev = delt(mul(uint(val), SUP), tpr);
+//           if (dev >= trim) {
+//             (msr, sf) = adj(mul(uint(val), SUP));
+//             pull(msr, sf);
+//           }
+//           else {
+//             uint par = spot.par();
+//             if (par != tpr) {
+//               (msr, sf) = adj(par);
+//               pull(msr, sf);
+//             }
+//           }
+//           mpr = mul(uint(val), SUP);
+//           age = era();
+//         }
+//     }
+// }
