@@ -22,9 +22,9 @@ contract Uni is LibNote {
         address buy,
         uint256 wad
     ) external returns (uint256, uint256) {
-        uint eth = UniLike(sell).getTokenToEthInputPrice(wad);
-        uint gem = UniLike(buy).getEthToTokenInputPrice(eth);
-        return (eth, gem);
+        uint core = UniLike(sell).getTokenToEthInputPrice(wad);
+        uint gem = UniLike(buy).getEthToTokenInputPrice(core);
+        return (core, gem);
     }
 
     function tokenToTokenOutputRate(
@@ -32,9 +32,9 @@ contract Uni is LibNote {
         address buy,
         uint256 wad
     ) external returns (uint256, uint256) {
-        uint eth = UniLike(buy).getTokenToEthInputPrice(wad);
-        uint gem = UniLike(sell).getEthToTokenInputPrice(eth);
-        return (eth, gem);
+        uint core = UniLike(buy).getTokenToEthInputPrice(wad);
+        uint gem = UniLike(sell).getEthToTokenInputPrice(core);
+        return (core, gem);
     }
 
     function tokenToTokenTransferInput(

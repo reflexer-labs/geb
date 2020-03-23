@@ -1,341 +1,588 @@
+// MIT License
+//
+// Copyright (c) 2017 KyberNetwork
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 pragma solidity ^0.5.15;
 
-/**
- * @title ERC20 interface
- * @dev see https://github.com/ethereum/EIPs/issues/20
- */
-interface IERC20 {
-  function totalSupply() external view returns (uint256);
-
-  function balanceOf(address who) external view returns (uint256);
-
-  function allowance(address owner, address spender)
-    external view returns (uint256);
-
-  function transfer(address to, uint256 value) external returns (bool);
-
-  function approve(address spender, uint256 value)
-    external returns (bool);
-
-  function transferFrom(address from, address to, uint256 value)
-    external returns (bool);
-
-  event Transfer(
-    address indexed from,
-    address indexed to,
-    uint256 value
-  );
-
-  event Approval(
-    address indexed owner,
-    address indexed spender,
-    uint256 value
-  );
+interface ERC20 {
+    function totalSupply() public view returns (uint supply);
+    function balanceOf(address _owner) public view returns (uint balance);
+    function transfer(address _to, uint _value) public returns (bool success);
+    function transferFrom(address _from, address _to, uint _value) public returns (bool success);
+    function approve(address _spender, uint _value) public returns (bool success);
+    function allowance(address _owner, address _spender) public view returns (uint remaining);
+    function decimals() public view returns(uint digits);
+    event Approval(address indexed _owner, address indexed _spender, uint _value);
 }
 
-/**
- * @title SafeMath
- * @dev Math operations with safety checks that revert on error
- */
-library SafeMath {
+/// @title Kyber Network interface
+interface KyberNetworkInterface {
+    function maxGasPrice() public view returns(uint);
+    function getUserCapInWei(address user) public view returns(uint);
+    function getUserCapInTokenWei(address user, ERC20 token) public view returns(uint);
+    function enabled() public view returns(bool);
+    function info(bytes32 id) public view returns(uint);
 
-  /**
-  * @dev Multiplies two numbers, reverts on overflow.
-  */
-  function mul(uint256 a, uint256 b) internal pure returns (uint256) {
-    // Gas optimization: this is cheaper than requiring 'a' not being zero, but the
-    // benefit is lost if 'b' is also tested.
-    // See: https://github.com/OpenZeppelin/openzeppelin-solidity/pull/522
-    if (a == 0) {
-      return 0;
+    function getExpectedRate(ERC20 src, ERC20 dest, uint srcQty) public view
+        returns (uint expectedRate, uint slippageRate);
+
+    function tradeWithHint(address trader, ERC20 src, uint srcAmount, ERC20 dest, address destAddress,
+        uint maxDestAmount, uint minConversionRate, address walletId, bytes memory hint) public payable returns(uint);
+}
+
+/// @title Kyber Network interface
+interface KyberNetworkProxyInterface {
+    function maxGasPrice() public view returns(uint);
+    function getUserCapInWei(address user) public view returns(uint);
+    function getUserCapInTokenWei(address user, ERC20 token) public view returns(uint);
+    function enabled() public view returns(bool);
+    function info(bytes32 id) public view returns(uint);
+
+    function getExpectedRate(ERC20 src, ERC20 dest, uint srcQty) public view
+        returns (uint expectedRate, uint slippageRate);
+
+    function tradeWithHint(ERC20 src, uint srcAmount, ERC20 dest, address destAddress, uint maxDestAmount,
+        uint minConversionRate, address walletId, bytes memory hint) public payable returns(uint);
+}
+
+/// @title simple interface for Kyber Network
+interface SimpleNetworkInterface {
+    function swapTokenToToken(ERC20 src, uint srcAmount, ERC20 dest, uint minConversionRate) public returns(uint);
+    function swapEtherToToken(ERC20 token, uint minConversionRate) public payable returns(uint);
+    function swapTokenToEther(ERC20 token, uint srcAmount, uint minConversionRate) public returns(uint);
+}
+
+/// @title Kyber constants contract
+contract Utils {
+
+    ERC20 constant internal ETH_TOKEN_ADDRESS = ERC20(0x00eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee);
+    uint  constant internal PRECISION = (10**18);
+    uint  constant internal MAX_QTY   = (10**28); // 10B tokens
+    uint  constant internal MAX_RATE  = (PRECISION * 10**6); // up to 1M tokens per ETH
+    uint  constant internal MAX_DECIMALS = 18;
+    uint  constant internal ETH_DECIMALS = 18;
+    mapping(address=>uint) internal decimals;
+
+    function setDecimals(ERC20 token) internal {
+        if (token == ETH_TOKEN_ADDRESS) decimals[token] = ETH_DECIMALS;
+        else decimals[token] = token.decimals();
     }
 
-    uint256 c = a * b;
-    require(c / a == b);
+    function getDecimals(ERC20 token) internal view returns(uint) {
+        if (token == ETH_TOKEN_ADDRESS) return ETH_DECIMALS; // save storage access
+        uint tokenDecimals = decimals[token];
+        // technically, there might be token with decimals 0
+        // moreover, very possible that old tokens have decimals 0
+        // these tokens will just have higher gas fees.
+        if(tokenDecimals == 0) return token.decimals();
 
-    return c;
-  }
+        return tokenDecimals;
+    }
 
-  /**
-  * @dev Integer division of two numbers truncating the quotient, reverts on division by zero.
-  */
-  function div(uint256 a, uint256 b) internal pure returns (uint256) {
-    require(b > 0); // Solidity only automatically asserts when dividing by 0
-    uint256 c = a / b;
-    // assert(a == b * c + a % b); // There is no case in which this doesn't hold
+    function calcDstQty(uint srcQty, uint srcDecimals, uint dstDecimals, uint rate) internal pure returns(uint) {
+        require(srcQty <= MAX_QTY);
+        require(rate <= MAX_RATE);
 
-    return c;
-  }
+        if (dstDecimals >= srcDecimals) {
+            require((dstDecimals - srcDecimals) <= MAX_DECIMALS);
+            return (srcQty * rate * (10**(dstDecimals - srcDecimals))) / PRECISION;
+        } else {
+            require((srcDecimals - dstDecimals) <= MAX_DECIMALS);
+            return (srcQty * rate) / (PRECISION * (10**(srcDecimals - dstDecimals)));
+        }
+    }
 
-  /**
-  * @dev Subtracts two numbers, reverts on overflow (i.e. if subtrahend is greater than minuend).
-  */
-  function sub(uint256 a, uint256 b) internal pure returns (uint256) {
-    require(b <= a);
-    uint256 c = a - b;
+    function calcSrcQty(uint dstQty, uint srcDecimals, uint dstDecimals, uint rate) internal pure returns(uint) {
+        require(dstQty <= MAX_QTY);
+        require(rate <= MAX_RATE);
 
-    return c;
-  }
-
-  /**
-  * @dev Adds two numbers, reverts on overflow.
-  */
-  function add(uint256 a, uint256 b) internal pure returns (uint256) {
-    uint256 c = a + b;
-    require(c >= a);
-
-    return c;
-  }
-
-  /**
-  * @dev Divides two numbers and returns the remainder (unsigned integer modulo),
-  * reverts when dividing by zero.
-  */
-  function mod(uint256 a, uint256 b) internal pure returns (uint256) {
-    require(b != 0);
-    return a % b;
-  }
+        //source quantity is rounded up. to avoid dest quantity being too low.
+        uint numerator;
+        uint denominator;
+        if (srcDecimals >= dstDecimals) {
+            require((srcDecimals - dstDecimals) <= MAX_DECIMALS);
+            numerator = (PRECISION * dstQty * (10**(srcDecimals - dstDecimals)));
+            denominator = rate;
+        } else {
+            require((dstDecimals - srcDecimals) <= MAX_DECIMALS);
+            numerator = (PRECISION * dstQty);
+            denominator = (rate * (10**(dstDecimals - srcDecimals)));
+        }
+        return (numerator + denominator - 1) / denominator; //avoid rounding down errors
+    }
 }
 
-contract ITokenConverter {
-    using SafeMath for uint256;
+contract Utils2 is Utils {
 
-    /**
-    * @dev Makes a simple ERC20 -> ERC20 token trade
-    * @param _srcToken - IERC20 token
-    * @param _destToken - IERC20 token
-    * @param _srcAmount - uint256 amount to be converted
-    * @param _destAmount - uint256 amount to get after conversion
-    * @return uint256 for the change. 0 if there is no change
-    */
-    function convert(
-        IERC20 _srcToken,
-        IERC20 _destToken,
-        uint256 _srcAmount,
-        uint256 _destAmount
-        ) external returns (uint256);
+    /// @dev get the balance of a user.
+    /// @param token The token type
+    /// @return The balance
+    function getBalance(ERC20 token, address user) public view returns(uint) {
+        if (token == ETH_TOKEN_ADDRESS)
+            return user.balance;
+        else
+            return token.balanceOf(user);
+    }
 
-    /**
-    * @dev Get exchange rate and slippage rate.
-    * Note that these returned values are in 18 decimals regardless of the destination token's decimals.
-    * @param _srcToken - IERC20 token
-    * @param _destToken - IERC20 token
-    * @param _srcAmount - uint256 amount to be converted
-    * @return uint256 of the expected rate
-    * @return uint256 of the slippage rate
-    */
-    function getExpectedRate(IERC20 _srcToken, IERC20 _destToken, uint256 _srcAmount)
-        public view returns(uint256 expectedRate, uint256 slippageRate);
-}
+    function getDecimalsSafe(ERC20 token) internal returns(uint) {
 
-contract IKyberNetwork {
-    function trade(
-        IERC20 _srcToken,
-        uint _srcAmount,
-        IERC20 _destToken,
-        address _destAddress,
-        uint _maxDestAmount,
-        uint _minConversionRate,
-        address _walletId
-        )
-        public payable returns(uint);
-
-    function getExpectedRate(IERC20 _srcToken, IERC20 _destToken, uint _srcAmount)
-        public view returns(uint expectedRate, uint slippageRate);
-}
-
-/**
-* @dev Library to perform safe calls to standard method for ERC20 tokens.
-* Transfers : transfer methods could have a return value (bool), revert for insufficient funds or
-* unathorized value.
-*
-* Approve: approve method could has a return value (bool) or does not accept 0 as a valid value (BNB token).
-* The common strategy used to clean approvals.
-*/
-library SafeERC20 {
-    /**
-    * @dev Transfer token for a specified address
-    * @param _token erc20 The address of the ERC20 contract
-    * @param _to address The address which you want to transfer to
-    * @param _value uint256 the _value of tokens to be transferred
-    */
-    function safeTransfer(IERC20 _token, address _to, uint256 _value) internal returns (bool) {
-        uint256 prevBalance = _token.balanceOf(address(this));
-
-        require(prevBalance >= _value, "Insufficient funds");
-
-        (bool success, ) = address(_token).call(
-            abi.encodeWithSignature("transfer(address,uint256)", _to, _value)
-        );
-
-        if (!success) {
-            return false;
+        if (decimals[token] == 0) {
+            setDecimals(token);
         }
 
-        require(prevBalance - _value == _token.balanceOf(address(this)), "Transfer failed");
-
-        return true;
+        return decimals[token];
     }
 
-    /**
-    * @dev Transfer tokens from one address to another
-    * @param _token erc20 The address of the ERC20 contract
-    * @param _from address The address which you want to send tokens from
-    * @param _to address The address which you want to transfer to
-    * @param _value uint256 the _value of tokens to be transferred
-    */
-    function safeTransferFrom(
-        IERC20 _token,
-        address _from,
-        address _to,
-        uint256 _value
-    ) internal returns (bool)
+    function calcDestAmount(ERC20 src, ERC20 dest, uint srcAmount, uint rate) public view returns(uint) {
+        return calcDstQty(srcAmount, getDecimals(src), getDecimals(dest), rate);
+    }
+
+    function calcSrcAmount(ERC20 src, ERC20 dest, uint destAmount, uint rate) public view returns(uint) {
+        return calcSrcQty(destAmount, getDecimals(src), getDecimals(dest), rate);
+    }
+
+    function calcRateFromQty(uint srcAmount, uint destAmount, uint srcDecimals, uint dstDecimals)
+        internal pure returns(uint)
     {
-        uint256 prevBalance = _token.balanceOf(_from);
+        require(srcAmount <= MAX_QTY);
+        require(destAmount <= MAX_QTY);
 
-        require(prevBalance >= _value, "Insufficient funds");
-        require(_token.allowance(_from, address(this)) >= _value, "Insufficient allowance");
-
-        (bool success, ) = address(_token).call(
-            abi.encodeWithSignature("transferFrom(address,address,uint256)", _from, _to, _value)
-        );
-
-        if (!success) {
-            return false;
+        if (dstDecimals >= srcDecimals) {
+            require((dstDecimals - srcDecimals) <= MAX_DECIMALS);
+            return (destAmount * PRECISION / ((10 ** (dstDecimals - srcDecimals)) * srcAmount));
+        } else {
+            require((srcDecimals - dstDecimals) <= MAX_DECIMALS);
+            return (destAmount * PRECISION * (10 ** (srcDecimals - dstDecimals)) / srcAmount);
         }
+    }
+}
 
-        require(prevBalance - _value == _token.balanceOf(_from), "Transfer failed");
+contract PermissionGroups {
 
-        return true;
+    address public admin;
+    address public pendingAdmin;
+    mapping(address=>bool) internal operators;
+    mapping(address=>bool) internal alerters;
+    address[] internal operatorsGroup;
+    address[] internal alertersGroup;
+    uint constant internal MAX_GROUP_SIZE = 50;
+
+    function PermissionGroups() public {
+        admin = msg.sender;
     }
 
-   /**
-   * @dev Approve the passed address to spend the specified amount of tokens on behalf of msg.sender.
-   *
-   * Beware that changing an allowance with this method brings the risk that someone may use both the old
-   * and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this
-   * race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards:
-   * https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729
-   *
-   * @param _token erc20 The address of the ERC20 contract
-   * @param _spender The address which will spend the funds.
-   * @param _value The amount of tokens to be spent.
-   */
-    function safeApprove(IERC20 _token, address _spender, uint256 _value) internal returns (bool) {
-        (bool success, ) = address(_token).call(
-            abi.encodeWithSignature("approve(address,uint256)",_spender, _value)
-        );
-
-        if (!success) {
-            return false;
-        }
-
-        require(_token.allowance(address(this), _spender) == _value, "Approve failed");
-
-        return true;
+    modifier onlyAdmin() {
+        require(msg.sender == admin);
+        _;
     }
 
-   /**
-   * @dev Clear approval
-   * Note that if 0 is not a valid value it will be set to 1.
-   * @param _token erc20 The address of the ERC20 contract
-   * @param _spender The address which will spend the funds.
-   */
-    function clearApprove(IERC20 _token, address _spender) internal returns (bool) {
-        bool success = safeApprove(_token, _spender, 0);
+    modifier onlyOperator() {
+        require(operators[msg.sender]);
+        _;
+    }
 
-        if (!success) {
-            return safeApprove(_token, _spender, 1);
+    modifier onlyAlerter() {
+        require(alerters[msg.sender]);
+        _;
+    }
+
+    function getOperators () external view returns(address[] memory) {
+        return operatorsGroup;
+    }
+
+    function getAlerters () external view returns(address[] memory) {
+        return alertersGroup;
+    }
+
+    event TransferAdminPending(address pendingAdmin);
+
+    /**
+     * @dev Allows the current admin to set the pendingAdmin address.
+     * @param newAdmin The address to transfer ownership to.
+     */
+    function transferAdmin(address newAdmin) public onlyAdmin {
+        require(newAdmin != address(0));
+        emit TransferAdminPending(pendingAdmin);
+        pendingAdmin = newAdmin;
+    }
+
+    /**
+     * @dev Allows the current admin to set the admin in one tx. Useful initial deployment.
+     * @param newAdmin The address to transfer ownership to.
+     */
+    function transferAdminQuickly(address newAdmin) public onlyAdmin {
+        require(newAdmin != address(0));
+        emit TransferAdminPending(newAdmin);
+        emit AdminClaimed(newAdmin, admin);
+        admin = newAdmin;
+    }
+
+    event AdminClaimed( address newAdmin, address previousAdmin);
+
+    /**
+     * @dev Allows the pendingAdmin address to finalize the change admin process.
+     */
+    function claimAdmin() public {
+        require(pendingAdmin == msg.sender);
+        emit AdminClaimed(pendingAdmin, admin);
+        admin = pendingAdmin;
+        pendingAdmin = address(0);
+    }
+
+    event AlerterAdded (address newAlerter, bool isAdd);
+
+    function addAlerter(address newAlerter) public onlyAdmin {
+        require(!alerters[newAlerter]); // prevent duplicates.
+        require(alertersGroup.length < MAX_GROUP_SIZE);
+
+        emit AlerterAdded(newAlerter, true);
+        alerters[newAlerter] = true;
+        alertersGroup.push(newAlerter);
+    }
+
+    function removeAlerter (address alerter) public onlyAdmin {
+        require(alerters[alerter]);
+        alerters[alerter] = false;
+
+        for (uint i = 0; i < alertersGroup.length; ++i) {
+            if (alertersGroup[i] == alerter) {
+                alertersGroup[i] = alertersGroup[alertersGroup.length - 1];
+                alertersGroup.length--;
+                emit AlerterAdded(alerter, false);
+                break;
+            }
         }
+    }
 
-        return true;
+    event OperatorAdded(address newOperator, bool isAdd);
+
+    function addOperator(address newOperator) public onlyAdmin {
+        require(!operators[newOperator]); // prevent duplicates.
+        require(operatorsGroup.length < MAX_GROUP_SIZE);
+
+        emit OperatorAdded(newOperator, true);
+        operators[newOperator] = true;
+        operatorsGroup.push(newOperator);
+    }
+
+    function removeOperator (address operator) public onlyAdmin {
+        require(operators[operator]);
+        operators[operator] = false;
+
+        for (uint i = 0; i < operatorsGroup.length; ++i) {
+            if (operatorsGroup[i] == operator) {
+                operatorsGroup[i] = operatorsGroup[operatorsGroup.length - 1];
+                operatorsGroup.length -= 1;
+                emit OperatorAdded(operator, false);
+                break;
+            }
+        }
     }
 }
 
 /**
-* @dev Contract to encapsulate Kyber methods which implements ITokenConverter.
-* Note that need to create it with a valid kyber address
-*/
-contract Kyber is ITokenConverter {
-    using SafeERC20 for IERC20;
+ * @title Contracts that should be able to recover tokens or ethers
+ * @author Ilan Doron
+ * @dev This allows to recover any tokens or Ethers received in a contract.
+ * This will prevent any accidental loss of tokens.
+ */
+contract Withdrawable is PermissionGroups {
 
-    IKyberNetwork public kyber;
+    event TokenWithdraw(ERC20 token, uint amount, address sendTo);
 
-    constructor (IKyberNetwork _kyber) public {
-        kyber = _kyber;
+    /**
+     * @dev Withdraw all ERC20 compatible tokens
+     * @param token ERC20 The address of the token contract
+     */
+    function withdrawToken(ERC20 token, uint amount, address sendTo) external onlyAdmin {
+        require(token.transfer(sendTo, amount));
+        emit TokenWithdraw(token, amount, sendTo);
     }
 
-    function convert(
-        IERC20 _srcToken,
-        IERC20 _destToken,
-        uint256 _srcAmount,
-        uint256 _destAmount,
+    event EtherWithdraw(uint amount, address sendTo);
+
+    /**
+     * @dev Withdraw Ethers
+     */
+    function withdrawEther(uint amount, address sendTo) external onlyAdmin {
+        address(uint160(sendTo)).transfer(amount);
+        emit EtherWithdraw(amount, sendTo);
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// @title Kyber Network proxy for main contract
+contract KyberNetworkProxy is KyberNetworkProxyInterface, SimpleNetworkInterface, Withdrawable, Utils2 {
+
+    KyberNetworkInterface public kyberNetworkContract;
+
+    function KyberNetworkProxy(address _admin) public {
+        require(_admin != address(0));
+        admin = _admin;
+    }
+
+    /// @notice use token address ETH_TOKEN_ADDRESS for ether
+    /// @dev makes a trade between src and dest token and send dest token to destAddress
+    /// @param src Src token
+    /// @param srcAmount amount of src tokens
+    /// @param dest   Destination token
+    /// @param destAddress Address to send tokens to
+    /// @param maxDestAmount A limit on the amount of dest tokens
+    /// @param minConversionRate The minimal conversion rate. If actual rate is lower, trade is canceled.
+    /// @param walletId is the wallet ID to send part of the fees
+    /// @return amount of actual dest tokens
+    function trade(
+        ERC20 src,
+        uint srcAmount,
+        ERC20 dest,
+        address destAddress,
+        uint maxDestAmount,
+        uint minConversionRate,
         address walletId
     )
-    external returns (uint256)
+        public
+        payable
+        returns(uint)
     {
-        // Save prev src token balance
-        uint256 prevSrcBalance = _srcToken.balanceOf(address(this));
+        bytes memory hint;
 
-        // Transfer tokens to be converted from msg.sender to this contract
-        require(
-            _srcToken.safeTransferFrom(msg.sender, address(this), _srcAmount),
-            "Could not transfer _srcToken to this contract"
+        return tradeWithHint(
+            src,
+            srcAmount,
+            dest,
+            destAddress,
+            maxDestAmount,
+            minConversionRate,
+            walletId,
+            hint
         );
-
-        // Approve Kyber to use _srcToken on belhalf of this contract
-        require(
-            _srcToken.safeApprove(address(kyber), _srcAmount),
-            "Could not approve kyber to use _srcToken on behalf of this contract"
-        );
-
-        // Trade _srcAmount from _srcToken to _destToken
-        // Note that minConversionRate is set to 0 cause we want the lower rate possible
-        uint256 amount = kyber.trade(
-            _srcToken,
-            _srcAmount,
-            _destToken,
-            address(this),
-            _destAmount,
-            0,
-            walletId
-        );
-
-        // Clean kyber to use _srcTokens on belhalf of this contract
-        require(
-            _srcToken.clearApprove(address(kyber)),
-            "Could not clear approval of kyber to use _srcToken on behalf of this contract"
-        );
-
-        // Check if the amount traded is equal to the expected one
-        require(amount == _destAmount, "Amount bought is not equal to dest amount");
-
-        // Return the change of src token
-        uint256 change = _srcToken.balanceOf(address(this)).sub(prevSrcBalance);
-
-        if (change > 0) {
-            require(
-                _srcToken.safeTransfer(msg.sender, change),
-                "Could not transfer change to sender"
-            );
-        }
-
-
-        // Transfer amount of _destTokens to msg.sender
-        require(
-            _destToken.safeTransfer(msg.sender, amount),
-            "Could not transfer amount of _destToken to msg.sender"
-        );
-
-        return change;
     }
 
-    function getExpectedRate(IERC20 _srcToken, IERC20 _destToken, uint256 _srcAmount)
-    public view returns(uint256 expectedRate, uint256 slippageRate)
+    /// @dev makes a trade between src and dest token and send dest tokens to msg sender
+    /// @param src Src token
+    /// @param srcAmount amount of src tokens
+    /// @param dest Destination token
+    /// @param minConversionRate The minimal conversion rate. If actual rate is lower, trade is canceled.
+    /// @return amount of actual dest tokens
+    function swapTokenToToken(
+        ERC20 src,
+        uint srcAmount,
+        ERC20 dest,
+        uint minConversionRate
+    )
+        public
+        returns(uint)
     {
-        (expectedRate, slippageRate) = kyber.getExpectedRate(_srcToken, _destToken, _srcAmount);
-        if (expectedRate == 0) {
-            (expectedRate, slippageRate) = kyber.getExpectedRate(_srcToken, _destToken, 1);
+        bytes memory hint;
+
+        return tradeWithHint(
+            src,
+            srcAmount,
+            dest,
+            msg.sender,
+            MAX_QTY,
+            minConversionRate,
+            0,
+            hint
+        );
+    }
+
+    /// @dev makes a trade from Ether to token. Sends token to msg sender
+    /// @param token Destination token
+    /// @param minConversionRate The minimal conversion rate. If actual rate is lower, trade is canceled.
+    /// @return amount of actual dest tokens
+    function swapEtherToToken(ERC20 token, uint minConversionRate) public payable returns(uint) {
+        bytes memory hint;
+
+        return tradeWithHint(
+            ETH_TOKEN_ADDRESS,
+            msg.value,
+            token,
+            msg.sender,
+            MAX_QTY,
+            minConversionRate,
+            0,
+            hint
+        );
+    }
+
+    /// @dev makes a trade from token to Ether, sends Ether to msg sender
+    /// @param token Src token
+    /// @param srcAmount amount of src tokens
+    /// @param minConversionRate The minimal conversion rate. If actual rate is lower, trade is canceled.
+    /// @return amount of actual dest tokens
+    function swapTokenToEther(ERC20 token, uint srcAmount, uint minConversionRate) public returns(uint) {
+        bytes memory hint;
+
+        return tradeWithHint(
+            token,
+            srcAmount,
+            ETH_TOKEN_ADDRESS,
+            msg.sender,
+            MAX_QTY,
+            minConversionRate,
+            0,
+            hint
+        );
+    }
+
+    struct UserBalance {
+        uint srcBalance;
+        uint destBalance;
+    }
+
+    event ExecuteTrade(address indexed trader, ERC20 src, ERC20 dest, uint actualSrcAmount, uint actualDestAmount);
+
+    /// @notice use token address ETH_TOKEN_ADDRESS for ether
+    /// @dev makes a trade between src and dest token and send dest token to destAddress
+    /// @param src Src token
+    /// @param srcAmount amount of src tokens
+    /// @param dest Destination token
+    /// @param destAddress Address to send tokens to
+    /// @param maxDestAmount A limit on the amount of dest tokens
+    /// @param minConversionRate The minimal conversion rate. If actual rate is lower, trade is canceled.
+    /// @param walletId is the wallet ID to send part of the fees
+    /// @param hint will give hints for the trade.
+    /// @return amount of actual dest tokens
+    function tradeWithHint(
+        ERC20 src,
+        uint srcAmount,
+        ERC20 dest,
+        address destAddress,
+        uint maxDestAmount,
+        uint minConversionRate,
+        address walletId,
+        bytes memory hint
+    )
+        public
+        payable
+        returns(uint)
+    {
+        require(src == ETH_TOKEN_ADDRESS || msg.value == 0);
+
+        UserBalance memory userBalanceBefore;
+
+        userBalanceBefore.srcBalance = getBalance(src, msg.sender);
+        userBalanceBefore.destBalance = getBalance(dest, destAddress);
+
+        if (src == ETH_TOKEN_ADDRESS) {
+            userBalanceBefore.srcBalance += msg.value;
+        } else {
+            require(src.transferFrom(msg.sender, kyberNetworkContract, srcAmount));
         }
+
+        uint reportedDestAmount = kyberNetworkContract.tradeWithHint.value(msg.value)(
+            msg.sender,
+            src,
+            srcAmount,
+            dest,
+            destAddress,
+            maxDestAmount,
+            minConversionRate,
+            walletId,
+            hint
+        );
+
+        TradeOutcome memory tradeOutcome = calculateTradeOutcome(
+            userBalanceBefore.srcBalance,
+            userBalanceBefore.destBalance,
+            src,
+            dest,
+            destAddress
+        );
+
+        require(reportedDestAmount == tradeOutcome.userDeltaDestAmount);
+        require(tradeOutcome.userDeltaDestAmount <= maxDestAmount);
+        require(tradeOutcome.actualRate >= minConversionRate);
+
+        emit ExecuteTrade(msg.sender, src, dest, tradeOutcome.userDeltaSrcAmount, tradeOutcome.userDeltaDestAmount);
+        return tradeOutcome.userDeltaDestAmount;
+    }
+
+    event KyberNetworkSet(address newNetworkContract, address oldNetworkContract);
+
+    function setKyberNetworkContract(KyberNetworkInterface _kyberNetworkContract) public onlyAdmin {
+
+        require(address(_kyberNetworkContract) != address(0));
+
+        emit KyberNetworkSet(address(_kyberNetworkContract), address(kyberNetworkContract));
+
+        kyberNetworkContract = _kyberNetworkContract;
+    }
+
+    function getExpectedRate(ERC20 src, ERC20 dest, uint srcQty)
+        public view
+        returns(uint expectedRate, uint slippageRate)
+    {
+        return kyberNetworkContract.getExpectedRate(src, dest, srcQty);
+    }
+
+    function getUserCapInWei(address user) public view returns(uint) {
+        return kyberNetworkContract.getUserCapInWei(user);
+    }
+
+    function getUserCapInTokenWei(address user, ERC20 token) public view returns(uint) {
+        return kyberNetworkContract.getUserCapInTokenWei(user, token);
+    }
+
+    function maxGasPrice() public view returns(uint) {
+        return kyberNetworkContract.maxGasPrice();
+    }
+
+    function enabled() public view returns(bool) {
+        return kyberNetworkContract.enabled();
+    }
+
+    function info(bytes32 field) public view returns(uint) {
+        return kyberNetworkContract.info(field);
+    }
+
+    struct TradeOutcome {
+        uint userDeltaSrcAmount;
+        uint userDeltaDestAmount;
+        uint actualRate;
+    }
+
+    function calculateTradeOutcome (uint srcBalanceBefore, uint destBalanceBefore, ERC20 src, ERC20 dest,
+        address destAddress)
+        internal returns(TradeOutcome memory outcome)
+    {
+        uint userSrcBalanceAfter;
+        uint userDestBalanceAfter;
+
+        userSrcBalanceAfter = getBalance(src, msg.sender);
+        userDestBalanceAfter = getBalance(dest, destAddress);
+
+        //protect from underflow
+        require(userDestBalanceAfter > destBalanceBefore);
+        require(srcBalanceBefore > userSrcBalanceAfter);
+
+        outcome.userDeltaDestAmount = userDestBalanceAfter - destBalanceBefore;
+        outcome.userDeltaSrcAmount = srcBalanceBefore - userSrcBalanceAfter;
+
+        outcome.actualRate = calcRateFromQty(
+                outcome.userDeltaSrcAmount,
+                outcome.userDeltaDestAmount,
+                getDecimalsSafe(src),
+                getDecimalsSafe(dest)
+            );
     }
 }

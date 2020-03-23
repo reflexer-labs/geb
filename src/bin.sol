@@ -18,7 +18,7 @@
 pragma solidity ^0.5.15;
 
 import "./lib.sol";
-import {IERC20} from "./dex/kyber.sol";
+import {ERC20} from "./dex/kyber.sol";
 
 contract UniLike {
     function tokenToTokenInputRate(
@@ -50,15 +50,31 @@ contract UniLike {
 }
 
 contract KyberLike {
-    function getExpectedRate(IERC20 _srcToken, IERC20 _destToken, uint256 _srcAmount)
-      public view returns(uint256 expectedRate, uint256 slippageRate);
-    function convert(
-        IERC20 _srcToken,
-        IERC20 _destToken,
-        uint256 _srcAmount,
-        uint256 _destAmount,
+    function calcDestAmount(ERC20 src, ERC20 dest, uint srcAmount, uint rate) public view returns (uint);
+    function calcSrcAmount(ERC20 src, ERC20 dest, uint destAmount, uint rate) public view returns (uint);
+    function getExpectedRate(ERC20 src, ERC20 dest, uint srcQty)
+        public view
+        returns(uint expectedRate, uint slippageRate);
+    function trade(
+        ERC20 src,
+        uint srcAmount,
+        ERC20 dest,
+        address destAddress,
+        uint maxDestAmount,
+        uint minConversionRate,
         address walletId
-    ) external returns (uint256);
+    )
+        public
+        payable
+        returns(uint);
+    function swapTokenToToken(
+        ERC20 src,
+        uint srcAmount,
+        ERC20 dest,
+        uint minConversionRate
+    )
+        public
+        returns(uint);
 }
 
 contract Bin is LibNote {
@@ -74,7 +90,11 @@ contract Bin is LibNote {
     KyberLike   public kyber;
     UniLike     public uni;
 
+    uint256 public slip;
     uint256 public live;
+
+    string public constant KYBER   = "kyber";
+    string public constant UNISWAP = "uniswap";
 
     constructor(
       address uni_,
@@ -87,6 +107,7 @@ contract Bin is LibNote {
         live = 1;
     }
 
+    // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
         require(live == 1, "Bin/not-live");
         require(addr != address(0), "Bin/null-addr");
@@ -103,21 +124,56 @@ contract Bin is LibNote {
         address src,
         address dst,
         uint256 wad
-    ) internal view returns (uint, uint) {
-        uint k; uint u;
+    ) internal view returns (uint, uint, string memory) {
+        uint k; uint u; uint kr; uint core;
         if (address(kyber) != address(0)) {
-          (k, ) = kyber.getExpectedRate(IERC20(src), IERC20(dst), wad);
+          (kr, ) = kyber.getExpectedRate(ERC20(src), ERC20(dst), wad);
+          k = kyber.calcDestAmount(ERC20(src), ERC20(dst), wad, kr);
         }
         if (address(uni) != address(0)) {
-          (, u) = uni.tokenToTokenInputRate(src, dst, wad);
+          (core, u) = uni.tokenToTokenInputRate(src, dst, wad);
         }
-
+        if (k >= u) {
+          return (k, kr, KYBER);
+        }
+        return (u, core, UNISWAP);
+    }
+    function swap(
+        address src,
+        address dst,
+        uint256 wad,
+        uint win,
+        uint fine,
+        string memory dex
+    ) internal {
+        if (keccak256(abi.encode(dex)) == keccak256(abi.encode(KYBER))) {
+          kyber.trade(
+            ERC20(src),
+            wad,
+            ERC20(dst),
+            msg.sender,
+            uint(-1),
+            fine,
+            address(0)
+          );
+        } else {
+          uni.tokenToTokenTransferInput(
+            src,
+            wad,
+            win,
+            fine,
+            now,
+            msg.sender,
+            dst
+          );
+        }
     }
     function buy(
         address src,
         address dst,
         uint256 wad
-    ) external {
-
+    ) external note {
+        (uint win, uint fine, string memory dex) = best(src, dst, wad);
+        swap(src, dst, wad, win, fine, dex);
     }
 }
