@@ -88,11 +88,11 @@ contract Spotter is LibNote {
     function file(bytes32 ilk, bytes32 what, uint data) external note auth {
         require(live == 1, "Spotter/not-live");
         if (what == "mat") {
-          require(data >= ilks[ilk].tam, "Spotter/mat-lower-than-tam");
+          require(data <= ilks[ilk].tam, "Spotter/mat-lower-than-tam");
           ilks[ilk].mat = data;
         }
         else if (what == "tam") {
-          require(data <= ilks[ilk].mat, "Spotter/tam-bigger-than-mat");
+          require(data >= ilks[ilk].mat, "Spotter/tam-bigger-than-mat");
           ilks[ilk].tam = data;
         }
         else revert("Spotter/file-unrecognized-param");
