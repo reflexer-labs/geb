@@ -43,7 +43,7 @@ contract JugLike {
     function drip() external;
 }
 
-// --- TRFM that with the option to force par back to tpr ---
+// --- TRFM that with the option to force par back to RAY ---
 contract Vox is LibNote, Exp {
     // --- Auth ---
     mapping (address => uint) public wards;
@@ -56,14 +56,13 @@ contract Vox is LibNote, Exp {
 
     int256  public path; // latest type of deviation (positive/negative)
     uint256 public mpr;  // market price                                                                      [ray]
-    uint256 public tpr;  // target price                                                                      [ray]
     uint256 public span; // spread between msr and sf
     uint256 public age;  // when mpr was last updated
-    uint256 public trim; // deviation from tpr at which rates are recalculated                                [ray]
+    uint256 public trim; // deviation from RAY at which rates are recalculated                                [ray]
     uint256 public rest; // minimum time between updates
     uint256 public hike; // weight applied to current rates if deviation is kept constantly positive/negative [ray]
     uint256 public bowl; // accrued time since the deviation has been positive/negative
-    uint256 public fury; // whether we force par to go back to tpr or not
+    uint256 public fury; // whether we force par to go back to RAY or not
     uint256 public live; // access flag
 
     uint256 public dawn; // default per-second sf                                                             [ray]
@@ -81,12 +80,10 @@ contract Vox is LibNote, Exp {
 
     constructor(
       address tkn_,
-      address spot_,
-      uint256 tpr_
+      address spot_
     ) public {
         wards[msg.sender] = 1;
-        tpr  = tpr_;
-        mpr  = tpr;
+        mpr  = 10 ** 27;
         span = 10 ** 27;
         hike = 10 ** 27;
         dawn = 10 ** 27;
@@ -121,9 +118,6 @@ contract Vox is LibNote, Exp {
           require(val <= 1, "Vox/invalid-fury");
           fury = val;
         }
-        else if (what == "tpr") {
-          tpr = val;
-        }
         else if (what == "hike") {
           require(hike >= RAY, "Vox/invalid-hike");
           hike = val;
@@ -147,7 +141,6 @@ contract Vox is LibNote, Exp {
     // --- Math ---
     uint256 constant RAY = 10 ** 27;
     uint32  constant SPY = 31536000;
-    uint256 constant SUP = 10 ** 9;
     function add(uint x, uint y) internal pure returns (uint z) {
         z = x + y;
         require(z >= x);
@@ -226,37 +219,62 @@ contract Vox is LibNote, Exp {
     function way(uint x, uint y) internal view returns (int z) {
         z = (x >= y) ? int(-1) : int(1);
     }
+    // Compute the per second rate without spread
     function prj(uint256 x, uint256 y) internal pure returns (uint256 z) {
         return y + delt(x, y);
     }
+    // Compute per second rate taking into consideration a spread
     function inj(uint256 x, uint256 y) internal view returns (uint256 z) {
         return y + div(mul(delt(x, y), RAY), span);
     }
+    // Add more seconds that passed since the deviation has been constantly positive/negative
     function grab(uint x) internal {
         bowl = add(bowl, x);
     }
+    // Restart counting seconds since deviation has been constant
     function wipe() internal {
         bowl = 0;
         path = 0;
     }
+    // Set the current deviation direction
     function rash(int way_) internal {
         path = (path == 0) ? way_ : -path;
     }
     function adj(uint val, int way_) public view returns (uint256, uint256) {
+        /**
+          Compute adjusted val by taking in consideration the seconds passed since the
+          deviation has been constantly negative/positive.
+
+          The adjustment is similar to interest accrual on val.
+        **/
         uint drop = (bowl == 0) ? val : rmul(rpow(hike, bowl, RAY), val);
 
-        (uint raw, uint precision) = pow(prj(drop, tpr), RAY, 1, SPY);
+        /**
+          Use the Bancor formulas to compute the per-second stability fee.
+          After the initial computation we need to divide by 2^precision.
+        **/
+        (uint raw, uint precision) = pow(prj(drop, RAY), RAY, 1, SPY);
         uint sf_ = (raw * RAY) / (2 ** precision);
-        sf_ = (way_ == 1) ? sf_ : tpr - sub(sf_, tpr);
 
-        (raw, precision) = pow(inj(drop, tpr), RAY, 1, SPY);
+        // If the deviation is positive, we set a negative rate
+        sf_ = (way_ == 1) ? sf_ : RAY - sub(sf_, RAY);
+
+        /**
+          Use the Bancor formulas to compute the per second savings rate.
+          After the initial computation we need to divide by 2^precision.
+        **/
+        (raw, precision) = pow(inj(drop, RAY), RAY, 1, SPY);
         uint msr_ = (raw * RAY) / (2 ** precision);
-        msr_ = (way_ == 1) ? msr_ : tpr - sub(msr_, tpr);
 
+        // If the deviation is positive, we incur a negative rate
+        msr_ = (way_ == 1) ? msr_ : RAY - sub(msr_, RAY);
+
+        // Always making sure sf > msr even when they are in the negative territory
         if (way_ == -1) {
           (sf_, msr_) = (msr_, sf_);
         }
 
+        // The stability fee might have bounds so make sure you don't pass them
         sf_ = (sf_ < down && down != MAX) ? down : sf_;
         sf_ = (sf_ > up && up != MAX)     ? up : sf_;
 
@@ -266,32 +284,61 @@ contract Vox is LibNote, Exp {
     // --- Feedback Mechanism ---
     function back() external note {
         require(live == 1, "Vox/not-live");
+        /**
+          We need to have dripped in order to have the latest par value set and
+          in order to be able to file new rates
+        **/
         require(both(tkn.rho() == now, jug.late() == false), "Vox/not-dripped");
         uint gap = sub(era(), age);
+        // The gap between now and the last update time needs to be at least 'rest'
         require(gap >= rest, "Vox/optimized");
         (bytes32 val, bool has) = pip.peek();
         uint sf; uint msr;
+        // If the OSM has a value
         if (has) {
-          uint dev = delt(mul(uint(val), SUP), tpr);
-          int way_ = way(mul(uint(val), SUP), tpr);
+          // Compute the deviation and whether it's negative/positive
+          uint dev = delt(mul(uint(val), 10 ** 9), RAY);
+          int way_ = way(mul(uint(val), 10 ** 9), RAY);
+          // If the deviation is at least 'trim'
           if (dev >= trim) {
+            /**
+              If the current deviation is the same as the latest deviation, add seconds
+              passed to bowl with grab(). Otherwise change the latest deviation and restart bowl
+            **/
             (way_ == path) ? grab(gap) : rash(way_);
-            (sf, msr) = adj(mul(uint(val), SUP), way_);
+            // Compute the new per-second rates
+            (sf, msr) = adj(mul(uint(val), 10 ** 9), way_);
+            // Set the new rates
             pull(sf, msr);
           } else {
+            // Restart counting the seconds since the deviation has been constant
             wipe();
+            // Fetch the ref per mai
             uint par = spot.par();
-            if (both(both(fury == 1, par != tpr), way(par, tpr) == way_)) {
+            /**
+              EXPERIMENTAL (and possibly not needed):
+                depending on whether 'fury' allows and if both the current deviation
+                and the deviation of par from RAY coincide, we are trying to bring
+                par back to RAY
+            **/
+            if (both(both(fury == 1, par != RAY), way(par, RAY) == way_)) {
               (sf, msr) = adj(par, way_);
               pull(sf, msr);
             } else {
+              /**
+                If neither the deviation is big enough nor we can bring par back to RAY,
+                simply set default values for the rates
+              **/
               pull(dawn, dusk);
             }
           }
-          mpr = mul(uint(val), SUP);
+          // Make sure you store a ray as the latest price
+          mpr = mul(uint(val), 10 ** 9);
+          // Also store the timestamp of the update
           age = era();
         }
     }
+    // Set the new savings rate and base stability fee
     function pull(uint sf, uint msr) internal note {
         tkn.file("msr", msr);
         jug.file("base", sf);

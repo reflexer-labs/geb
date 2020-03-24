@@ -147,11 +147,17 @@ contract Mai is LibNote {
     // --- Savings Rate Accumulation ---
     function drip() public note returns (uint tmp) {
         require(now >= rho, "Mai/invalid-now");
+        // Unlike pot, we don't have chi, we have par
         uint par = spot.par();
+        // Compute the new par
         tmp = rmul(rpow(msr, now - rho, RAY), par);
+        // Set the time of the update
         rho = now;
+        // Get the difference between the current and the last par values
         uint par_ = (msr <= RAY) ? sub(par, tmp) : sub(tmp, par);
+        // Compute how much we need to suck
         int vol   = (msr <= RAY) ? -int(mul(totalSupply, par_)) : int(mul(totalSupply, par_));
+        // Suck and file the new par
         vat.suck(address(vow), address(this), vol);
         spot.file("par", tmp);
     }

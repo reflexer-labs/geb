@@ -245,7 +245,7 @@ contract EndTest is DSTest {
         vat.rely(address(spot));
 
         token = new Mai(99, address(vat));
-        vox = new Vox(address(token), address(spot), 10 ** 27);
+        vox = new Vox(address(token), address(spot));
 
         end = new End();
         end.file("vat", address(vat));
