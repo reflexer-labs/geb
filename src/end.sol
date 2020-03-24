@@ -50,7 +50,7 @@ contract CatLike {
     );
     function cage() external;
 }
-contract MaiLike {
+contract PotLike {
     function cage() external;
 }
 contract VoxLike {
@@ -177,7 +177,7 @@ contract End is LibNote {
     CatLike  public cat;
     VowLike  public vow;
     VoxLike  public vox;
-    MaiLike  public mai;
+    PotLike  public pot;
     Spotty   public spot;
 
     uint256  public live;  // cage flag
@@ -241,7 +241,7 @@ contract End is LibNote {
         else if (what == "cat")  cat = CatLike(data);
         else if (what == "vow")  vow = VowLike(data);
         else if (what == "vox")  vox = VoxLike(data);
-        else if (what == "mai")  mai = MaiLike(data);
+        else if (what == "pot")  pot = PotLike(data);
         else if (what == "spot") spot = Spotty(data);
         else revert("End/file-unrecognized-param");
     }
@@ -260,7 +260,7 @@ contract End is LibNote {
         cat.cage();
         vow.cage();
         spot.cage();
-        mai.cage();
+        pot.cage();
         if (address(vox) != address(0)) {
           vox.cage();
         }

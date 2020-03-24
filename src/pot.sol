@@ -39,30 +39,26 @@ contract Pot is LibNote {
         _;
     }
 
-    // --- Data ---
-    mapping (address => uint256) public pie;  // user Savings Dai
-
-    uint256 public msr;  // the Dai Savings Rate
-
     VatLike  public vat;  // CDP engine
-    SpotLike public spot;
+    SpotLike public spot; // par holder
     address  public vow;  // debt engine
     uint256  public rho;  // time of last drip
+    uint256  public msr;  // the Mai Savings Rate
 
-    uint256 public live;  // Access Flag
+    uint256  public live;  // Access Flag
 
     // --- Init ---
     constructor(address vat_, address spot_) public {
         wards[msg.sender] = 1;
         vat  = VatLike(vat_);
         spot = SpotLike(spot_);
-        msr  = ONE;
+        msr  = RAY;
         rho  = now;
         live = 1;
     }
 
     // --- Math ---
-    uint256 constant ONE = 10 ** 27;
+    uint256 constant RAY = 10 ** 27;
     function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
         assembly {
             switch x case 0 {switch n case 0 {z := base} default {z := 0}}
@@ -88,7 +84,7 @@ contract Pot is LibNote {
     }
 
     function rmul(uint x, uint y) internal pure returns (uint z) {
-        z = mul(x, y) / ONE;
+        z = mul(x, y) / RAY;
     }
 
     function add(uint x, uint y) internal pure returns (uint z) {
@@ -101,6 +97,10 @@ contract Pot is LibNote {
 
     function mul(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
+    }
+
+    function div(uint x, uint y) internal pure returns (uint z) {
+        z = x / y;
     }
 
     // --- Administration ---
@@ -119,12 +119,12 @@ contract Pot is LibNote {
 
     function cage() external note auth {
         live = 0;
-        dsr = ONE;
+        msr = RAY;
     }
 
     // --- Savings Rate Accumulation ---
     function drip() public note returns (uint tmp) {
-        require(now >= rho, "Mai/invalid-now");
+        require(now >= rho, "Pot/invalid-now");
         uint par = spot.par();
         // Compute the new par
         tmp = rmul(rpow(msr, now - rho, RAY), par);
@@ -133,7 +133,7 @@ contract Pot is LibNote {
         // Get the difference between the current and the last par values
         uint par_ = (msr <= RAY) ? sub(par, tmp) : sub(tmp, par);
         // Compute how much we need to suck
-        int vol   = (msr <= RAY) ? -int(mul(vat.debt(), par_)) : int(mul(vat.debt(), par_));
+        int vol   = (msr <= RAY) ? -int(mul(div(vat.debt(), RAY), par_)) : int(mul(div(vat.debt(), RAY), par_));
         // Suck and file the new par
         vat.suck(address(vow), address(this), vol);
         spot.file("par", tmp);

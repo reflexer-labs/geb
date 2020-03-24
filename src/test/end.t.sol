@@ -26,7 +26,7 @@ import {Vat}  from '../vat.sol';
 import {Cat}  from '../cat.sol';
 import {Vow}  from '../vow.sol';
 import {Vox}  from '../vox.sol';
-import {Mai}  from '../mai.sol';
+import {Pot}  from '../pot.sol';
 import {Flipper} from '../flip.sol';
 import {Flapper} from '../flap.sol';
 import {Flopper} from '../flop.sol';
@@ -119,7 +119,7 @@ contract EndTest is DSTest {
     Vow   vow;
     Cat   cat;
     Vox   vox;
-    Mai   token;
+    Pot   pot;
 
     Spotter spot;
 
@@ -245,18 +245,18 @@ contract EndTest is DSTest {
         vat.file("Line",         rad(1000 ether));
         vat.rely(address(spot));
 
-        token = new Mai(99, address(vat));
-        vox = new Vox(address(token), address(spot));
+        pot = new Pot(address(vat), address(this));
+        vox = new Vox(address(pot), address(spot));
 
         end = new End();
         end.file("vat", address(vat));
         end.file("cat", address(cat));
         end.file("vow", address(vow));
         end.file("spot", address(spot));
-        end.file("mai", address(token));
+        end.file("pot", address(pot));
         end.file("wait", 1 hours);
         vat.rely(address(end));
-        token.rely(address(end));
+        pot.rely(address(end));
         vox.rely(address(end));
         vow.rely(address(end));
         spot.rely(address(end));
@@ -271,7 +271,7 @@ contract EndTest is DSTest {
         assertEq(cat.live(), 1);
         assertEq(vow.live(), 1);
         assertEq(vox.live(), 1);
-        assertEq(token.live(), 1);
+        assertEq(pot.live(), 1);
         assertEq(vow.flopper().live(), 1);
         assertEq(vow.flapper().live(), 1);
         end.cage();
@@ -280,7 +280,7 @@ contract EndTest is DSTest {
         assertEq(vat.live(), 0);
         assertEq(cat.live(), 0);
         assertEq(vow.live(), 0);
-        assertEq(token.live(), 0);
+        assertEq(pot.live(), 0);
         assertEq(vow.flopper().live(), 0);
         assertEq(vow.flapper().live(), 0);
     }
@@ -292,7 +292,7 @@ contract EndTest is DSTest {
         assertEq(cat.live(), 1);
         assertEq(vow.live(), 1);
         assertEq(vox.live(), 1);
-        assertEq(token.live(), 1);
+        assertEq(pot.live(), 1);
         assertEq(vow.flopper().live(), 1);
         assertEq(vow.flapper().live(), 1);
         end.cage();
@@ -301,7 +301,7 @@ contract EndTest is DSTest {
         assertEq(vat.live(), 0);
         assertEq(cat.live(), 0);
         assertEq(vow.live(), 0);
-        assertEq(token.live(), 0);
+        assertEq(pot.live(), 0);
         assertEq(vow.flopper().live(), 0);
         assertEq(vow.flapper().live(), 0);
     }

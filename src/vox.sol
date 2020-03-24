@@ -27,23 +27,16 @@ contract PipLike {
     function peek() external returns (bytes32, bool);
 }
 
-contract MaiLike {
+contract PotLike {
     function file(bytes32, uint256) external;
-    function drip() public returns (uint);
     function rho() public view returns (uint);
-}
-
-contract SpotLike {
-    function par() external returns (uint256);
 }
 
 contract JugLike {
     function file(bytes32, uint) external;
     function late() external view returns (bool);
-    function drip() external;
 }
 
-// --- TRFM that with the option to force par back to RAY ---
 contract Vox is LibNote, Exp {
     // --- Auth ---
     mapping (address => uint) public wards;
@@ -71,15 +64,14 @@ contract Vox is LibNote, Exp {
     uint256 public down; // bottom per-second bound for sf
 
     PipLike  public pip;
-    MaiLike  public tkn;
+    PotLike  public pot;
     JugLike  public jug;
-    SpotLike public spot;
 
     uint256 public constant MAX = 2 ** 255;
 
     constructor(
-      address tkn_,
-      address spot_
+      address pot_,
+      address jug_
     ) public {
         wards[msg.sender] = 1;
         mpr  = 10 ** 27;
@@ -89,8 +81,8 @@ contract Vox is LibNote, Exp {
         dusk = 10 ** 27;
         up   = 2 ** 255;
         down = 2 ** 255;
-        tkn  = MaiLike(tkn_);
-        spot = SpotLike(spot_);
+        pot  = PotLike(pot_);
+        jug  = JugLike(jug_);
         live = 1;
     }
 
@@ -99,7 +91,7 @@ contract Vox is LibNote, Exp {
         require(live == 1, "Vox/not-live");
         if (what == "pip") pip = PipLike(addr);
         else if (what == "jug") jug = JugLike(addr);
-        else if (what == "spot") spot = SpotLike(addr);
+        else if (what == "pot") pot = PotLike(addr);
         else revert("Vox/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 val) external note auth {
@@ -282,7 +274,7 @@ contract Vox is LibNote, Exp {
         /**
           We need to have dripped in order to be able to file new rates
         **/
-        require(both(tkn.rho() == now, jug.late() == false), "Vox/not-dripped");
+        require(both(pot.rho() == now, jug.late() == false), "Vox/not-dripped");
         uint gap = sub(era(), age);
         // The gap between now and the last update time needs to be at least 'rest'
         require(gap >= rest, "Vox/optimized");
@@ -318,7 +310,7 @@ contract Vox is LibNote, Exp {
     }
     // Set the new savings rate and base stability fee
     function pull(uint sf, uint msr) internal note {
-        tkn.file("msr", msr);
+        pot.file("msr", msr);
         jug.file("base", sf);
     }
 }

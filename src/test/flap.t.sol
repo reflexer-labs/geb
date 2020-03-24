@@ -50,7 +50,7 @@ contract FlapTest is DSTest {
 
         vat  = new Vat();
         gov  = new DSToken('');
-        bond = new Mai(99, address(vat));
+        bond = new Mai(99);
         bin  = new BinLike(1 ether);
 
         maiA = new MaiJoin(address(vat), address(bond));
