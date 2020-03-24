@@ -473,7 +473,8 @@ contract EndTest is DSTest {
         ali.frob("gold", urn1, urn1, urn1, 10 ether, 15 ether);
         // this urn has 0 gem, 10 ink, 15 tab, 15 mai
 
-        vat.file("gold", "spot", ray(1 ether));     // now unsafe
+        vat.file("gold", "spot", ray(1 ether));
+        vat.file("gold", "risk", ray(1 ether)); // now unsafe
 
         uint auction = cat.bite("gold", urn1);  // CDP liquidated
         assertEq(vat.vice(), int(rad(15 ether)));    // now there is sin

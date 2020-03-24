@@ -142,17 +142,12 @@ contract Cat is LibNote {
         require(j == address(0) || jobs[j] == 1, "Cat/job-not-allowed");
         tasks[ilk][urn] = j;
     }
-    function fang(bytes32 ilk) internal view returns (uint, uint) {
-        (, uint rate, uint spot, , , uint risk) = vat.ilks(ilk);
-        uint tag = (risk > 0) ? risk : spot;
-        return (rate, tag);
-    }
     function bite(bytes32 ilk, address urn) external returns (uint id) {
-        (uint rate, uint tag) = fang(ilk);
+        (, uint rate, , , , uint risk) = vat.ilks(ilk);
         (uint ink, uint art) = vat.urns(ilk, urn);
 
         require(live == 1, "Cat/not-live");
-        require(tag > 0 && mul(ink, tag) < mul(art, rate), "Cat/not-unsafe");
+        require(risk > 0 && mul(ink, risk) < mul(art, rate), "Cat/not-unsafe");
 
         if (tasks[ilk][urn] != address(0) && jobs[tasks[ilk][urn]] == 1) {
           HeroLike(tasks[ilk][urn]).help(msg.sender, ilk, urn);
@@ -160,7 +155,7 @@ contract Cat is LibNote {
 
         (ink, ) = vat.urns(ilk, urn);
 
-        if (mul(ink, tag) < mul(art, rate)) {
+        if (mul(ink, risk) < mul(art, rate)) {
           uint lot = min(ink, ilks[ilk].lump);
           art      = min(art, mul(lot, art) / ink);
 

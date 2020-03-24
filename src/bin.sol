@@ -138,7 +138,7 @@ contract Bin is LibNote {
         }
         return (u, core, UNISWAP);
     }
-    function swap(
+    function buy(
         address src,
         address dst,
         uint256 wad,
@@ -168,12 +168,12 @@ contract Bin is LibNote {
           );
         }
     }
-    function buy(
+    function swap(
         address src,
         address dst,
         uint256 wad
     ) external note {
         (uint win, uint fine, string memory dex) = best(src, dst, wad);
-        swap(src, dst, wad, win, fine, dex);
+        buy(src, dst, wad, win, fine, dex);
     }
 }

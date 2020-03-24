@@ -23,6 +23,8 @@ import "./lib.sol";
 contract VatLike {
     function move(address,address,int) external;
     function mai(address) external view returns (uint);
+    function hope(address) external;
+    function nope(address usr) external;
 }
 contract MaiJoinLike {
     function join(address, uint) external;
@@ -35,7 +37,7 @@ contract GemLike {
     function burn(address,uint) external;
 }
 contract BinLike {
-    function buy(address,address,uint256) external returns (uint256);
+    function swap(address,address,uint256) external returns (uint256);
 }
 
 contract Flapper is LibNote {
@@ -92,7 +94,11 @@ contract Flapper is LibNote {
         require(live == 1, "Flapper/not-live");
         if (what == "bond") bond = GemLike(addr);
         else if (what == "gov") gov = GemLike(addr);
-        else if (what == "join") join = MaiJoinLike(addr);
+        else if (what == "join") {
+          vat.nope(address(join));
+          vat.hope(addr);
+          join = MaiJoinLike(addr);
+        }
         else if (what == "bin") bin = BinLike(addr);
         else if (what == "safe") safe = addr;
         else revert("Flapper/file-unrecognized-param");
@@ -115,21 +121,19 @@ contract Flapper is LibNote {
         require(live == 1, "Flapper/not-live");
         require(kicks < uint(-1), "Flapper/overflow");
         require(safe != address(0), "Flapper/no-safe");
+        require(lot % RAY == 0, "Flapper/wasted-lot");
 
         id = ++kicks;
 
-        uint sell = sub(lot, lot % RAY);
-        require(sell > 0, "Flapper/null-sell");
-
         uint own = bond.balanceOf(address(this));
-        require(fund(sell, address(bin)) == true, "Flapper/cannot-fund");
-        uint bid = bin.buy(address(bond), address(gov), sell);
+        require(fund(div(lot, RAY), address(bin)) == true, "Flapper/cannot-fund");
+        uint bid = bin.swap(address(bond), address(gov), div(lot, RAY));
 
         require(bid > 0, "Flapper/invalid-bid");
         require(bond.balanceOf(address(this)) == own, "Flapper/cannot-buy");
         require(gov.balanceOf(address(this)) >= bid, "Flapper/bid-not-received");
 
-        cast();
+        //cast();
 
         if (vat.mai(address(this)) > 0) {
           vat.move(address(this), safe, int(vat.mai(address(this))));
@@ -140,11 +144,11 @@ contract Flapper is LibNote {
     }
     function fund(uint lot, address guy) internal auth returns (bool) {
         uint own = bond.balanceOf(address(this));
-        vat.move(msg.sender, address(this), int(lot));
+        vat.move(msg.sender, address(this), int(mul(lot, RAY)));
         join.exit(address(this), lot);
         if (add(own, lot) != bond.balanceOf(address(this))) {
           return false;
         }
-        return bond.approve(guy, div(lot, RAY));
+        return bond.approve(guy, lot);
     }
 }

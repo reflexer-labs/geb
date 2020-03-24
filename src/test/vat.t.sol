@@ -679,9 +679,11 @@ contract BiteTest is DSTest {
 
     function test_bite_under_lump() public {
         vat.file("gold", 'spot', ray(5 ether));
+        vat.file("gold", 'spot', ray(10 ether));
         vat.frob("gold", me, me, me, 40 ether, 100 ether);
         // tag=4, mat=2
-        vat.file("gold", 'spot', ray(2 ether));  // now unsafe
+        vat.file("gold", 'spot', ray(1 ether));
+        vat.file("gold", 'risk', ray(2 ether));  // now unsafe
 
         cat.file("gold", "lump", 50 ether);
         cat.file("gold", "chop", ray(1.1 ether));
@@ -701,7 +703,8 @@ contract BiteTest is DSTest {
         vat.file("gold", 'spot', ray(5 ether));
         vat.frob("gold", me, me, me, 40 ether, 100 ether);
         // tag=4, mat=2
-        vat.file("gold", 'spot', ray(2 ether));  // now unsafe
+        vat.file("gold", 'spot', ray(1 ether));
+        vat.file("gold", 'risk', ray(2 ether));  // now unsafe
 
         cat.file("gold", "chop", ray(1.1 ether));
         cat.file("gold", "lump", 30 ether);
@@ -745,7 +748,8 @@ contract BiteTest is DSTest {
         vat.frob("gold", me, me, me, 40 ether, 100 ether);
 
         // tag=4, mat=2
-        vat.file("gold", 'spot', ray(2 ether));  // now unsafe
+        vat.file("gold", 'spot', ray(1 ether));
+        vat.file("gold", 'risk', ray(2 ether));  // now unsafe
 
         assertEq(ink("gold", address(this)),  40 ether);
         assertEq(art("gold", address(this)), 100 ether);
@@ -780,7 +784,8 @@ contract BiteTest is DSTest {
     function test_floppy_bite() public {
         vat.file("gold", 'spot', ray(5 ether));
         vat.frob("gold", me, me, me, 40 ether, 100 ether);
-        vat.file("gold", 'spot', ray(2 ether));  // now unsafe
+        vat.file("gold", 'spot', ray(1 ether));
+        vat.file("gold", 'risk', ray(2 ether));  // now unsafe
 
         cat.file("gold", "lump", 100 ether);  // => bite everything
         assertEq(vow.sin(now), rad(  0 ether));
