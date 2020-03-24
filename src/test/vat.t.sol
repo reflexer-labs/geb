@@ -38,11 +38,11 @@ contract TestVat is Vat {
     constructor() public {}
 
     function mint(address usr, uint wad) public {
-        mai[usr] += int(wad * RAY);
-        debt += int(wad * RAY);
+        mai[usr] += wad * RAY;
+        debt += wad * RAY;
     }
     function balanceOf(address usr) public view returns (uint) {
-        return uint(mai[usr] / int(RAY));
+        return uint(mai[usr] / RAY);
     }
 }
 
@@ -50,15 +50,15 @@ contract TestVow is Vow {
     constructor(address vat, address flapper, address flopper)
         public Vow(vat, flapper, flopper) {}
     // Total deficit
-    function Awe() public view returns (int) {
+    function Awe() public view returns (uint) {
         return vat.sin(address(this));
     }
     // Total surplus
-    function Joy() public view returns (int) {
+    function Joy() public view returns (uint) {
         return vat.mai(address(this));
     }
     // Unqueued, pre-auction debt
-    function Woe() public view returns (int) {
+    function Woe() public view returns (uint) {
         return sub(sub(Awe(), Sin), Ash);
     }
 }
@@ -511,11 +511,11 @@ contract JoinTest is DSTest {
         vat.hope(address(maiA));
         assertTrue( try_exit_mai(urn, 40 ether));
         assertEq(mai.balanceOf(address(this)), 40 ether);
-        assertEq(vat.mai(me),              int(rad(60 ether)));
+        assertEq(vat.mai(me),              rad(60 ether));
         assertTrue( try_cage(address(maiA)));
         assertTrue(!try_exit_mai(urn, 40 ether));
         assertEq(mai.balanceOf(address(this)), 40 ether);
-        assertEq(vat.mai(me),              int(rad(60 ether)));
+        assertEq(vat.mai(me),              rad(60 ether));
     }
     function test_mai_exit_join() public {
         address urn = address(this);
@@ -525,7 +525,7 @@ contract JoinTest is DSTest {
         mai.approve(address(maiA), uint(-1));
         maiA.join(urn, 30 ether);
         assertEq(mai.balanceOf(address(this)),     30 ether);
-        assertEq(vat.mai(me),                  int(rad(70 ether)));
+        assertEq(vat.mai(me),                  rad(70 ether));
     }
     function test_fallback_reverts() public {
         (bool ok,) = address(ethA).call("invalid calldata");
@@ -693,7 +693,7 @@ contract BiteTest is DSTest {
         assertEq(ink("gold", address(this)), 0);
         assertEq(art("gold", address(this)), 0);
         // all debt goes to the vow
-        assertEq(vow.Awe(), int(rad(100 ether)));
+        assertEq(vow.Awe(), rad(100 ether));
         // auction is for all collateral
         (, uint lot,,,,,, uint tab) = FlipLike(address(flip)).bids(auction);
         assertEq(lot,        40 ether);
@@ -714,7 +714,7 @@ contract BiteTest is DSTest {
         assertEq(ink("gold", address(this)), 10 ether);
         assertEq(art("gold", address(this)), 25 ether);
         // a fraction of the debt goes to the vow
-        assertEq(vow.Awe(), int(rad(75 ether)));
+        assertEq(vow.Awe(), rad(75 ether));
         // auction is for a fraction of the collateral
         (, uint lot,,,,,, uint tab) = FlipLike(address(flip)).bids(auction);
         assertEq(lot,       30 ether);
@@ -795,19 +795,19 @@ contract BiteTest is DSTest {
         assertEq(vow.Sin(), rad(100 ether));
         vow.flog(now);
         assertEq(vow.Sin(), rad(  0 ether));
-        assertEq(vow.Woe(), int(rad(100 ether)));
-        assertEq(vow.Joy(), int(rad(  0 ether)));
+        assertEq(vow.Woe(), rad(100 ether));
+        assertEq(vow.Joy(), rad(  0 ether));
         assertEq(vow.Ash(), rad(  0 ether));
 
         vow.file("sump", rad(10 ether));
         vow.file("dump", 2000 ether);
         uint f1 = vow.flop();
-        assertEq(vow.Woe(),  int(rad(90 ether)));
-        assertEq(vow.Joy(),  int(rad( 0 ether)));
+        assertEq(vow.Woe(),  rad(90 ether));
+        assertEq(vow.Joy(),  rad( 0 ether));
         assertEq(vow.Ash(),  rad(10 ether));
         flop.dent(f1, 1000 ether, rad(10 ether));
-        assertEq(vow.Woe(),  int(rad(90 ether)));
-        assertEq(vow.Joy(),  int(rad(10 ether)));
+        assertEq(vow.Woe(),  rad(90 ether));
+        assertEq(vow.Joy(),  rad(10 ether));
         assertEq(vow.Ash(),  rad(10 ether));
 
         assertEq(gov.balanceOf(address(this)),  100 ether);
@@ -870,7 +870,7 @@ contract FoldTest is DSTest {
         vat.file(ilk, "spot", 10 ** 27 * 10000 ether);
         address self = address(this);
         vat.slip(ilk, self,  10 ** 27 * 1 ether);
-        vat.frob(ilk, self, self, self, int(1 ether), int(mai));
+        vat.frob(ilk, self, self, self, 1 ether, int(mai));
     }
     function test_fold() public {
         address self = address(this);
@@ -880,6 +880,6 @@ contract FoldTest is DSTest {
         assertEq(tab("gold", self), rad(1.00 ether));
         vat.fold("gold", ali,   int(ray(0.05 ether)));
         assertEq(tab("gold", self), rad(1.05 ether));
-        assertEq(vat.mai(ali),      int(rad(0.05 ether)));
+        assertEq(vat.mai(ali),      rad(0.05 ether));
     }
 }

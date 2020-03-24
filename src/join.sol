@@ -32,35 +32,24 @@ contract DSTokenLike {
 
 contract VatLike {
     function slip(bytes32,address,int) external;
-    function move(address,address,int) external;
+    function move(address,address,uint) external;
 }
 
 /*
     Here we provide *adapters* to connect the Vat to arbitrary external
     token implementations, creating a bounded context for the Vat. The
     adapters here are provided as working examples:
-
       - `GemJoin`: For well behaved ERC20 tokens, with simple transfer
                    semantics.
-
-      - `ETHJoin`: For native ETH.
-
+      - `ETHJoin`: For native Ether.
       - `MaiJoin`: For connecting internal Mai balances to an external
                    `DSToken` implementation.
-
     In practice, adapter implementations will be varied and specific to
     individual collateral types, accounting for different transfer
     semantics and token standards.
-
-    Most adapters need to implement two basic methods:
-
+    Adapters need to implement two basic methods:
       - `join`: enter collateral into the system
       - `exit`: remove collateral from the system
-
-    Those adapters who also provide insurance must also implement:
-
-      - `dres`: add/remove liquidity for urn insurance
-
 */
 
 contract GemJoin is LibNote {
@@ -69,8 +58,8 @@ contract GemJoin is LibNote {
     function rely(address usr) external note auth { wards[usr] = 1; }
     function deny(address usr) external note auth { wards[usr] = 0; }
     modifier auth {
-      require(wards[msg.sender] == 1, "GemJoin/not-authorized");
-      _;
+        require(wards[msg.sender] == 1, "GemJoin/not-authorized");
+        _;
     }
 
     VatLike public vat;
@@ -86,11 +75,6 @@ contract GemJoin is LibNote {
         ilk = ilk_;
         gem = GemLike(gem_);
         dec = gem.decimals();
-    }
-    function add(uint x, int y) internal pure returns (uint z) {
-        z = x + uint(y);
-        require(y >= 0 || z <= x);
-        require(y <= 0 || z >= x);
     }
     function cage() external note auth {
         live = 0;
@@ -114,26 +98,19 @@ contract ETHJoin is LibNote {
     function rely(address usr) external note auth { wards[usr] = 1; }
     function deny(address usr) external note auth { wards[usr] = 0; }
     modifier auth {
-      require(wards[msg.sender] == 1, "ETHJoin/not-authorized");
-      _;
+        require(wards[msg.sender] == 1, "ETHJoin/not-authorized");
+        _;
     }
 
     VatLike public vat;
     bytes32 public ilk;
     uint    public live;  // Access Flag
 
-    mapping (address => mapping(address => uint256)) public loan;
-
     constructor(address vat_, bytes32 ilk_) public {
         wards[msg.sender] = 1;
         live = 1;
         vat = VatLike(vat_);
         ilk = ilk_;
-    }
-    function add(uint x, int y) internal pure returns (uint z) {
-        z = x + uint(y);
-        require(y >= 0 || z <= x);
-        require(y <= 0 || z >= x);
     }
     function cage() external note auth {
         live = 0;
@@ -156,13 +133,13 @@ contract MaiJoin is LibNote {
     function rely(address usr) external note auth { wards[usr] = 1; }
     function deny(address usr) external note auth { wards[usr] = 0; }
     modifier auth {
-      require(wards[msg.sender] == 1, "MaiJoin/not-authorized");
-      _;
+        require(wards[msg.sender] == 1, "MaiJoin/not-authorized");
+        _;
     }
 
     VatLike public vat;
     DSTokenLike public mai;
-    uint public live;  // Access Flag
+    uint    public live;  // Access Flag
 
     constructor(address vat_, address mai_) public {
         wards[msg.sender] = 1;
@@ -173,17 +150,17 @@ contract MaiJoin is LibNote {
     function cage() external note auth {
         live = 0;
     }
-    uint constant RAY = 10 ** 27;
+    uint constant ONE = 10 ** 27;
     function mul(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
     function join(address usr, uint wad) external note {
-        vat.move(address(this), usr, int(mul(RAY, wad)));
+        vat.move(address(this), usr, mul(ONE, wad));
         mai.burn(msg.sender, wad);
     }
     function exit(address usr, uint wad) external note {
         require(live == 1, "MaiJoin/not-live");
-        vat.move(msg.sender, address(this), int(mul(RAY, wad)));
+        vat.move(msg.sender, address(this), mul(ONE, wad));
         mai.mint(usr, wad);
     }
 }

@@ -1,4 +1,4 @@
-/// vox.sol -- target rate feedback mechanism
+/// vox.sol -- rate setter
 
 // Copyright (C) 2016, 2017  Nikolai Mushegian <nikolai@dapphub.com>
 // Copyright (C) 2016, 2017  Daniel Brockman <daniel@dapphub.com>
@@ -37,6 +37,25 @@ contract JugLike {
     function late() external view returns (bool);
 }
 
+/**
+  Vox tries to set both a base stability fee for all collateral types and a rate of
+  change for par according to the market price deviation from a target price.
+
+  The rate of change and the per-second base stability fee are computed on-chain.
+  The only external input is the price feed for Mai.
+
+  Rates are computed so that they "pull" the market price in the opposite direction
+  of the deviation.
+
+  After deployment, you can set several parameters such as:
+
+    - Default values for MSR/SF
+    - Bounds for SF
+    - Minimum time between updates
+    - A spread between SF/MSR
+    - A minimum deviation from the target price at which rate recalculation starts again
+    - A weight to apply over time to increase/decrease the rates if the deviation is kept constant
+**/
 contract Vox is LibNote, Exp {
     // --- Auth ---
     mapping (address => uint) public wards;
@@ -253,7 +272,7 @@ contract Vox is LibNote, Exp {
         (raw, precision) = pow(inj(drop, RAY), RAY, 1, SPY);
         uint msr_ = (raw * RAY) / (2 ** precision);
 
-        // If the deviation is positive, we incur a negative rate
+        // If the deviation is positive, we set a negative rate
         msr_ = (way_ == 1) ? msr_ : sub(RAY, sub(msr_, RAY));
 
         // Always making sure sf > msr even when they are in the negative territory
@@ -271,17 +290,15 @@ contract Vox is LibNote, Exp {
     // --- Feedback Mechanism ---
     function back() external note {
         require(live == 1, "Vox/not-live");
-        /**
-          We need to have dripped in order to be able to file new rates
-        **/
+        // We need to have dripped in order to be able to file new rates
         require(both(pot.rho() == now, jug.late() == false), "Vox/not-dripped");
         uint gap = sub(era(), age);
         // The gap between now and the last update time needs to be at least 'rest'
         require(gap >= rest, "Vox/optimized");
         (bytes32 val, bool has) = pip.peek();
-        uint sf; uint msr;
         // If the OSM has a value
         if (has) {
+          uint sf; uint msr;
           // Compute the deviation and whether it's negative/positive
           uint dev = delt(mul(uint(val), 10 ** 9), RAY);
           int way_ = way(mul(uint(val), 10 ** 9), RAY);

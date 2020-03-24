@@ -65,9 +65,9 @@ contract Gal {}
 
 contract Vat_ is Vat {
     function mint(address usr, uint wad) public {
-        mai[usr] += int(wad);
+        mai[usr] += wad;
     }
-    function mai_balance(address usr) public view returns (int) {
+    function mai_balance(address usr) public view returns (uint) {
         return mai[usr];
     }
     bytes32 ilk;

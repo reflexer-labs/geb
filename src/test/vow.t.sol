@@ -97,14 +97,14 @@ contract VowTest is DSTest {
     function suck(address who, uint wad) internal {
         vow.fess(rad(wad));
         vat.init('');
-        vat.suck(address(vow), who, int(rad(wad)));
+        vat.suck(address(vow), who, rad(wad));
     }
     function flog(uint wad) internal {
         suck(address(0), wad);  // suck mai into the zero address
         vow.flog(now);
     }
     function heal(uint wad) internal {
-        vow.heal(int(rad(wad)));
+        vow.heal(rad(wad));
     }
 
     function test_change_flap_flop() public {

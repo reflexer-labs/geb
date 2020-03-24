@@ -20,7 +20,7 @@ pragma solidity ^0.5.15;
 import "./lib.sol";
 
 contract VatLike {
-    function move(address,address,int) external;
+    function move(address,address,uint) external;
     function flux(bytes32,address,address,uint) external;
 }
 contract SpotLike {
@@ -176,8 +176,8 @@ contract Flipper is LibNote {
             }
         }
 
-        vat.move(msg.sender, bids[id].guy, int(bids[id].bid));
-        vat.move(msg.sender, bids[id].gal, int(bid - bids[id].bid));
+        vat.move(msg.sender, bids[id].guy, bids[id].bid);
+        vat.move(msg.sender, bids[id].gal, bid - bids[id].bid);
 
         bids[id].guy = msg.sender;
         bids[id].bid = bid;
@@ -193,7 +193,7 @@ contract Flipper is LibNote {
         require(lot < bids[id].lot, "Flipper/lot-not-lower");
         require(mul(beg, lot) <= mul(bids[id].lot, ONE), "Flipper/insufficient-decrease");
 
-        vat.move(msg.sender, bids[id].guy, int(bid));
+        vat.move(msg.sender, bids[id].guy, bid);
         vat.flux(ilk, address(this), bids[id].usr, bids[id].lot - lot);
 
         bids[id].guy = msg.sender;
@@ -213,7 +213,7 @@ contract Flipper is LibNote {
         require(bids[id].guy != address(0), "Flipper/guy-not-set");
         require(bids[id].bid < bids[id].tab, "Flipper/already-dent-phase");
         vat.flux(ilk, address(this), msg.sender, bids[id].lot);
-        vat.move(msg.sender, bids[id].guy, int(bids[id].bid));
+        vat.move(msg.sender, bids[id].guy, bids[id].bid);
         if (address(care) != address(0)) {
           care.ping("flip", id);
         }

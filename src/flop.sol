@@ -20,8 +20,8 @@ pragma solidity ^0.5.15;
 import "./lib.sol";
 
 contract VatLike {
-    function move(address,address,int) external;
-    function suck(address,address,int) external;
+    function move(address,address,uint) external;
+    function suck(address,address,uint) external;
 }
 contract GemLike {
     function mint(address,uint) external;
@@ -132,7 +132,7 @@ contract Flopper is LibNote {
         require(lot <  bids[id].lot, "Flopper/lot-not-lower");
         require(mul(beg, lot) <= mul(bids[id].lot, ONE), "Flopper/insufficient-decrease");
 
-        vat.move(msg.sender, bids[id].guy, int(bid));
+        vat.move(msg.sender, bids[id].guy, bid);
 
         bids[id].guy = msg.sender;
         bids[id].lot = lot;
@@ -153,7 +153,7 @@ contract Flopper is LibNote {
     function yank(uint id) external note {
         require(live == 0, "Flopper/still-live");
         require(bids[id].guy != address(0), "Flopper/guy-not-set");
-        vat.suck(vow, bids[id].guy, int(bids[id].bid));
+        vat.suck(vow, bids[id].guy, bids[id].bid);
         delete bids[id];
     }
 }

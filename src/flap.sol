@@ -21,7 +21,7 @@ pragma solidity ^0.5.15;
 import "./lib.sol";
 
 contract VatLike {
-    function move(address,address,int) external;
+    function move(address,address,uint) external;
     function mai(address) external view returns (uint);
     function hope(address) external;
     function nope(address usr) external;
@@ -105,14 +105,14 @@ contract Flapper is LibNote {
     }
     function cage() external note auth {
         live = 0;
-        vat.move(address(this), msg.sender, int(vat.mai(address(this))));
+        vat.move(address(this), msg.sender, vat.mai(address(this)));
     }
 
     // --- Utils ---
-    function cast() internal auth {
+    function loot() internal {
         uint own = bond.balanceOf(address(this));
         if (own > 0) {
-          join.join(address(this), own);
+          join.join(safe, own);
         }
     }
 
@@ -133,10 +133,10 @@ contract Flapper is LibNote {
         require(bond.balanceOf(address(this)) == own, "Flapper/cannot-buy");
         require(gov.balanceOf(address(this)) >= bid, "Flapper/bid-not-received");
 
-        //cast();
+        loot();
 
         if (vat.mai(address(this)) > 0) {
-          vat.move(address(this), safe, int(vat.mai(address(this))));
+          vat.move(address(this), safe, vat.mai(address(this)));
         }
         gov.burn(address(this), gov.balanceOf(address(this)));
 
@@ -144,7 +144,7 @@ contract Flapper is LibNote {
     }
     function fund(uint lot, address guy) internal auth returns (bool) {
         uint own = bond.balanceOf(address(this));
-        vat.move(msg.sender, address(this), int(mul(lot, RAY)));
+        vat.move(msg.sender, address(this), mul(lot, RAY));
         join.exit(address(this), lot);
         if (add(own, lot) != bond.balanceOf(address(this))) {
           return false;

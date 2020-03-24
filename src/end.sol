@@ -21,7 +21,7 @@ pragma solidity ^0.5.15;
 import "./lib.sol";
 
 contract VatLike {
-    function mai(address) external view returns (int256);
+    function mai(address) external view returns (uint256);
     function ilks(bytes32 ilk) external returns (
         uint256 Art,
         uint256 rate,
@@ -34,12 +34,12 @@ contract VatLike {
         uint256 ink,
         uint256 art
     );
-    function debt() external returns (int256);
-    function move(address src, address dst, int256 rad) external;
+    function debt() external returns (uint256);
+    function move(address src, address dst, uint256 rad) external;
     function hope(address) external;
     function flux(bytes32 ilk, address src, address dst, uint256 rad) external;
     function grab(bytes32 i, address u, address v, address w, int256 dink, int256 dart) external;
-    function suck(address u, address v, int256 rad) external;
+    function suck(address u, address v, uint256 rad) external;
     function cage() external;
 }
 contract CatLike {
@@ -53,10 +53,10 @@ contract CatLike {
 contract PotLike {
     function cage() external;
 }
-contract VoxLike {
+contract VowLike {
     function cage() external;
 }
-contract VowLike {
+contract VoxLike {
     function cage() external;
 }
 contract Flippy {
@@ -81,8 +81,7 @@ contract Spotty {
     function par() external view returns (uint256);
     function ilks(bytes32) external view returns (
         PipLike pip,
-        uint256 mat,
-        uint256 tam
+        uint256 mat
     );
     function cage() external;
 }
@@ -94,8 +93,8 @@ contract Spotty {
     1. `cage()`:
         - freezes user entrypoints
         - cancels flop/flap auctions
-        - freezes MSR and its feedback mechanism
         - starts cooldown period
+        - stops pot drips
     2. `cage(ilk)`:
        - set the cage price for each `ilk`, reading off the price feed
     We must process some system state before it is possible to calculate
@@ -183,12 +182,12 @@ contract End is LibNote {
     uint256  public live;  // cage flag
     uint256  public when;  // time of cage
     uint256  public wait;  // processing cooldown length
-    int256   public debt;  // total outstanding mai following processing [rad]
+    uint256  public debt;  // total outstanding mai following processing [rad]
 
     mapping (bytes32 => uint256) public tag;  // cage price           [ray]
     mapping (bytes32 => uint256) public gap;  // collateral shortfall [wad]
     mapping (bytes32 => uint256) public Art;  // total debt per ilk   [wad]
-    mapping (bytes32 => int256)  public fix;  // final cash price     [ray]
+    mapping (bytes32 => uint256) public fix;  // final cash price     [ray]
 
     mapping (address => uint256)                      public bag;  // [wad]
     mapping (bytes32 => mapping (address => uint256)) public out;  // [wad]
@@ -210,9 +209,6 @@ contract End is LibNote {
     function mul(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
-    function mul(uint x, int y) internal pure returns (int z) {
-        require(y == 0 || (z = int(x) * y) / y == int(x));
-    }
     function min(uint x, uint y) internal pure returns (uint z) {
         return x <= y ? x : y;
     }
@@ -221,14 +217,8 @@ contract End is LibNote {
     function rmul(uint x, uint y) internal pure returns (uint z) {
         z = mul(x, y) / RAY;
     }
-    function rmul(uint x, int y) internal pure returns (int z) {
-        z = mul(x, y) / int(RAY);
-    }
     function rdiv(uint x, uint y) internal pure returns (uint z) {
         z = mul(x, RAY) / y;
-    }
-    function rdiv(uint x, int y) internal pure returns (int z) {
-        z = int(mul(x, RAY)) / y;
     }
     function wdiv(uint x, uint y) internal pure returns (uint z) {
         z = mul(x, WAD) / y;
@@ -240,9 +230,9 @@ contract End is LibNote {
         if (what == "vat")  vat = VatLike(data);
         else if (what == "cat")  cat = CatLike(data);
         else if (what == "vow")  vow = VowLike(data);
-        else if (what == "vox")  vox = VoxLike(data);
         else if (what == "pot")  pot = PotLike(data);
         else if (what == "spot") spot = Spotty(data);
+        else if (what == "vox")  vox = VoxLike(data);
         else revert("End/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 data) external note auth {
@@ -270,7 +260,7 @@ contract End is LibNote {
         require(live == 0, "End/still-live");
         require(tag[ilk] == 0, "End/tag-ilk-already-defined");
         (Art[ilk],,,,,) = vat.ilks(ilk);
-        (PipLike pip,,) = spot.ilks(ilk);
+        (PipLike pip,) = spot.ilks(ilk);
         // par is a ray, pip returns a wad
         tag[ilk] = wdiv(spot.par(), uint(pip.read()));
     }
@@ -283,8 +273,8 @@ contract End is LibNote {
         (, uint rate,,,,) = vat.ilks(ilk);
         (uint bid, uint lot,,,, address usr,, uint tab) = flip.bids(id);
 
-        vat.suck(address(vow), address(vow),  int(tab));
-        vat.suck(address(vow), address(this), int(bid));
+        vat.suck(address(vow), address(vow),  tab);
+        vat.suck(address(vow), address(this), bid);
         vat.hope(address(flip));
         flip.yank(id);
 
@@ -333,13 +323,12 @@ contract End is LibNote {
 
     function pack(uint256 wad) external note {
         require(debt != 0, "End/debt-zero");
-        vat.move(msg.sender, address(vow), int(mul(wad, RAY)));
+        vat.move(msg.sender, address(vow), mul(wad, RAY));
         bag[msg.sender] = add(bag[msg.sender], wad);
     }
     function cash(bytes32 ilk, uint wad) external note {
         require(fix[ilk] != 0, "End/fix-ilk-not-defined");
-        //Not sure yet how negative fix is handled here so for now put uint
-        vat.flux(ilk, address(this), msg.sender, uint(rmul(wad, fix[ilk])));
+        vat.flux(ilk, address(this), msg.sender, rmul(wad, fix[ilk]));
         out[ilk][msg.sender] = add(out[ilk][msg.sender], wad);
         require(out[ilk][msg.sender] <= bag[msg.sender], "End/insufficient-bag-balance");
     }

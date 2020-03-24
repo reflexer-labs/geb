@@ -83,24 +83,17 @@ contract Pot is LibNote {
         }
     }
 
-    function rmul(uint x, uint y) internal pure returns (uint z) {
-        z = mul(x, y) / RAY;
-    }
-
-    function add(uint x, uint y) internal pure returns (uint z) {
-        require((z = x + y) >= x);
-    }
-
-    function sub(uint x, uint y) internal pure returns (uint z) {
-        require((z = x - y) <= x);
-    }
-
     function mul(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
 
-    function div(uint x, uint y) internal pure returns (uint z) {
-        z = x / y;
+    function rmul(uint x, uint y) internal pure returns (uint z) {
+        z = mul(x, y) / RAY;
+    }
+
+    function diff(uint x, uint y) internal pure returns (int z) {
+        z = int(x) - int(y);
+        require(int(x) >= 0 && int(y) >= 0);
     }
 
     // --- Administration ---
@@ -126,16 +119,8 @@ contract Pot is LibNote {
     function drip() public note returns (uint tmp) {
         require(now >= rho, "Pot/invalid-now");
         uint par = spot.par();
-        // Compute the new par
         tmp = rmul(rpow(msr, now - rho, RAY), par);
-        // Set the time of the update
-        rho = now;
-        // Get the difference between the current and the last par values
-        uint par_ = (msr <= RAY) ? sub(par, tmp) : sub(tmp, par);
-        // Compute how much we need to suck
-        int vol   = (msr <= RAY) ? -int(mul(div(vat.debt(), RAY), par_)) : int(mul(div(vat.debt(), RAY), par_));
-        // Suck and file the new par
-        vat.suck(address(vow), address(this), vol);
         spot.file("par", tmp);
+        rho = now;
     }
 }
