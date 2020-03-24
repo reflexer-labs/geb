@@ -62,7 +62,6 @@ contract Vox is LibNote, Exp {
     uint256 public rest; // minimum time between updates
     uint256 public hike; // weight applied to current rates if deviation is kept constantly positive/negative [ray]
     uint256 public bowl; // accrued time since the deviation has been positive/negative
-    uint256 public fury; // whether we force par to go back to RAY or not
     uint256 public live; // access flag
 
     uint256 public dawn; // default per-second sf                                                             [ray]
@@ -113,10 +112,6 @@ contract Vox is LibNote, Exp {
         }
         else if (what == "dusk") {
           dusk = val;
-        }
-        else if (what == "fury") {
-          require(val <= 1, "Vox/invalid-fury");
-          fury = val;
         }
         else if (what == "hike") {
           require(hike >= RAY, "Vox/invalid-hike");
@@ -257,7 +252,7 @@ contract Vox is LibNote, Exp {
         uint sf_ = (raw * RAY) / (2 ** precision);
 
         // If the deviation is positive, we set a negative rate
-        sf_ = (way_ == 1) ? sf_ : RAY - sub(sf_, RAY);
+        sf_ = (way_ == 1) ? sf_ : sub(RAY, sub(sf_, RAY));
 
         /**
           Use the Bancor formulas to compute the per second savings rate.
@@ -267,7 +262,7 @@ contract Vox is LibNote, Exp {
         uint msr_ = (raw * RAY) / (2 ** precision);
 
         // If the deviation is positive, we incur a negative rate
-        msr_ = (way_ == 1) ? msr_ : RAY - sub(msr_, RAY);
+        msr_ = (way_ == 1) ? msr_ : sub(RAY, sub(msr_, RAY));
 
         // Always making sure sf > msr even when they are in the negative territory
         if (way_ == -1) {
@@ -285,8 +280,7 @@ contract Vox is LibNote, Exp {
     function back() external note {
         require(live == 1, "Vox/not-live");
         /**
-          We need to have dripped in order to have the latest par value set and
-          in order to be able to file new rates
+          We need to have dripped in order to be able to file new rates
         **/
         require(both(tkn.rho() == now, jug.late() == false), "Vox/not-dripped");
         uint gap = sub(era(), age);
@@ -313,24 +307,8 @@ contract Vox is LibNote, Exp {
           } else {
             // Restart counting the seconds since the deviation has been constant
             wipe();
-            // Fetch the ref per mai
-            uint par = spot.par();
-            /**
-              EXPERIMENTAL (and possibly not needed):
-                depending on whether 'fury' allows and if both the current deviation
-                and the deviation of par from RAY coincide, we are trying to bring
-                par back to RAY
-            **/
-            if (both(both(fury == 1, par != RAY), way(par, RAY) == way_)) {
-              (sf, msr) = adj(par, way_);
-              pull(sf, msr);
-            } else {
-              /**
-                If neither the deviation is big enough nor we can bring par back to RAY,
-                simply set default values for the rates
-              **/
-              pull(dawn, dusk);
-            }
+            // Simply set default values for the rates
+            pull(dawn, dusk);
           }
           // Make sure you store a ray as the latest price
           mpr = mul(uint(val), 10 ** 9);
