@@ -157,6 +157,7 @@ contract MaiTest is DSTest {
         vat.init("gold");
         goldFeed = new Feed(1 ether, true);
         spot.file("gold", "pip", address(goldFeed));
+        spot.file("gold", "tam", 1000000000000000000000000000);
         spot.file("gold", "mat", 1000000000000000000000000000);
         spot.poke("gold");
         gemA = new GemJoin(address(vat), "gold", address(gold));

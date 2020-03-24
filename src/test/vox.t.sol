@@ -52,9 +52,9 @@ contract Hevm {
 contract VoxTest is DSTest {
     Vat     vat;
     Spotter spot;
-    Jug jug;
-    Vox vox;
-    Feed stableFeed;
+    Jug     jug;
+    Vox     vox;
+    Feed    stableFeed;
 
     GemJoin gemA;
     DSToken gold;
@@ -98,6 +98,7 @@ contract VoxTest is DSTest {
         vat.init("gold");
         goldFeed = new Feed(1 ether, true);
         spot.file("gold", "pip", address(goldFeed));
+        spot.file("gold", "tam", 1000000000000000000000000000);
         spot.file("gold", "mat", 1000000000000000000000000000);
         spot.poke("gold");
         gemA = new GemJoin(address(vat), "gold", address(gold));
@@ -128,11 +129,10 @@ contract VoxTest is DSTest {
         token.file("vow", address(vow));
         token.file("spot", address(spot));
 
-        token.mint(address(this), 1000);
-
         self = address(this);
 
         vat.frob("gold", self, self, self, 10 ether, 5 ether);
+        token.mint(self, 5 ether);
     }
 
     function gem(bytes32 ilk, address urn) internal view returns (uint) {
@@ -210,10 +210,10 @@ contract VoxTest is DSTest {
         assertEq(rho, now);
         assertEq(spot.par(), 1004999999999999999993941765);
         assertEq(vat.mai(address(vow)), 24999999999999999969708825000000000000000000);
-        assertEq(vat.sin(address(vow)), 4999999999999999993941765000);
-        assertEq(vat.mai(address(token)), 4999999999999999993941765000);
-        assertEq(vat.vice(), 4999999999999999993941765000);
-        assertEq(vat.debt(), 5025000000000000004969708824999999993941765000);
+        assertEq(vat.sin(address(vow)), 24999999999999999969708825000000000000000000);
+        assertEq(vat.mai(address(token)), 24999999999999999969708825000000000000000000);
+        assertEq(vat.vice(), 24999999999999999969708825000000000000000000);
+        assertEq(vat.debt(), 5049999999999999999939417650000000000000000000);
     }
 
     function testBackPositiveDeviation() public {
@@ -232,10 +232,10 @@ contract VoxTest is DSTest {
         assertEq(rho, now);
         assertEq(spot.par(), 995024875621105672471661507);
         assertEq(vat.mai(address(vow)), -24875621894471637641692465000000000000000000);
-        assertEq(vat.sin(address(vow)), -4975124378894327528338493000);
-        assertEq(vat.mai(address(token)), -4975124378894327528338493000);
-        assertEq(vat.vice(), -4975124378894327528338493000);
-        assertEq(vat.debt(), 4975124378105528357383183156105672471661507000);
+        assertEq(vat.sin(address(vow)), -24875621894471637641692465000000000000000000);
+        assertEq(vat.mai(address(token)), -24875621894471637641692465000000000000000000);
+        assertEq(vat.vice(), -24875621894471637641692465000000000000000000);
+        assertEq(vat.debt(), 4950248756211056724716615070000000000000000000);
     }
 
     function testRateSpread() public {
@@ -254,10 +254,10 @@ contract VoxTest is DSTest {
 
         assertEq(spot.par(), 1002499999999999999998720538);
         assertEq(vat.mai(address(vow)), 24999999999999999969708825000000000000000000);
-        assertEq(vat.sin(address(vow)), 2499999999999999998720538000);
-        assertEq(vat.mai(address(token)), 2499999999999999998720538000);
-        assertEq(vat.vice(), 2499999999999999998720538000);
-        assertEq(vat.debt(), 5025000000000000002469708824999999998720538000);
+        assertEq(vat.sin(address(vow)), 12499999999999999993602690000000000000000000);
+        assertEq(vat.mai(address(token)), 12499999999999999993602690000000000000000000);
+        assertEq(vat.vice(), 12499999999999999993602690000000000000000000);
+        assertEq(vat.debt(), 5037499999999999999963311515000000000000000000);
 
         stableFeed.poke(1.005 ether);
         vox.back();
@@ -271,10 +271,10 @@ contract VoxTest is DSTest {
 
         assertEq(spot.par(), 997512437810158436651567564);
         assertEq(vat.mai(address(vow)), 12468827929183639250826420000000000000000000);
-        assertEq(vat.sin(address(vow)), -2487562189841563348432436000);
-        assertEq(vat.mai(address(token)), -2487562189841563348432436000);
-        assertEq(vat.vice(), -2487562189841563348432436000);
-        assertEq(vat.debt(), 5012468827929183636763264230158436651567564000);
+        assertEq(vat.sin(address(vow)), -12437810949207816742162180000000000000000000);
+        assertEq(vat.mai(address(token)), -12437810949207816742162180000000000000000000);
+        assertEq(vat.vice(), -12437810949207816742162180000000000000000000);
+        assertEq(vat.debt(), 5000031016979975822508664240000000000000000000);
     }
 
     function testMultiHikePositiveDeviation() public {
@@ -293,10 +293,10 @@ contract VoxTest is DSTest {
         assertEq(vox.path(), 1);
         assertEq(spot.par(), 1004999999999999999993941765);
         assertEq(vat.mai(address(vow)), 24999999999999999969708825000000000000000000);
-        assertEq(vat.sin(address(vow)), 4999999999999999993941765000);
-        assertEq(vat.mai(address(token)), 4999999999999999993941765000);
-        assertEq(vat.vice(), 4999999999999999993941765000);
-        assertEq(vat.debt(), 5025000000000000004969708824999999993941765000);
+        assertEq(vat.sin(address(vow)), 24999999999999999969708825000000000000000000);
+        assertEq(vat.mai(address(token)), 24999999999999999969708825000000000000000000);
+        assertEq(vat.vice(), 24999999999999999969708825000000000000000000);
+        assertEq(vat.debt(), 5049999999999999999939417650000000000000000000);
 
         hevm.warp(now + SPY * 1 seconds);
         jug.drip();
@@ -307,10 +307,10 @@ contract VoxTest is DSTest {
         assertEq(vox.path(), 1);
         assertEq(spot.par(), 4839323606636171096946428139);
         assertEq(vat.mai(address(vow)), 19196618033180855484732140695000000000000000000);
-        assertEq(vat.sin(address(vow)), 3839323606636171096946428139000);
-        assertEq(vat.mai(address(token)), 3839323606636171096946428139000);
-        assertEq(vat.vice(), 3839323606636171096946428139000);
-        assertEq(vat.debt(), 24196618033180859324055747331171096946428139000);
+        assertEq(vat.sin(address(vow)), 19196618033180855484732140695000000000000000000);
+        assertEq(vat.mai(address(token)), 19196618033180855484732140695000000000000000000);
+        assertEq(vat.vice(), 19196618033180855484732140695000000000000000000);
+        assertEq(vat.debt(), 43393236066361710969464281390000000000000000000);
     }
 
     function testMultiHikeNegativeDeviation() public {
@@ -329,10 +329,10 @@ contract VoxTest is DSTest {
         assertEq(vox.path(), -1);
         assertEq(spot.par(), 995024875621105672471661507);
         assertEq(vat.mai(address(vow)), -24875621894471637641692465000000000000000000);
-        assertEq(vat.sin(address(vow)), -4975124378894327528338493000);
-        assertEq(vat.mai(address(token)), -4975124378894327528338493000);
-        assertEq(vat.vice(), -4975124378894327528338493000);
-        assertEq(vat.debt(), 4975124378105528357383183156105672471661507000);
+        assertEq(vat.sin(address(vow)), -24875621894471637641692465000000000000000000);
+        assertEq(vat.mai(address(token)), -24875621894471637641692465000000000000000000);
+        assertEq(vat.vice(), -24875621894471637641692465000000000000000000);
+        assertEq(vat.debt(), 4950248756211056724716615070000000000000000000);
 
         hevm.warp(now + SPY * 1 seconds);
         jug.drip();
@@ -343,10 +343,10 @@ contract VoxTest is DSTest {
         assertEq(vox.path(), -1);
         assertEq(spot.par(), 204584308297806743096017755);
         assertEq(vat.mai(address(vow)), -3977078458510966284519911225000000000000000000);
-        assertEq(vat.sin(address(vow)), -795415691702193256903982245000);
-        assertEq(vat.mai(address(token)), -795415691702193256903982245000);
-        assertEq(vat.vice(), -795415691702193256903982245000);
-        assertEq(vat.debt(), 1022921541489032920064397072806743096017755000);
+        assertEq(vat.sin(address(vow)), -3977078458510966284519911225000000000000000000);
+        assertEq(vat.mai(address(token)), -3977078458510966284519911225000000000000000000);
+        assertEq(vat.vice(), -3977078458510966284519911225000000000000000000);
+        assertEq(vat.debt(), -2954156917021932569039822450000000000000000000);
     }
 
     function test_bounded_stability_fee() public {
