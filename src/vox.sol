@@ -71,18 +71,18 @@ contract Vox is LibNote, Exp {
     }
 
     int256  public path; // latest type of deviation (positive/negative)
-    uint256 public fix;  // market price                                                                      [ray]
+    uint256 public fix;  // market price                                                 [ray]
     uint256 public span; // spread between way and sf
     uint256 public age;  // when fix was last updated
-    uint256 public trim; // deviation from RAY at which rates are recalculated                                [ray]
+    uint256 public trim; // deviation from target price at which rates are recalculated  [ray]
     uint256 public rest; // minimum time between updates
-    uint256 public how; // weight applied to current rates if deviation is kept constantly positive/negative [ray]
+    uint256 public how;  // sensitivity parameter
     uint256 public go;   // starting weight for rates
     uint256 public bowl; // accrued time since the deviation has been positive/negative
     uint256 public live; // access flag
 
-    uint256 public dawn; // default per-second sf                                                             [ray]
-    uint256 public dusk; // default per-second way                                                            [ray]
+    uint256 public dawn; // default per-second sf                                        [ray]
+    uint256 public dusk; // default per-second way                                       [ray]
 
     uint256 public up;   // upper per-second bound for sf
     uint256 public down; // bottom per-second bound for sf
