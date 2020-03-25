@@ -43,7 +43,7 @@ contract Pot is LibNote {
     SpotLike public spot; // par holder
     address  public vow;  // debt engine
     uint256  public rho;  // time of last drip
-    uint256  public msr;  // the Mai Savings Rate
+    uint256  public way;  // the Mai Savings Rate
 
     uint256  public live;  // Access Flag
 
@@ -52,7 +52,7 @@ contract Pot is LibNote {
         wards[msg.sender] = 1;
         vat  = VatLike(vat_);
         spot = SpotLike(spot_);
-        msr  = RAY;
+        way  = RAY;
         rho  = now;
         live = 1;
     }
@@ -100,7 +100,7 @@ contract Pot is LibNote {
     function file(bytes32 what, uint256 data) external note auth {
         require(live == 1, "Pot/not-live");
         require(now == rho, "Pot/rho-not-updated");
-        if (what == "msr") msr = data;
+        if (what == "way") way = data;
         else revert("Pot/file-unrecognized-param");
     }
 
@@ -112,14 +112,14 @@ contract Pot is LibNote {
 
     function cage() external note auth {
         live = 0;
-        msr = RAY;
+        way = RAY;
     }
 
     // --- Savings Rate Accumulation ---
     function drip() public note returns (uint tmp) {
         require(now >= rho, "Pot/invalid-now");
         uint par = spot.par();
-        tmp = rmul(rpow(msr, now - rho, RAY), par);
+        tmp = rmul(rpow(way, now - rho, RAY), par);
         spot.file("par", tmp);
         rho = now;
     }

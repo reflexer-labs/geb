@@ -246,7 +246,7 @@ contract EndTest is DSTest {
         vat.rely(address(spot));
 
         pot = new Pot(address(vat), address(this));
-        vox = new Vox(address(pot), address(spot));
+        vox = new Vox(address(pot), address(this), address(spot));
 
         end = new End();
         end.file("vat", address(vat));
