@@ -26,7 +26,7 @@ contract FlopLike {
 }
 
 contract FlapLike {
-    function kick(uint lot, uint bid) external returns (uint);
+    function kick(uint lot) external returns (uint);
     function cage() external;
     function live() external returns (uint);
 }
@@ -144,7 +144,7 @@ contract Vow is LibNote {
     function flap() external note returns (uint id) {
         require(vat.mai(address(this)) >= add(add(vat.sin(address(this)), bump), hump), "Vow/insufficient-surplus");
         require(sub(sub(vat.sin(address(this)), Sin), Ash) == 0, "Vow/debt-not-zero");
-        id = flapper.kick(bump, 0);
+        id = flapper.kick(bump);
     }
 
     function cage() external note auth {

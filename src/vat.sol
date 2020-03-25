@@ -54,15 +54,12 @@ contract Vat {
     mapping (bytes32 => mapping (address => uint)) public gem;   // [wad]
     mapping (address => uint)                      public mai;   // [rad]
     mapping (address => uint)                      public sin;   // [rad]
-    mapping (bytes32 => mapping (address => uint)) public open;
 
     uint256  public debt;  // Total Mai Issued    [rad]
     uint256  public vice;  // Total Unbacked Mai  [rad]
     uint256  public Line;  // Total Debt Ceiling  [rad]
     uint256  public live;  // Access Flag
-    uint256  public close; // Force Flash Blocks Between Opening and Closing an Urn
 
-    uint256 public constant FLASH = 1;
     uint256 public constant WAD   = 10 ** 18;
 
     // --- Logs ---
@@ -143,7 +140,6 @@ contract Vat {
     function file(bytes32 what, uint data) external note auth {
         require(live == 1, "Vat/not-live");
         if (what == "Line") Line = data;
-        else if (what == "close") close = data;
         else revert("Vat/file-unrecognized-param");
     }
     function file(bytes32 ilk, bytes32 what, uint data) external note auth {
@@ -190,15 +186,6 @@ contract Vat {
         // ilk has been initialised
         require(ilk.rate != 0, "Vat/ilk-not-init");
 
-        if (urn.art == 0 && dart > 0) {
-          open[i][u] = block.number;
-        } else {
-          if (both(dart == -int(urn.art), urn.art > 0)) {
-            if (close > 0) require(sub(block.number, open[i][u]) >= FLASH, "Vat/too-early-to-close");
-            open[i][u] = 0;
-          }
-        }
-
         urn.ink = add(urn.ink, dink);
         urn.art = add(urn.art, dart);
         ilk.Art = add(ilk.Art, dart);
@@ -240,25 +227,9 @@ contract Vat {
 
     // --- CDP Fungibility ---
     function fork(bytes32 ilk, address src, address dst, int dink, int dart) external note {
-        if (both(dart == int(urns[ilk][src].art), urns[ilk][src].art > 0)) {
-          if (close > 0) require(sub(block.number, open[ilk][src]) >= FLASH, "Vat/too-early-to-close");
-          open[ilk][src] = 0;
-        }
-
         Urn storage u = urns[ilk][src];
         Urn storage v = urns[ilk][dst];
         Ilk storage i = ilks[ilk];
-
-        if (v.art == 0 && dart > 0) {
-          open[ilk][dst] = block.number;
-        } else if (both(-int(dart) == int(v.art), v.art > 0)) {
-          if (close > 0) require(sub(block.number, open[ilk][dst]) >= FLASH, "Vat/too-early-to-close");
-          open[ilk][dst] = 0;
-        }
-
-        if (u.art == 0 && dart < 0) {
-          open[ilk][src] = block.number;
-        }
 
         u.ink = sub(u.ink, dink);
         u.art = sub(u.art, dart);

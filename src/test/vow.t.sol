@@ -80,6 +80,7 @@ contract VowTest is DSTest {
         vat.rely(address(vow));
 
         gov.mint(200 ether);
+        gov.setOwner(address(flap));
         gov.push(address(bin), 200 ether);
     }
 
@@ -189,8 +190,25 @@ contract VowTest is DSTest {
         assertTrue( can_flop() );
     }
 
+    function test_basic_cage() public {
+        assertEq(flap.live(), 1);
+        assertEq(flop.live(), 1);
+        vow.cage();
+        assertEq(flap.live(), 0);
+        assertEq(flop.live(), 0);
+    }
+
+    function test_cage_prefunded_flapper() public {
+        bond.transfer(address(flap), 50 ether);
+        vow.cage();
+        // assertEq(bond.balanceOf(address(flap)), 0);
+        // assertEq(vat.mai(address(flap)), 0);
+        // assertEq(bond.balanceOf(address(vow)), 0);
+        // assertEq(vat.mai(address(vow)), 0);
+    }
+
     function test_flap() public {
-        vat.mint(address(vow), 100 ether);
+        vat.mint(address(vow), 100 ether * 10 ** 27);
         assertTrue( can_flap() );
     }
 

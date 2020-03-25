@@ -288,36 +288,6 @@ contract FrobTest is DSTest {
         assertTrue( this.try_frob("gold",  5 ether, 1 ether));
     }
 
-    function test_locked_frob() public {
-        vat.file("close", 1);
-        vat.frob("gold", me, me, me, 10 ether, 5 ether);
-        uint open = vat.open("gold", me);
-        assertEq(block.number, 0);
-        assertEq(open, 0);
-        assertTrue( !try_frob("gold",  0 ether, -5 ether));
-        vat.frob("gold", me, me, me, 10 ether, -4 ether);
-        assertTrue( !try_frob("gold",  0 ether, -1 ether));
-        vat.file("close", 0);
-        vat.frob("gold", me, me, me, 0, -1 ether);
-        open = vat.open("gold", me);
-        assertEq(open, 0);
-    }
-
-    function test_locked_frob_and_fork() public {
-        Usr ali = new Usr(vat);
-        ali.hope(me);
-        vat.file("close", 1);
-        vat.frob("gold", me, me, me, 10 ether, 5 ether);
-        assertTrue( !try_fork("gold", address(ali), 10 ether, 5 ether));
-        vat.file("close", 0);
-        vat.fork("gold", me, address(ali), 10 ether, 5 ether);
-        vat.file("close", 1);
-        assertTrue( !try_fork("gold", address(ali), -10 ether, -5 ether));
-        vat.file("close", 0);
-        vat.fork("gold", me, address(ali), -10 ether, -5 ether);
-        assertTrue( try_frob("gold",  0 ether, -5 ether));
-    }
-
     function rad(uint wad) internal pure returns (uint) {
         return wad * 10 ** 27;
     }

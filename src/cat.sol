@@ -48,9 +48,6 @@ contract VatLike {
 contract VowLike {
     function fess(uint) external;
 }
-contract CareLike {
-    function ping(bytes32,uint,bytes32,address,uint) external;
-}
 
 contract Cat is LibNote {
     // --- Auth ---
@@ -80,7 +77,6 @@ contract Cat is LibNote {
 
     VatLike  public vat;
     VowLike  public vow;
-    CareLike public care;
 
     // --- Events ---
     event Bite(
@@ -113,10 +109,14 @@ contract Cat is LibNote {
         if (x > y) { z = y; } else { z = x; }
     }
 
+    // --- Utils ---
+    function both(bool x, bool y) internal pure returns (bool z) {
+        assembly{ z := and(x, y)}
+    }
+
     // --- Administration ---
     function file(bytes32 what, address data) external note auth {
         if (what == "vow") vow = VowLike(data);
-        else if (what == "care") care = CareLike(data);
         else revert("Cat/file-unrecognized-param");
     }
     function file(bytes32 ilk, bytes32 what, uint data) external note auth {
@@ -147,15 +147,16 @@ contract Cat is LibNote {
         (uint ink, uint art) = vat.urns(ilk, urn);
 
         require(live == 1, "Cat/not-live");
-        require(risk > 0 && mul(ink, risk) < mul(art, rate), "Cat/not-unsafe");
+        require(both(risk > 0, mul(ink, risk) < mul(art, rate)), "Cat/not-unsafe");
 
         if (tasks[ilk][urn] != address(0) && jobs[tasks[ilk][urn]] == 1) {
           HeroLike(tasks[ilk][urn]).help(msg.sender, ilk, urn);
         }
 
-        (ink, ) = vat.urns(ilk, urn);
+        (, rate, , , , risk) = vat.ilks(ilk);
+        (ink, art)           = vat.urns(ilk, urn);
 
-        if (mul(ink, risk) < mul(art, rate)) {
+        if (both(risk > 0, mul(ink, risk) < mul(art, rate))) {
           uint lot = min(ink, ilks[ilk].lump);
           art      = min(art, mul(lot, art) / ink);
 
@@ -170,10 +171,6 @@ contract Cat is LibNote {
                                            , lot: lot
                                            , bid: 0
                                            });
-
-          if (address(care) != address(0)) {
-            care.ping("cat", id, ilk, urn, ilks[ilk].chop);
-          }
 
           emit Bite(ilk, urn, lot, art, mul(art, rate), ilks[ilk].flip, id);
         } else {

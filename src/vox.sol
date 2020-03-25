@@ -144,6 +144,9 @@ contract Vox is LibNote, Exp {
     uint256 constant RAY = 10 ** 27;
     uint32  constant SPY = 31536000;
     uint256 constant MAX = 2 ** 255;
+    function ray(uint x) internal pure returns (uint z) {
+        z = mul(x, 10 ** 9);
+    }
     function add(uint x, uint y) internal pure returns (uint z) {
         z = x + y;
         require(z >= x);
@@ -258,6 +261,7 @@ contract Vox is LibNote, Exp {
         // Calculate adjusted annual rate
         uint full_ = (site_ == 1) ? full(par, val) : full(val, par);
 
+        // Calculate the per-second base stability fee and target rate of change
         uint sf_  = comp(br(full_));
         uint way_ = (span == RAY) ? sf_ : comp(sr(full_));
 
@@ -299,17 +303,18 @@ contract Vox is LibNote, Exp {
           uint sf; uint way_;
           uint par = spot.par();
           // Compute the deviation and whether it's negative/positive
-          uint dev = delt(mul(uint(val), 10 ** 9), par);
-          int site_ = site(mul(uint(val), 10 ** 9), par);
+          uint dev  = delt(ray(uint(val)), par);
+          int site_ = site(ray(uint(val)), par);
           // If the deviation is at least 'trim'
           if (dev >= trim) {
             /**
               If the current deviation is the same as the latest deviation, add seconds
-              passed to bowl with grab(). Otherwise change the latest deviation and restart bowl
+              passed to bowl using grab(). Otherwise change the latest deviation type
+              and restart bowl
             **/
             (site_ == path) ? grab(gap) : rash(site_);
             // Compute the new per-second rates
-            (sf, way_) = adj(mul(uint(val), 10 ** 9), par, site_);
+            (sf, way_) = adj(ray(uint(val)), par, site_);
             // Set the new rates
             pull(sf, way_);
           } else {
@@ -319,7 +324,7 @@ contract Vox is LibNote, Exp {
             pull(dawn, dusk);
           }
           // Make sure you store the latest price as a ray
-          fix = mul(uint(val), 10 ** 9);
+          fix = ray(uint(val));
           // Also store the timestamp of the update
           tau = era();
         }
