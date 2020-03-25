@@ -1,31 +1,45 @@
 pragma solidity ^0.5.15;
 
 import "ds-test/test.sol";
-
+import {DSToken} from "ds-token/token.sol";
 import {Flopper as Flop} from './flop.t.sol';
 import {Flapper as Flap} from './flap.t.sol';
 import {TestVat as  Vat} from './vat.t.sol';
 import {Vow}             from '../vow.sol';
+import {MaiJoin}         from '../join.sol';
 
 contract Hevm {
     function warp(uint256) public;
 }
 
-contract Gem {
-    mapping (address => uint256) public balanceOf;
-    function mint(address usr, uint rad) public {
-        balanceOf[usr] += rad;
+contract BinLike {
+    uint256 give;
+
+    constructor(
+      uint256 give_
+    ) public {
+      give = give_;
+    }
+
+    function swap(address bond, address gov, uint sell) external returns (uint) {
+        DSToken(bond).transferFrom(msg.sender, address(this), sell);
+        DSToken(gov).transfer(msg.sender, give);
+        return give;
     }
 }
 
 contract VowTest is DSTest {
     Hevm hevm;
 
-    Vat  vat;
-    Vow  vow;
-    Flop flop;
-    Flap flap;
-    Gem  gov;
+    Vat     vat;
+    Vow     vow;
+    Flop    flop;
+    Flap    flap;
+    BinLike bin;
+
+    DSToken gov;
+    DSToken bond;
+    MaiJoin maiA;
 
     function setUp() public {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
@@ -33,10 +47,26 @@ contract VowTest is DSTest {
 
         vat = new Vat();
 
-        gov  = new Gem();
+        gov  = new DSToken('');
+        bond = new DSToken("Mai");
+        bin  = new BinLike(1 ether);
+        maiA = new MaiJoin(address(vat), address(bond));
+
+        vat.rely(address(maiA));
+        bond.mint(address(this), 50 ether);
+        bond.setOwner(address(maiA));
+
         flop = new Flop(address(vat), address(gov));
+
         flap = new Flap(address(vat));
-        //TODO: add gov and bond to flapper
+        flap.file("bond", address(bond));
+        flap.file("gov", address(gov));
+        flap.file("bin", address(bin));
+        flap.file("join", address(maiA));
+        flap.file("safe", address(this));
+
+        vat.hope(address(flap));
+        gov.approve(address(flap));
 
         vow = new Vow(address(vat), address(flap), address(flop));
         flap.rely(address(vow));
@@ -48,6 +78,9 @@ contract VowTest is DSTest {
 
         vat.hope(address(flop));
         vat.rely(address(vow));
+
+        gov.mint(200 ether);
+        gov.push(address(bin), 200 ether);
     }
 
     function try_flog(uint era) internal returns (bool ok) {
@@ -156,11 +189,10 @@ contract VowTest is DSTest {
         assertTrue( can_flop() );
     }
 
-    //TODO: fix this
-    // function test_flap() public {
-    //     vat.mint(address(vow), 100 ether);
-    //     assertTrue( can_flap() );
-    // }
+    function test_flap() public {
+        vat.mint(address(vow), 100 ether);
+        assertTrue( can_flap() );
+    }
 
     function test_no_flap_pending_sin() public {
         vow.file("bump", uint256(0 ether));

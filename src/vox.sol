@@ -70,7 +70,7 @@ contract Vox is LibNote, Exp {
     int256  public path; // latest type of deviation
     uint256 public fix;  // market price                                                 [ray]
     uint256 public span; // spread between way and sf
-    uint256 public age;  // when fix was last updated
+    uint256 public tau;  // when fix was last updated
     uint256 public trim; // deviation from target price at which rates are recalculated  [ray]
     uint256 public rest; // minimum time between updates
     uint256 public how;  // sensitivity parameter
@@ -211,6 +211,14 @@ contract Vox is LibNote, Exp {
     function delt(uint x, uint y) internal pure returns (uint z) {
         z = (x >= y) ? x - y : y - x;
     }
+    function comp(uint x) internal view returns (uint z) {
+        /**
+          Use the Bancor formulas to compute the per-second rate.
+          After the initial computation we need to divide by 2^precision.
+        **/
+        (uint raw, uint heed) = pow(x, RAY, 1, SPY);
+        z = div((raw * RAY), (2 ** heed));
+    }
 
     // --- Utils ---
     function both(bool x, bool y) internal pure returns (bool z) {
@@ -243,29 +251,18 @@ contract Vox is LibNote, Exp {
     function rash(int site_) internal {
         path = (path == 0) ? site_ : -path;
     }
+    function full(uint x, uint y) internal view returns (uint z) {
+        z = add(mul(x, RAY) / y, mul(how, bowl));
+    }
     function adj(uint val, uint par, int site_) public view returns (uint256, uint256) {
         // Calculate adjusted annual rate
-        uint drop = (site_ == 1) ? add(mul(par, RAY) / val, mul(how, bowl)) : add(mul(val, RAY) / par, mul(how, bowl));
+        uint full_ = (site_ == 1) ? full(par, val) : full(val, par);
 
-        /**
-          Use the Bancor formulas to compute the per-second stability fee.
-          After the initial computation we need to divide by 2^precision.
-        **/
-        (uint raw, uint precision) = pow(br(drop), RAY, 1, SPY);
-        uint sf_ = (raw * RAY) / (2 ** precision);
+        uint sf_  = comp(br(full_));
+        uint way_ = (span == RAY) ? sf_ : comp(sr(full_));
 
-        // If the deviation is positive, we set a negative rate
-        sf_ = (site_ == 1) ? sf_ : sub(RAY, sub(sf_, RAY));
-
-        /**
-          Use the Bancor formulas to compute the per second savings rate.
-          After the initial computation we need to divide by 2^precision.
-        **/
-        (raw, precision) = pow(sr(drop), RAY, 1, SPY);
-        uint way_ = (raw * RAY) / (2 ** precision);
-
-        // If the deviation is positive, we set a negative rate
-        way_ = (site_ == 1) ? way_ : sub(RAY, sub(way_, RAY));
+        // If the deviation is positive, we set a negative rate and vice-versa
+        (sf_, way_) = (site_ == 1) ? (sf_, way_) : (sub(RAY, sub(sf_, RAY)), sub(RAY, sub(way_, RAY)));
 
         // Always making sure sf > way even when they are in the negative territory
         if (site_ == -1) {
@@ -293,7 +290,7 @@ contract Vox is LibNote, Exp {
         require(live == 1, "Vox/not-live");
         // We need to have dripped in order to be able to file new rates
         require(both(rho == now, jug.late() == false), "Vox/not-dripped");
-        uint gap = sub(era(), age);
+        uint gap = sub(era(), tau);
         // The gap between now and the last update time needs to be at least 'rest'
         require(gap >= rest, "Vox/optimized");
         (bytes32 val, bool has) = pip.peek();
@@ -321,10 +318,10 @@ contract Vox is LibNote, Exp {
             // Simply set default values for the rates
             pull(dawn, dusk);
           }
-          // Make sure you store a ray as the latest price
+          // Make sure you store the latest price as a ray
           fix = mul(uint(val), 10 ** 9);
           // Also store the timestamp of the update
-          age = era();
+          tau = era();
         }
     }
     // Set the new rate of change and base stability fee

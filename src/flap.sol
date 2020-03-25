@@ -95,6 +95,9 @@ contract Flapper is LibNote {
         if (what == "bond") bond = GemLike(addr);
         else if (what == "gov") gov = GemLike(addr);
         else if (what == "join") {
+          if (address(bond) != address(0)) {
+            bond.approve(address(join), 0);
+          }
           vat.nope(address(join));
           vat.hope(addr);
           join = MaiJoinLike(addr);
@@ -105,6 +108,7 @@ contract Flapper is LibNote {
     }
     function cage() external note auth {
         live = 0;
+        //loot();
         vat.move(address(this), msg.sender, vat.mai(address(this)));
     }
 

@@ -816,26 +816,6 @@ contract BiteTest is DSTest {
         flop.deal(f1);
         assertEq(gov.balanceOf(address(this)), 1100 ether);
     }
-
-    // function test_flappy_bite() public {
-    //     // get some surplus
-    //     vat.mint(address(vow), 100 ether);
-    //     assertEq(vat.balanceOf(address(vow)),  100 ether);
-    //     assertEq(gov.balanceOf(address(this)), 100 ether);
-    //
-    //     vow.file("bump", rad(100 ether));
-    //     assertEq(vow.Awe(), 0 ether);
-    //     uint id = vow.flap();
-    //
-    //     assertEq(vat.balanceOf(address(this)),   0 ether);
-    //     assertEq(gov.balanceOf(address(this)), 100 ether);
-    //     flap.tend(id, rad(100 ether), 10 ether);
-    //     hevm.warp(now + 4 hours);
-    //     gov.setOwner(address(flap));
-    //     flap.deal(id);
-    //     assertEq(vat.balanceOf(address(this)),   100 ether);
-    //     assertEq(gov.balanceOf(address(this)),    90 ether);
-    // }
 }
 
 contract FoldTest is DSTest {
