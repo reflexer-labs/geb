@@ -50,13 +50,7 @@ contract CatLike {
     );
     function cage() external;
 }
-contract PotLike {
-    function cage() external;
-}
 contract VowLike {
-    function cage() external;
-}
-contract VoxLike {
     function cage() external;
 }
 contract Flippy {
@@ -94,7 +88,7 @@ contract Spotty {
         - freezes user entrypoints
         - cancels flop/flap auctions
         - starts cooldown period
-        - stops pot drips
+        - stops vox drips
     2. `cage(ilk)`:
        - set the cage price for each `ilk`, reading off the price feed
     We must process some system state before it is possible to calculate
@@ -175,8 +169,6 @@ contract End is LibNote {
     VatLike  public vat;
     CatLike  public cat;
     VowLike  public vow;
-    VoxLike  public vox;
-    PotLike  public pot;
     Spotty   public spot;
 
     uint256  public live;  // cage flag
@@ -230,9 +222,7 @@ contract End is LibNote {
         if (what == "vat")  vat = VatLike(data);
         else if (what == "cat")  cat = CatLike(data);
         else if (what == "vow")  vow = VowLike(data);
-        else if (what == "pot")  pot = PotLike(data);
         else if (what == "spot") spot = Spotty(data);
-        else if (what == "vox")  vox = VoxLike(data);
         else revert("End/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 data) external note auth {
@@ -250,10 +240,6 @@ contract End is LibNote {
         cat.cage();
         vow.cage();
         spot.cage();
-        pot.cage();
-        if (address(vox) != address(0)) {
-          vox.cage();
-        }
     }
 
     function cage(bytes32 ilk) external note {

@@ -25,8 +25,6 @@ import "ds-token/token.sol";
 import {Vat}  from '../vat.sol';
 import {Cat}  from '../cat.sol';
 import {Vow}  from '../vow.sol';
-import {Vox}  from '../vox.sol';
-import {Pot}  from '../pot.sol';
 import {Flipper} from '../flip.sol';
 import {Flapper} from '../flap.sol';
 import {Flopper} from '../flop.sol';
@@ -118,9 +116,6 @@ contract EndTest is DSTest {
     End   end;
     Vow   vow;
     Cat   cat;
-    Vox   vox;
-    Pot   pot;
-
     Spotter spot;
 
     struct Ilk {
@@ -245,19 +240,13 @@ contract EndTest is DSTest {
         vat.file("Line",         rad(1000 ether));
         vat.rely(address(spot));
 
-        pot = new Pot(address(vat), address(this));
-        vox = new Vox(address(pot), address(this), address(spot));
-
         end = new End();
         end.file("vat", address(vat));
         end.file("cat", address(cat));
         end.file("vow", address(vow));
         end.file("spot", address(spot));
-        end.file("pot", address(pot));
         end.file("wait", 1 hours);
         vat.rely(address(end));
-        pot.rely(address(end));
-        vox.rely(address(end));
         vow.rely(address(end));
         spot.rely(address(end));
         cat.rely(address(end));
@@ -265,43 +254,20 @@ contract EndTest is DSTest {
         flop.rely(address(vow));
     }
 
-    function test_cage_basic_no_vox() public {
+    function test_cage_basic() public {
         assertEq(end.live(), 1);
         assertEq(vat.live(), 1);
         assertEq(cat.live(), 1);
+        assertEq(spot.live(), 1);
         assertEq(vow.live(), 1);
-        assertEq(vox.live(), 1);
-        assertEq(pot.live(), 1);
         assertEq(vow.flopper().live(), 1);
         assertEq(vow.flapper().live(), 1);
         end.cage();
-        assertEq(vox.live(), 1);
         assertEq(end.live(), 0);
         assertEq(vat.live(), 0);
         assertEq(cat.live(), 0);
         assertEq(vow.live(), 0);
-        assertEq(pot.live(), 0);
-        assertEq(vow.flopper().live(), 0);
-        assertEq(vow.flapper().live(), 0);
-    }
-
-    function test_cage_basic_with_vox() public {
-        end.file("vox", address(vox));
-        assertEq(end.live(), 1);
-        assertEq(vat.live(), 1);
-        assertEq(cat.live(), 1);
-        assertEq(vow.live(), 1);
-        assertEq(vox.live(), 1);
-        assertEq(pot.live(), 1);
-        assertEq(vow.flopper().live(), 1);
-        assertEq(vow.flapper().live(), 1);
-        end.cage();
-        assertEq(vox.live(), 0);
-        assertEq(end.live(), 0);
-        assertEq(vat.live(), 0);
-        assertEq(cat.live(), 0);
-        assertEq(vow.live(), 0);
-        assertEq(pot.live(), 0);
+        assertEq(spot.live(), 0);
         assertEq(vow.flopper().live(), 0);
         assertEq(vow.flapper().live(), 0);
     }

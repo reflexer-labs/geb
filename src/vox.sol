@@ -29,11 +29,7 @@ contract PipLike {
 
 contract SpotLike {
     function par() external view returns (uint256);
-}
-
-contract PotLike {
-    function file(bytes32, uint256) external;
-    function rho() public view returns (uint);
+    function file(bytes32,uint256) external;
 }
 
 contract JugLike {
@@ -46,19 +42,20 @@ contract JugLike {
   change for par according to the market price deviation from a target price.
 
   The rate of change and the per-second base stability fee are computed on-chain.
-  The only external input is the price feed for Mai.
+  The main external input is the price feed for Mai.
 
-  Rates are computed so that they "pull" the market price in the opposite direction
+  Rates are computed so that they pull the market price in the opposite direction
   of the deviation.
 
   After deployment, you can set several parameters such as:
 
-    - Default values for MSR/SF
+    - Default values for WAY/SF
     - Bounds for SF
-    - Minimum time between updates
-    - A spread between SF/MSR
+    - Minimum time between feedback updates
+    - A spread between SF/WAY
     - A minimum deviation from the target price at which rate recalculation starts again
-    - A weight to apply over time to increase/decrease the rates if the deviation is kept constant
+    - A sensitivity parameter to apply over time to increase/decrease the rates if the
+      deviation is kept constant
 **/
 contract Vox is LibNote, Exp {
     // --- Auth ---
@@ -70,7 +67,7 @@ contract Vox is LibNote, Exp {
         _;
     }
 
-    int256  public path; // latest type of deviation (positive/negative)
+    int256  public path; // latest type of deviation
     uint256 public fix;  // market price                                                 [ray]
     uint256 public span; // spread between way and sf
     uint256 public age;  // when fix was last updated
@@ -87,15 +84,14 @@ contract Vox is LibNote, Exp {
     uint256 public up;   // upper per-second bound for sf
     uint256 public down; // bottom per-second bound for sf
 
+    uint256  public rho;  // time of last drip
+    uint256  public way;  // the Target Rate of Adjustment
+
     PipLike  public pip;
-    PotLike  public pot;
     JugLike  public jug;
     SpotLike public spot;
 
-    uint256 public constant MAX = 2 ** 255;
-
     constructor(
-      address pot_,
       address jug_,
       address spot_
     ) public {
@@ -106,9 +102,9 @@ contract Vox is LibNote, Exp {
         dusk = 10 ** 27;
         up   = 2 ** 255;
         down = 2 ** 255;
-        pot  = PotLike(pot_);
         jug  = JugLike(jug_);
         spot = SpotLike(spot_);
+        rho  = now;
         live = 1;
     }
 
@@ -117,7 +113,6 @@ contract Vox is LibNote, Exp {
         require(live == 1, "Vox/not-live");
         if (what == "pip") pip = PipLike(addr);
         else if (what == "jug") jug = JugLike(addr);
-        else if (what == "pot") pot = PotLike(addr);
         else if (what == "spot") spot = SpotLike(addr);
         else revert("Vox/file-unrecognized-param");
     }
@@ -126,15 +121,9 @@ contract Vox is LibNote, Exp {
         if (what == "trim") trim = val;
         else if (what == "span") span = val;
         else if (what == "rest") rest = val;
-        else if (what == "dawn") {
-          dawn = val;
-        }
-        else if (what == "dusk") {
-          dusk = val;
-        }
-        else if (what == "how") {
-          how = val;
-        }
+        else if (what == "dawn") dawn = val;
+        else if (what == "dusk") dusk = val;
+        else if (what == "how")  how = val;
         else if (what == "up") {
           require(val >= RAY, "Vox/invalid-up");
           if (down != MAX) require(val > down, "Vox/small-up");
@@ -154,6 +143,7 @@ contract Vox is LibNote, Exp {
     // --- Math ---
     uint256 constant RAY = 10 ** 27;
     uint32  constant SPY = 31536000;
+    uint256 constant MAX = 2 ** 255;
     function add(uint x, uint y) internal pure returns (uint z) {
         z = x + y;
         require(z >= x);
@@ -232,13 +222,6 @@ contract Vox is LibNote, Exp {
     function site(uint x, uint y) internal view returns (int z) {
         z = (x >= y) ? int(-1) : int(1);
     }
-    function inj(uint val, uint par, int site) internal view returns (uint z) {
-        if (site == 1) {
-          sub(div(mul(par, RAY), val), RAY);
-        } else {
-          sub(RAY, div(mul(val, RAY), par));
-        }
-    }
     // Compute the per second rate without spread
     function br(uint256 x) internal pure returns (uint256 z) {
         return RAY + delt(x, RAY);
@@ -257,12 +240,12 @@ contract Vox is LibNote, Exp {
         path = 0;
     }
     // Set the current deviation direction
-    function rash(int site) internal {
-        path = (path == 0) ? site : -path;
+    function rash(int site_) internal {
+        path = (path == 0) ? site_ : -path;
     }
-    function adj(uint val, uint par, int site) public view returns (uint256, uint256) {
+    function adj(uint val, uint par, int site_) public view returns (uint256, uint256) {
         // Calculate adjusted annual rate
-        uint drop = (site == 1) ? add(mul(par, RAY) / val, mul(how, bowl)) : sub(mul(val, RAY) / par, mul(how, bowl));
+        uint drop = (site_ == 1) ? add(mul(par, RAY) / val, mul(how, bowl)) : add(mul(val, RAY) / par, mul(how, bowl));
 
         /**
           Use the Bancor formulas to compute the per-second stability fee.
@@ -272,7 +255,7 @@ contract Vox is LibNote, Exp {
         uint sf_ = (raw * RAY) / (2 ** precision);
 
         // If the deviation is positive, we set a negative rate
-        sf_ = (site == 1) ? sf_ : sub(RAY, sub(sf_, RAY));
+        sf_ = (site_ == 1) ? sf_ : sub(RAY, sub(sf_, RAY));
 
         /**
           Use the Bancor formulas to compute the per second savings rate.
@@ -282,10 +265,10 @@ contract Vox is LibNote, Exp {
         uint way_ = (raw * RAY) / (2 ** precision);
 
         // If the deviation is positive, we set a negative rate
-        way_ = (site == 1) ? way_ : sub(RAY, sub(way_, RAY));
+        way_ = (site_ == 1) ? way_ : sub(RAY, sub(way_, RAY));
 
         // Always making sure sf > way even when they are in the negative territory
-        if (site == -1) {
+        if (site_ == -1) {
           (sf_, way_) = (way_, sf_);
         }
 
@@ -296,33 +279,42 @@ contract Vox is LibNote, Exp {
         return (sf_, way_);
     }
 
+    // --- Target Price Updates ---
+    function drip() public note returns (uint tmp) {
+        require(now >= rho, "Vox/invalid-now");
+        uint par = spot.par();
+        tmp = rmul(rpow(way, now - rho, RAY), par);
+        spot.file("par", tmp);
+        rho = now;
+    }
+
     // --- Feedback Mechanism ---
     function back() external note {
         require(live == 1, "Vox/not-live");
         // We need to have dripped in order to be able to file new rates
-        require(both(pot.rho() == now, jug.late() == false), "Vox/not-dripped");
+        require(both(rho == now, jug.late() == false), "Vox/not-dripped");
         uint gap = sub(era(), age);
         // The gap between now and the last update time needs to be at least 'rest'
         require(gap >= rest, "Vox/optimized");
         (bytes32 val, bool has) = pip.peek();
         // If the OSM has a value
         if (has) {
-          uint sf; uint way;
+          uint sf; uint way_;
           uint par = spot.par();
           // Compute the deviation and whether it's negative/positive
           uint dev = delt(mul(uint(val), 10 ** 9), par);
-          int site = site(mul(uint(val), 10 ** 9), par);
+          int site_ = site(mul(uint(val), 10 ** 9), par);
           // If the deviation is at least 'trim'
           if (dev >= trim) {
             /**
               If the current deviation is the same as the latest deviation, add seconds
               passed to bowl with grab(). Otherwise change the latest deviation and restart bowl
             **/
-            (site == path) ? grab(gap) : rash(site);
+            (site_ == path) ? grab(gap) : rash(site_);
             // Compute the new per-second rates
-            (sf, way) = adj(mul(uint(val), 10 ** 9), par, site);
+            (sf, way_) = adj(mul(uint(val), 10 ** 9), par, site_);
             // Set the new rates
-            pull(sf, way);
+            pull(sf, way_);
           } else {
             // Restart counting the seconds since the deviation has been constant
             wipe();
@@ -336,8 +328,8 @@ contract Vox is LibNote, Exp {
         }
     }
     // Set the new rate of change and base stability fee
-    function pull(uint sf, uint way) internal note {
-        pot.file("way", way);
+    function pull(uint sf, uint way_) internal note {
+        way = way_;
         jug.file("base", sf);
     }
 }

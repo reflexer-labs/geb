@@ -112,6 +112,7 @@ contract Flapper is LibNote {
     function loot() internal {
         uint own = bond.balanceOf(address(this));
         if (own > 0) {
+          bond.approve(address(join), own);
           join.join(safe, own);
         }
     }

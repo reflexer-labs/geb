@@ -113,4 +113,12 @@ contract FlapTest is DSTest {
         assertEq(vat.mai(address(this)), rad(900 ether));
         assertEq(vat.mai(address(flap)), 0);
     }
+    function test_mai_and_bond_prefunded() public {
+        bond.transfer(address(flap), 50 ether);
+        vat.move(address(this), address(flap), rad(50 ether));
+        flap.kick(rad(150 ether));
+        assertEq(gov.balanceOf(address(flap)), 0);
+        assertEq(vat.mai(address(flap)),    0 ether);
+        assertEq(bond.balanceOf(address(flap)), 0 ether);
+    }
 }
