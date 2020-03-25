@@ -108,7 +108,7 @@ contract Flapper is LibNote {
     }
     function cage() external note auth {
         live = 0;
-        //loot();
+        loot();
         vat.move(address(this), msg.sender, vat.mai(address(this)));
     }
 

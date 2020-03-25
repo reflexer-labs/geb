@@ -72,7 +72,6 @@ contract FlapTest is DSTest {
 
         gov.mint(1000 ether);
         gov.setOwner(address(flap));
-
         gov.push(address(bin), 200 ether);
     }
     function test_kick() public {

@@ -60,8 +60,6 @@ contract Vat {
     uint256  public Line;  // Total Debt Ceiling  [rad]
     uint256  public live;  // Access Flag
 
-    uint256 public constant WAD   = 10 ** 18;
-
     // --- Logs ---
     event LogNote(
         bytes4   indexed  sig,

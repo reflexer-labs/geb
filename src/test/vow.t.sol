@@ -82,6 +82,9 @@ contract VowTest is DSTest {
         gov.mint(200 ether);
         gov.setOwner(address(flap));
         gov.push(address(bin), 200 ether);
+
+        vat.suck(address(this), address(this), 1000 ether * 10 ** 27);
+        vat.move(address(this), address(maiA), 100 ether * 10 ** 27);
     }
 
     function try_flog(uint era) internal returns (bool ok) {

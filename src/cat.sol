@@ -25,7 +25,7 @@ contract Kicker {
         public returns (uint);
 }
 contract HeroLike {
-    function help(address,bytes32,address) external returns (bool);
+    function help(address,bytes32,address) external returns (bool,uint256);
 }
 contract VatLike {
     function ilks(bytes32) external view returns (
@@ -88,6 +88,11 @@ contract Cat is LibNote {
       address flip,
       uint256 id
     );
+    event Help(
+      bytes32 indexed ilk,
+      address indexed urn,
+      uint256 ink
+    );
 
     // --- Init ---
     constructor(address vat_) public {
@@ -149,12 +154,16 @@ contract Cat is LibNote {
         require(live == 1, "Cat/not-live");
         require(both(risk > 0, mul(ink, risk) < mul(art, rate)), "Cat/not-unsafe");
 
+        //TODO: try catch the Hero call
         if (tasks[ilk][urn] != address(0) && jobs[tasks[ilk][urn]] == 1) {
-          HeroLike(tasks[ilk][urn]).help(msg.sender, ilk, urn);
+          (bool ok, uint dose) = HeroLike(tasks[ilk][urn]).help(msg.sender, ilk, urn);
+          if (both(ok, dose > 0)) {
+            emit Help(ilk, urn, dose);
+          }
         }
 
-        (, rate, , , , risk) = vat.ilks(ilk);
-        (ink, art)           = vat.urns(ilk, urn);
+        (, rate, , , , ) = vat.ilks(ilk);
+        (ink, art)       = vat.urns(ilk, urn);
 
         if (both(risk > 0, mul(ink, risk) < mul(art, rate))) {
           uint lot = min(ink, ilks[ilk].lump);
@@ -173,8 +182,6 @@ contract Cat is LibNote {
                                            });
 
           emit Bite(ilk, urn, lot, art, mul(art, rate), ilks[ilk].flip, id);
-        } else {
-          emit Bite(ilk, urn, 0, art, mul(art, rate), address(0), 0);
         }
     }
 }

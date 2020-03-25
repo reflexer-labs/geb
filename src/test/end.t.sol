@@ -31,6 +31,7 @@ import {Flopper} from '../flop.sol';
 import {GemJoin} from '../join.sol';
 import {End}  from '../end.sol';
 import {Spotter} from '../spot.sol';
+import {MaiJoin} from '../join.sol';
 
 contract Hevm {
     function warp(uint256) public;
@@ -60,6 +61,22 @@ contract DSValue is DSThing {
     }
     function void() public note auth {  // unset the value
         has = false;
+    }
+}
+
+contract BinLike {
+    uint256 give;
+
+    constructor(
+      uint256 give_
+    ) public {
+      give = give_;
+    }
+
+    function swap(address bond, address gov, uint sell) external returns (uint) {
+        DSToken(bond).transferFrom(msg.sender, address(this), sell);
+        DSToken(gov).transfer(msg.sender, give);
+        return give;
     }
 }
 
@@ -117,6 +134,11 @@ contract EndTest is DSTest {
     Vow   vow;
     Cat   cat;
     Spotter spot;
+
+    BinLike bin;
+    DSToken gov;
+    DSToken bond;
+    MaiJoin maiA;
 
     struct Ilk {
         DSValue pip;
@@ -221,15 +243,37 @@ contract EndTest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        vat = new Vat();
-        DSToken gov = new DSToken('GOV');
+        vat  = new Vat();
+        gov  = new DSToken('GOV');
+        bond = new DSToken("Mai");
+        bin  = new BinLike(1 ether);
+        maiA = new MaiJoin(address(vat), address(bond));
 
         flap = new Flapper(address(vat));
+        flap.file("bond", address(bond));
+        flap.file("gov", address(gov));
+        flap.file("bin", address(bin));
+        flap.file("join", address(maiA));
+        flap.file("safe", address(this));
+
+        vat.hope(address(flap));
+        gov.approve(address(flap));
+
         flop = new Flopper(address(vat), address(gov));
+
+        vat.rely(address(maiA));
+        bond.mint(address(this), 50 ether);
+        bond.setOwner(address(maiA));
+
+        gov.mint(200 ether);
+        //gov.setOwner(address(flap));
+        gov.push(address(bin), 200 ether);
         gov.setOwner(address(flop));
 
         vow = new Vow(address(vat), address(flap), address(flop));
         vat.rely(address(vow));
+        flap.rely(address(vow));
+        flop.rely(address(vow));
 
         cat = new Cat(address(vat));
         cat.file("vow", address(vow));

@@ -84,14 +84,12 @@ contract ForkTest is DSTest {
         vat.slip("gems", a, 80 ether);
     }
     function test_fork_to_self() public {
-        vat.file("close", 0);
         ali.frob("gems", a, a, a, 8 ether, 4 ether);
         assertTrue( ali.can_fork("gems", a, a, 8 ether, 4 ether));
         assertTrue( ali.can_fork("gems", a, a, 4 ether, 2 ether));
         assertTrue(!ali.can_fork("gems", a, a, 9 ether, 4 ether));
     }
     function test_give_to_other() public {
-        vat.file("close", 0);
         ali.frob("gems", a, a, a, 8 ether, 4 ether);
         assertTrue(!ali.can_fork("gems", a, b, 8 ether, 4 ether));
         bob.hope(address(ali));
