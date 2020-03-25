@@ -1,4 +1,4 @@
-/// vox.sol -- target price feed trigger
+/// vox.sol -- rate setter
 
 // Copyright (C) 2016, 2017  Nikolai Mushegian <nikolai@dapphub.com>
 // Copyright (C) 2016, 2017  Daniel Brockman <daniel@dapphub.com>
@@ -27,20 +27,36 @@ contract PipLike {
     function peek() external returns (bytes32, bool);
 }
 
-contract MaiLike {
-    function file(bytes32, uint256) external;
-    function drip() public returns (uint);
-}
-
 contract SpotLike {
-    function par() external returns (uint256);
+    function par() external view returns (uint256);
+    function file(bytes32,uint256) external;
 }
 
 contract JugLike {
     function file(bytes32, uint) external;
-    function drip() external;
+    function late() external view returns (bool);
 }
 
+/**
+  Vox tries to set both a base stability fee for all collateral types and a rate of
+  change for par according to the market price deviation from a target price.
+
+  The rate of change and the per-second base stability fee are computed on-chain.
+  The main external input is the price feed for Mai.
+
+  Rates are computed so that they pull the market price in the opposite direction
+  of the deviation.
+
+  After deployment, you can set several parameters such as:
+
+    - Default values for WAY/SF
+    - Bounds for SF
+    - Minimum time between feedback updates
+    - A spread between SF/WAY
+    - A minimum deviation from the target price at which rate recalculation starts again
+    - A sensitivity parameter to apply over time to increase/decrease the rates if the
+      deviation is kept constant
+**/
 contract Vox is LibNote, Exp {
     // --- Auth ---
     mapping (address => uint) public wards;
@@ -51,30 +67,44 @@ contract Vox is LibNote, Exp {
         _;
     }
 
-    uint256 public mpr;  // market price
-    uint256 public tpr;  // target price
-    uint256 public span; // spread between msr and sf
-    uint256 public age;  // when mpr was last updated
-    uint256 public trim; // deviation from tpr at which rates are recalculated
+    int256  public path; // latest type of deviation
+    uint256 public fix;  // market price                                                 [ray]
+    uint256 public span; // spread between way and sf
+    uint256 public age;  // when fix was last updated
+    uint256 public trim; // deviation from target price at which rates are recalculated  [ray]
+    uint256 public rest; // minimum time between updates
+    uint256 public how;  // sensitivity parameter
+    uint256 public go;   // starting weight for rates
+    uint256 public bowl; // accrued time since the deviation has been positive/negative
     uint256 public live; // access flag
 
-    mapping(int256 => int256) public how; // adjustment multiplier when pulling towards tpr
+    uint256 public dawn; // default per-second sf                                        [ray]
+    uint256 public dusk; // default per-second way                                       [ray]
+
+    uint256 public up;   // upper per-second bound for sf
+    uint256 public down; // bottom per-second bound for sf
+
+    uint256  public rho;  // time of last drip
+    uint256  public way;  // the Target Rate of Adjustment
 
     PipLike  public pip;
-    MaiLike  public tkn;
     JugLike  public jug;
     SpotLike public spot;
 
     constructor(
-      address tkn_,
-      address spot_,
-      uint256 tpr_
+      address jug_,
+      address spot_
     ) public {
         wards[msg.sender] = 1;
-        tpr = tpr_;
+        fix  = 10 ** 27;
         span = 10 ** 27;
-        tkn = MaiLike(tkn_);
+        dawn = 10 ** 27;
+        dusk = 10 ** 27;
+        up   = 2 ** 255;
+        down = 2 ** 255;
+        jug  = JugLike(jug_);
         spot = SpotLike(spot_);
+        rho  = now;
         live = 1;
     }
 
@@ -90,13 +120,20 @@ contract Vox is LibNote, Exp {
         require(live == 1, "Vox/not-live");
         if (what == "trim") trim = val;
         else if (what == "span") span = val;
-        else revert("Vox/file-unrecognized-param");
-    }
-    function file(bytes32 what, int256 side, int256 val) external note auth {
-        require(live == 1, "Vox/not-live");
-        require(side == -1 || side == 1, "Vox/invalid-side");
-        require(val <= SPY && val >= -SPY, "Vox/val-exceeds-limits");
-        if (what == "how") how[side] = val;
+        else if (what == "rest") rest = val;
+        else if (what == "dawn") dawn = val;
+        else if (what == "dusk") dusk = val;
+        else if (what == "how")  how = val;
+        else if (what == "up") {
+          require(val >= RAY, "Vox/invalid-up");
+          if (down != MAX) require(val > down, "Vox/small-up");
+          up = val;
+        }
+        else if (what == "down") {
+          require(val <= RAY, "Vox/invalid-down");
+          if (up != MAX) require(val < up, "Vox/big-down");
+          down = val;
+        }
         else revert("Vox/file-unrecognized-param");
     }
     function cage() external note auth {
@@ -105,7 +142,8 @@ contract Vox is LibNote, Exp {
 
     // --- Math ---
     uint256 constant RAY = 10 ** 27;
-    int256  constant SPY = 31536000;
+    uint32  constant SPY = 31536000;
+    uint256 constant MAX = 2 ** 255;
     function add(uint x, uint y) internal pure returns (uint z) {
         z = x + y;
         require(z >= x);
@@ -143,69 +181,155 @@ contract Vox is LibNote, Exp {
     function div(uint x, uint y) internal pure returns (uint z) {
         return x / y;
     }
-
-    // --- Utils ---
-    function era() internal view returns (uint) {
-        return block.timestamp;
+    function rmul(uint x, uint y) internal pure returns (uint z) {
+        // alsites rounds down
+        z = mul(x, y) / RAY;
+    }
+    function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
+        assembly {
+            switch x case 0 {switch n case 0 {z := base} default {z := 0}}
+            default {
+                switch mod(n, 2) case 0 { z := base } default { z := x }
+                let half := div(base, 2)  // for rounding.
+                for { n := div(n, 2) } n { n := div(n,2) } {
+                    let xx := mul(x, x)
+                    if iszero(eq(div(xx, x), x)) { revert(0,0) }
+                    let xxRound := add(xx, half)
+                    if lt(xxRound, xx) { revert(0,0) }
+                    x := div(xxRound, base)
+                    if mod(n,2) {
+                        let zx := mul(z, x)
+                        if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
+                        let zxRound := add(zx, half)
+                        if lt(zxRound, zx) { revert(0,0) }
+                        z := div(zxRound, base)
+                    }
+                }
+            }
+        }
     }
     function delt(uint x, uint y) internal pure returns (uint z) {
         z = (x >= y) ? x - y : y - x;
     }
-    function way(uint x, uint y) internal view returns (int z) {
+
+    // --- Utils ---
+    function both(bool x, bool y) internal pure returns (bool z) {
+        assembly{ z := and(x, y)}
+    }
+    function era() internal view returns (uint) {
+        return block.timestamp;
+    }
+    function site(uint x, uint y) internal view returns (int z) {
         z = (x >= y) ? int(-1) : int(1);
     }
-    function prj(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        return y + delt(x, y);
+    // Compute the per second rate without spread
+    function br(uint256 x) internal pure returns (uint256 z) {
+        return RAY + delt(x, RAY);
     }
-    function inj(uint256 x, uint256 y) internal view returns (uint256 z) {
-        return y + div(mul(delt(x, y), RAY), span);
+    // Compute per second rate taking into consideration a spread
+    function sr(uint256 x) internal view returns (uint256 z) {
+        return RAY + div(mul(delt(x, RAY), RAY), span);
     }
-    function adj(uint val) public view returns (uint256, uint256) {
-        int way_ = way(val, tpr);
+    // Add more seconds that passed since the deviation has been constantly positive/negative
+    function grab(uint x) internal {
+        bowl = add(bowl, x);
+    }
+    // Restart counting seconds since deviation has been constant
+    function wipe() internal {
+        bowl = 0;
+        path = 0;
+    }
+    // Set the current deviation direction
+    function rash(int site_) internal {
+        path = (path == 0) ? site_ : -path;
+    }
+    function adj(uint val, uint par, int site_) public view returns (uint256, uint256) {
+        // Calculate adjusted annual rate
+        uint drop = (site_ == 1) ? add(mul(par, RAY) / val, mul(how, bowl)) : add(mul(val, RAY) / par, mul(how, bowl));
 
-        (uint raw, uint precision) = pow(prj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
-        uint sf = (raw * RAY) / (2 ** precision);
-        sf = (way_ == 1) ? sf : tpr - sub(sf, tpr);
+        /**
+          Use the Bancor formulas to compute the per-second stability fee.
+          After the initial computation we need to divide by 2^precision.
+        **/
+        (uint raw, uint precision) = pow(br(drop), RAY, 1, SPY);
+        uint sf_ = (raw * RAY) / (2 ** precision);
 
-        (raw, precision) = pow(inj(val, tpr), RAY, 1, uint32(add(uint(SPY), how[way_])));
-        uint msr = (raw * RAY) / (2 ** precision);
-        msr = (way_ == 1) ? msr : tpr - sub(msr, tpr);
+        // If the deviation is positive, we set a negative rate
+        sf_ = (site_ == 1) ? sf_ : sub(RAY, sub(sf_, RAY));
 
-        if (way_ == 1) {
-          return (msr, sf);
+        /**
+          Use the Bancor formulas to compute the per second savings rate.
+          After the initial computation we need to divide by 2^precision.
+        **/
+        (raw, precision) = pow(sr(drop), RAY, 1, SPY);
+        uint way_ = (raw * RAY) / (2 ** precision);
+
+        // If the deviation is positive, we set a negative rate
+        way_ = (site_ == 1) ? way_ : sub(RAY, sub(way_, RAY));
+
+        // Always making sure sf > way even when they are in the negative territory
+        if (site_ == -1) {
+          (sf_, way_) = (way_, sf_);
         }
 
-        return (sf, msr);
+        // The stability fee might have bounds so make sure you don't pass them
+        sf_ = (sf_ < down && down != MAX) ? down : sf_;
+        sf_ = (sf_ > up && up != MAX)     ? up : sf_;
+
+        return (sf_, way_);
+    }
+
+    // --- Target Price Updates ---
+    function drip() public note returns (uint tmp) {
+        require(now >= rho, "Vox/invalid-now");
+        uint par = spot.par();
+        tmp = rmul(rpow(way, now - rho, RAY), par);
+        spot.file("par", tmp);
+        rho = now;
     }
 
     // --- Feedback Mechanism ---
-    function back() public note {
+    function back() external note {
         require(live == 1, "Vox/not-live");
-        require(sub(era(), age) > 0, "Vox/optimized");
+        // We need to have dripped in order to be able to file new rates
+        require(both(rho == now, jug.late() == false), "Vox/not-dripped");
+        uint gap = sub(era(), age);
+        // The gap between now and the last update time needs to be at least 'rest'
+        require(gap >= rest, "Vox/optimized");
         (bytes32 val, bool has) = pip.peek();
-        uint msr; uint sf;
+        // If the OSM has a value
         if (has) {
-          uint dev = delt(mul(uint(val), 10 ** 9), tpr);
+          uint sf; uint way_;
+          uint par = spot.par();
+          // Compute the deviation and whether it's negative/positive
+          uint dev = delt(mul(uint(val), 10 ** 9), par);
+          int site_ = site(mul(uint(val), 10 ** 9), par);
+          // If the deviation is at least 'trim'
           if (dev >= trim) {
-            (msr, sf) = adj(mul(uint(val), 10 ** 9));
-            pull(msr, sf);
+            /**
+              If the current deviation is the same as the latest deviation, add seconds
+              passed to bowl with grab(). Otherwise change the latest deviation and restart bowl
+            **/
+            (site_ == path) ? grab(gap) : rash(site_);
+            // Compute the new per-second rates
+            (sf, way_) = adj(mul(uint(val), 10 ** 9), par, site_);
+            // Set the new rates
+            pull(sf, way_);
+          } else {
+            // Restart counting the seconds since the deviation has been constant
+            wipe();
+            // Simply set default values for the rates
+            pull(dawn, dusk);
           }
-          else {
-            uint par = spot.par();
-            if (par != tpr) {
-              (msr, sf) = adj(par);
-              pull(msr, sf);
-            }
-          }
-          mpr = mul(uint(val), 10 ** 9);
+          // Make sure you store a ray as the latest price
+          fix = mul(uint(val), 10 ** 9);
+          // Also store the timestamp of the update
           age = era();
         }
     }
-    function pull(uint msr, uint sf) internal note {
-        tkn.drip();
-        tkn.file("msr", msr);
-
-        jug.drip();
+    // Set the new rate of change and base stability fee
+    function pull(uint sf, uint way_) internal note {
+        way = way_;
         jug.file("base", sf);
     }
 }

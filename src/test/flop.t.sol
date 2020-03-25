@@ -88,7 +88,7 @@ contract FlopTest is DSTest {
         vat.rely(address(flop));
         gem.approve(address(flop));
 
-        vat.suck(address(this), address(this), int(1000 ether));
+        vat.suck(address(this), address(this), 1000 ether);
 
         vat.move(address(this), ali, 200 ether);
         vat.move(address(this), bob, 200 ether);

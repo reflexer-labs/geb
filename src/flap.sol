@@ -1,6 +1,7 @@
-/// flap.sol -- Surplus auction
+/// flap.sol -- Gov token buyout
 
 // Copyright (C) 2018 Rain <rainbreak@riseup.net>
+// Copyright (C) 2020 Stefan C. Ionescu <stefanionescu@protonmail.com>
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -20,22 +21,24 @@ pragma solidity ^0.5.15;
 import "./lib.sol";
 
 contract VatLike {
-    function move(address,address,int) external;
+    function move(address,address,uint) external;
+    function mai(address) external view returns (uint);
+    function hope(address) external;
+    function nope(address usr) external;
+}
+contract MaiJoinLike {
+    function join(address, uint) external;
+    function exit(address, uint) external;
 }
 contract GemLike {
+    function approve(address, uint) external returns (bool);
+    function balanceOf(address) external view returns (uint);
     function move(address,address,uint) external;
     function burn(address,uint) external;
 }
-
-/*
-   This thing lets you sell some mai in return for gems.
-
- - `lot` mai for sale
- - `bid` gems paid
- - `ttl` single bid lifetime
- - `beg` minimum bid increase
- - `end` max auction duration
-*/
+contract BinLike {
+    function swap(address,address,uint256) external returns (uint256);
+}
 
 contract Flapper is LibNote {
     // --- Auth ---
@@ -47,24 +50,13 @@ contract Flapper is LibNote {
         _;
     }
 
-    // --- Data ---
-    struct Bid {
-        uint256 bid;
-        uint256 lot;
-        address guy;  // high bidder
-        uint48  tic;  // expiry time
-        uint48  end;
-    }
+    VatLike     public vat;
+    MaiJoinLike public join;
+    GemLike     public bond;
+    GemLike     public gov;
+    BinLike     public bin;
+    address     public safe;
 
-    mapping (uint => Bid) public bids;
-
-    VatLike  public   vat;
-    GemLike  public   gem;
-
-    uint256  constant ONE = 1.00E18;
-    uint256  public   beg = 1.05E18;  // 5% minimum bid increase
-    uint48   public   ttl = 3 hours;  // 3 hours bid duration
-    uint48   public   tau = 2 days;   // 2 days total auction length
     uint256  public kicks = 0;
     uint256  public live;
 
@@ -72,86 +64,92 @@ contract Flapper is LibNote {
     event Kick(
       uint256 id,
       uint256 lot,
-      uint256 bid
+      address lad
     );
 
     // --- Init ---
-    constructor(address vat_, address gem_) public {
+    constructor(address vat_) public {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
-        gem = GemLike(gem_);
         live = 1;
     }
 
     // --- Math ---
-    function add(uint48 x, uint48 y) internal pure returns (uint48 z) {
+    uint256 constant RAY = 10 ** 27;
+    function add(uint x, uint y) internal pure returns (uint z) {
         require((z = x + y) >= x);
+    }
+    function sub(uint x, uint y) internal pure returns (uint z) {
+        require((z = x - y) <= x);
     }
     function mul(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
+    function div(uint x, uint y) internal pure returns (uint z) {
+        z = x / y;
+    }
 
     // --- Admin ---
-    function file(bytes32 what, uint data) external note auth {
-        if (what == "beg") beg = data;
-        else if (what == "ttl") ttl = uint48(data);
-        else if (what == "tau") tau = uint48(data);
+    function file(bytes32 what, address addr) external note auth {
+        require(live == 1, "Flapper/not-live");
+        if (what == "bond") bond = GemLike(addr);
+        else if (what == "gov") gov = GemLike(addr);
+        else if (what == "join") {
+          vat.nope(address(join));
+          vat.hope(addr);
+          join = MaiJoinLike(addr);
+        }
+        else if (what == "bin") bin = BinLike(addr);
+        else if (what == "safe") safe = addr;
         else revert("Flapper/file-unrecognized-param");
     }
+    function cage() external note auth {
+        live = 0;
+        vat.move(address(this), msg.sender, vat.mai(address(this)));
+    }
 
-    // --- Auction ---
-    function kick(uint lot, uint bid) external auth returns (uint id) {
+    // --- Utils ---
+    function loot() internal {
+        uint own = bond.balanceOf(address(this));
+        if (own > 0) {
+          bond.approve(address(join), own);
+          join.join(safe, own);
+        }
+    }
+
+    // --- Buyout ---
+    function kick(uint lot) external auth returns (uint id) {
         require(live == 1, "Flapper/not-live");
         require(kicks < uint(-1), "Flapper/overflow");
+        require(safe != address(0), "Flapper/no-safe");
+        require(lot % RAY == 0, "Flapper/wasted-lot");
+
         id = ++kicks;
 
-        bids[id].bid = bid;
-        bids[id].lot = lot;
-        bids[id].guy = msg.sender; // configurable??
-        bids[id].end = add(uint48(now), tau);
+        uint own = bond.balanceOf(address(this));
+        require(fund(div(lot, RAY), address(bin)) == true, "Flapper/cannot-fund");
+        uint bid = bin.swap(address(bond), address(gov), div(lot, RAY));
 
-        vat.move(msg.sender, address(this), int(lot));
+        require(bid > 0, "Flapper/invalid-bid");
+        require(bond.balanceOf(address(this)) == own, "Flapper/cannot-buy");
+        require(gov.balanceOf(address(this)) >= bid, "Flapper/bid-not-received");
 
-        emit Kick(id, lot, bid);
+        loot();
+
+        if (vat.mai(address(this)) > 0) {
+          vat.move(address(this), safe, vat.mai(address(this)));
+        }
+        gov.burn(address(this), gov.balanceOf(address(this)));
+
+        emit Kick(id, lot, address(bin));
     }
-    function tick(uint id) external note {
-        require(bids[id].end < now, "Flapper/not-finished");
-        require(bids[id].tic == 0, "Flapper/bid-already-placed");
-        bids[id].end = add(uint48(now), tau);
-    }
-    function tend(uint id, uint lot, uint bid) external note {
-        require(live == 1, "Flapper/not-live");
-        require(bids[id].guy != address(0), "Flapper/guy-not-set");
-        require(bids[id].tic > now || bids[id].tic == 0, "Flapper/already-finished-tic");
-        require(bids[id].end > now, "Flapper/already-finished-end");
-
-        require(lot == bids[id].lot, "Flapper/lot-not-matching");
-        require(bid >  bids[id].bid, "Flapper/bid-not-higher");
-        require(mul(bid, ONE) >= mul(beg, bids[id].bid), "Flapper/insufficient-increase");
-
-        gem.move(msg.sender, bids[id].guy, bids[id].bid);
-        gem.move(msg.sender, address(this), bid - bids[id].bid);
-
-        bids[id].guy = msg.sender;
-        bids[id].bid = bid;
-        bids[id].tic = add(uint48(now), ttl);
-    }
-    function deal(uint id) external note {
-        require(live == 1, "Flapper/not-live");
-        require(bids[id].tic != 0 && (bids[id].tic < now || bids[id].end < now), "Flapper/not-finished");
-        vat.move(address(this), bids[id].guy, int(bids[id].lot));
-        gem.burn(address(this), bids[id].bid);
-        delete bids[id];
-    }
-
-    function cage(int rad) external note auth {
-       live = 0;
-       vat.move(address(this), msg.sender, rad);
-    }
-    function yank(uint id) external note {
-        require(live == 0, "Flapper/still-live");
-        require(bids[id].guy != address(0), "Flapper/guy-not-set");
-        gem.move(address(this), bids[id].guy, bids[id].bid);
-        delete bids[id];
+    function fund(uint lot, address guy) internal auth returns (bool) {
+        uint own = bond.balanceOf(address(this));
+        vat.move(msg.sender, address(this), mul(lot, RAY));
+        join.exit(address(this), lot);
+        if (add(own, lot) != bond.balanceOf(address(this))) {
+          return false;
+        }
+        return bond.approve(guy, lot);
     }
 }

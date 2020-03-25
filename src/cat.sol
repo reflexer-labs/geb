@@ -24,7 +24,9 @@ contract Kicker {
     function kick(address urn, address gal, uint tab, uint lot, uint bid)
         public returns (uint);
 }
-
+contract HeroLike {
+    function help(address,bytes32,address) external returns (bool);
+}
 contract VatLike {
     function ilks(bytes32) external view returns (
         uint256 Art,   // wad
@@ -39,12 +41,15 @@ contract VatLike {
         uint256 art    // wad
     );
     function grab(bytes32,address,address,address,int,int) external;
+    function wish(address, address) external view returns (bool);
     function hope(address) external;
     function nope(address) external;
 }
-
 contract VowLike {
     function fess(uint) external;
+}
+contract CareLike {
+    function ping(bytes32,uint,bytes32,address,uint) external;
 }
 
 contract Cat is LibNote {
@@ -56,6 +61,10 @@ contract Cat is LibNote {
         require(wards[msg.sender] == 1, "Cat/not-authorized");
         _;
     }
+    // --- Jobs ---
+    mapping (address => uint) public jobs;
+    function hire(address j) external note auth { jobs[j] = 1; }
+    function fire(address j) external note auth { jobs[j] = 0; }
 
     // --- Data ---
     struct Ilk {
@@ -64,11 +73,14 @@ contract Cat is LibNote {
         uint256 lump;  // Liquidation Quantity  [wad]
     }
 
-    mapping (bytes32 => Ilk) public ilks;
+    mapping (bytes32 => Ilk)                         public ilks;
+    mapping (bytes32 => mapping(address => address)) public tasks;
 
     uint256 public live;
-    VatLike public vat;
-    VowLike public vow;
+
+    VatLike  public vat;
+    VowLike  public vow;
+    CareLike public care;
 
     // --- Events ---
     event Bite(
@@ -104,6 +116,7 @@ contract Cat is LibNote {
     // --- Administration ---
     function file(bytes32 what, address data) external note auth {
         if (what == "vow") vow = VowLike(data);
+        else if (what == "care") care = CareLike(data);
         else revert("Cat/file-unrecognized-param");
     }
     function file(bytes32 ilk, bytes32 what, uint data) external note auth {
@@ -124,33 +137,47 @@ contract Cat is LibNote {
     }
 
     // --- CDP Liquidation ---
-    function fang(bytes32 ilk) internal view returns (uint, uint) {
-        (, uint rate, uint spot, , , uint risk) = vat.ilks(ilk);
-        uint tag = (risk > 0) ? risk : spot;
-        return (rate, tag);
+    function pick(bytes32 ilk, address urn, address j) external note {
+        require(vat.wish(urn, msg.sender), "Cat/not-allowed-urn");
+        require(j == address(0) || jobs[j] == 1, "Cat/job-not-allowed");
+        tasks[ilk][urn] = j;
     }
     function bite(bytes32 ilk, address urn) external returns (uint id) {
-        (uint rate, uint tag) = fang(ilk);
+        (, uint rate, , , , uint risk) = vat.ilks(ilk);
         (uint ink, uint art) = vat.urns(ilk, urn);
 
         require(live == 1, "Cat/not-live");
-        require(tag > 0 && mul(ink, tag) < mul(art, rate), "Cat/not-unsafe");
+        require(risk > 0 && mul(ink, risk) < mul(art, rate), "Cat/not-unsafe");
 
-        uint lot = min(ink, ilks[ilk].lump);
-        art      = min(art, mul(lot, art) / ink);
+        if (tasks[ilk][urn] != address(0) && jobs[tasks[ilk][urn]] == 1) {
+          HeroLike(tasks[ilk][urn]).help(msg.sender, ilk, urn);
+        }
 
-        require(lot <= 2**255 && art <= 2**255, "Cat/overflow");
-        vat.grab(ilk, urn, address(this), address(vow), -int(lot), -int(art));
+        (ink, ) = vat.urns(ilk, urn);
 
-        vow.fess(mul(art, rate));
+        if (mul(ink, risk) < mul(art, rate)) {
+          uint lot = min(ink, ilks[ilk].lump);
+          art      = min(art, mul(lot, art) / ink);
 
-        id = Kicker(ilks[ilk].flip).kick({ urn: urn
-                                         , gal: address(vow)
-                                         , tab: rmul(mul(art, rate), ilks[ilk].chop)
-                                         , lot: lot
-                                         , bid: 0
-                                         });
+          require(lot <= 2**255 && art <= 2**255, "Cat/overflow");
+          vat.grab(ilk, urn, address(this), address(vow), -int(lot), -int(art));
 
-        emit Bite(ilk, urn, lot, art, mul(art, rate), ilks[ilk].flip, id);
+          vow.fess(mul(art, rate));
+
+          id = Kicker(ilks[ilk].flip).kick({ urn: urn
+                                           , gal: address(vow)
+                                           , tab: rmul(mul(art, rate), ilks[ilk].chop)
+                                           , lot: lot
+                                           , bid: 0
+                                           });
+
+          if (address(care) != address(0)) {
+            care.ping("cat", id, ilk, urn, ilks[ilk].chop);
+          }
+
+          emit Bite(ilk, urn, lot, art, mul(art, rate), ilks[ilk].flip, id);
+        } else {
+          emit Bite(ilk, urn, 0, art, mul(art, rate), address(0), 0);
+        }
     }
 }

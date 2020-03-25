@@ -157,6 +157,7 @@ contract MaiTest is DSTest {
         vat.init("gold");
         goldFeed = new Feed(1 ether, true);
         spot.file("gold", "pip", address(goldFeed));
+        spot.file("gold", "tam", 1000000000000000000000000000);
         spot.file("gold", "mat", 1000000000000000000000000000);
         spot.poke("gold");
         gemA = new GemJoin(address(vat), "gold", address(gold));
@@ -180,9 +181,6 @@ contract MaiTest is DSTest {
         user2 = address(new TokenUser(token));
         user3 = address(new TokenUser(token));
 
-        token.file("vow", address(user3));
-        token.file("spot", address(spot));
-
         token.mint(address(this), initialBalanceThis);
         token.mint(cal, initialBalanceCal);
 
@@ -204,7 +202,7 @@ contract MaiTest is DSTest {
     }
 
     function createToken() internal returns (Mai) {
-        return new Mai(99, address(vat));
+        return new Mai(99);
     }
 
     function testSetup() public {
@@ -212,8 +210,6 @@ contract MaiTest is DSTest {
         assertEq(token.balanceOf(self), initialBalanceThis);
         assertEq(token.balanceOf(cal), initialBalanceCal);
         token.mint(self, 0);
-        assertEq(token.rho(), now);
-        assertEq(token.msr(), 10 ** 27);
         (,,uint price,,,) = vat.ilks("gold");
         assertEq(price, ray(1 ether));
     }
@@ -306,8 +302,6 @@ contract MaiTest is DSTest {
         uint burnAmount = 10;
         token.burn(address(this), burnAmount);
         assertEq(token.totalSupply(), initialBalanceThis + initialBalanceCal - burnAmount);
-        assertEq(spot.par(), 10 ** 27);
-        assertEq(token.rho(), now);
     }
     function testBurnself() public {
         uint burnAmount = 10;
@@ -380,7 +374,7 @@ contract MaiTest is DSTest {
     }
 
     function testDomain_Separator() public {
-        assertEq(token.DOMAIN_SEPARATOR(), 0x198ebdd248a623f1024e205d5da141719fb9869cd528047b2893b4f9b70473ef);
+        assertEq(token.DOMAIN_SEPARATOR(), 0xc6107943e36689e3e654ef6daa37b081c0ddb5c4062612e1d9837f2c5fa45b92);
     }
 
     //TODO: remake with v,r,s for mai now that we changed the DOMAIN SEPARATOR because of the dai->mai rename
@@ -416,59 +410,5 @@ contract MaiTest is DSTest {
     function testFailReplay() public {
         token.permit(cal, del, 0, 0, true, v, r, s);
         token.permit(cal, del, 0, 0, true, v, r, s);
-    }
-
-    function testUpdateRate() public {
-        token.drip();
-        token.file("msr", 1000000564701133626865910626);
-        assertEq(token.msr(), 1000000564701133626865910626);
-        assertEq(spot.par(), 10 ** 27);
-    }
-
-    function testPositiveRateAndDrip() public {
-        token.drip();
-        token.file("msr", 1000000564701133626865910626);
-        hevm.warp(now + 2 hours);
-        token.drip();
-        assertEq(spot.par(), 1004074123783648301605420882);
-    }
-
-    function testNegativeRateAndDrip() public {
-        token.drip();
-        token.file("msr", 999999706969857929985428567);
-        hevm.warp(now + 1 hours);
-        token.drip();
-        assertEq(spot.par(), 998945647554530252758389043);
-    }
-
-    function testPositiveThenNegativeRateAndDrip() public {
-        token.drip();
-        token.file("msr", 1000000564701133626865910626);
-        hevm.warp(now + 2 hours);
-        token.drip();
-
-        token.file("msr", 999999706969857929985428567);
-        hevm.warp(now + 1 hours);
-        token.drip();
-        assertEq(spot.par(), 1003015475775804118317582801);
-    }
-
-    function testChangeParCollateralPrice() public {
-        token.drip();
-        token.file("msr", 1000000564701133626865910626);
-        hevm.warp(now + 2 hours);
-        token.drip();
-
-        spot.poke("gold");
-        (,,uint price,,,) = vat.ilks("gold");
-        assertEq(price, 995942407351067072547712742);
-
-        token.file("msr", 999999706969857929985428567);
-        hevm.warp(now + 3.5 hours);
-        token.drip();
-
-        spot.poke("gold");
-        (,,price,,,) = vat.ilks("gold");
-        assertEq(price, 999626403121623126487339967);
     }
 }

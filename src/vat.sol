@@ -52,15 +52,15 @@ contract Vat {
     mapping (bytes32 => Ilk)                       public ilks;
     mapping (bytes32 => mapping (address => Urn )) public urns;
     mapping (bytes32 => mapping (address => uint)) public gem;   // [wad]
-    mapping (address => int)                       public mai;   // [rad]
-    mapping (address => int)                       public sin;   // [rad]
+    mapping (address => uint)                      public mai;   // [rad]
+    mapping (address => uint)                      public sin;   // [rad]
     mapping (bytes32 => mapping (address => uint)) public open;
 
-    int256  public debt;  // Total Mai Issued    [rad]
-    int256  public vice;  // Total Unbacked Mai  [rad]
-    uint256 public Line;  // Total Debt Ceiling  [rad]
-    uint256 public live;  // Access Flag
-    uint256 public close; // Enforce Flash Blocks Between Opening and Closing an Urn
+    uint256  public debt;  // Total Mai Issued    [rad]
+    uint256  public vice;  // Total Unbacked Mai  [rad]
+    uint256  public Line;  // Total Debt Ceiling  [rad]
+    uint256  public live;  // Access Flag
+    uint256  public close; // Force Flash Blocks Between Opening and Closing an Urn
 
     uint256 public constant FLASH = 1;
     uint256 public constant WAD   = 10 ** 18;
@@ -167,10 +167,8 @@ contract Vat {
         gem[ilk][src] = sub(gem[ilk][src], wad);
         gem[ilk][dst] = add(gem[ilk][dst], wad);
     }
-    function move(address src, address dst, int256 rad) external note {
+    function move(address src, address dst, uint256 rad) external note {
         require(wish(src, msg.sender), "Vat/not-allowed");
-        bool ok = (rad < 0) ? both(rad >= mai[src], wish(dst, msg.sender)) : (rad <= mai[src]);
-        require(ok, "Vat/wrong-conditions");
         mai[src] = sub(mai[src], rad);
         mai[dst] = add(mai[dst], rad);
     }
@@ -210,7 +208,7 @@ contract Vat {
         debt     = add(debt, dtab);
 
         // either debt has decreased, or debt ceilings are not exceeded
-        require(either(dart <= 0, both(mul(ilk.Art, ilk.rate) <= ilk.line, debt <= int(Line))), "Vat/ceiling-exceeded");
+        require(either(dart <= 0, both(mul(ilk.Art, ilk.rate) <= ilk.line, debt <= Line)), "Vat/ceiling-exceeded");
         // urn is either less risky than before, or it is safe
         require(either(both(dart <= 0, dink >= 0), tab <= mul(urn.ink, ilk.spot)), "Vat/not-safe");
 
@@ -254,7 +252,7 @@ contract Vat {
         if (v.art == 0 && dart > 0) {
           open[ilk][dst] = block.number;
         } else if (both(-int(dart) == int(v.art), v.art > 0)) {
-          if (close > 0) require(block.number - open[ilk][dst] >= FLASH, "Vat/too-early-to-close");
+          if (close > 0) require(sub(block.number, open[ilk][dst]) >= FLASH, "Vat/too-early-to-close");
           open[ilk][dst] = 0;
         }
 
@@ -287,9 +285,9 @@ contract Vat {
         Urn storage urn = urns[i][u];
         Ilk storage ilk = ilks[i];
 
-        urn.ink  = add(urn.ink, dink);
-        urn.art  = add(urn.art, dart);
-        ilk.Art  = add(ilk.Art, dart);
+        urn.ink = add(urn.ink, dink);
+        urn.art = add(urn.art, dart);
+        ilk.Art = add(ilk.Art, dart);
 
         int dtab = mul(ilk.rate, dart);
 
@@ -299,14 +297,14 @@ contract Vat {
     }
 
     // --- Settlement ---
-    function heal(int rad) external note auth {
+    function heal(uint rad) external note {
         address u = msg.sender;
-        sin[u] = sub(sin[u], int(rad));
-        mai[u] = sub(mai[u], int(rad));
-        vice   = sub(vice,   int(rad));
-        debt   = sub(debt,   int(rad));
+        sin[u] = sub(sin[u], rad);
+        mai[u] = sub(mai[u], rad);
+        vice   = sub(vice,   rad);
+        debt   = sub(debt,   rad);
     }
-    function suck(address u, address v, int rad) external note auth {
+    function suck(address u, address v, uint rad) external note auth {
         sin[u] = add(sin[u], rad);
         mai[v] = add(mai[v], rad);
         vice   = add(vice,   rad);

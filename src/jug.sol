@@ -113,13 +113,22 @@ contract Jug is LibNote {
         else revert("Jug/file-unrecognized-param");
     }
 
+    // --- Utils ---
+    function late() external view returns (bool ko) {
+        for (uint i = 0; i < bank.length; i++) {
+          if (now > ilks[bank[i]].rho) {
+            ko = true;
+            break;
+          }
+        }
+    }
+
     // --- Stability Fee Collection ---
     function drip() external note {
         for (uint i = 0; i < bank.length; i++) {
             if (now >= ilks[bank[i]].rho) {drip(bank[i]);}
         }
     }
-
     function drip(bytes32 ilk) public note returns (uint rate) {
         require(now >= ilks[ilk].rho, "Jug/invalid-now");
         (, uint prev) = vat.ilks(ilk);
