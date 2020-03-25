@@ -98,9 +98,7 @@ contract Bin is LibNote {
 
     constructor(
       address uni_,
-      address kyber_,
-      address src_,
-      address dst_
+      address kyber_
     ) public {
         uni = UniOneLike(uni_);
         kyber = KyberLike(kyber_);
