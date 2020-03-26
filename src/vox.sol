@@ -125,13 +125,11 @@ contract Vox is LibNote, Exp {
         else if (what == "dusk") dusk = val;
         else if (what == "how")  how = val;
         else if (what == "up") {
-          require(val >= RAY, "Vox/invalid-up");
-          if (down != MAX) require(val > down, "Vox/small-up");
+          if (down != MAX) require(val >= down, "Vox/small-up");
           up = val;
         }
         else if (what == "down") {
-          require(val <= RAY, "Vox/invalid-down");
-          if (up != MAX) require(val < up, "Vox/big-down");
+          if (up != MAX) require(val <= up, "Vox/big-down");
           down = val;
         }
         else revert("Vox/file-unrecognized-param");
