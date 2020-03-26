@@ -8,7 +8,7 @@ A reflex-bond is a low volatility proxy for the underlying collateral that suppo
 
 It __is not__ meant to keep a peg to a certain value but rather float at fairly predictable rates. It __is__ meant to be used as trustless collateral with no admin key and as infrastructure for other synthetic assets to be built on top.
 
-# Differences Compared to Dai
+# Technical Differences Compared to Dai
 
 - Reintroduction of the TRFM which replaces the savings account
 - Apart from 'spot', we added 'risk'. CDP creators use spot when creating Mai but get liquidated at risk. An incentive mechanism for keeping CDPs above spot is still being designed
