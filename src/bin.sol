@@ -133,8 +133,10 @@ contract Bin is LibNote {
         }
         if (k >= u) {
           return (k, kr, KYBER);
+        } else if (u > 0) {
+          return (u, core, UNISWAP);
         }
-        return (u, core, UNISWAP);
+        return (0, 0, "");
     }
     function buy(
         address src,
@@ -144,6 +146,8 @@ contract Bin is LibNote {
         uint fine,
         string memory dex
     ) internal {
+        if (keccak256(abi.encode(dex)) == keccak256(abi.encode(""))) return;
+        
         if (keccak256(abi.encode(dex)) == keccak256(abi.encode(KYBER))) {
           kyber.trade(
             ERC20(src),
