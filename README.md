@@ -4,9 +4,9 @@ This repository contains the core smart contract code for Mai Reflex-Bond System
 
 # What is a Reflex-Bond?
 
-A reflex-bond is a low volatility proxy for the underlying collateral that supports its value. 
+A reflex-bond is a low volatility proxy for the underlying collateral that supports its value. The _future_ price change for a reflex-bond depends on the market price deviation from its _current_ price.
 
-It __is not__ meant to keep a peg to a certain value but rather float at fairly predictable rates. It __is__ meant to be used as trustless collateral with no admin key and as infrastructure for other synthetic assets to be built on top.
+It __is not__ meant to keep a peg to a certain value but rather float at fairly predictable rates. It __is__ meant to be used as trustless collateral with minimum or even no admin control and as infrastructure for other synthetic assets to be built on top.
 
 # Technical Differences Compared to Dai
 
