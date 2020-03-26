@@ -9,7 +9,7 @@ A reflex-bond is a low volatility proxy for the underlying collateral that suppo
 To summarise:
 
 - It __is not__ meant to keep a peg to a certain value but rather float at fairly predictable rates
-- It __is__ meant to be used as trustless collateral with minimum or even no admin control and as infrastructure for other synthetic assets to be built on top.
+- It __is__ meant to be used as trustless collateral with minimum or even no admin control and as infrastructure for other synthetic assets to be built on top
 
 # Technical Differences Compared to Dai
 
