@@ -34,7 +34,7 @@ contract GemLike {
     function approve(address, uint) external returns (bool);
     function balanceOf(address) external view returns (uint);
     function move(address,address,uint) external;
-    function burn(uint) external;
+    function burn(address,uint) external;
 }
 contract BinLike {
     function swap(address,address,uint256) external returns (uint256);
@@ -143,7 +143,7 @@ contract Flapper is LibNote {
         if (vat.mai(address(this)) > 0) {
           vat.move(address(this), safe, vat.mai(address(this)));
         }
-        gov.burn(gov.balanceOf(address(this)));
+        gov.burn(address(this), gov.balanceOf(address(this)));
 
         emit Kick(id, lot, address(bin));
     }
