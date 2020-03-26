@@ -305,36 +305,36 @@ contract VoxTest is DSTest {
         vox.back();
 
         assertEq(spot.par(), ray(1 ether));
-        assertEq(vox.way(), 1000000000079572920012861247);
-        assertEq(jug.base(), 1000000000158946658547141217);
+        assertEq(vox.way(), 1000000000158946658547141217);
+        assertEq(jug.base(), 1000000000079572920012861247);
         hevm.warp(now + SPY * 1 seconds);
 
         jug.drip();
         vox.drip();
 
-        assertEq(spot.par(), 1002512562814070351762785581);
-        assertEq(vat.mai(address(vow)), 25125628140703517507828190000000000000000000);
+        assertEq(spot.par(), 1005025125628140703501565638);
+        assertEq(vat.mai(address(vow)), 12562814070351758813927905000000000000000000);
         assertEq(vat.sin(address(vow)), 0);
         assertEq(vat.mai(address(vox)), 0);
         assertEq(vat.vice(), 0);
-        assertEq(vat.debt(), 5025125628140703517507828190000000000000000000);
+        assertEq(vat.debt(), 5012562814070351758813927905000000000000000000);
 
-        stableFeed.poke(1.010 ether);
+        stableFeed.poke(1.060 ether);
         vox.back();
 
-        assertEq(vox.way(), 999999999764049998458264409);
-        assertEq(jug.base(), 999999999881805539128881315);
+        assertEq(vox.way(), 999999998311251701376211553);
+        assertEq(jug.base(), 999999999144385104596960528);
 
-        hevm.warp(now + (SPY - 10000) * 1 seconds);
+        hevm.warp(now + (SPY / 100) * 1 seconds);
         jug.drip();
         vox.drip();
 
-        assertEq(spot.par(), 995082980171053078637912078);
-        assertEq(vat.mai(address(vow)), 6435854721205492016048810000000000000000000);
+        assertEq(spot.par(), 1004490028264274453595667799);
+        assertEq(vat.mai(address(vow)), 11210473176924140255537500000000000000000000);
         assertEq(vat.sin(address(vow)), 0);
         assertEq(vat.mai(address(vox)), 0);
         assertEq(vat.vice(), 0);
-        assertEq(vat.debt(), 5006435854721205492016048810000000000000000000);
+        assertEq(vat.debt(), 5011210473176924140255537500000000000000000000);
     }
 
     function test_how_positive_deviation() public {

@@ -260,16 +260,11 @@ contract Vox is LibNote, Exp {
         uint full_ = (site_ == 1) ? full(par, val) : full(val, par);
 
         // Calculate the per-second base stability fee and target rate of change
-        uint sf_  = comp(br(full_));
-        uint way_ = (span == RAY) ? sf_ : comp(sr(full_));
+        uint way_ = comp(br(full_));
+        uint sf_  = (span == RAY) ? way_ : comp(sr(full_));
 
         // If the deviation is positive, we set a negative rate and vice-versa
         (sf_, way_) = (site_ == 1) ? (sf_, way_) : (sub(RAY, sub(sf_, RAY)), sub(RAY, sub(way_, RAY)));
-
-        // Always making sure sf > way even when they are in the negative territory
-        if (site_ == -1) {
-          (sf_, way_) = (way_, sf_);
-        }
 
         // The stability fee might have bounds so make sure you don't pass them
         sf_ = (sf_ < down && down != MAX) ? down : sf_;
