@@ -1,4 +1,4 @@
-/// vow.sol -- Mai settlement module
+/// vow.sol -- Settlement module
 
 // Copyright (C) 2018 Rain <rainbreak@riseup.net>
 //
@@ -32,7 +32,7 @@ contract FlapLike {
 }
 
 contract VatLike {
-    function mai (address) external view returns (uint);
+    function good (address) external view returns (uint);
     function sin (address) external view returns (uint);
     function heal(uint256) external;
     function hope(address) external;
@@ -122,13 +122,13 @@ contract Vow is LibNote {
 
     // Debt settlement
     function heal(uint rad) external note {
-        require(rad <= vat.mai(address(this)), "Vow/insufficient-surplus");
+        require(rad <= vat.good(address(this)), "Vow/insufficient-surplus");
         require(rad <= sub(sub(vat.sin(address(this)), Sin), Ash), "Vow/insufficient-debt");
         vat.heal(rad);
     }
     function kiss(uint rad) external note {
         require(rad <= Ash, "Vow/not-enough-ash");
-        require(rad <= vat.mai(address(this)), "Vow/insufficient-surplus");
+        require(rad <= vat.good(address(this)), "Vow/insufficient-surplus");
         Ash = sub(Ash, rad);
         vat.heal(rad);
     }
@@ -136,13 +136,13 @@ contract Vow is LibNote {
     // Debt auction
     function flop() external note returns (uint id) {
         require(sump <= sub(sub(vat.sin(address(this)), Sin), Ash), "Vow/insufficient-debt");
-        require(vat.mai(address(this)) == 0, "Vow/surplus-not-zero");
+        require(vat.good(address(this)) == 0, "Vow/surplus-not-zero");
         Ash = add(Ash, sump);
         id = flopper.kick(address(this), dump, sump);
     }
     // Surplus auction
     function flap() external note returns (uint id) {
-        require(vat.mai(address(this)) >= add(add(vat.sin(address(this)), bump), hump), "Vow/insufficient-surplus");
+        require(vat.good(address(this)) >= add(add(vat.sin(address(this)), bump), hump), "Vow/insufficient-surplus");
         require(sub(sub(vat.sin(address(this)), Sin), Ash) == 0, "Vow/debt-not-zero");
         id = flapper.kick(bump);
     }
@@ -154,6 +154,6 @@ contract Vow is LibNote {
         Ash = 0;
         flapper.cage();
         flopper.cage();
-        vat.heal(min(vat.mai(address(this)), vat.sin(address(this))));
+        vat.heal(min(vat.good(address(this)), vat.sin(address(this))));
     }
 }

@@ -4,8 +4,8 @@ import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
 import {Flapper} from "../flap.sol";
 import "../vat.sol";
-import {MaiJoin} from '../join.sol';
-import {Mai} from "../mai.sol";
+import {CoinJoin} from '../join.sol';
+import {Coin} from "../coin.sol";
 
 contract Hevm {
     function warp(uint256) public;
@@ -35,7 +35,7 @@ contract FlapTest is DSTest {
     Vat     vat;
     DSToken gov;
     DSToken bond;
-    MaiJoin maiA;
+    CoinJoin maiA;
 
     address ali;
     address bob;
@@ -50,10 +50,10 @@ contract FlapTest is DSTest {
 
         vat  = new Vat();
         gov  = new DSToken('');
-        bond = new DSToken("Mai");
+        bond = new DSToken("Coin");
         bin  = new BinLike(1 ether);
 
-        maiA = new MaiJoin(address(vat), address(bond));
+        maiA = new CoinJoin(address(vat), address(bond));
         vat.rely(address(maiA));
         bond.mint(address(this), 50 ether);
         bond.setOwner(address(maiA));
@@ -75,15 +75,15 @@ contract FlapTest is DSTest {
         gov.push(address(bin), 200 ether);
     }
     function test_kick() public {
-        assertEq(vat.mai(address(this)), rad(1000 ether));
+        assertEq(vat.good(address(this)), rad(1000 ether));
         assertEq(gov.balanceOf(address(flap)), 0);
-        assertEq(vat.mai(address(flap)),    0 ether);
+        assertEq(vat.good(address(flap)),    0 ether);
         assertEq(bond.balanceOf(address(flap)), 0 ether);
         flap.kick(rad(100 ether));
         assertEq(gov.balanceOf(address(flap)), 0);
-        assertEq(vat.mai(address(flap)),    0 ether);
+        assertEq(vat.good(address(flap)),    0 ether);
         assertEq(bond.balanceOf(address(flap)), 0 ether);
-        assertEq(vat.mai(address(this)),  rad(900 ether));
+        assertEq(vat.good(address(this)),  rad(900 ether));
     }
     function testFail_wasted_lot() public {
         flap.kick(rad(100 ether) + 1);
@@ -96,28 +96,28 @@ contract FlapTest is DSTest {
     }
     function test_kick_bond_prefunded() public {
         bond.transfer(address(flap), 50 ether);
-        assertEq(vat.mai(address(this)), rad(1000 ether));
+        assertEq(vat.good(address(this)), rad(1000 ether));
         assertEq(bond.balanceOf(address(this)), 0 ether);
         assertEq(bond.balanceOf(address(flap)), 50 ether);
         flap.kick(rad(100 ether));
         assertEq(gov.balanceOf(address(flap)), 0);
-        assertEq(vat.mai(address(flap)),    0 ether);
+        assertEq(vat.good(address(flap)),    0 ether);
         assertEq(bond.balanceOf(address(flap)), 0 ether);
     }
     function test_kick_mai_prefunded() public {
         vat.move(address(this), address(flap), rad(50 ether));
-        assertEq(vat.mai(address(this)), rad(950 ether));
-        assertEq(vat.mai(address(flap)), rad(50 ether));
+        assertEq(vat.good(address(this)), rad(950 ether));
+        assertEq(vat.good(address(flap)), rad(50 ether));
         flap.kick(rad(100 ether));
-        assertEq(vat.mai(address(this)), rad(900 ether));
-        assertEq(vat.mai(address(flap)), 0);
+        assertEq(vat.good(address(this)), rad(900 ether));
+        assertEq(vat.good(address(flap)), 0);
     }
     function test_mai_and_bond_prefunded() public {
         bond.transfer(address(flap), 50 ether);
         vat.move(address(this), address(flap), rad(50 ether));
         flap.kick(rad(150 ether));
         assertEq(gov.balanceOf(address(flap)), 0);
-        assertEq(vat.mai(address(flap)),    0 ether);
+        assertEq(vat.good(address(flap)),    0 ether);
         assertEq(bond.balanceOf(address(flap)), 0 ether);
     }
 }

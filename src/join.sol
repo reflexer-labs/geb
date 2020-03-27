@@ -42,7 +42,7 @@ contract VatLike {
       - `GemJoin`: For well behaved ERC20 tokens, with simple transfer
                    semantics.
       - `ETHJoin`: For native Ether.
-      - `MaiJoin`: For connecting internal Mai balances to an external
+      - `CoinJoin`: For connecting internal Mai balances to an external
                    `DSToken` implementation.
     In practice, adapter implementations will be varied and specific to
     individual collateral types, accounting for different transfer
@@ -127,25 +127,25 @@ contract ETHJoin is LibNote {
     }
 }
 
-contract MaiJoin is LibNote {
+contract CoinJoin is LibNote {
     // --- Auth ---
     mapping (address => uint) public wards;
     function rely(address usr) external note auth { wards[usr] = 1; }
     function deny(address usr) external note auth { wards[usr] = 0; }
     modifier auth {
-        require(wards[msg.sender] == 1, "MaiJoin/not-authorized");
+        require(wards[msg.sender] == 1, "CoinJoin/not-authorized");
         _;
     }
 
     VatLike public vat;
-    DSTokenLike public mai;
+    DSTokenLike public coin;
     uint    public live;  // Access Flag
 
-    constructor(address vat_, address mai_) public {
+    constructor(address vat_, address coin_) public {
         wards[msg.sender] = 1;
         live = 1;
         vat = VatLike(vat_);
-        mai = DSTokenLike(mai_);
+        coin = DSTokenLike(coin_);
     }
     function cage() external note auth {
         live = 0;
@@ -156,11 +156,11 @@ contract MaiJoin is LibNote {
     }
     function join(address usr, uint wad) external note {
         vat.move(address(this), usr, mul(ONE, wad));
-        mai.burn(msg.sender, wad);
+        coin.burn(msg.sender, wad);
     }
     function exit(address usr, uint wad) external note {
-        require(live == 1, "MaiJoin/not-live");
+        require(live == 1, "CoinJoin/not-live");
         vat.move(msg.sender, address(this), mul(ONE, wad));
-        mai.mint(usr, wad);
+        coin.mint(usr, wad);
     }
 }

@@ -38,11 +38,11 @@ contract JugLike {
 }
 
 /**
-  Vox tries to set both a base stability fee for all collateral types and a rate of
+  Vox1 tries to set both a base stability fee for all collateral types and a rate of
   change for par according to the market price deviation from a target price.
 
   The rate of change and the per-second base stability fee are computed on-chain.
-  The main external input is the price feed for Mai.
+  The main external input is the price feed for the reflex-bond.
 
   Rates are computed so that they pull the market price in the opposite direction
   of the deviation.
@@ -57,13 +57,13 @@ contract JugLike {
     - A sensitivity parameter to apply over time to increase/decrease the rates if the
       deviation is kept constant
 **/
-contract Vox is LibNote, Exp {
+contract Vox1 is LibNote, Exp {
     // --- Auth ---
     mapping (address => uint) public wards;
     function rely(address guy) external note auth { wards[guy] = 1; }
     function deny(address guy) external note auth { wards[guy] = 0; }
     modifier auth {
-        require(wards[msg.sender] == 1, "Vox/not-authorized");
+        require(wards[msg.sender] == 1, "Vox1/not-authorized");
         _;
     }
 
@@ -110,14 +110,14 @@ contract Vox is LibNote, Exp {
 
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
-        require(live == 1, "Vox/not-live");
+        require(live == 1, "Vox1/not-live");
         if (what == "pip") pip = PipLike(addr);
         else if (what == "jug") jug = JugLike(addr);
         else if (what == "spot") spot = SpotLike(addr);
-        else revert("Vox/file-unrecognized-param");
+        else revert("Vox1/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 val) external note auth {
-        require(live == 1, "Vox/not-live");
+        require(live == 1, "Vox1/not-live");
         if (what == "trim") trim = val;
         else if (what == "span") span = val;
         else if (what == "rest") rest = val;
@@ -125,14 +125,14 @@ contract Vox is LibNote, Exp {
         else if (what == "dusk") dusk = val;
         else if (what == "how")  how = val;
         else if (what == "up") {
-          if (down != MAX) require(val >= down, "Vox/small-up");
+          if (down != MAX) require(val >= down, "Vox1/small-up");
           up = val;
         }
         else if (what == "down") {
-          if (up != MAX) require(val <= up, "Vox/big-down");
+          if (up != MAX) require(val <= up, "Vox1/big-down");
           down = val;
         }
-        else revert("Vox/file-unrecognized-param");
+        else revert("Vox1/file-unrecognized-param");
     }
     function cage() external note auth {
         live = 0;
@@ -214,7 +214,7 @@ contract Vox is LibNote, Exp {
     }
     function comp(uint x) internal view returns (uint z) {
         /**
-          Use the Bancor formulas to compute the per-second rate.
+          Use the Exp formulas to compute the per-second rate.
           After the initial computation we need to divide by 2^precision.
         **/
         (uint raw, uint heed) = pow(x, RAY, 1, SPY);
@@ -275,7 +275,7 @@ contract Vox is LibNote, Exp {
 
     // --- Target Price Updates ---
     function drip() public note returns (uint tmp) {
-        require(now >= rho, "Vox/invalid-now");
+        require(now >= rho, "Vox1/invalid-now");
         uint par = spot.par();
         tmp = rmul(rpow(way, now - rho, RAY), par);
         spot.file("par", tmp);
@@ -284,12 +284,12 @@ contract Vox is LibNote, Exp {
 
     // --- Feedback Mechanism ---
     function back() external note {
-        require(live == 1, "Vox/not-live");
+        require(live == 1, "Vox1/not-live");
         // We need to have dripped in order to be able to file new rates
-        require(both(rho == now, jug.late() == false), "Vox/not-dripped");
+        require(both(rho == now, jug.late() == false), "Vox1/not-dripped");
         uint gap = sub(era(), tau);
         // The gap between now and the last update time needs to be at least 'rest'
-        require(gap >= rest, "Vox/optimized");
+        require(gap >= rest, "Vox1/optimized");
         (bytes32 val, bool has) = pip.peek();
         // If the OSM has a value
         if (has) {

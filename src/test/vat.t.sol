@@ -8,7 +8,7 @@ import {Vat} from '../vat.sol';
 import {Cat} from '../cat.sol';
 import {Vow} from '../vow.sol';
 import {Jug} from '../jug.sol';
-import {GemJoin, ETHJoin, MaiJoin} from '../join.sol';
+import {GemJoin, ETHJoin, CoinJoin} from '../join.sol';
 import {Spotter} from '../spot.sol';
 
 import {Flipper} from './flip.t.sol';
@@ -38,11 +38,11 @@ contract TestVat is Vat {
     constructor() public {}
 
     function mint(address usr, uint wad) public {
-        mai[usr] += wad * RAY;
+        good[usr] += wad * RAY;
         debt += wad * RAY;
     }
     function balanceOf(address usr) public view returns (uint) {
-        return uint(mai[usr] / RAY);
+        return uint(good[usr] / RAY);
     }
 }
 
@@ -55,7 +55,7 @@ contract TestVow is Vow {
     }
     // Total surplus
     function Joy() public view returns (uint) {
-        return vat.mai(address(this));
+        return vat.good(address(this));
     }
     // Unqueued, pre-auction debt
     function Woe() public view returns (uint) {
@@ -342,7 +342,7 @@ contract FrobTest is DSTest {
         assertTrue( ali.can_frob("gold", a, a, a,  0 ether, -1 ether));
         assertTrue( bob.can_frob("gold", a, b, b,  0 ether, -1 ether));
         assertTrue( che.can_frob("gold", a, c, c,  0 ether, -1 ether));
-        // but only with their own mai
+        // but only with their own coin
         assertTrue(!ali.can_frob("gold", a, a, b,  0 ether, -1 ether));
         assertTrue(!bob.can_frob("gold", a, b, c,  0 ether, -1 ether));
         assertTrue(!che.can_frob("gold", a, c, a,  0 ether, -1 ether));
@@ -395,8 +395,8 @@ contract JoinTest is DSTest {
     DSToken gem;
     GemJoin gemA;
     ETHJoin ethA;
-    MaiJoin maiA;
-    DSToken mai;
+    CoinJoin coinA;
+    DSToken coin;
     address me;
 
     uint constant WAD = 10 ** 18;
@@ -412,17 +412,17 @@ contract JoinTest is DSTest {
         ethA = new ETHJoin(address(vat), "ETH");
         vat.rely(address(ethA));
 
-        mai  = new DSToken("Mai");
-        maiA = new MaiJoin(address(vat), address(mai));
-        vat.rely(address(maiA));
-        mai.setOwner(address(maiA));
+        coin  = new DSToken("Coin");
+        coinA = new CoinJoin(address(vat), address(coin));
+        vat.rely(address(coinA));
+        coin.setOwner(address(coinA));
 
         me = address(this);
     }
-    function draw(bytes32 ilk, int wad, int mai_) internal {
+    function draw(bytes32 ilk, int wad, int coin_) internal {
         address self = address(this);
         vat.slip(ilk, self, wad);
-        vat.frob(ilk, self, self, self, wad, mai_);
+        vat.frob(ilk, self, self, self, wad, coin_);
     }
     function try_cage(address a) public payable returns (bool ok) {
         string memory sig = "cage()";
@@ -436,9 +436,9 @@ contract JoinTest is DSTest {
         string memory sig = "join(address)";
         (ok,) = address(ethA).call.value(msg.value)(abi.encodeWithSignature(sig, usr));
     }
-    function try_exit_mai(address usr, uint wad) public returns (bool ok) {
+    function try_exit_coin(address usr, uint wad) public returns (bool ok) {
         string memory sig = "exit(address,uint256)";
-        (ok,) = address(maiA).call(abi.encodeWithSignature(sig, usr, wad));
+        (ok,) = address(coinA).call(abi.encodeWithSignature(sig, usr, wad));
     }
     function try_dres_gem(int wad) public returns (bool ok) {
         string memory sig = "dres(int256)";
@@ -475,27 +475,27 @@ contract JoinTest is DSTest {
     function rad(uint wad) internal pure returns (uint) {
         return wad * 10 ** 27;
     }
-    function test_mai_exit() public {
+    function test_coin_exit() public {
         address urn = address(this);
         vat.mint(address(this), 100 ether);
-        vat.hope(address(maiA));
-        assertTrue( try_exit_mai(urn, 40 ether));
-        assertEq(mai.balanceOf(address(this)), 40 ether);
-        assertEq(vat.mai(me),              rad(60 ether));
-        assertTrue( try_cage(address(maiA)));
-        assertTrue(!try_exit_mai(urn, 40 ether));
-        assertEq(mai.balanceOf(address(this)), 40 ether);
-        assertEq(vat.mai(me),              rad(60 ether));
+        vat.hope(address(coinA));
+        assertTrue( try_exit_coin(urn, 40 ether));
+        assertEq(coin.balanceOf(address(this)), 40 ether);
+        assertEq(vat.good(me),              rad(60 ether));
+        assertTrue( try_cage(address(coinA)));
+        assertTrue(!try_exit_coin(urn, 40 ether));
+        assertEq(coin.balanceOf(address(this)), 40 ether);
+        assertEq(vat.good(me),              rad(60 ether));
     }
-    function test_mai_exit_join() public {
+    function test_coin_exit_join() public {
         address urn = address(this);
         vat.mint(address(this), 100 ether);
-        vat.hope(address(maiA));
-        maiA.exit(urn, 60 ether);
-        mai.approve(address(maiA), uint(-1));
-        maiA.join(urn, 30 ether);
-        assertEq(mai.balanceOf(address(this)),     30 ether);
-        assertEq(vat.mai(me),                  rad(70 ether));
+        vat.hope(address(coinA));
+        coinA.exit(urn, 60 ether);
+        coin.approve(address(coinA), uint(-1));
+        coinA.join(urn, 30 ether);
+        assertEq(coin.balanceOf(address(this)),     30 ether);
+        assertEq(vat.good(me),                  rad(70 ether));
     }
     function test_fallback_reverts() public {
         (bool ok,) = address(ethA).call("invalid calldata");
@@ -510,8 +510,8 @@ contract JoinTest is DSTest {
         assertTrue(!try_cage(address(gemA)));
         ethA.deny(address(this));
         assertTrue(!try_cage(address(ethA)));
-        maiA.deny(address(this));
-        assertTrue(!try_cage(address(maiA)));
+        coinA.deny(address(this));
+        assertTrue(!try_cage(address(coinA)));
     }
 }
 
@@ -814,13 +814,13 @@ contract FoldTest is DSTest {
         vat.file("Line", rad(100 ether));
         vat.file("gold", "line", rad(100 ether));
     }
-    function draw(bytes32 ilk, uint mai) internal {
-        vat.file("Line", rad(mai));
-        vat.file(ilk, "line", rad(mai));
+    function draw(bytes32 ilk, uint coin) internal {
+        vat.file("Line", rad(coin));
+        vat.file(ilk, "line", rad(coin));
         vat.file(ilk, "spot", 10 ** 27 * 10000 ether);
         address self = address(this);
         vat.slip(ilk, self,  10 ** 27 * 1 ether);
-        vat.frob(ilk, self, self, self, 1 ether, int(mai));
+        vat.frob(ilk, self, self, self, 1 ether, int(coin));
     }
     function test_fold() public {
         address self = address(this);
@@ -830,6 +830,6 @@ contract FoldTest is DSTest {
         assertEq(tab("gold", self), rad(1.00 ether));
         vat.fold("gold", ali,   int(ray(0.05 ether)));
         assertEq(tab("gold", self), rad(1.05 ether));
-        assertEq(vat.mai(ali),      rad(0.05 ether));
+        assertEq(vat.good(ali),      rad(0.05 ether));
     }
 }

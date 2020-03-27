@@ -21,7 +21,7 @@ pragma solidity ^0.5.15;
 import "./lib.sol";
 
 contract VatLike {
-    function mai(address) external view returns (uint256);
+    function good(address) external view returns (uint256);
     function ilks(bytes32 ilk) external returns (
         uint256 Art,
         uint256 rate,
@@ -92,10 +92,10 @@ contract Spotty {
     2. `cage(ilk)`:
        - set the cage price for each `ilk`, reading off the price feed
     We must process some system state before it is possible to calculate
-    the final mai / collateral price. In particular, we need to determine
+    the final coin / collateral price. In particular, we need to determine
       a. `gap`, the collateral shortfall per collateral type by
          considering under-collateralised CDPs.
-      b. `debt`, the outstanding mai supply after including system
+      b. `debt`, the outstanding coin supply after including system
          surplus / deficit
     We determine (a) by processing all under-collateralised CDPs with
     `skim`:
@@ -103,23 +103,23 @@ contract Spotty {
        - cancels CDP debt
        - any excess collateral remains
        - backing collateral taken
-    We determine (b) by processing ongoing mai generating processes,
+    We determine (b) by processing ongoing coin generating processes,
     i.e. auctions. We need to ensure that auctions will not generate any
-    further mai income. In the two-way auction model this occurs when
+    further coin income. In the two-way auction model this occurs when
     all auctions are in the reverse (`dent`) phase. There are two ways
     of ensuring this:
     4.  i) `wait`: set the cooldown period to be at least as long as the
            longest auction duration, which needs to be determined by the
            cage administrator.
            This takes a fairly predictable time to occur but with altered
-           auction dynamics due to the now varying price of mai.
+           auction dynamics due to the now varying price of coin.
        ii) `skip`: cancel all ongoing auctions and seize the collateral.
            This allows for faster processing at the expense of more
-           processing calls. This option allows mai holders to retrieve
+           processing calls. This option allows coin holders to retrieve
            their collateral faster.
            `skip(ilk, id)`:
             - cancel individual flip auctions in the `tend` (forward) phase
-            - retrieves collateral and returns mai to bidder
+            - retrieves collateral and returns coin to bidder
             - `dent` (reverse) phase auctions can continue normally
     Option (i), `wait`, is sufficient for processing the system
     settlement but option (ii), `skip`, will speed it up. Both options
@@ -135,23 +135,23 @@ contract Spotty {
     6. `thaw()`:
        - only callable after processing time period elapsed
        - assumption that all under-collateralised CDPs are processed
-       - fixes the total outstanding supply of mai
+       - fixes the total outstanding supply of coin
        - may also require extra CDP processing to cover vow surplus
     7. `flow(ilk)`:
         - calculate the `fix`, the cash price for a given ilk
         - adjusts the `fix` in the case of deficit / surplus
     At this point we have computed the final price for each collateral
-    type and mai holders can now turn their mai into collateral. Each
-    unit mai can claim a fixed basket of collateral.
-    Mai holders must first `pack` some mai into a `bag`. Once packed,
-    mai cannot be unpacked and is not transferrable. More mai can be
+    type and coin holders can now turn their coin into collateral. Each
+    unit coin can claim a fixed basket of collateral.
+    Mai holders must first `pack` some coin into a `bag`. Once packed,
+    coin cannot be unpacked and is not transferrable. More coin can be
     added to a bag later.
     8. `pack(wad)`:
-        - put some mai into a bag in preparation for `cash`
+        - put some coin into a bag in preparation for `cash`
     Finally, collateral can be obtained with `cash`. The bigger the bag,
     the more collateral can be released.
     9. `cash(ilk, wad)`:
-        - exchange some mai from your bag for gems from a specific ilk
+        - exchange some coin from your bag for gems from a specific ilk
         - the number of gems is limited by how big your bag is
 */
 
@@ -174,7 +174,7 @@ contract End is LibNote {
     uint256  public live;  // cage flag
     uint256  public when;  // time of cage
     uint256  public wait;  // processing cooldown length
-    uint256  public debt;  // total outstanding mai following processing [rad]
+    uint256  public debt;  // total outstanding coin following processing [rad]
 
     mapping (bytes32 => uint256) public tag;  // cage price           [ray]
     mapping (bytes32 => uint256) public gap;  // collateral shortfall [wad]
@@ -294,7 +294,7 @@ contract End is LibNote {
     function thaw() external note {
         require(live == 0, "End/still-live");
         require(debt == 0, "End/debt-not-zero");
-        require(vat.mai(address(vow)) == 0, "End/surplus-not-zero");
+        require(vat.good(address(vow)) == 0, "End/surplus-not-zero");
         require(now >= add(when, wait), "End/wait-not-finished");
         debt = vat.debt();
     }
