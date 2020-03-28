@@ -268,11 +268,11 @@ contract Vox1 is LibNote, Exp {
     // Add/subtract calculated rates from default ones
     function mix(uint sf_, uint way_, int site_) internal view returns (uint x, uint y) {
         if (site_ == 1) {
-          x = add(dawn, sub(sf_, RAY));
-          y = add(dusk, sub(way_, RAY));
+          x = (dawn > RAY) ? add(dawn, sub(sf_, RAY)) : add(RAY, sub(sf_, RAY));
+          y = (dusk > RAY) ? add(dusk, sub(way_, RAY)) : add(RAY, sub(way_, RAY));
         } else {
-          x = sub(dawn, sub(sf_, RAY));
-          y = sub(dusk, sub(way_, RAY));
+          x = (dawn < RAY) ? sub(dawn, sub(sf_, RAY)) : sub(RAY, sub(sf_, RAY));
+          y = (dusk < RAY) ? sub(dusk, sub(way_, RAY)) : sub(RAY, sub(way_, RAY));
         }
     }
     function adj(uint val, uint par, int site_) public view returns (uint256, uint256) {
