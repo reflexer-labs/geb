@@ -28,10 +28,10 @@ contract GemLike {
 }
 
 /*
-   This thing creates gems on demand in return for mai.
+   This thing creates gems on demand in return for coin.
  - `lot` gems for sale
- - `bid` mai paid
- - `gal` receives mai income
+ - `bid` coin paid
+ - `gal` receives coin income
  - `ttl` single bid lifetime
  - `beg` minimum bid increase
  - `end` max auction duration

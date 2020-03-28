@@ -17,21 +17,21 @@ pragma solidity ^0.5.15;
 
 import "./lib.sol";
 
-contract Mai is LibNote {
+contract Coin is LibNote {
     // --- Auth ---
     mapping (address => uint) public wards;
     function rely(address guy) external note auth { wards[guy] = 1; }
     function deny(address guy) external note auth { wards[guy] = 0; }
     modifier auth {
-        require(wards[msg.sender] == 1, "Mai/not-authorized");
+        require(wards[msg.sender] == 1, "Coin/not-authorized");
         _;
     }
 
     // --- ERC20 Data ---
-    string  public constant name     = "Mai Reflex Bond";
-    string  public constant symbol   = "MAI";
-    string  public constant version  = "1";
-    uint8   public constant decimals = 18;
+    string  public name;
+    string  public symbol;
+    string  public version;
+    uint8   public decimals;
     uint256 public totalSupply;
 
     mapping (address => uint)                      public balanceOf;
@@ -54,8 +54,16 @@ contract Mai is LibNote {
     // bytes32 public constant PERMIT_TYPEHASH = keccak256("Permit(address holder,address spender,uint256 nonce,uint256 expiry,bool allowed)");
     bytes32 public constant PERMIT_TYPEHASH = 0xea2aa0a1be11a07ed86d755c93467f4f82362b452371d1ba94d1715123511acb;
 
-    constructor(uint256 chainId_) public {
+    constructor(
+      string memory name_,
+      string memory symbol_,
+      uint8 decimals_,
+      uint256 chainId_
+      ) public {
         wards[msg.sender] = 1;
+        name     = name_;
+        symbol   = symbol_;
+        decimals = decimals_;
         DOMAIN_SEPARATOR = keccak256(abi.encode(
             keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
             keccak256(bytes(name)),
@@ -72,9 +80,9 @@ contract Mai is LibNote {
     function transferFrom(address src, address dst, uint wad)
         public returns (bool)
     {
-        require(balanceOf[src] >= wad, "Mai/insufficient-balance");
+        require(balanceOf[src] >= wad, "Coin/insufficient-balance");
         if (src != msg.sender && allowance[src][msg.sender] != uint(-1)) {
-            require(allowance[src][msg.sender] >= wad, "Mai/insufficient-allowance");
+            require(allowance[src][msg.sender] >= wad, "Coin/insufficient-allowance");
             allowance[src][msg.sender] = sub(allowance[src][msg.sender], wad);
         }
         balanceOf[src] = sub(balanceOf[src], wad);
@@ -88,9 +96,9 @@ contract Mai is LibNote {
         emit Transfer(address(0), usr, wad);
     }
     function burn(address usr, uint wad) external {
-        require(balanceOf[usr] >= wad, "Mai/insufficient-balance");
+        require(balanceOf[usr] >= wad, "Coin/insufficient-balance");
         if (usr != msg.sender && allowance[usr][msg.sender] != uint(-1)) {
-            require(allowance[usr][msg.sender] >= wad, "Mai/insufficient-allowance");
+            require(allowance[usr][msg.sender] >= wad, "Coin/insufficient-allowance");
             allowance[usr][msg.sender] = sub(allowance[usr][msg.sender], wad);
         }
         balanceOf[usr] = sub(balanceOf[usr], wad);
@@ -130,10 +138,10 @@ contract Mai is LibNote {
                                      allowed))
         ));
 
-        require(holder != address(0), "Mai/invalid-address-0");
-        require(holder == ecrecover(digest, v, r, s), "Mai/invalid-permit");
-        require(expiry == 0 || now <= expiry, "Mai/permit-expired");
-        require(nonce == nonces[holder]++, "Mai/invalid-nonce");
+        require(holder != address(0), "Coin/invalid-address-0");
+        require(holder == ecrecover(digest, v, r, s), "Coin/invalid-permit");
+        require(expiry == 0 || now <= expiry, "Coin/permit-expired");
+        require(nonce == nonces[holder]++, "Coin/invalid-nonce");
         uint wad = allowed ? uint(-1) : 0;
         allowance[holder][spender] = wad;
         emit Approval(holder, spender, wad);

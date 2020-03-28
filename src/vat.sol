@@ -1,4 +1,4 @@
-/// vat.sol -- Mai Urn database
+/// vat.sol -- Urn database
 
 // Copyright (C) 2018 Rain <rainbreak@riseup.net>
 // Copyright (C) 2018 Stefan C. Ionescu <stefanionescu@protonmail.com>
@@ -52,12 +52,12 @@ contract Vat {
     mapping (bytes32 => Ilk)                       public ilks;
     mapping (bytes32 => mapping (address => Urn )) public urns;
     mapping (bytes32 => mapping (address => uint)) public gem;   // [wad]
-    mapping (address => uint)                      public mai;   // [rad]
+    mapping (address => uint)                      public good;  // [rad]
     mapping (address => uint)                      public sin;   // [rad]
 
-    uint256  public debt;  // Total Mai Issued    [rad]
-    uint256  public vice;  // Total Unbacked Mai  [rad]
-    uint256  public Line;  // Total Debt Ceiling  [rad]
+    uint256  public debt;  // Total Goods Issued   [rad]
+    uint256  public vice;  // Total Unbacked Goods [rad]
+    uint256  public Line;  // Total Debt Ceiling   [rad]
     uint256  public live;  // Access Flag
 
     // --- Logs ---
@@ -163,8 +163,8 @@ contract Vat {
     }
     function move(address src, address dst, uint256 rad) external note {
         require(wish(src, msg.sender), "Vat/not-allowed");
-        mai[src] = sub(mai[src], rad);
-        mai[dst] = add(mai[dst], rad);
+        good[src] = sub(good[src], rad);
+        good[dst] = add(good[dst], rad);
     }
 
     function either(bool x, bool y) internal pure returns (bool z) {
@@ -208,7 +208,7 @@ contract Vat {
         require(either(urn.art == 0, tab >= ilk.dust), "Vat/dust");
 
         gem[i][v] = sub(gem[i][v], dink);
-        mai[w]    = add(mai[w],    dtab);
+        good[w]    = add(good[w],    dtab);
 
         urns[i][u] = urn;
         ilks[i]    = ilk;
@@ -268,16 +268,16 @@ contract Vat {
     // --- Settlement ---
     function heal(uint rad) external note {
         address u = msg.sender;
-        sin[u] = sub(sin[u], rad);
-        mai[u] = sub(mai[u], rad);
-        vice   = sub(vice,   rad);
-        debt   = sub(debt,   rad);
+        sin[u]  = sub(sin[u], rad);
+        good[u] = sub(good[u], rad);
+        vice    = sub(vice,   rad);
+        debt    = sub(debt,   rad);
     }
     function suck(address u, address v, uint rad) external note auth {
-        sin[u] = add(sin[u], rad);
-        mai[v] = add(mai[v], rad);
-        vice   = add(vice,   rad);
-        debt   = add(debt,   rad);
+        sin[u]  = add(sin[u], rad);
+        good[v] = add(good[v], rad);
+        vice    = add(vice,   rad);
+        debt    = add(debt,   rad);
     }
 
     // --- Rates ---
@@ -286,7 +286,7 @@ contract Vat {
         Ilk storage ilk = ilks[i];
         ilk.rate = add(ilk.rate, rate);
         int rad  = mul(ilk.Art, rate);
-        mai[u]   = add(mai[u], rad);
+        good[u]  = add(good[u], rad);
         debt     = add(debt,   rad);
     }
 }

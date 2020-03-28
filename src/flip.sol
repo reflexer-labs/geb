@@ -31,12 +31,12 @@ contract FeedLike {
 }
 
 /*
-   This thing lets you flip some gems for a given amount of mai.
-   Once the given amount of mai is raised, gems are forgone instead.
+   This thing lets you flip some gems for a given amount of coin.
+   Once the given amount of coin is raised, gems are forgone instead.
  - `lot` gems for sale
- - `tab` total mai wanted
- - `bid` mai paid
- - `gal` receives mai income
+ - `tab` total coin wanted
+ - `bid` coin paid
+ - `gal` receives coin income
  - `usr` receives gem forgone
  - `ttl` single bid lifetime
  - `beg` minimum bid increase

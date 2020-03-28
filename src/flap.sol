@@ -22,7 +22,7 @@ import "./lib.sol";
 
 contract VatLike {
     function move(address,address,uint) external;
-    function mai(address) external view returns (uint);
+    function good(address) external view returns (uint);
     function hope(address) external;
     function nope(address usr) external;
 }
@@ -109,7 +109,7 @@ contract Flapper is LibNote {
     function cage() external note auth {
         live = 0;
         loot();
-        vat.move(address(this), msg.sender, vat.mai(address(this)));
+        vat.move(address(this), msg.sender, vat.good(address(this)));
     }
 
     // --- Utils ---
@@ -140,8 +140,8 @@ contract Flapper is LibNote {
 
         loot();
 
-        if (vat.mai(address(this)) > 0) {
-          vat.move(address(this), safe, vat.mai(address(this)));
+        if (vat.good(address(this)) > 0) {
+          vat.move(address(this), safe, vat.good(address(this)));
         }
         gov.burn(address(this), gov.balanceOf(address(this)));
 
