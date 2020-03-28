@@ -110,6 +110,7 @@ contract Vox1 is LibNote, Exp {
         way  = 10 ** 27;
         up   = 2 ** 255;
         down = 2 ** 255;
+        tau  = now;
         jug  = JugLike(jug_);
         spot = SpotLike(spot_);
         live = 1;

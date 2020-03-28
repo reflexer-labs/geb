@@ -176,6 +176,7 @@ contract Vox1Test is DSTest {
     }
 
     function test_no_deviation() public {
+        hevm.warp(now + 1 seconds);
         jug.drip();
         vox.back();
         assertEq(vox.fix(), ray(1 ether));
@@ -183,6 +184,7 @@ contract Vox1Test is DSTest {
     }
 
     function testFail_no_prior_dropping() public {
+        hevm.warp(now + 1 seconds);
         jug.drip();
         vox.back();
         hevm.warp(now + 1 seconds);
@@ -190,6 +192,7 @@ contract Vox1Test is DSTest {
     }
 
     function testFail_back_same_era() public {
+        hevm.warp(now + 1 seconds);
         jug.drip();
         vox.back();
         jug.drip();
@@ -199,6 +202,7 @@ contract Vox1Test is DSTest {
     function test_par_bigger_than_fix() public {
         spot.file("par", ray(15 ether));
         stableFeed.poke(8.9587 ether);
+        hevm.warp(now + 1 seconds);
         jug.drip();
         vox.back();
         assertEq(vox.fix(), ray(8.9587 ether));
@@ -218,6 +222,7 @@ contract Vox1Test is DSTest {
     function test_par_smaller_than_fix() public {
         spot.file("par", ray(5.521 ether));
         stableFeed.poke(11.34 ether);
+        hevm.warp(now + 1 seconds);
         jug.drip();
         vox.back();
         assertEq(vox.fix(), ray(11.34 ether));
@@ -228,6 +233,7 @@ contract Vox1Test is DSTest {
 
     function test_back_negative_deviation() public {
         stableFeed.poke(0.995 ether);
+        hevm.warp(now + 1 seconds);
         jug.drip();
         vox.back();
         assertEq(vox.fix(), ray(0.995 ether));
@@ -250,6 +256,7 @@ contract Vox1Test is DSTest {
     function test_back_positive_deviation() public {
         // First negative
         stableFeed.poke(0.995 ether);
+        hevm.warp(now + 1 seconds);
         jug.drip();
         vox.back();
         hevm.warp(now + SPY * 1 seconds);
@@ -279,6 +286,8 @@ contract Vox1Test is DSTest {
         vox.file("span", ray(2 ether));
 
         stableFeed.poke(0.995 ether);
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
 
         assertEq(spot.par(), ray(1 ether));
@@ -319,6 +328,8 @@ contract Vox1Test is DSTest {
     function test_how_positive_deviation() public {
         vox.file("how", 0.005 ether);
         stableFeed.poke(0.995 ether);
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
         assertEq(vox.bowl(), 0);
         assertEq(vox.path(), 1);
@@ -354,6 +365,8 @@ contract Vox1Test is DSTest {
         // First positive deviation
         vox.file("how", 0.005 ether);
         stableFeed.poke(0.995 ether);
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
         assertEq(vox.bowl(), 0);
         assertEq(vox.path(), 1);
@@ -408,6 +421,8 @@ contract Vox1Test is DSTest {
         vox.file("span", ray(2 ether));
 
         stableFeed.poke(0.995 ether);
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
 
         assertEq(vox.way(), 1000000000317100562410225509);
@@ -428,6 +443,8 @@ contract Vox1Test is DSTest {
         vox.file("dusk", 1000000000158946658547141217);
 
         stableFeed.poke(0.995 ether);
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
 
         assertEq(vox.way(), 1000000000317893317094282434);
@@ -483,6 +500,8 @@ contract Vox1Test is DSTest {
 
     function test_jug_no_drip_lap() public {
         stableFeed.poke(1.1 ether);
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
         assertEq(vox.fix(), ray(1.1 ether));
         assertEq(spot.par(), 1000000000000000000000000000);
@@ -502,6 +521,8 @@ contract Vox1Test is DSTest {
         vox.file("up", ray(1 ether));
         vox.file("down", 999999999999999999999999999);
         stableFeed.poke(1.005 ether);
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
         assertEq(jug.base(), 999999999999999999999999999);
         stableFeed.poke(0.995 ether);
@@ -514,6 +535,8 @@ contract Vox1Test is DSTest {
     function test_custom_default_per_second_rates() public {
         vox.file("dawn", 1000000000158153903837946258);
         vox.file("dusk", ray(1 ether) + 1);
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
         assertEq(vox.way(), ray(1 ether) + 1);
         assertEq(jug.base(), 1000000000158153903837946258);
