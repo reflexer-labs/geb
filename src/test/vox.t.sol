@@ -176,7 +176,6 @@ contract Vox1Test is DSTest {
     }
 
     function test_no_deviation() public {
-        vox.drip();
         jug.drip();
         vox.back();
         assertEq(vox.fix(), ray(1 ether));
@@ -184,28 +183,15 @@ contract Vox1Test is DSTest {
     }
 
     function testFail_no_prior_dropping() public {
-        vox.drip();
         jug.drip();
         vox.back();
         hevm.warp(now + 1 seconds);
         vox.back();
     }
 
-    function testFail_rest_between_backs() public {
-        vox.file("rest", 600);
-        vox.drip();
+    function testFail_back_same_era() public {
         jug.drip();
         vox.back();
-        vox.drip();
-        jug.drip();
-        vox.back();
-    }
-
-    function test_rest_between_backs() public {
-        vox.file("rest", 600);
-        vox.back();
-        hevm.warp(now + 600 seconds);
-        vox.drip();
         jug.drip();
         vox.back();
     }
@@ -213,32 +199,27 @@ contract Vox1Test is DSTest {
     function test_par_bigger_than_fix() public {
         spot.file("par", ray(15 ether));
         stableFeed.poke(8.9587 ether);
-        vox.drip();
         jug.drip();
         vox.back();
-        assertEq(vox.rho(), now);
         assertEq(vox.fix(), ray(8.9587 ether));
         assertEq(spot.par(), ray(15 ether));
         assertEq(vox.way(), 1000000016344022011022743085);
 
         hevm.warp(now + SPY * 1 seconds);
 
-        vox.drip();
         jug.drip();
         vox.back();
 
         assertEq(spot.par(), 25115251096699297888487171340);
-        assertEq(vox.way(), 1000000032688044289172541667);
-        assertEq(jug.base(), 1000000032688044289172541667);
+        assertEq(vox.way(), 1000000016344022011022743085);
+        assertEq(jug.base(), 1000000016344022011022743085);
     }
 
     function test_par_smaller_than_fix() public {
         spot.file("par", ray(5.521 ether));
         stableFeed.poke(11.34 ether);
-        vox.drip();
         jug.drip();
         vox.back();
-        assertEq(vox.rho(), now);
         assertEq(vox.fix(), ray(11.34 ether));
         assertEq(spot.par(), ray(5.521 ether));
         assertEq(vox.way(), 999999977176011440519000573);
@@ -247,18 +228,15 @@ contract Vox1Test is DSTest {
 
     function test_back_negative_deviation() public {
         stableFeed.poke(0.995 ether);
-        vox.drip();
         jug.drip();
         vox.back();
-        assertEq(vox.rho(), now);
         assertEq(vox.fix(), ray(0.995 ether));
         assertEq(spot.par(), ray(1 ether));
         assertEq(vox.way(), 1000000000158946658547141217);
         assertEq(jug.base(), 1000000000158946658547141217);
         hevm.warp(now + SPY * 1 seconds);
-        assertTrue(now > vox.rho());
-        vox.drip();
         jug.drip();
+        vox.back();
         (, uint rho) = jug.ilks("gold");
         assertEq(rho, now);
         assertEq(spot.par(), 1005025125628140703501565638);
@@ -272,30 +250,29 @@ contract Vox1Test is DSTest {
     function test_back_positive_deviation() public {
         // First negative
         stableFeed.poke(0.995 ether);
-        vox.drip();
         jug.drip();
         vox.back();
         hevm.warp(now + SPY * 1 seconds);
-        vox.drip();
         jug.drip();
-        // Then positive
-        stableFeed.poke(1.1 ether);
         vox.back();
-        assertEq(vox.rho(), now);
+        // Then positive
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(1.1 ether);
+        jug.drip();
+        vox.back();
         assertEq(vox.fix(), ray(1.1 ether));
-        assertEq(spot.par(), 1005025125628140703501565638);
+        assertEq(spot.par(), 1005025125787886088976079423);
         assertEq(vox.way(), 999999997136680678904868605);
         assertEq(jug.base(), 999999997136680678904868605);
         hevm.warp(now + (SPY / 100) * 1 seconds);
-        assertTrue(now > vox.rho());
-        vox.drip();
         jug.drip();
-        assertEq(spot.par(), 1004118021284521140426492813);
-        assertEq(vat.good(address(vow)), 20590106422605702132464065000000000000000000);
+        vox.back();
+        assertEq(spot.par(), 1004118021444122344696634671);
+        assertEq(vat.good(address(vow)), 20590107220611723483173355000000000000000000);
         assertEq(vat.sin(address(vow)), 0);
         assertEq(vat.good(address(vox)), 0);
         assertEq(vat.vice(), 0);
-        assertEq(vat.debt(), 5020590106422605702132464065000000000000000000);
+        assertEq(vat.debt(), 5020590107220611723483173355000000000000000000);
     }
 
     function test_rate_spread() public {
@@ -307,10 +284,10 @@ contract Vox1Test is DSTest {
         assertEq(spot.par(), ray(1 ether));
         assertEq(vox.way(), 1000000000158946658547141217);
         assertEq(jug.base(), 1000000000079572920012861247);
-        hevm.warp(now + SPY * 1 seconds);
 
+        hevm.warp(now + SPY * 1 seconds);
         jug.drip();
-        vox.drip();
+        vox.back();
 
         assertEq(spot.par(), 1005025125628140703501565638);
         assertEq(vat.good(address(vow)), 12562814070351758813927905000000000000000000);
@@ -319,7 +296,9 @@ contract Vox1Test is DSTest {
         assertEq(vat.vice(), 0);
         assertEq(vat.debt(), 5012562814070351758813927905000000000000000000);
 
+        hevm.warp(now + SPY * 1 seconds);
         stableFeed.poke(1.060 ether);
+        jug.drip();
         vox.back();
 
         assertEq(vox.way(), 999999998311251701376211553);
@@ -327,14 +306,14 @@ contract Vox1Test is DSTest {
 
         hevm.warp(now + (SPY / 100) * 1 seconds);
         jug.drip();
-        vox.drip();
+        vox.back();
 
-        assertEq(spot.par(), 1004490028264274453595667799);
-        assertEq(vat.good(address(vow)), 11210473176924140255537500000000000000000000);
+        assertEq(spot.par(), 1009537716848517038773521636);
+        assertEq(vat.good(address(vow)), 23801454265308371783720045000000000000000000);
         assertEq(vat.sin(address(vow)), 0);
         assertEq(vat.good(address(vox)), 0);
         assertEq(vat.vice(), 0);
-        assertEq(vat.debt(), 5011210473176924140255537500000000000000000000);
+        assertEq(vat.debt(), 5023801454265308371783720045000000000000000000);
     }
 
     function test_how_positive_deviation() public {
@@ -346,7 +325,6 @@ contract Vox1Test is DSTest {
 
         hevm.warp(now + SPY * 1 seconds);
         jug.drip();
-        vox.drip();
         vox.back();
 
         assertEq(vox.bowl(), 31536000);
@@ -360,17 +338,16 @@ contract Vox1Test is DSTest {
 
         hevm.warp(now + SPY * 1 seconds);
         jug.drip();
-        vox.drip();
         vox.back();
 
         assertEq(vox.bowl(), 63072000);
         assertEq(vox.path(), 1);
-        assertEq(spot.par(), 1015309731802874375366504590);
-        assertEq(vat.good(address(vow)), 76548659014371876832522950000000000000000000);
+        assertEq(spot.par(), 1010233975505669048718026707);
+        assertEq(vat.good(address(vow)), 51169877528345243590133535000000000000000000);
         assertEq(vat.sin(address(vow)), 0);
         assertEq(vat.good(address(vox)), 0);
         assertEq(vat.vice(), 0);
-        assertEq(vat.debt(), 5076548659014371876832522950000000000000000000);
+        assertEq(vat.debt(), 5051169877528345243590133535000000000000000000);
     }
 
     function test_how_negative_deviation() public {
@@ -383,43 +360,47 @@ contract Vox1Test is DSTest {
 
         hevm.warp(now + SPY * 10 seconds);
         jug.drip();
-        vox.drip();
+        vox.back();
 
         assertEq(spot.par(), 1051402953210356466797473310);
 
         // Then negative
+        hevm.warp(now + 1 seconds);
         stableFeed.poke(1.11 ether);
-        vox.back();
-        assertEq(vox.bowl(), 0);
-        assertEq(vox.path(), -1);
-
-        hevm.warp(now + (SPY / 10) * 1 seconds);
         jug.drip();
-        vox.drip();
+        vox.back();
+        assertEq(vox.bowl(), 315360000);
+        assertEq(vox.path(), -1);
+
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
 
-        assertEq(vox.bowl(), 3153600);
+        hevm.warp(now + (SPY / 10 - 1) * 1 seconds);
+        jug.drip();
+        vox.back();
+
+        assertEq(vox.bowl(), 318513600);
         assertEq(vox.path(), -1);
-        assertEq(spot.par(), 1045716146668382614395389356);
-        assertEq(vat.good(address(vow)), 228580733341913071976946780000000000000000000);
+        assertEq(spot.par(), 1045560091036857016594431823);
+        assertEq(vat.good(address(vow)), 227800455184285082972159115000000000000000000);
         assertEq(vat.sin(address(vow)), 0);
         assertEq(vat.good(address(vox)), 0);
         assertEq(vat.vice(), 0);
-        assertEq(vat.debt(), 5228580733341913071976946780000000000000000000);
+        assertEq(vat.debt(), 5227800455184285082972159115000000000000000000);
 
         hevm.warp(now + (SPY / 10) * 1 seconds);
         jug.drip();
-        vox.drip();
         vox.back();
 
-        assertEq(vox.bowl(), 6307200);
+        assertEq(vox.bowl(), 321667200);
         assertEq(vox.path(), -1);
-        assertEq(spot.par(), 1039494635194017352999843859);
-        assertEq(vat.good(address(vow)), 197473175970086764999219295000000000000000000);
+        assertEq(spot.par(), 1039748147848234553242263459);
+        assertEq(vat.good(address(vow)), 198740739241172766211317295000000000000000000);
         assertEq(vat.sin(address(vow)), 0);
         assertEq(vat.good(address(vox)), 0);
         assertEq(vat.vice(), 0);
-        assertEq(vat.debt(), 5197473175970086764999219295000000000000000000);
+        assertEq(vat.debt(), 5198740739241172766211317295000000000000000000);
     }
 
     function test_rates_with_go() public {
@@ -432,11 +413,13 @@ contract Vox1Test is DSTest {
         assertEq(vox.way(), 1000000000317100562410225509);
         assertEq(jug.base(), 1000000000158946658547141217);
 
-        stableFeed.poke(1.005 ether);
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(1.006 ether);
+        jug.drip();
         vox.back();
 
-        assertEq(vox.way(), 999999999684477078426627931);
-        assertEq(jug.base(), 999999999841846096162053742);
+        assertEq(vox.way(), 999999999621747499127035530);
+        assertEq(jug.base(), 999999999810309751455009066);
     }
 
     function test_mix_default_with_computed_rates() public {
@@ -450,60 +433,69 @@ contract Vox1Test is DSTest {
         assertEq(vox.way(), 1000000000317893317094282434);
         assertEq(jug.base(), 1000000000317893317094282434);
 
-        stableFeed.poke(1.005 ether);
+        stableFeed.poke(1.006 ether);
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
 
-        assertEq(vox.way(), 999999999841846096162053742);
-        assertEq(jug.base(), 999999999841846096162053742);
+        assertEq(vox.way(), 999999999810309751455009066);
+        assertEq(jug.base(), 999999999810309751455009066);
 
         // Negative dawn & dusk
         vox.file("dawn", 999999999841846096162053742);
         vox.file("dusk", 999999999841846096162053742);
 
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
 
-        assertEq(vox.way(), 999999999683692192324107484);
-        assertEq(jug.base(), 999999999683692192324107484);
+        assertEq(vox.way(), 999999999652155857697393766);
+        assertEq(jug.base(), 999999999652155857697393766);
 
         stableFeed.poke(0.995 ether);
+        hevm.warp(now + 1 seconds);
+        assertTrue(!jug.lap());
         vox.back();
 
-        assertEq(vox.way(), 1000000000158946658547141217);
-        assertEq(jug.base(), 1000000000158946658547141217);
+        assertEq(vox.way(), 1000000000158946662612433851);
+        assertEq(jug.base(), 1000000000158946662612433851);
 
         // Mixed
         vox.file("dawn", 999999999841846096162053742);
         vox.file("dusk", 1000000000158946658547141217);
 
+        hevm.warp(now + 1 seconds);
+        assertTrue(jug.lap());
+        jug.drip();
         vox.back();
 
-        assertEq(vox.way(), 1000000000317893317094282434);
-        assertEq(jug.base(), 1000000000158946658547141217);
+        assertEq(vox.way(), 1000000000158946658547141217);
+        assertEq(jug.base(), 999999999841846096162053742);
 
         stableFeed.poke(1.005 ether);
+        hevm.warp(now + 1 seconds);
+        jug.drip();
         vox.back();
 
-        assertEq(vox.way(), 999999999841846096162053742);
-        assertEq(jug.base(), 999999999683692192324107484);
+        assertEq(vox.way(), 999999999841846094237446586);
+        assertEq(jug.base(), 999999999683692190399500328);
     }
 
     function test_jug_no_drip_lap() public {
         stableFeed.poke(1.1 ether);
         vox.back();
-        assertEq(vox.rho(), now);
         assertEq(vox.fix(), ray(1.1 ether));
         assertEq(spot.par(), 1000000000000000000000000000);
         assertEq(vox.way(), 999999996977734019902612350);
         assertEq(jug.base(), 999999996977734019902612350);
         hevm.warp(now + (SPY / 100) * 1 seconds);
 
-        vox.drip();
         assertTrue(!jug.lap());
         vox.back();
 
         assertEq(spot.par(), 999047352256331966915930340);
-        assertEq(vox.way(), 999999996947511359964170393);
-        assertEq(jug.base(), 999999996947511359964170393);
+        assertEq(vox.way(), 999999996977734019902612350);
+        assertEq(jug.base(), 999999996977734019902612350);
     }
 
     function test_bounded_base() public {
@@ -513,6 +505,8 @@ contract Vox1Test is DSTest {
         vox.back();
         assertEq(jug.base(), 999999999999999999999999999);
         stableFeed.poke(0.995 ether);
+        hevm.warp(now + 1 seconds);
+        assertTrue(!jug.lap());
         vox.back();
         assertEq(jug.base(), ray(1 ether));
     }

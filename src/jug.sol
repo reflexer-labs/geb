@@ -151,6 +151,13 @@ contract Jug is LibNote {
           ok = true;
         }
     }
+    function leap() external note auth {
+        for (uint i = 0; i < bank.length; i++) {
+          if (add(base, ilks[bank[i]].duty) < RAY) {
+            ilks[bank[i]].rho = now;
+          }
+        }
+    }
 
     // --- Stability Fee Collection ---
     function drop(bytes32 ilk) internal view returns (uint, int) {

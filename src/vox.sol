@@ -36,6 +36,7 @@ contract JugLike {
     function file(bytes32, uint) external;
     function late() external view returns (bool);
     function lap() external view returns (bool);
+    function leap() external;
 }
 
 contract PotLike {
@@ -58,8 +59,8 @@ contract PotLike {
 
     - Default values for WAY/SF
     - Bounds for SF
-    - Minimum time between feedback updates
     - A spread between SF/WAY
+    - A deviation multiplier for faster response
     - A minimum deviation from the target price at which rate recalculation starts again
     - A sensitivity parameter to apply over time to increase/decrease the rates if the
       deviation is kept constant
@@ -79,7 +80,6 @@ contract Vox1 is LibNote, Exp {
     uint256 public span; // spread between way and sf
     uint256 public tau;  // when fix was last updated
     uint256 public trim; // deviation from target price at which rates are recalculated  [ray]
-    uint256 public rest; // minimum time between updates
     uint256 public go;   // deviation multiplier                                         [ray]
     uint256 public how;  // sensitivity parameter
     uint256 public bowl; // accrued time since the deviation has been positive/negative
@@ -91,7 +91,6 @@ contract Vox1 is LibNote, Exp {
     uint256 public up;   // upper per-second bound for sf
     uint256 public down; // bottom per-second bound for sf
 
-    uint256  public rho;  // time of last drip
     uint256  public way;  // the Target Rate of Adjustment
 
     PipLike  public pip;
@@ -108,11 +107,11 @@ contract Vox1 is LibNote, Exp {
         dawn = 10 ** 27;
         dusk = 10 ** 27;
         go   = 10 ** 27;
+        way  = 10 ** 27;
         up   = 2 ** 255;
         down = 2 ** 255;
         jug  = JugLike(jug_);
         spot = SpotLike(spot_);
-        rho  = now;
         live = 1;
     }
 
@@ -128,7 +127,6 @@ contract Vox1 is LibNote, Exp {
         require(live == 1, "Vox1/not-live");
         if (what == "trim") trim = val;
         else if (what == "span") span = val;
-        else if (what == "rest") rest = val;
         else if (what == "dawn") dawn = val;
         else if (what == "dusk") dusk = val;
         else if (what == "how")  how  = val;
@@ -191,6 +189,9 @@ contract Vox1 is LibNote, Exp {
     function div(uint x, uint y) internal pure returns (uint z) {
         return x / y;
     }
+    function delt(uint x, uint y) internal pure returns (uint z) {
+        z = (x >= y) ? x - y : y - x;
+    }
     function rmul(uint x, uint y) internal pure returns (uint z) {
         // alsites rounds down
         z = mul(x, y) / RAY;
@@ -217,9 +218,6 @@ contract Vox1 is LibNote, Exp {
                 }
             }
         }
-    }
-    function delt(uint x, uint y) internal pure returns (uint z) {
-        z = (x >= y) ? x - y : y - x;
     }
     function comp(uint x) internal view returns (uint z) {
         /**
@@ -293,32 +291,25 @@ contract Vox1 is LibNote, Exp {
         return (sf_, way_);
     }
 
-    // --- Target Price Updates ---
-    function drip() public note returns (uint tmp) {
-        require(now >= rho, "Vox1/invalid-now");
-        uint par = spot.par();
-        tmp = rmul(rpow(way, now - rho, RAY), par);
-        spot.file("par", tmp);
-        rho = now;
-    }
-
     // --- Feedback Mechanism ---
     function back() external note {
         require(live == 1, "Vox1/not-live");
-        // We need to have dripped in order to be able to file new rates
-        require(rho == now, "Vox1/vox-not-dripped");
         // If overall sf is negative and vow doesn't have enough surplus left, skip jug dripping
-        if (jug.late()) {
+        bool late = jug.late();
+        if (late) {
           require(!jug.lap(), "Vox1/jug-not-dripped");
         }
         uint gap = sub(era(), tau);
-        // The gap between now and the last update time needs to be at least 'rest'
-        require(gap >= rest, "Vox1/optimized");
+        require(gap > 0, "Vox1/optimized");
+        // Get par and update it
+        uint par = spot.par();
+        flex(par, gap);
+        // Get price feed updates
         (bytes32 val, bool has) = pip.peek();
         // If the OSM has a value
         if (has) {
-          uint sf; uint way_;
-          uint par = spot.par();
+          uint sf;
+          uint way_;
           // Compute the deviation and whether it's negative/positive
           uint dev  = delt(ray(uint(val)), par);
           int site_ = site(ray(uint(val)), par);
@@ -333,12 +324,12 @@ contract Vox1 is LibNote, Exp {
             // Compute the new per-second rates
             (sf, way_) = adj(ray(uint(val)), par, site_);
             // Set the new rates
-            pull(sf, way_);
+            pull(sf, way_, late);
           } else {
             // Restart counting the seconds since the deviation has been constant
             wipe();
             // Simply set default values for the rates
-            pull(dawn, dusk);
+            pull(dawn, dusk, late);
           }
           // Make sure you store the latest price as a ray
           fix = ray(uint(val));
@@ -346,10 +337,28 @@ contract Vox1 is LibNote, Exp {
           tau = era();
         }
     }
-    // Set the new rate of change and base stability fee
-    function pull(uint sf, uint way_) internal note {
+    // Set the new target price
+    function flex(uint par, uint gap) internal note {
+        // Update target price
+        if (way > 0) {
+          uint tmp = rmul(rpow(way, gap, RAY), par);
+          spot.file("par", tmp);
+        }
+    }
+    // Set the new base stability fee and target rate of change
+    function pull(uint sf, uint way_, bool late) internal note {
+        // Update sf
+        if (late) {
+          /***
+            If we lap for a long time and then go positive with the sf,
+            there will be an abrupt change in ilks' rates. To avoid this,
+            ilks with negative rates (base + duty) will have rho updated
+          ***/
+          jug.leap();
+        }
+        (sf > 0) ? jug.file("base", sf) : jug.file("base", RAY);
+        // Update rate of change
         way = way_;
-        jug.file("base", sf);
     }
 }
 
@@ -369,35 +378,42 @@ contract Vox1 is LibNote, Exp {
 //
 //     int256  public path; // latest type of deviation
 //     uint256 public fix;  // market price                                                 [ray]
-//     uint256 public pole; // desired price                                                [ray]
+//     uint256 public span; // spread between way and sf
 //     uint256 public tau;  // when fix was last updated
-//     uint256 public trim; // deviation from pole at which rates are recalculated          [ray]
+//     uint256 public trim; // deviation from target price at which rates are recalculated  [ray]
 //     uint256 public rest; // minimum time between updates
+//     uint256 public go;   // deviation multiplier                                         [ray]
 //     uint256 public how;  // sensitivity parameter
-//     uint256 public go;   // starting weight for rates
 //     uint256 public bowl; // accrued time since the deviation has been positive/negative
 //     uint256 public live; // access flag
 //
 //     uint256 public dawn; // default per-second sf                                        [ray]
-//     uint256 public dusk; // default per-second sr                                        [ray]
+//     uint256 public dusk; // default per-second way                                       [ray]
 //
-//     PipLike public pip;
-//     JugLike public jug;
-//     PotLike public pot;
+//     uint256 public up;   // upper per-second bound for sf
+//     uint256 public down; // bottom per-second bound for sf
+//
+//     uint256  public rho;  // time of last drip
+//     uint256  public way;  // the Target Rate of Adjustment
+//
+//     PipLike  public pip;
+//     JugLike  public jug;
+//     SpotLike public spot;
 //
 //     constructor(
 //       address jug_,
-//       address pot_,
-//       uint256 pole_
+//       address spot_
 //     ) public {
 //         wards[msg.sender] = 1;
 //         fix  = 10 ** 27;
-//         pole = pole_;
 //         span = 10 ** 27;
 //         dawn = 10 ** 27;
 //         dusk = 10 ** 27;
+//         go   = 10 ** 27;
+//         up   = 2 ** 255;
+//         down = 2 ** 255;
 //         jug  = JugLike(jug_);
-//         pot  = PotLike(pot_);
+//         spot = SpotLike(spot_);
 //         rho  = now;
 //         live = 1;
 //     }
@@ -407,17 +423,26 @@ contract Vox1 is LibNote, Exp {
 //         require(live == 1, "Vox2/not-live");
 //         if (what == "pip") pip = PipLike(addr);
 //         else if (what == "jug") jug = JugLike(addr);
-//         else if (what == "pot") pot = PotLike(addr);
+//         else if (what == "spot") spot = SpotLike(addr);
 //         else revert("Vox2/file-unrecognized-param");
 //     }
 //     function file(bytes32 what, uint256 val) external note auth {
 //         require(live == 1, "Vox2/not-live");
 //         if (what == "trim") trim = val;
+//         else if (what == "span") span = val;
 //         else if (what == "rest") rest = val;
 //         else if (what == "dawn") dawn = val;
 //         else if (what == "dusk") dusk = val;
 //         else if (what == "how")  how  = val;
 //         else if (what == "go")   go   = val;
+//         else if (what == "up") {
+//           if (down != MAX) require(val >= down, "Vox2/small-up");
+//           up = val;
+//         }
+//         else if (what == "down") {
+//           if (up != MAX) require(val <= up, "Vox2/big-down");
+//           down = val;
+//         }
 //         else revert("Vox2/file-unrecognized-param");
 //     }
 //     function cage() external note auth {
@@ -472,6 +497,29 @@ contract Vox1 is LibNote, Exp {
 //         // alsites rounds down
 //         z = mul(x, y) / RAY;
 //     }
+//     function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
+//         assembly {
+//             switch x case 0 {switch n case 0 {z := base} default {z := 0}}
+//             default {
+//                 switch mod(n, 2) case 0 { z := base } default { z := x }
+//                 let half := div(base, 2)  // for rounding.
+//                 for { n := div(n, 2) } n { n := div(n,2) } {
+//                     let xx := mul(x, x)
+//                     if iszero(eq(div(xx, x), x)) { revert(0,0) }
+//                     let xxRound := add(xx, half)
+//                     if lt(xxRound, xx) { revert(0,0) }
+//                     x := div(xxRound, base)
+//                     if mod(n,2) {
+//                         let zx := mul(z, x)
+//                         if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
+//                         let zxRound := add(zx, half)
+//                         if lt(zxRound, zx) { revert(0,0) }
+//                         z := div(zxRound, base)
+//                     }
+//                 }
+//             }
+//         }
+//     }
 //     function delt(uint x, uint y) internal pure returns (uint z) {
 //         z = (x >= y) ? x - y : y - x;
 //     }
@@ -494,12 +542,12 @@ contract Vox1 is LibNote, Exp {
 //     function site(uint x, uint y) internal view returns (int z) {
 //         z = (x >= y) ? int(-1) : int(1);
 //     }
-//     // Compute the per second rate without spread
+//     // Compute the per second 'base rate' without spread
 //     function br(uint256 x) internal pure returns (uint256 z) {
 //         return RAY + delt(x, RAY);
 //     }
-//     // Compute per second rate taking into consideration a spread
-//     function sr(uint256 x) internal view returns (uint256 z) {
+//     // Compute per second 'gap rate' taking into consideration a spread
+//     function gr(uint256 x) internal view returns (uint256 z) {
 //         return RAY + div(mul(delt(x, RAY), RAY), span);
 //     }
 //     // Add more seconds that passed since the deviation has been constantly positive/negative
@@ -515,27 +563,56 @@ contract Vox1 is LibNote, Exp {
 //     function rash(int site_) internal {
 //         path = (path == 0) ? site_ : -path;
 //     }
+//     // Calculate per year rate with a multiplier (go) and a per second sensitivity parameter (how)
 //     function full(uint x, uint y) internal view returns (uint z) {
-//         z = add(mul(x, RAY) / y, mul(how, bowl));
+//         z = add(add(div(mul(sub(mul(x, RAY) / y, RAY), go), RAY), RAY), mul(how, bowl));
 //     }
-//     function adj(uint val, int site_) public view returns (uint256, uint256) {
-//
+//     // Add/subtract calculated rates from default ones
+//     function mix(uint sf_, uint way_, int site_) internal view returns (uint x, uint y) {
+//         if (site_ == 1) {
+//           x = (dawn > RAY) ? add(dawn, sub(sf_, RAY)) : add(RAY, sub(sf_, RAY));
+//           y = (dusk > RAY) ? add(dusk, sub(way_, RAY)) : add(RAY, sub(way_, RAY));
+//         } else {
+//           x = (dawn < RAY) ? sub(dawn, sub(sf_, RAY)) : sub(RAY, sub(sf_, RAY));
+//           y = (dusk < RAY) ? sub(dusk, sub(way_, RAY)) : sub(RAY, sub(way_, RAY));
+//         }
+//     }
+//     function adj(uint val, uint par, int site_) public view returns (uint256, uint256) {
+//         // Calculate adjusted annual rate
+//         uint full_ = (site_ == 1) ? full(par, val) : full(val, par);
 //
 //         // Calculate the per-second base stability fee and target rate of change
 //         uint way_ = comp(br(full_));
-//         uint sf_  = (span == RAY) ? way_ : comp(sr(full_));
+//         uint sf_  = (span == RAY) ? way_ : comp(gr(full_));
 //
 //         // If the deviation is positive, we set a negative rate and vice-versa
-//         (sf_, way_) = (site_ == 1) ? (sf_, way_) : (sub(RAY, sub(sf_, RAY)), sub(RAY, sub(way_, RAY)));
+//         (sf_, way_) = mix(sf_, way_, site_);
+//
+//         // The stability fee might have bounds so make sure you don't pass them
+//         sf_ = (sf_ < down && down != MAX) ? down : sf_;
+//         sf_ = (sf_ > up && up != MAX)     ? up : sf_;
 //
 //         return (sf_, way_);
+//     }
+//
+//     // --- Target Price Updates ---
+//     function drip() public note returns (uint tmp) {
+//         require(now >= rho, "Vox2/invalid-now");
+//         uint par = spot.par();
+//         tmp = rmul(rpow(way, now - rho, RAY), par);
+//         spot.file("par", tmp);
+//         rho = now;
 //     }
 //
 //     // --- Feedback Mechanism ---
 //     function back() external note {
 //         require(live == 1, "Vox2/not-live");
 //         // We need to have dripped in order to be able to file new rates
-//         require(both(pot.rho() == now, jug.late() == false), "Vox2/not-dripped");
+//         require(rho == now, "Vox2/vox-not-dripped");
+//         // If overall sf is negative and vow doesn't have enough surplus left, skip jug dripping
+//         if (jug.late()) {
+//           require(!jug.lap(), "Vox2/jug-not-dripped");
+//         }
 //         uint gap = sub(era(), tau);
 //         // The gap between now and the last update time needs to be at least 'rest'
 //         require(gap >= rest, "Vox2/optimized");
@@ -543,6 +620,7 @@ contract Vox1 is LibNote, Exp {
 //         // If the OSM has a value
 //         if (has) {
 //           uint sf; uint way_;
+//           uint par = spot.par();
 //           // Compute the deviation and whether it's negative/positive
 //           uint dev  = delt(ray(uint(val)), par);
 //           int site_ = site(ray(uint(val)), par);
@@ -555,7 +633,7 @@ contract Vox1 is LibNote, Exp {
 //             **/
 //             (site_ == path) ? grab(gap) : rash(site_);
 //             // Compute the new per-second rates
-//             (sf, way_) = adj(ray(uint(val)), site_);
+//             (sf, way_) = adj(ray(uint(val)), par, site_);
 //             // Set the new rates
 //             pull(sf, way_);
 //           } else {
@@ -570,9 +648,9 @@ contract Vox1 is LibNote, Exp {
 //           tau = era();
 //         }
 //     }
-//     // Set the new savings rate and base stability fee
-//     function pull(uint sf, uint sr) internal note {
-//         pot.file("sr", sr);
+//     // Set the new rate of change and base stability fee
+//     function pull(uint sf, uint way_) internal note {
+//         way = way_;
 //         jug.file("base", sf);
 //     }
 // }
