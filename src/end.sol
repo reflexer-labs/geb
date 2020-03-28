@@ -53,6 +53,9 @@ contract CatLike {
 contract VowLike {
     function cage() external;
 }
+contract PotLike {
+    function cage() external;
+}
 contract Flippy {
     function bids(uint id) external view returns (
         uint256 bid,
@@ -170,6 +173,7 @@ contract End is LibNote {
     CatLike  public cat;
     VowLike  public vow;
     Spotty   public spot;
+    PotLike  public pot;
 
     uint256  public live;  // cage flag
     uint256  public when;  // time of cage
@@ -223,6 +227,7 @@ contract End is LibNote {
         else if (what == "cat")  cat = CatLike(data);
         else if (what == "vow")  vow = VowLike(data);
         else if (what == "spot") spot = Spotty(data);
+        else if (what == "pot") pot = PotLike(data);
         else revert("End/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 data) external note auth {
@@ -240,6 +245,9 @@ contract End is LibNote {
         cat.cage();
         vow.cage();
         spot.cage();
+        if (address(pot) != address(0)) {
+          pot.cage();
+        }
     }
 
     function cage(bytes32 ilk) external note {
