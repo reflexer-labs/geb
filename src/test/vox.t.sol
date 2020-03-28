@@ -422,6 +422,90 @@ contract Vox1Test is DSTest {
         assertEq(vat.debt(), 5197473175970086764999219295000000000000000000);
     }
 
+    function test_rates_with_go() public {
+        vox.file("go", ray(2 ether));
+        vox.file("span", ray(2 ether));
+
+        stableFeed.poke(0.995 ether);
+        vox.back();
+
+        assertEq(vox.way(), 1000000000317100562410225509);
+        assertEq(jug.base(), 1000000000158946658547141217);
+
+        stableFeed.poke(1.005 ether);
+        vox.back();
+
+        assertEq(vox.way(), 999999999684477078426627931);
+        assertEq(jug.base(), 999999999841846096162053742);
+    }
+
+    function test_mix_default_with_computed_rates() public {
+        // Positive dawn & dusk
+        vox.file("dawn", 1000000000158946658547141217);
+        vox.file("dusk", 1000000000158946658547141217);
+
+        stableFeed.poke(0.995 ether);
+        vox.back();
+
+        assertEq(vox.way(), 1000000000317893317094282434);
+        assertEq(jug.base(), 1000000000317893317094282434);
+
+        stableFeed.poke(1.005 ether);
+        vox.back();
+
+        assertEq(vox.way(), 999999999841846096162053742);
+        assertEq(jug.base(), 999999999841846096162053742);
+
+        // Negative dawn & dusk
+        vox.file("dawn", 999999999841846096162053742);
+        vox.file("dusk", 999999999841846096162053742);
+
+        vox.back();
+
+        assertEq(vox.way(), 999999999683692192324107484);
+        assertEq(jug.base(), 999999999683692192324107484);
+
+        stableFeed.poke(0.995 ether);
+        vox.back();
+
+        assertEq(vox.way(), 1000000000158946658547141217);
+        assertEq(jug.base(), 1000000000158946658547141217);
+
+        // Mixed
+        vox.file("dawn", 999999999841846096162053742);
+        vox.file("dusk", 1000000000158946658547141217);
+
+        vox.back();
+
+        assertEq(vox.way(), 1000000000317893317094282434);
+        assertEq(jug.base(), 1000000000158946658547141217);
+
+        stableFeed.poke(1.005 ether);
+        vox.back();
+
+        assertEq(vox.way(), 999999999841846096162053742);
+        assertEq(jug.base(), 999999999683692192324107484);
+    }
+
+    function test_jug_no_drip_lap() public {
+        stableFeed.poke(1.1 ether);
+        vox.back();
+        assertEq(vox.rho(), now);
+        assertEq(vox.fix(), ray(1.1 ether));
+        assertEq(spot.par(), 1000000000000000000000000000);
+        assertEq(vox.way(), 999999996977734019902612350);
+        assertEq(jug.base(), 999999996977734019902612350);
+        hevm.warp(now + (SPY / 100) * 1 seconds);
+
+        vox.drip();
+        assertTrue(!jug.lap());
+        vox.back();
+
+        assertEq(spot.par(), 999047352256331966915930340);
+        assertEq(vox.way(), 999999996947511359964170393);
+        assertEq(jug.base(), 999999996947511359964170393);
+    }
+
     function test_bounded_base() public {
         vox.file("up", ray(1 ether));
         vox.file("down", 999999999999999999999999999);
