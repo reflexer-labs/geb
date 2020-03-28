@@ -25,6 +25,8 @@ import "ds-token/token.sol";
 import {Vat}  from '../vat.sol';
 import {Cat}  from '../cat.sol';
 import {Vow}  from '../vow.sol';
+import {Pot}  from '../pot.sol';
+import {Vox1} from '../vox.sol';
 import {Flipper} from '../flip.sol';
 import {Flapper} from '../flap.sol';
 import {Flopper} from '../flop.sol';
@@ -134,6 +136,8 @@ contract EndTest is DSTest {
     Vow   vow;
     Cat   cat;
     Spotter spot;
+    Pot   pot;
+    Vox1  vox;
 
     BinLike bin;
     DSToken gov;
@@ -266,7 +270,6 @@ contract EndTest is DSTest {
         bond.setOwner(address(coinA));
 
         gov.mint(200 ether);
-        //gov.setOwner(address(flap));
         gov.push(address(bin), 200 ether);
         gov.setOwner(address(flop));
 
@@ -280,9 +283,13 @@ contract EndTest is DSTest {
         vat.rely(address(cat));
         vow.rely(address(cat));
 
+        pot = new Pot(address(vat));
+
         spot = new Spotter(address(vat));
         vat.file("Line",         rad(1000 ether));
         vat.rely(address(spot));
+
+        vox = new Vox1(address(0), address(spot));
 
         end = new End();
         end.file("vat", address(vat));
@@ -293,6 +300,8 @@ contract EndTest is DSTest {
         vat.rely(address(end));
         vow.rely(address(end));
         spot.rely(address(end));
+        vox.rely(address(end));
+        pot.rely(address(end));
         cat.rely(address(end));
         flap.rely(address(vow));
         flop.rely(address(vow));
@@ -314,6 +323,30 @@ contract EndTest is DSTest {
         assertEq(spot.live(), 0);
         assertEq(vow.flopper().live(), 0);
         assertEq(vow.flapper().live(), 0);
+    }
+
+    function test_cage_pot_and_vox_filed() public {
+        end.file("pot", address(pot));
+        end.file("vox", address(vox));
+        assertEq(end.live(), 1);
+        assertEq(vat.live(), 1);
+        assertEq(cat.live(), 1);
+        assertEq(spot.live(), 1);
+        assertEq(vow.live(), 1);
+        assertEq(vow.flopper().live(), 1);
+        assertEq(vow.flapper().live(), 1);
+        assertEq(pot.live(), 1);
+        assertEq(vox.live(), 1);
+        end.cage();
+        assertEq(end.live(), 0);
+        assertEq(vat.live(), 0);
+        assertEq(cat.live(), 0);
+        assertEq(vow.live(), 0);
+        assertEq(spot.live(), 0);
+        assertEq(vow.flopper().live(), 0);
+        assertEq(vow.flapper().live(), 0);
+        assertEq(pot.live(), 0);
+        assertEq(vox.live(), 0);
     }
 
     // -- Scenario where there is one over-collateralised CDP
