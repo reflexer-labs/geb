@@ -16,11 +16,12 @@ pragma solidity ^0.5.15;
 import "./lib.sol";
 
 contract VatLike {
-    function ilks(bytes32) external returns (
+    function ilks(bytes32) external view returns (
         uint256 Art,   // wad
         uint256 rate   // ray
     );
     function fold(bytes32,address,int) external;
+    function good(address) external view returns (uint);
 }
 
 contract Jug is LibNote {
@@ -81,9 +82,19 @@ contract Jug is LibNote {
         z = x + y;
         require(z >= x);
     }
+    function add(int x, int y) internal pure returns (int z) {
+        z = x + y;
+        if (y <= 0) require(z <= x);
+        if (y  > 0) require(z > x);
+    }
     function diff(uint x, uint y) internal pure returns (int z) {
         z = int(x) - int(y);
         require(int(x) >= 0 && int(y) >= 0);
+    }
+    function mul(uint x, int y) internal pure returns (int z) {
+        z = int(x) * y;
+        require(int(x) >= 0);
+        require(y == 0 || z / y == int(x));
     }
     function rmul(uint x, uint y) internal pure returns (uint z) {
         z = x * y;
@@ -122,18 +133,42 @@ contract Jug is LibNote {
           }
         }
     }
-
-    // --- Stability Fee Collection ---
-    function drip() external note {
+    function lap() external view returns (bool ok) {
+        int  rad;
+        int  diff;
+        uint Art;
+        int  good = -int(vat.good(vow));
         for (uint i = 0; i < bank.length; i++) {
-            if (now >= ilks[bank[i]].rho) {drip(bank[i]);}
+          if (now > ilks[bank[i]].rho) {
+            (Art, )  = vat.ilks(bank[i]);
+            (, diff) = drop(bank[i]);
+            rad = add(rad, mul(Art, diff));
+          }
+        }
+        if (rad < 0) {
+          ok = (rad < good) ? false : true;
+        } else {
+          ok = true;
         }
     }
-    function drip(bytes32 ilk) public note returns (uint rate) {
-        require(now >= ilks[ilk].rho, "Jug/invalid-now");
+
+    // --- Stability Fee Collection ---
+    function drop(bytes32 ilk) internal view returns (uint, int) {
         (, uint prev) = vat.ilks(ilk);
-        rate = rmul(rpow(add(base, ilks[ilk].duty), now - ilks[ilk].rho, RAY), prev);
-        vat.fold(ilk, vow, diff(rate, prev));
+        uint rate  = rmul(rpow(add(base, ilks[ilk].duty), now - ilks[ilk].rho, RAY), prev);
+        int  diff_ = diff(rate, prev);
+        return (rate, diff_);
+    }
+    function drip() external note {
+        for (uint i = 0; i < bank.length; i++) {
+            if (now > ilks[bank[i]].rho) {drip(bank[i]);}
+        }
+    }
+    function drip(bytes32 ilk) public note returns (uint) {
+        require(now >= ilks[ilk].rho, "Jug/invalid-now");
+        (uint rate, int rad) = drop(ilk);
+        vat.fold(ilk, vow, rad);
         ilks[ilk].rho = now;
+        return rate;
     }
 }
