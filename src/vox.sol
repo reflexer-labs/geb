@@ -302,9 +302,9 @@ contract Vox1 is LibNote, Exp {
         }
         uint gap = sub(era(), tau);
         require(gap > 0, "Vox1/optimized");
-        // Get par and update it
+        // Update par and then fetch it
+        flex(gap);
         uint par = spot.par();
-        flex(par, gap);
         // Get price feed updates
         (bytes32 val, bool has) = pip.peek();
         // If the OSM has a value
@@ -339,9 +339,10 @@ contract Vox1 is LibNote, Exp {
         }
     }
     // Set the new target price
-    function flex(uint par, uint gap) internal note {
+    function flex(uint gap) internal note {
         // Update target price
         if (way > 0) {
+          uint par = spot.par();
           uint tmp = rmul(rpow(way, gap, RAY), par);
           spot.file("par", tmp);
         }
