@@ -102,6 +102,10 @@ contract Jug is LibNote {
         z = z / RAY;
     }
 
+    function both(bool x, bool y) internal pure returns (bool z) {
+        assembly{ z := and(x, y)}
+    }
+
     // --- Administration ---
     function init(bytes32 ilk) external note auth {
         Ilk storage i = ilks[ilk];
@@ -125,7 +129,7 @@ contract Jug is LibNote {
     }
 
     // --- Utils ---
-    function late() external view returns (bool ko) {
+    function late() public view returns (bool ko) {
         for (uint i = 0; i < bank.length; i++) {
           if (now > ilks[bank[i]].rho) {
             ko = true;
@@ -133,7 +137,7 @@ contract Jug is LibNote {
           }
         }
     }
-    function lap() external view returns (bool ok) {
+    function lap() public view returns (bool ok) {
         int  rad;
         int  diff;
         uint Art;
@@ -151,13 +155,7 @@ contract Jug is LibNote {
           ok = true;
         }
     }
-    function leap() external note auth {
-        for (uint i = 0; i < bank.length; i++) {
-          if (add(base, ilks[bank[i]].duty) < RAY) {
-            ilks[bank[i]].rho = now;
-          }
-        }
-    }
+
 
     // --- Stability Fee Collection ---
     function drop(bytes32 ilk) internal view returns (uint, int) {
@@ -177,5 +175,23 @@ contract Jug is LibNote {
         vat.fold(ilk, vow, rad);
         ilks[ilk].rho = now;
         return rate;
+    }
+    function leap() external note auth {
+        bool lap_ = lap();
+        uint i;
+        // Dripping positive rate ilks
+        for (i = 0; i < bank.length; i++) {
+          if (both(add(base, ilks[bank[i]].duty) >= RAY, now > ilks[bank[i]].rho)) {
+            drip(bank[i]);
+          }
+        }
+        // Dripping/updating negative rate ilks
+        for (i = 0; i < bank.length; i++) {
+          if (!lap_) {
+            ilks[bank[i]].rho = now;
+          } else if (now > ilks[bank[i]].rho) {
+            drip(bank[i]);
+          }
+        }
     }
 }

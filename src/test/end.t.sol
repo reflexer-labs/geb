@@ -289,7 +289,7 @@ contract EndTest is DSTest {
         vat.file("Line",         rad(1000 ether));
         vat.rely(address(spot));
 
-        vox = new Vox1(address(0), address(spot));
+        vox = new Vox1(address(spot), 3, 6, 3);
 
         end = new End();
         end.file("vat", address(vat));

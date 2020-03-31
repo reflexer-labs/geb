@@ -1,4 +1,4 @@
-/// bin.sol -- Aggregator of DEXs for Flapper
+/// bin.sol -- Aggregator of DEXs
 
 // Copyright (C) 2020 Stefan C. Ionescu <stefanionescu@protonmail.com>
 //
@@ -147,7 +147,7 @@ contract Bin is LibNote {
         string memory dex
     ) internal {
         if (keccak256(abi.encode(dex)) == keccak256(abi.encode(""))) return;
-        
+
         if (keccak256(abi.encode(dex)) == keccak256(abi.encode(KYBER))) {
           kyber.trade(
             ERC20(src),
