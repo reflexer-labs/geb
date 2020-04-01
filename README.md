@@ -22,3 +22,4 @@ To summarise:
 - A CDP holder can specify a trigger for when their CDP gets bitten. The trigger can, for example, sell a position in another protocol and add more collateral in the CDP, thus saving it from liquidation
 - (TODO) unified interface for aggregating oracle calls to multiple networks
 - (TODO) jug drips part of the stability fees in a separate contract that pays for oracle calls
+- (TODO) default scenarios for triggering End without the need for ESM
