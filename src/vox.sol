@@ -47,10 +47,16 @@ contract PotLike {
 }
 
 /**
-  Vox1 tries to set both a base stability fee for all collateral types and a rate of
-  change for par according to the market price deviation from a target price.
+  Vox1 tries to set a rate of change for par according to the market price deviations. It is meant to
+  resemble a PID controller as closely as possible.
 
-  The rate of change and the per-second base stability fee are computed on-chain.
+  The rate of change for par is computed on-chain.
+
+  The elements that come into computing the rate of change are:
+    - The current market price deviation from par (the proportional from PID)
+    - An accumulator of the latest market price deviations from par (the integral from PID)
+    - A derivative (slope) of the market/target price deviation computed using two accumulators (the derivative from PID)
+
   The main external input is the price feed for the reflex-bond.
 
   Rates are computed so that they pull the market price in the opposite direction
@@ -58,12 +64,11 @@ contract PotLike {
 
   After deployment, you can set several parameters such as:
 
-    - Default values for WAY/SF
-    - Bounds for SF
-    - A spread between SF/WAY
-    - A default deviation multiplier (the P from PID)
-    - A default sensitivity parameter to apply over time (the I from PID)
-    - A default multiplier for the slope of change in price (the D from PID)
+    - Default value for WAY
+    - A rate of change for the default WAY value
+    - A default deviation multiplier
+    - A default sensitivity parameter to apply over time
+    - A default multiplier for the slope of change in price
     - A minimum deviation from the target price accumulator at which rate recalculation starts again
 **/
 contract Vox1 is LibNote, Exp {

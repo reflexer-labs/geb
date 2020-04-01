@@ -179,14 +179,71 @@ contract Vox1Test is DSTest {
         require(y == 0 || (z = x * int(y)) / int(y) == x);
     }
 
-    function monotonous_deviations(int side_) internal {
+    // Market price simulations
+    function monotonous_deviations(int side_, uint times) internal {
         uint price = 1 ether;
         for (uint i = 0; i <= bowl; i++) {
           hevm.warp(now + 1 seconds);
-          price = add(price, mul(side_, trim));
+          price = add(price, mul(side_, trim * times));
           stableFeed.poke(price);
           vox.back();
         }
+    }
+
+    function major_one_side_deviations(int side_, uint times) internal {
+        uint price = 1 ether; uint i;
+        for (i = 0; i <= bowl / 2; i++) {
+          hevm.warp(now + 1 seconds);
+          price = add(price, mul(side_, trim * times));
+          stableFeed.poke(price);
+          vox.back();
+        }
+        for (i = bowl / 2; i <= bowl + 1; i++) {
+          hevm.warp(now + 1 seconds);
+          price = add(price, mul(side_ * int(-1), trim));
+          stableFeed.poke(price);
+          vox.back();
+        }
+    }
+
+    function zig_zag_deviations(int side_, uint times) internal {
+        uint price = 1 ether;
+        uint i;
+        int aux = side_;
+        for (i = 0; i <= bowl; i++) {
+          hevm.warp(now + 1 seconds);
+          price = add(price, mul(aux, trim * times));
+          stableFeed.poke(price);
+          vox.back();
+          aux = -aux;
+        }
+    }
+
+    function subtle_deviations(int side_) internal {
+        uint price = 1 ether;
+        uint i;
+        for (i = 0; i <= bowl + 5; i++) {
+          hevm.warp(now + 1 seconds);
+          price = add(price, mul(side_, trim / bowl));
+          stableFeed.poke(price);
+          vox.back();
+        }
+    }
+
+    function sudden_big_deviation(int side_) internal {
+        uint price = 1 ether;
+        uint i;
+        for (i = 0; i <= bowl; i++) {
+          hevm.warp(now + 1 seconds);
+          price = add(price, mul(side_, trim / bowl));
+          stableFeed.poke(price);
+          vox.back();
+        }
+
+        hevm.warp(now + 1 seconds);
+        price = add(price, mul(side_ * int(-1), trim * 50));
+        stableFeed.poke(price);
+        vox.back();
     }
 
     function test_setup() public {
@@ -194,36 +251,80 @@ contract Vox1Test is DSTest {
     }
 
     function test_pid_increasing_deviations() public {
-        monotonous_deviations(int(1));
-        (int P, int I, int D, uint pid) = vox.full(vox.fix(), spot.par(), -1);
-        // assertEq(P, 0);
-        // assertEq(I, 0);
-
-        //int some = vox.fat() * int(ray(1 ether)) / vox.thin();
-        // int some = vox.thin() / vox.fat();
-        // assertEq(some, 0);
-
-        // assertEq(P, 0);
-        // assertEq(I, 0);
-        // assertEq(D, 0);
-        assertEq(pid, 0);
-
-        // assertEq(vox.cron(1), 0);
-        // assertEq(vox.cron(2), 0);
-        // assertEq(vox.cron(3), 0);
-        // assertEq(vox.cron(4), 0);
-        // assertEq(vox.cron(5), 0);
-        // assertEq(vox.cron(6), 0);
-        // assertEq(vox.cron(7), 0);
+        monotonous_deviations(int(1), 1);
+        assertEq(vox.way(), 999999990719507378206522849);
+        assertEq(vox.rho(), now);
+        assertEq(spot.par(), 999999990778722693784613721);
+        assertEq(vox.fix(), ray(1.035 ether));
+        assertEq(rmul(rpow(999999990778722693784613721, SPY, RAY), 999999990719507378206522849), 747663542458272649607967062);
     }
 
     function test_pid_decreasing_deviations() public {
-        monotonous_deviations(int(-1));
-        (int P, int I, int D, uint pid) = vox.full(vox.fix(), spot.par(), -1);
+        monotonous_deviations(int(-1), 1);
+        assertEq(vox.way(), 1000000009280492621793477151);
+        assertEq(vox.rho(), now);
+        assertEq(spot.par(), 1000000009221277306215386279);
+        assertEq(vox.fix(), ray(0.965 ether));
+        assertEq(rmul(rpow(1000000009221277306215386279, SPY, RAY), 1000000009280492621793477151), 1337500012412658881605695380);
+    }
+
+    function test_major_negative_deviations() public {
+        major_one_side_deviations(-1, 2);
+
+        assertEq(vox.way(), 1000000003104524158656075033);
+        assertEq(vox.rho(), now);
+        assertEq(spot.par(), 1000000019457540831238950507);
+        assertEq(vox.fix(), ray(0.985 ether));
+
+        // hevm.warp(now + 1 seconds);
+        // stableFeed.poke(vox.fix());
+        // vox.back();
+    }
+
+    function test_major_positive_deviations() public {
+        major_one_side_deviations(1, 3);
+        assertEq(vox.way(), 999999993365388542556944540);
+        assertEq(vox.rho(), now);
+        assertEq(spot.par(), 999999968117093628044091396);
+        assertEq(vox.fix(), ray(1.035 ether));
+    }
+
+    function test_zig_zag_deviations() public {
+        zig_zag_deviations(-1, 5);
+
+        assertEq(vox.way(), 1000000005781378656804591713);
+        assertEq(vox.rho(), now);
+        assertEq(spot.par(), 1000000001167363430498603316);
+        assertEq(vox.fix(), ray(0.975 ether));
+
+        (int P, int I , int D, uint pid) = vox.full(spot.par(), vox.fix(), 1);
+
+        assertEq(vox.fat(), 0);
+        assertEq(vox.thin(), 0);
+
         // assertEq(P, 0);
         // assertEq(I, 0);
         // assertEq(D, 0);
-        assertEq(pid, 0);
+        // assertEq(pid, 0);
+    }
+
+    function test_sudden_big_negative_deviation() public {
+        sudden_big_deviation(1);
+    }
+
+    function test_sudden_big_positive_deviation() public {
+        sudden_big_deviation(-1);
+    }
+
+    function test_deviation_waves() public {
+        monotonous_deviations(-1, 5);
+        // monotonous_deviations(1, 1);
+
+
+    }
+
+    function test_drop_back_to_normal() public {
+
     }
 
     // function test_no_deviation() public {
