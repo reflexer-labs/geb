@@ -29,7 +29,9 @@ contract PipLike {
 }
 
 contract SpotLike {
-    function par() external view returns (uint256);
+    function drip() external returns (uint256);
+    function rho() external view returns (uint256);
+    function par() external returns (uint256);
     function file(bytes32,uint256) external;
 }
 
@@ -47,7 +49,7 @@ contract PotLike {
 }
 
 /**
-  Vox1 tries to set a rate of change for par according to the market price deviations. It is meant to
+  Vox1 tries to set a rate of change for par according to recent market price deviations. It is meant to
   resemble a PID controller as closely as possible.
 
   The rate of change for par is computed on-chain.
@@ -90,7 +92,7 @@ contract Vox1 is LibNote, Exp {
 
     // -- Static & Default Variables ---
     uint256 public trim; // deviation at which rates are recalculated
-    uint256 public dusk; // default per-second way
+    uint256 public deaf; // default per-second way
 
     uint256 public pan;  // length of the fat cron snapshot
     uint256 public bowl; // length of the fit cron snapshot
@@ -103,17 +105,15 @@ contract Vox1 is LibNote, Exp {
     // --- Fluctuating Variables ---
     int256  public path; // latest type of deviation
     uint256 public fix;  // latest market price
-    uint256 public rho;  // last update time of par
-    uint256 public way;  // the current target rate of adjustment
 
     // --- Accumulator ---
     int256[]  public cron; // deviation history
     uint256   public kick; // how many times we received new prices from OSM
     uint256   public zzz;  // latest update time of the OSM
 
-    int256   public fat;  // accumulator used for derivative and manipulation resistance
+    int256   public fat;  // accumulator used for derivative (old deviations) and manipulation resistance
     int256   public fit;  // integral accumulator
-    int256   public thin; // accumulator used for derivative
+    int256   public thin; // accumulator used for derivative (newer deviations)
 
     // --- Other System Components ---
     PipLike  public pip;
@@ -126,22 +126,21 @@ contract Vox1 is LibNote, Exp {
       uint256 mug_
     ) public {
         require(bowl_ == pan_ + mug_, "Vox1/pan-and-mug-must-sum-bowl");
-        spot = SpotLike(spot_);
+        require(bowl_ > 0, "Vox1/null-bowl");
         wards[msg.sender] = 1;
         live = 1;
-        fix  = spot.par();
-        way  = 10 ** 27;
-        dusk = 10 ** 27;
-        core = PID(10 ** 27, 10 ** 27, 10 ** 27);
         fat  = 0;
         fit  = 0;
         thin = 0;
         zzz  = now;
-        rho  = now;
         pan  = pan_;
         bowl = bowl_;
         mug  = mug_;
         cron.push(0);
+        deaf = RAY;
+        spot = SpotLike(spot_);
+        fix  = spot.par();
+        core = PID(RAY, RAY, RAY);
     }
 
     // --- Administration ---
@@ -154,7 +153,7 @@ contract Vox1 is LibNote, Exp {
     function file(bytes32 what, uint256 val) external note auth {
         require(live == 1, "Vox1/not-live");
         if (what == "trim") trim = val;
-        else if (what == "dusk") dusk = val;
+        else if (what == "deaf") deaf = val;
         else if (what == "go")   core.go = val;
         else if (what == "how")  core.how = val;
         else if (what == "gain") core.gain = val;
@@ -167,7 +166,7 @@ contract Vox1 is LibNote, Exp {
     // --- Math ---
     uint256 constant RAY = 10 ** 27;
     uint32  constant SPY = 31536000;
-    uint256 constant MAX = 2 ** 255;
+
     function ray(uint x) internal pure returns (uint z) {
         z = mul(x, 10 ** 9);
     }
@@ -303,14 +302,17 @@ contract Vox1 is LibNote, Exp {
           D = mul(thin, RAY) / fat;
         }
 
-        pid = add(RAY, mul(add(P, I), D) / int(RAY));
+        int  diff = mul(add(P, I), D) / int(RAY);
+        uint den  = (site_ > 0) ? add(y, diff) : add(x, diff);
+
+        pid = (site_ > 0) ? mul(den, RAY) / x : mul(x, RAY) / den;
     }
     // Add/subtract calculated rates from default ones
     function mix(uint way_, int site_) internal view returns (uint x) {
         if (site_ == 1) {
-          x = (dusk > RAY) ? add(dusk, sub(way_, RAY)) : add(RAY, sub(way_, RAY));
+          x = (deaf > RAY) ? add(deaf, sub(way_, RAY)) : add(RAY, sub(way_, RAY));
         } else {
-          x = (dusk < RAY) ? sub(dusk, sub(way_, RAY)) : sub(RAY, sub(way_, RAY));
+          x = (deaf < RAY) ? sub(deaf, sub(way_, RAY)) : sub(RAY, sub(way_, RAY));
         }
     }
     function adj(uint val, uint par, int site_) public view returns (uint256) {
@@ -356,29 +358,17 @@ contract Vox1 is LibNote, Exp {
             if (site_ != path) rash(site_);
             // Compute the new per-second rate
             way_ = adj(ray(uint(val)), par, site_);
-            drip(way_);
+            spot.file("way", way_);
           } else {
             // Restart deviation
             path = 0;
             // Set default rate
-            drip(dusk);
+            spot.file("way", deaf);
           }
           // Store the latest market price
           fix = ray(uint(val));
           // Store the timestamp of the oracle update
           zzz = zzz_;
         }
-    }
-    // Set the new target price
-    function drip(uint way_) internal note {
-        uint par = spot.par();
-        // Update target price
-        if (way > 0) {
-          uint tmp = rmul(rpow(way, sub(now, rho), RAY), par);
-          spot.file("par", tmp);
-          rho = now;
-        } else {rho = now;}
-        // Update rate of change
-        way = way_;
     }
 }
