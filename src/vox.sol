@@ -109,11 +109,9 @@ contract Vox1 is LibNote, Exp {
     PID     public core;
 
     PipLike  public pip;
-    JugLike  public jug;
     SpotLike public spot;
 
     constructor(
-      address jug_,
       address spot_
     ) public {
         wards[msg.sender] = 1;
@@ -124,7 +122,6 @@ contract Vox1 is LibNote, Exp {
         down = MAX;
         tau  = now;
         rho  = now;
-        jug  = JugLike(jug_);
         spot = SpotLike(spot_);
         core = PID(RAY, 0);
         live = 1;
@@ -134,7 +131,6 @@ contract Vox1 is LibNote, Exp {
     function file(bytes32 what, address addr) external note auth {
         require(live == 1, "Vox1/not-live");
         if (what == "pip") pip = PipLike(addr);
-        else if (what == "jug") jug = JugLike(addr);
         else if (what == "spot") spot = SpotLike(addr);
         else revert("Vox1/file-unrecognized-param");
     }
@@ -619,8 +615,7 @@ contract Vox2 is LibNote, Exp {
     function full(uint x, uint y, int site_) public view returns (int P, int I, int D, uint pid) {
         P   = mul(mul(site_, sub(x, y)), core.go) / int(RAY);
 
-        I   = int(mul(fit, core.how) / int(RAY));
-        I   = -I;
+        I   = mul(int(-1), int(mul(fit, core.how) / int(RAY)));
 
         if (either(fat < 0 && thin > 0, fat > 0 && thin < 0)) {
           D = int(RAY);
@@ -629,6 +624,8 @@ contract Vox2 is LibNote, Exp {
         } else {
           D = mul(thin, RAY) / fat;
         }
+
+        D   = mul(D, core.gain) / int(RAY);
 
         int  diff = mul(add(P, I), D) / int(RAY);
         uint den  = (site_ > 0) ? add(y, diff) : add(x, diff);
@@ -715,3 +712,601 @@ contract Vox2 is LibNote, Exp {
         rho  = now;
     }
 }
+
+/***
+  Vox3 is a rate setter for a pegged coin. It automatically adjusts the stability fee and the savings
+  rate according to deviations from the peg.
+
+  As opposed to the previous Vox flavours, this one does not change the target price (par) but rather
+  tries to maintain a strong peg.
+***/
+// contract Vox3 is LibNote, Exp {
+//     // --- Auth ---
+//     mapping (address => uint) public wards;
+//     function rely(address guy) external note auth { wards[guy] = 1; }
+//     function deny(address guy) external note auth { wards[guy] = 0; }
+//     modifier auth {
+//         require(wards[msg.sender] == 1, "Vox3/not-authorized");
+//         _;
+//     }
+//
+//     int256  public path; // latest type of deviation
+//     uint256 public fix;  // market price                                                 [ray]
+//     uint256 public span; // spread between way and sf
+//     uint256 public tau;  // when fix was last updated
+//     uint256 public trim; // deviation from target price at which rates are recalculated  [ray]
+//     uint256 public go;   // deviation multiplier                                         [ray]
+//     uint256 public how;  // sensitivity parameter
+//     uint256 public bowl; // accrued time since the deviation has been positive/negative
+//     uint256 public live; // access flag
+//
+//     uint256 public dawn; // default per-second sf                                        [ray]
+//     uint256 public dusk; // default per-second way                                       [ray]
+//
+//     uint256 public up;   // upper per-second bound for sf
+//     uint256 public down; // bottom per-second bound for sf
+//
+//     uint256  public way;  // the Target Rate of Adjustment
+//
+//     PipLike  public pip;
+//     JugLike  public jug;
+//     SpotLike public spot;
+//
+//     constructor(
+//       address jug_,
+//       address spot_
+//     ) public {
+//         wards[msg.sender] = 1;
+//         fix  = 10 ** 27;
+//         span = 10 ** 27;
+//         dawn = 10 ** 27;
+//         dusk = 10 ** 27;
+//         go   = 10 ** 27;
+//         way  = 10 ** 27;
+//         up   = 2 ** 255;
+//         down = 2 ** 255;
+//         tau  = now;
+//         jug  = JugLike(jug_);
+//         spot = SpotLike(spot_);
+//         live = 1;
+//     }
+//
+//     // --- Administration ---
+//     function file(bytes32 what, address addr) external note auth {
+//         require(live == 1, "Vox3/not-live");
+//         if (what == "pip") pip = PipLike(addr);
+//         else if (what == "jug") jug = JugLike(addr);
+//         else if (what == "spot") spot = SpotLike(addr);
+//         else revert("Vox3/file-unrecognized-param");
+//     }
+//     function file(bytes32 what, uint256 val) external note auth {
+//         require(live == 1, "Vox3/not-live");
+//         if (what == "trim") trim = val;
+//         else if (what == "span") span = val;
+//         else if (what == "dawn") dawn = val;
+//         else if (what == "dusk") dusk = val;
+//         else if (what == "how")  how  = val;
+//         else if (what == "go")   go   = val;
+//         else if (what == "up") {
+//           if (down != MAX) require(val >= down, "Vox3/small-up");
+//           up = val;
+//         }
+//         else if (what == "down") {
+//           if (up != MAX) require(val <= up, "Vox3/big-down");
+//           down = val;
+//         }
+//         else revert("Vox3/file-unrecognized-param");
+//     }
+//     function cage() external note auth {
+//         live = 0;
+//     }
+//
+//     // --- Math ---
+//     uint256 constant RAY = 10 ** 27;
+//     uint32  constant SPY = 31536000;
+//     uint256 constant MAX = 2 ** 255;
+//     function ray(uint x) internal pure returns (uint z) {
+//         z = mul(x, 10 ** 9);
+//     }
+//     function add(uint x, uint y) internal pure returns (uint z) {
+//         z = x + y;
+//         require(z >= x);
+//     }
+//     function add(uint x, int y) internal pure returns (uint z) {
+//         z = x + uint(y);
+//         require(y >= 0 || z <= x);
+//         require(y <= 0 || z >= x);
+//     }
+//     function add(int x, int y) internal pure returns (int z) {
+//         z = x + y;
+//         require(y >= 0 || z <= x);
+//         require(y <= 0 || z >= x);
+//     }
+//     function sub(uint x, uint y) internal pure returns (uint z) {
+//         z = x - y;
+//         require(z <= x);
+//     }
+//     function sub(uint x, int y) internal pure returns (uint z) {
+//         z = x - uint(y);
+//         require(y <= 0 || z <= x);
+//         require(y >= 0 || z >= x);
+//     }
+//     function sub(int x, int y) internal pure returns (int z) {
+//         z = x - y;
+//         require(y <= 0 || z <= x);
+//         require(y >= 0 || z >= x);
+//     }
+//     function mul(uint x, uint y) internal pure returns (uint z) {
+//         require(y == 0 || (z = x * y) / y == x);
+//     }
+//     function mul(int x, uint y) internal pure returns (int z) {
+//         require(y == 0 || (z = x * int(y)) / int(y) == x);
+//     }
+//     function div(uint x, uint y) internal pure returns (uint z) {
+//         return x / y;
+//     }
+//     function delt(uint x, uint y) internal pure returns (uint z) {
+//         z = (x >= y) ? x - y : y - x;
+//     }
+//     function rmul(uint x, uint y) internal pure returns (uint z) {
+//         // alsites rounds down
+//         z = mul(x, y) / RAY;
+//     }
+//     function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
+//         assembly {
+//             switch x case 0 {switch n case 0 {z := base} default {z := 0}}
+//             default {
+//                 switch mod(n, 2) case 0 { z := base } default { z := x }
+//                 let half := div(base, 2)  // for rounding.
+//                 for { n := div(n, 2) } n { n := div(n,2) } {
+//                     let xx := mul(x, x)
+//                     if iszero(eq(div(xx, x), x)) { revert(0,0) }
+//                     let xxRound := add(xx, half)
+//                     if lt(xxRound, xx) { revert(0,0) }
+//                     x := div(xxRound, base)
+//                     if mod(n,2) {
+//                         let zx := mul(z, x)
+//                         if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
+//                         let zxRound := add(zx, half)
+//                         if lt(zxRound, zx) { revert(0,0) }
+//                         z := div(zxRound, base)
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//     function comp(uint x) internal view returns (uint z) {
+//         /**
+//           Use the Exp formulas to compute the per-second rate.
+//           After the initial computation we need to divide by 2^precision.
+//         **/
+//         (uint raw, uint heed) = pow(x, RAY, 1, SPY);
+//         z = div((raw * RAY), (2 ** heed));
+//     }
+//
+//     // --- Utils ---
+//     function both(bool x, bool y) internal pure returns (bool z) {
+//         assembly{ z := and(x, y)}
+//     }
+//     function era() internal view returns (uint) {
+//         return block.timestamp;
+//     }
+//     function site(uint x, uint y) internal view returns (int z) {
+//         z = (x >= y) ? int(-1) : int(1);
+//     }
+//     // Compute the per second 'base rate' without spread
+//     function br(uint256 x) internal pure returns (uint256 z) {
+//         return RAY + delt(x, RAY);
+//     }
+//     // Compute per second 'gap rate' taking into consideration a spread
+//     function gr(uint256 x) internal view returns (uint256 z) {
+//         return RAY + div(mul(delt(x, RAY), RAY), span);
+//     }
+//     // Add more seconds that passed since the deviation has been constantly positive/negative
+//     function grab(uint x) internal {
+//         bowl = add(bowl, x);
+//     }
+//     // Restart counting seconds since deviation has been constant
+//     function wipe() internal {
+//         bowl = 0;
+//         path = 0;
+//     }
+//     // Set the current deviation direction
+//     function rash(int site_) internal {
+//         path = (path == 0) ? site_ : -path;
+//     }
+//     // Calculate per year rate with a multiplier (go) and a per second sensitivity parameter (how)
+//     function full(uint x, uint y) internal view returns (uint z) {
+//         z = add(add(div(mul(sub(mul(x, RAY) / y, RAY), go), RAY), RAY), mul(how, bowl));
+//     }
+//     // Add/subtract calculated rates from default ones
+//     function mix(uint sf_, uint way_, int site_) internal view returns (uint x, uint y) {
+//         if (site_ == 1) {
+//           x = (dawn > RAY) ? add(dawn, sub(sf_, RAY)) : add(RAY, sub(sf_, RAY));
+//           y = (dusk > RAY) ? add(dusk, sub(way_, RAY)) : add(RAY, sub(way_, RAY));
+//         } else {
+//           x = (dawn < RAY) ? sub(dawn, sub(sf_, RAY)) : sub(RAY, sub(sf_, RAY));
+//           y = (dusk < RAY) ? sub(dusk, sub(way_, RAY)) : sub(RAY, sub(way_, RAY));
+//         }
+//     }
+//     function adj(uint val, uint par, int site_) public view returns (uint256, uint256) {
+//         // Calculate adjusted annual rate
+//         uint full_ = (site_ == 1) ? full(par, val) : full(val, par);
+//
+//         // Calculate the per-second base stability fee and target rate of change
+//         uint way_ = comp(br(full_));
+//         uint sf_  = (span == RAY) ? way_ : comp(gr(full_));
+//
+//         // If the deviation is positive, we set a negative rate and vice-versa
+//         (sf_, way_) = mix(sf_, way_, site_);
+//
+//         // The stability fee might have bounds so make sure you don't pass them
+//         sf_ = (sf_ < down && down != MAX) ? down : sf_;
+//         sf_ = (sf_ > up && up != MAX)     ? up : sf_;
+//
+//         return (sf_, way_);
+//     }
+//
+//     // --- Feedback Mechanism ---
+//     function back() external note {
+//         require(live == 1, "Vox3/not-live");
+//         // If overall sf is negative and vow doesn't have enough surplus left, skip jug dripping
+//         bool late = jug.late();
+//         if (late) {
+//           require(!jug.lap(), "Vox3/jug-not-dripped");
+//         }
+//         uint gap = sub(era(), tau);
+//         require(gap > 0, "Vox3/optimized");
+//         // Update par and then fetch it
+//         flex(gap);
+//         uint par = spot.par();
+//         // Get price feed updates
+//         (bytes32 val, bool has) = pip.peek();
+//         // If the OSM has a value
+//         if (has) {
+//           uint sf;
+//           uint way_;
+//           // Compute the deviation and whether it's negative/positive
+//           uint dev  = delt(ray(uint(val)), par);
+//           int site_ = site(ray(uint(val)), par);
+//           // If the deviation is at least 'trim'
+//           if (dev >= trim) {
+//             /**
+//               If the current deviation is the same as the latest deviation, add seconds
+//               passed to bowl using grab(). Otherwise change the latest deviation type
+//               and restart bowl
+//             **/
+//             (site_ == path) ? grab(gap) : rash(site_);
+//             // Compute the new per-second rates
+//             (sf, way_) = adj(ray(uint(val)), par, site_);
+//             // Set the new rates
+//             pull(sf, way_, late);
+//           } else {
+//             // Restart counting the seconds since the deviation has been constant
+//             wipe();
+//             // Simply set default values for the rates
+//             pull(dawn, dusk, late);
+//           }
+//           // Make sure you store the latest price as a ray
+//           fix = ray(uint(val));
+//           // Also store the timestamp of the update
+//           tau = era();
+//         }
+//     }
+//     // Set the new target price
+//     function flex(uint gap) internal note {
+//         // Update target price
+//         if (way > 0) {
+//           uint par = spot.par();
+//           uint tmp = rmul(rpow(way, gap, RAY), par);
+//           spot.file("par", tmp);
+//         }
+//     }
+//     // Set the new base stability fee and target rate of change
+//     function pull(uint sf, uint way_, bool late) internal note {
+//         // Update sf
+//         if (late) {
+//           /***
+//             If we lap for a long time and then go positive with the sf,
+//             there will be an abrupt change in ilks' rates. To avoid this,
+//             ilks with negative rates (base + duty) will have rho updated
+//           ***/
+//           jug.leap();
+//         }
+//         (sf > 0) ? jug.file("base", sf) : jug.file("base", RAY);
+//         // Update rate of change
+//         way = way_;
+//     }
+// }
+
+/***
+  Vox4 is similar to Vox3 although it has an extra lever to pull in order to maintain the long-term peg.
+
+  If the savings rate or the stability fee cannot be further decreased, it will try to briefly detach the
+  coin from its peg. After the market and target prices come back close to each other, it will
+  try to bring the target price back to its original state
+***/
+// contract Vox4 is LibNote, Exp {
+//     // --- Auth ---
+//     mapping (address => uint) public wards;
+//     function rely(address guy) external note auth { wards[guy] = 1; }
+//     function deny(address guy) external note auth { wards[guy] = 0; }
+//     modifier auth {
+//         require(wards[msg.sender] == 1, "Vox4/not-authorized");
+//         _;
+//     }
+//
+//     // --- Structs ---
+//     struct PID {
+//         uint go;   // deviation multiplier
+//         uint how;  // integral sensitivity parameter
+//     }
+//
+//     int256  public path; // latest type of deviation
+//
+//     uint256 public fix;  // market price                                                 [ray]
+//     uint256 public tau;  // when fix was last updated
+//
+//     uint256 public trim; // deviation from target price at which rates are recalculated  [ray]
+//     uint256 public bowl; // accrued time since the deviation has been positive/negative
+//
+//     uint256 public live; // access flag
+//
+//     uint256 public deaf; // default per-second way                                       [ray]
+//     uint256 public wand; // rate of change for deaf                                      [ray]
+//
+//     uint256 public up;   // upper bound for deaf                                         [ray]
+//     uint256 public down; // lower bound for deaf                                         [ray]
+//
+//     uint256 public rho;  // last timestamp of then deaf was updated
+//
+//     PID     public core;
+//
+//     PipLike  public pip;
+//     JugLike  public jug;
+//     SpotLike public spot;
+//
+//     constructor(
+//       address jug_,
+//       address spot_
+//     ) public {
+//         wards[msg.sender] = 1;
+//         fix  = RAY;
+//         deaf = RAY;
+//         wand = RAY;
+//         up   = MAX;
+//         down = MAX;
+//         tau  = now;
+//         rho  = now;
+//         jug  = JugLike(jug_);
+//         spot = SpotLike(spot_);
+//         core = PID(RAY, 0);
+//         live = 1;
+//     }
+//
+//     // --- Administration ---
+//     function file(bytes32 what, address addr) external note auth {
+//         require(live == 1, "Vox4/not-live");
+//         if (what == "pip") pip = PipLike(addr);
+//         else if (what == "jug") jug = JugLike(addr);
+//         else if (what == "spot") spot = SpotLike(addr);
+//         else revert("Vox4/file-unrecognized-param");
+//     }
+//     function file(bytes32 what, uint256 val) external note auth {
+//         require(live == 1, "Vox4/not-live");
+//         if (what == "trim") trim = val;
+//         else if (what == "deaf") deaf = val;
+//         else if (what == "wand") {
+//           require(val > 0, "Vox4/null-wand");
+//           wand = val;
+//         }
+//         else if (what == "how")  {
+//           core.how  = val;
+//         }
+//         else if (what == "go") {
+//           core.go = val;
+//         }
+//         else if (what == "up") {
+//           if (down != MAX) require(val >= down, "Vox4/small-up");
+//           up = val;
+//         }
+//         else if (what == "down") {
+//           if (up != MAX) require(val <= up, "Vox4/big-down");
+//           down = val;
+//         }
+//         else revert("Vox4/file-unrecognized-param");
+//     }
+//     function cage() external note auth {
+//         live = 0;
+//     }
+//
+//     // --- Math ---
+//     uint256 constant RAY = 10 ** 27;
+//     uint32  constant SPY = 31536000;
+//     uint256 constant MAX = 2 ** 255;
+//
+//     function ray(uint x) internal pure returns (uint z) {
+//         z = mul(x, 10 ** 9);
+//     }
+//     function add(uint x, uint y) internal pure returns (uint z) {
+//         z = x + y;
+//         require(z >= x);
+//     }
+//     function add(uint x, int y) internal pure returns (uint z) {
+//         z = x + uint(y);
+//         require(y >= 0 || z <= x);
+//         require(y <= 0 || z >= x);
+//     }
+//     function add(int x, int y) internal pure returns (int z) {
+//         z = x + y;
+//         require(y >= 0 || z <= x);
+//         require(y <= 0 || z >= x);
+//     }
+//     function sub(uint x, uint y) internal pure returns (uint z) {
+//         z = x - y;
+//         require(z <= x);
+//     }
+//     function sub(uint x, int y) internal pure returns (uint z) {
+//         z = x - uint(y);
+//         require(y <= 0 || z <= x);
+//         require(y >= 0 || z >= x);
+//     }
+//     function sub(int x, int y) internal pure returns (int z) {
+//         z = x - y;
+//         require(y <= 0 || z <= x);
+//         require(y >= 0 || z >= x);
+//     }
+//     function mul(uint x, uint y) internal pure returns (uint z) {
+//         require(y == 0 || (z = x * y) / y == x);
+//     }
+//     function mul(int x, uint y) internal pure returns (int z) {
+//         require(y == 0 || (z = x * int(y)) / int(y) == x);
+//     }
+//     function div(uint x, uint y) internal pure returns (uint z) {
+//         return x / y;
+//     }
+//     function delt(uint x, uint y) internal pure returns (uint z) {
+//         z = (x >= y) ? x - y : y - x;
+//     }
+//     function rmul(uint x, uint y) internal pure returns (uint z) {
+//         // alsites rounds down
+//         z = mul(x, y) / RAY;
+//     }
+//     function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
+//         assembly {
+//             switch x case 0 {switch n case 0 {z := base} default {z := 0}}
+//             default {
+//                 switch mod(n, 2) case 0 { z := base } default { z := x }
+//                 let half := div(base, 2)  // for rounding.
+//                 for { n := div(n, 2) } n { n := div(n,2) } {
+//                     let xx := mul(x, x)
+//                     if iszero(eq(div(xx, x), x)) { revert(0,0) }
+//                     let xxRound := add(xx, half)
+//                     if lt(xxRound, xx) { revert(0,0) }
+//                     x := div(xxRound, base)
+//                     if mod(n,2) {
+//                         let zx := mul(z, x)
+//                         if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
+//                         let zxRound := add(zx, half)
+//                         if lt(zxRound, zx) { revert(0,0) }
+//                         z := div(zxRound, base)
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//     function comp(uint x) internal view returns (uint z) {
+//         /**
+//           Use the Exp formulas to compute the per-second rate.
+//           After the initial computation we need to divide by 2^precision.
+//         **/
+//         (uint raw, uint heed) = pow(x, RAY, 1, SPY);
+//         z = div((raw * RAY), (2 ** heed));
+//     }
+//
+//     // --- Utils ---
+//     function both(bool x, bool y) internal pure returns (bool z) {
+//         assembly{ z := and(x, y)}
+//     }
+//     function era() internal view returns (uint) {
+//         return block.timestamp;
+//     }
+//     function site(uint x, uint y) internal view returns (int z) {
+//         z = (x >= y) ? int(-1) : int(1);
+//     }
+//     function br(uint256 x) internal pure returns (uint256 z) {
+//         return RAY + delt(x, RAY);
+//     }
+//     // Add more seconds that passed since the deviation has been constantly positive/negative
+//     function grab(uint x) internal {
+//         bowl = add(bowl, x);
+//     }
+//     // Restart counting seconds since deviation has been constant
+//     function wipe() internal {
+//         bowl = 0;
+//         path = 0;
+//     }
+//     // Set the current deviation direction
+//     function rash(int site_) internal {
+//         path = (path == 0) ? site_ : -path;
+//     }
+//     // Calculate per year rate with a multiplier (go) and a per second sensitivity parameter (how)
+//     function full(uint x, uint y) internal view returns (uint z) {
+//         z = add(add(div(mul(sub(mul(x, RAY) / y, RAY), core.go), RAY), RAY), mul(core.how, bowl));
+//     }
+//     // Add/subtract calculated rate from default one
+//     function mix(uint way_, int site_) internal view returns (uint x) {
+//         if (site_ == 1) {
+//           x = (deaf > RAY) ? add(deaf, sub(way_, RAY)) : add(RAY, sub(way_, RAY));
+//         } else {
+//           x = (deaf < RAY) ? sub(deaf, sub(way_, RAY)) : sub(RAY, sub(way_, RAY));
+//         }
+//     }
+//     function adj(uint val, uint par, int site_) public view returns (uint256) {
+//         // Calculate adjusted annual rate
+//         uint full_ = (site_ == 1) ? full(par, val) : full(val, par);
+//
+//         // Calculate the per-second base stability fee and target rate of change
+//         uint way_ = comp(br(full_));
+//
+//         // If the deviation is positive, we set a negative rate and vice-versa
+//         way_ = mix(way_, site_);
+//
+//         return way_;
+//     }
+//
+//     // --- Feedback Mechanism ---
+//     function back() external note {
+//         require(live == 1, "Vox4/not-live");
+//         uint gap = sub(era(), tau);
+//         require(gap > 0, "Vox4/optimized");
+//         // Fetch par
+//         uint par = spot.par();
+//         // Get price feed updates
+//         (bytes32 val, bool has) = pip.peek();
+//         // If the OSM has a value
+//         if (has) {
+//           uint way_;
+//           // Compute the deviation and whether it's negative/positive
+//           uint dev  = delt(ray(uint(val)), par);
+//           int site_ = site(ray(uint(val)), par);
+//           // If the deviation is at least 'trim'
+//           if (dev >= trim) {
+//             /**
+//               If the current deviation is the same as the latest deviation, add seconds
+//               passed to bowl using grab(). Otherwise change the latest deviation type
+//               and restart bowl
+//             **/
+//             (site_ == path) ? grab(gap) : rash(site_);
+//             // Compute the new per-second rate
+//             way_ = adj(ray(uint(val)), par, site_);
+//             // Set the new rate
+//             spot.file("way", way_);
+//           } else {
+//             // Restart counting the seconds since the deviation has been constant
+//             wipe();
+//             // Simply set default values for the rates
+//             spot.file("way", prod());
+//           }
+//           // Make sure you store the latest price as a ray
+//           fix = ray(uint(val));
+//           // Also store the timestamp of the update
+//           tau = era();
+//         }
+//     }
+//     function prod() internal returns (uint tmp) {
+//         tmp = (now > rho) ? rmul(rpow(wand, sub(now, rho), RAY), deaf) : deaf;
+//
+//         // Deaf might have bounds so make sure you don't pass them
+//         if (down != MAX) {
+//           tmp = (tmp < down) ? down : tmp;
+//         }
+//
+//         if (up != MAX) {
+//           tmp = (tmp > up) ? up : tmp;
+//         }
+//
+//         deaf = tmp;
+//         rho  = now;
+//     }
+// }

@@ -18,7 +18,7 @@ To summarise:
 - Continuous update of spot.par, even when it's read
 - Apart from 'spot', we added 'risk'. CDP creators use spot when creating bonds/pegged coins but get liquidated at risk. An incentive mechanism for keeping CDPs above spot is still being designed
 - The Flapper no longer allows auctions but directly buys governance tokens from DEXs and burns them
-- DEX aggregator integrated with Flapper
+- DEX aggregator connector integrated with Flapper
 - A CDP holder can specify a trigger for when their CDP gets bitten. The trigger can, for example, sell a position in another protocol and add more collateral in the CDP, thus saving it from liquidation
 - (TODO) unified interface for aggregating oracle calls to multiple networks
 - (TODO) jug drips part of the stability fees in a separate contract that pays for oracle calls

@@ -20,9 +20,9 @@ contract BinLike {
       give = give_;
     }
 
-    function swap(address bond, address gov, uint sell) external returns (uint) {
+    function swap(address lad, address bond, address gov, uint sell) external returns (uint) {
         DSToken(bond).transferFrom(msg.sender, address(this), sell);
-        DSToken(gov).transfer(msg.sender, give);
+        DSToken(gov).transfer(lad, give);
         return give;
     }
 }

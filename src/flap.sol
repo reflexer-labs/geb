@@ -37,7 +37,7 @@ contract GemLike {
     function burn(address,uint) external;
 }
 contract BinLike {
-    function swap(address,address,uint256) external returns (uint256);
+    function swap(address,address,address,uint256) external returns (uint256);
 }
 
 contract Flapper is LibNote {
@@ -132,7 +132,7 @@ contract Flapper is LibNote {
 
         uint own = bond.balanceOf(address(this));
         require(fund(div(lot, RAY), address(bin)) == true, "Flapper/cannot-fund");
-        uint bid = bin.swap(address(bond), address(gov), div(lot, RAY));
+        uint bid = bin.swap(address(this), address(bond), address(gov), div(lot, RAY));
 
         require(bid > 0, "Flapper/invalid-bid");
         require(bond.balanceOf(address(this)) == own, "Flapper/cannot-buy");
@@ -156,4 +156,6 @@ contract Flapper is LibNote {
         }
         return bond.approve(guy, lot);
     }
+
+    function() external payable {}
 }
