@@ -87,6 +87,9 @@ contract Jug is LibNote {
         if (y <= 0) require(z <= x);
         if (y  > 0) require(z > x);
     }
+    function sub(uint x, uint y) internal pure returns (uint z) {
+        require((z = x - y) <= x);
+    }
     function diff(uint x, uint y) internal pure returns (int z) {
         z = int(x) - int(y);
         require(int(x) >= 0 && int(y) >= 0);
@@ -137,8 +140,7 @@ contract Jug is LibNote {
           }
         }
     }
-    function lap() public view returns (bool ok) {
-        int  rad;
+    function lap() public view returns (bool ok, int rad) {
         int  diff;
         uint Art;
         int  good = -int(vat.good(vow));
@@ -156,11 +158,10 @@ contract Jug is LibNote {
         }
     }
 
-
     // --- Stability Fee Collection ---
     function drop(bytes32 ilk) internal view returns (uint, int) {
         (, uint prev) = vat.ilks(ilk);
-        uint rate  = rmul(rpow(add(base, ilks[ilk].duty), now - ilks[ilk].rho, RAY), prev);
+        uint rate  = rmul(rpow(add(base, ilks[ilk].duty), sub(now, ilks[ilk].rho), RAY), prev);
         int  diff_ = diff(rate, prev);
         return (rate, diff_);
     }
@@ -177,15 +178,15 @@ contract Jug is LibNote {
         return rate;
     }
     function leap() external note auth {
-        bool lap_ = lap();
+        (bool lap_, ) = lap();
         uint i;
-        // Dripping positive rate ilks
+        // First dripping positive rate ilks
         for (i = 0; i < bank.length; i++) {
           if (both(add(base, ilks[bank[i]].duty) >= RAY, now > ilks[bank[i]].rho)) {
             drip(bank[i]);
           }
         }
-        // Dripping/updating negative rate ilks
+        // Then Dripping/updating negative rate ilks
         for (i = 0; i < bank.length; i++) {
           if (!lap_) {
             ilks[bank[i]].rho = now;

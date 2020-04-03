@@ -45,11 +45,11 @@ contract Spotter is LibNote {
     mapping (bytes32 => Ilk) public ilks;
 
     VatLike public vat;
-    uint256 public way;  // rate of change for par
-    uint256 public rho;  // last update time of par
+    uint256 public way;    // rate of change for par
+    uint256 public rho;    // last update time of par
     uint256 public live;
 
-    uint256 private _par;
+    uint256 internal _par; // virtual target price
 
     // --- Events ---
     event Poke(
@@ -120,7 +120,10 @@ contract Spotter is LibNote {
         require(live == 1, "Spotter/not-live");
         require(data > 0, "Spotter/null-data");
         if (what == "par") _par = data;
-        else if (what == "way") way = data;
+        else if (what == "way") {
+          require(now == rho, "Spotter/not-dripped");
+          way = data;
+        }
         else revert("Spotter/file-unrecognized-param");
     }
     function file(bytes32 ilk, bytes32 what, uint data) external note auth {
@@ -152,8 +155,9 @@ contract Spotter is LibNote {
     // --- Update value ---
     function poke(bytes32 ilk) external {
         (bytes32 val, bool has) = ilks[ilk].pip.peek();
-        uint256 spot = has ? rdiv(rdiv(mul(uint(val), 10 ** 9), par()), ilks[ilk].mat) : 0;
-        uint256 risk = (has && ilks[ilk].tam > 0) ? rdiv(rdiv(mul(uint(val), 10 ** 9), par()), ilks[ilk].tam) : 0;
+        uint par_ = par();
+        uint256 spot = has ? rdiv(rdiv(mul(uint(val), 10 ** 9), par_), ilks[ilk].mat) : 0;
+        uint256 risk = (has && ilks[ilk].tam > 0) ? rdiv(rdiv(mul(uint(val), 10 ** 9), par_), ilks[ilk].tam) : 0;
         vat.file(ilk, "spot", spot);
         vat.file(ilk, "risk", risk);
         emit Poke(ilk, val, spot, risk);
