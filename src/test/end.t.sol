@@ -26,7 +26,7 @@ import {Vat}  from '../vat.sol';
 import {Cat}  from '../cat.sol';
 import {Vow}  from '../vow.sol';
 import {Pot}  from '../pot.sol';
-import {Vox1} from '../vox.sol';
+import {Vox2} from '../vox.sol';
 import {Flipper} from '../flip.sol';
 import {Flapper} from '../flap.sol';
 import {Flopper} from '../flop.sol';
@@ -137,7 +137,7 @@ contract EndTest is DSTest {
     Cat   cat;
     Spotter spot;
     Pot   pot;
-    Vox1  vox;
+    Vox2  vox;
 
     BinLike bin;
     DSToken gov;
@@ -289,7 +289,7 @@ contract EndTest is DSTest {
         vat.file("Line",         rad(1000 ether));
         vat.rely(address(spot));
 
-        vox = new Vox1(address(0), address(spot));
+        vox = new Vox2(address(spot), 3, 6, 3);
 
         end = new End();
         end.file("vat", address(vat));

@@ -45,8 +45,11 @@ contract Spotter is LibNote {
     mapping (bytes32 => Ilk) public ilks;
 
     VatLike public vat;
-    uint256 public par; // ref per synthetic
+    uint256 public way;    // rate of change for par
+    uint256 public rho;    // last update time of par
     uint256 public live;
+
+    uint256 internal _par; // virtual target price
 
     // --- Events ---
     event Poke(
@@ -59,19 +62,52 @@ contract Spotter is LibNote {
     // --- Init ---
     constructor(address vat_) public {
         wards[msg.sender] = 1;
-        vat = VatLike(vat_);
-        par = RAY;
+        vat  = VatLike(vat_);
+        _par = RAY;
+        way  = RAY;
+        rho  = now;
         live = 1;
     }
 
     // --- Math ---
     uint constant RAY = 10 ** 27;
 
+    function sub(uint x, uint y) internal pure returns (uint z) {
+        z = x - y;
+        require(z <= x);
+    }
     function mul(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
+    function rmul(uint x, uint y) internal pure returns (uint z) {
+        // alsites rounds down
+        z = mul(x, y) / RAY;
+    }
     function rdiv(uint x, uint y) internal pure returns (uint z) {
         z = mul(x, RAY) / y;
+    }
+    function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
+        assembly {
+            switch x case 0 {switch n case 0 {z := base} default {z := 0}}
+            default {
+                switch mod(n, 2) case 0 { z := base } default { z := x }
+                let half := div(base, 2)  // for rounding.
+                for { n := div(n, 2) } n { n := div(n,2) } {
+                    let xx := mul(x, x)
+                    if iszero(eq(div(xx, x), x)) { revert(0,0) }
+                    let xxRound := add(xx, half)
+                    if lt(xxRound, xx) { revert(0,0) }
+                    x := div(xxRound, base)
+                    if mod(n,2) {
+                        let zx := mul(z, x)
+                        if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
+                        let zxRound := add(zx, half)
+                        if lt(zxRound, zx) { revert(0,0) }
+                        z := div(zxRound, base)
+                    }
+                }
+            }
+        }
     }
 
     // --- Administration ---
@@ -82,7 +118,12 @@ contract Spotter is LibNote {
     }
     function file(bytes32 what, uint data) external note auth {
         require(live == 1, "Spotter/not-live");
-        if (what == "par") par = data;
+        require(data > 0, "Spotter/null-data");
+        if (what == "par") _par = data;
+        else if (what == "way") {
+          require(now == rho, "Spotter/not-dripped");
+          way = data;
+        }
         else revert("Spotter/file-unrecognized-param");
     }
     function file(bytes32 ilk, bytes32 what, uint data) external note auth {
@@ -98,11 +139,25 @@ contract Spotter is LibNote {
         else revert("Spotter/file-unrecognized-param");
     }
 
+    // --- Rate Update ---
+    function drip() public note returns (uint) {
+        // Update target price
+        _par = rmul(rpow(way, sub(now, rho), RAY), _par);
+        rho = now;
+        // Return updated par
+        return _par;
+    }
+    function par() public returns (uint) {
+        if (now > rho) return drip();
+        return _par;
+    }
+
     // --- Update value ---
     function poke(bytes32 ilk) external {
         (bytes32 val, bool has) = ilks[ilk].pip.peek();
-        uint256 spot = has ? rdiv(rdiv(mul(uint(val), 10 ** 9), par), ilks[ilk].mat) : 0;
-        uint256 risk = (has && ilks[ilk].tam > 0) ? rdiv(rdiv(mul(uint(val), 10 ** 9), par), ilks[ilk].tam) : 0;
+        uint par_ = par();
+        uint256 spot = has ? rdiv(rdiv(mul(uint(val), 10 ** 9), par_), ilks[ilk].mat) : 0;
+        uint256 risk = (has && ilks[ilk].tam > 0) ? rdiv(rdiv(mul(uint(val), 10 ** 9), par_), ilks[ilk].tam) : 0;
         vat.file(ilk, "spot", spot);
         vat.file(ilk, "risk", risk);
         emit Poke(ilk, val, spot, risk);
