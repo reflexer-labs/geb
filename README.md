@@ -20,7 +20,6 @@ To summarise:
 - The Flapper no longer allows auctions but directly buys governance tokens from DEXs and burns them
 - DEX aggregator connector integrated with Flapper
 - A CDP holder can specify a trigger for when their CDP gets bitten. The trigger can, for example, sell a position in another protocol and add more collateral in the CDP, thus saving it from liquidation
-- (TODO) for pegged coin deployments, if the savings rate is set to zero for a long time and the market price is still too big, allow keepers to "steal" coins from the savings accounts of other users; this could emulate a negative rate
 - (TODO) unified interface for aggregating oracle calls to multiple networks
 - (TODO) jug drips part of the stability fees in a separate contract that pays for oracle calls
 - (TODO) default scenarios for triggering End without the need for ESM
