@@ -288,133 +288,132 @@ contract Vox2Test is DSTest {
         assertEq(rmul(rpow(spot.way(), SPY, RAY), spot.par()), 671497478107411469930891270);
     }
 
-    // function test_pid_decreasing_deviations() public {
-    //     monotonous_deviations(1 ether, int(-1), 1);
-    //
-    //     assertEq(vox.cron(1), int(-ray(0.005 ether)));
-    //     assertEq(vox.cron(2), int(-ray(0.01 ether)));
-    //     assertEq(vox.cron(3), int(-ray(0.015 ether)));
-    //     assertEq(vox.cron(4), int(-ray(0.02 ether)));
-    //     assertEq(vox.cron(5), int(-ray(0.025 ether)));
-    //     assertEq(vox.cron(6), int(-ray(0.03 ether)));
-    //
-    //     assertEq(vox.site(), 1);
-    //     assertEq(spot.way(), 1000000008441244421221367546);
-    //     assertEq(spot.rho(), now);
-    //     assertEq(spot.par(), 1000000008501931700174301437);
-    //     assertEq(vox.fix(), ray(0.965 ether));
-    //
-    //     (int P, int I , int D, uint pid) = vox.full(spot.par(), vox.fix(), vox.site());
-    //
-    //     assertEq(P, 35000008501931700174301437);
-    //     assertEq(I, 135000008501931700174301437);
-    //     assertEq(D, 2000000188931815559428920822);
-    //     assertEq(pid, 1305000055031117321772641810);
-    //
-    //     assertTrue(spot.par() > vox.fix());
-    //     assertEq(mul(add(P, I), D) / int(RAY), 340000066126138658370906040);
-    //     assertEq(add(vox.fix(), (mul(add(P, I), D) / int(RAY))), 1305000066126138658370906040);
-    //     assertEq(add(vox.fix(), (mul(add(P, I), D) / int(RAY))) * RAY / spot.par(), 1305000055031117321772641810);
-    //
-    //     assertEq(rmul(rpow(spot.way(), SPY, RAY), spot.par()), 1305000066126138658335048834);
-    // }
-    //
-    // function test_major_negative_deviations() public {
-    //     major_one_side_deviations(-1, 3);
-    //
-    //     assertEq(vox.cron(1), int(-ray(0.015 ether)));
-    //     assertEq(vox.cron(2), int(-ray(0.03 ether)));
-    //     assertEq(vox.cron(3), int(-ray(0.045 ether)));
-    //     assertEq(vox.cron(4), int(-ray(0.06 ether)));
-    //     assertEq(vox.cron(5), int(-ray(0.055 ether)));
-    //     assertEq(vox.cron(6), int(-ray(0.05 ether)));
-    //
-    //     assertEq(vox.site(), 1);
-    //
-    //     assertEq(spot.way(), 1000000005721269429381730438);
-    //     assertEq(spot.rho(), now);
-    //     assertEq(spot.par(), 1000000028783058593493768971);
-    //     assertEq(vox.fix(), ray(0.965 ether));
-    //
-    //     assertEq(vox.fat(), int(-ray(0.165 ether)));
-    //     assertEq(int(vox.thin()), int(-120000063727530115134064360));
-    //     assertEq(vox.fit(), int(-285000063727530115134064360));
-    //
-    //     (int P, int I , int D, uint pid) = vox.full(spot.par(), vox.fix(), vox.site());
-    //
-    //     assertTrue(spot.par() > vox.fix());
-    //     assertEq(mul(add(P, I), D) / int(RAY), 232727463600522286967081774);
-    //     assertEq(add(vox.fix(), (mul(add(P, I), D) / int(RAY))), 1197727463600522286967081774);
-    //     assertEq(mul(spot.par(), RAY) / add(vox.fix(), (mul(add(P, I), D) / int(RAY))), 834914501982721779955648188);
-    //
-    //     assertEq(rmul(rpow(spot.way(), SPY, RAY), spot.par()), 1197727463600522286967648980);
-    // }
+    function test_pid_decreasing_deviations() public {
+        monotonous_deviations(1 ether, int(-1), 1);
 
-    // function test_major_positive_deviations() public {
-    //     major_one_side_deviations(1, 2);
-    //
-    //     assertEq(vox.site(), -1);
-    //
-    //     assertEq(spot.way(), 999999993365388542556944540);
-    //     assertEq(spot.rho(), now);
-    //     assertEq(spot.par(), 999999968117093628044091396);
-    //     assertEq(vox.fix(), ray(1.035 ether));
-    //
-    //     assertEq(vox.cron(1), int(ray(0.01 ether)));
-    //     assertEq(vox.cron(2), int(ray(0.020 ether)));
-    //     assertEq(vox.cron(3), int(ray(0.035 ether)));
-    //     assertEq(vox.cron(4), int(ray(0.060 ether)));
-    //     assertEq(vox.cron(5), int(ray(0.055 ether)));
-    //     assertEq(vox.cron(6), int(ray(0.050 ether)));
-    //
-    //     assertEq(vox.fat(), int(ray(0.165 ether)));
-    //     assertEq(int(vox.thin()), int(120000038073239137530902968));
-    //     assertEq(vox.fit(), int(285000038073239137530902968));
-    //
-    //     (int P, int I , int D, uint pid) = vox.full(vox.fix(), spot.par(), vox.site());
-    //
-    //     assertEq(P, -35000031882906371955908604);
-    //     assertEq(I, -285000038073239137530902968);
-    //     assertEq(D, 727272958019631136550927078);
-    //     assertEq(pid, 767272602556505159967494177);
-    //     assertEq(int(ray(1 ether)) + P + I, 679999930043854490513188428);
-    // }
-    //
-    // function test_zig_zag_deviations() public {
-    //     zig_zag_deviations(-1, 20);
-    //
-    //     assertEq(vox.site(), 0);
-    //
-    //     assertEq(spot.way(), ray(1 ether));
-    //     assertEq(spot.rho(), now);
-    //     assertEq(spot.par(), ray(1 ether));
-    //     assertEq(vox.fix(), ray(0.9 ether));
-    //
-    //     assertEq(vox.cron(1), int(-ray(0.1 ether)));
-    //     assertEq(vox.cron(2), int(ray(0.1 ether)));
-    //     assertEq(vox.cron(3), int(-ray(0.1 ether)));
-    //     assertEq(vox.cron(4), int(ray(0.1 ether)));
-    //     assertEq(vox.cron(5), int(-ray(0.1 ether)));
-    //     assertEq(vox.cron(6), int(ray(0.1 ether)));
-    //
-    //     assertEq(vox.cron(7), int(-ray(0.1 ether)));
-    //     assertEq(vox.cron(8), int(ray(0.1 ether)));
-    //     assertEq(vox.cron(9), int(-ray(0.1 ether)));
-    //     assertEq(vox.cron(10), int(ray(0.1 ether)));
-    //     assertEq(vox.cron(11), int(-ray(0.1 ether)));
-    //     assertEq(vox.cron(12), int(ray(0.1 ether)));
-    //
-    //     assertEq(vox.fat(), int(ray(0.1 ether)));
-    //     assertEq(int(vox.thin()), int(-ray(0.1 ether)));
-    //     assertEq(vox.fit(), 0);
-    //
-    //     (int P, int I , int D, uint pid) = vox.full(spot.par(), vox.fix(), vox.site());
-    //
-    //     assertEq(P, 0);
-    //     assertEq(I, 0);
-    //     assertEq(D, int(ray(1 ether)));
-    //     assertEq(pid, ray(1 ether));
-    // }
+        assertEq(vox.cron(1), int(-ray(0.005 ether)));
+        assertEq(vox.cron(2), int(-ray(0.01 ether)));
+        assertEq(vox.cron(3), int(-ray(0.015 ether)));
+        assertEq(vox.cron(4), int(-ray(0.02 ether)));
+        assertEq(vox.cron(5), int(-ray(0.025 ether)));
+        assertEq(vox.cron(6), int(-ray(0.03 ether)));
+
+        assertEq(vox.site(), 1);
+        assertEq(spot.way(), 1000000008441244421221367546);
+        assertEq(spot.rho(), now);
+        assertEq(spot.par(), 1000000008501931700174301437);
+        assertEq(vox.fix(), ray(0.965 ether));
+
+        (int P, int I , int D, uint pid) = vox.full(spot.par(), vox.fix(), vox.site(), vox.road());
+
+        assertEq(P, 35000008501931700174301437);
+        assertEq(I, 135000008501931700174301437);
+        assertEq(D, 2000000188931815559428920822);
+        assertEq(pid, 1305000055031117321772641810);
+
+        assertTrue(spot.par() > vox.fix());
+        assertEq(mul(add(P, I), D) / int(RAY), 340000066126138658370906040);
+        assertEq(add(vox.fix(), (mul(add(P, I), D) / int(RAY))), 1305000066126138658370906040);
+        assertEq(add(vox.fix(), (mul(add(P, I), D) / int(RAY))) * RAY / spot.par(), 1305000055031117321772641810);
+
+        assertEq(rmul(rpow(spot.way(), SPY, RAY), spot.par()), 1305000066126138658335048834);
+    }
+
+    function test_major_negative_deviations() public {
+        major_one_side_deviations(-1, 3);
+
+        assertEq(vox.cron(1), int(-ray(0.015 ether)));
+        assertEq(vox.cron(2), int(-ray(0.03 ether)));
+        assertEq(vox.cron(3), int(-ray(0.045 ether)));
+        assertEq(vox.cron(4), int(-ray(0.06 ether)));
+        assertEq(vox.cron(5), int(-ray(0.055 ether)));
+        assertEq(vox.cron(6), int(-ray(0.05 ether)));
+
+        assertEq(vox.site(), 1);
+
+        assertEq(spot.way(), 1000000005721269429381730438);
+        assertEq(spot.rho(), now);
+        assertEq(spot.par(), 1000000028783058593493768971);
+        assertEq(vox.fix(), ray(0.965 ether));
+
+        assertEq(vox.fat(), int(-ray(0.165 ether)));
+        assertEq(int(vox.thin()), int(-120000063727530115134064360));
+        assertEq(vox.fit(), int(-285000063727530115134064360));
+
+        (int P, int I , int D, uint pid) = vox.full(spot.par(), vox.fix(), vox.site(), vox.road());
+
+        assertTrue(spot.par() > vox.fix());
+        assertEq(mul(add(P, I), D) / int(RAY), 232727463600522286967081774);
+        assertEq(add(vox.fix(), (mul(add(P, I), D) / int(RAY))), 1197727463600522286967081774);
+        assertEq(mul(spot.par(), RAY) / add(vox.fix(), (mul(add(P, I), D) / int(RAY))), 834914501982721779955648188);
+
+        assertEq(rmul(rpow(spot.way(), SPY, RAY), spot.par()), 1197727463600522286967648980);
+    }
+
+    function test_major_positive_deviations() public {
+        major_one_side_deviations(1, 2);
+
+        assertEq(vox.site(), -1);
+
+        assertEq(spot.way(), 999999996611890187221936158);
+        assertEq(spot.rho(), now);
+        assertEq(spot.par(), 999999975378377593818819806);
+        assertEq(vox.fix(), ray(1.015 ether));
+
+        assertEq(vox.cron(1), int(ray(0.01 ether)));
+        assertEq(vox.cron(2), int(ray(0.020 ether)));
+        assertEq(vox.cron(3), int(ray(0.030 ether)));
+        assertEq(vox.cron(4), int(ray(0.040 ether)));
+        assertEq(vox.cron(5), int(ray(0.035 ether)));
+        assertEq(vox.cron(6), int(ray(0.030 ether)));
+
+        assertEq(vox.fat(), int(ray(0.105 ether)));
+        assertEq(int(vox.thin()), int(60000057219766193509306514));
+        assertEq(vox.fit(), int(165000057219766193509306514));
+
+        (int P, int I , int D, uint pid) = vox.full(vox.fix(), spot.par(), vox.site(), vox.road());
+
+        assertEq(P, -15000024621622406181180194);
+        assertEq(I, -165000057219766193509306514);
+        assertEq(D, 571429116378725652469585847);
+        assertEq(pid, 1112764468026088748374379377);
+        assertEq(int(ray(1 ether)) + P + I, 819999918158611400309513292);
+    }
+
+    function test_zig_zag_deviations() public {
+        zig_zag_deviations(-1, 20);
+
+        assertEq(vox.site(), 0);
+
+        assertEq(spot.way(), ray(1 ether));
+        assertEq(spot.rho(), now);
+        assertEq(spot.par(), ray(1 ether));
+        assertEq(vox.fix(), ray(0.9 ether));
+
+        assertEq(vox.cron(1), int(-ray(0.1 ether)));
+        assertEq(vox.cron(2), int(ray(0.1 ether)));
+        assertEq(vox.cron(3), int(-ray(0.1 ether)));
+        assertEq(vox.cron(4), int(ray(0.1 ether)));
+        assertEq(vox.cron(5), int(-ray(0.1 ether)));
+        assertEq(vox.cron(6), int(ray(0.1 ether)));
+        assertEq(vox.cron(7), int(-ray(0.1 ether)));
+        assertEq(vox.cron(8), int(ray(0.1 ether)));
+        assertEq(vox.cron(9), int(-ray(0.1 ether)));
+        assertEq(vox.cron(10), int(ray(0.1 ether)));
+        assertEq(vox.cron(11), int(-ray(0.1 ether)));
+        assertEq(vox.cron(12), int(ray(0.1 ether)));
+
+        assertEq(vox.fat(), int(ray(0.1 ether)));
+        assertEq(int(vox.thin()), int(-ray(0.1 ether)));
+        assertEq(vox.fit(), 0);
+
+        (int P, int I , int D, uint pid) = vox.full(spot.par(), vox.fix(), vox.site(), vox.road());
+
+        assertEq(P, 0);
+        assertEq(I, 0);
+        assertEq(D, int(-ray(1 ether)));
+        assertEq(pid, ray(1 ether));
+    }
 
     // function test_sudden_big_negative_deviation() public {
     //     sudden_big_deviation(1);
@@ -425,39 +424,39 @@ contract Vox2Test is DSTest {
     //     sudden_big_deviation(-1);
     // }
 
+    // TODO: simplify test
     function test_deviation_waves() public {
         monotonous_deviations(1 ether, -1, 5);
 
         assertEq(vox.site(), 1);
         assertEq(vox.road(), 1);
 
-        assertEq(vox.cron(1), int(-ray(0.025 ether)));
-        assertEq(vox.cron(2), int(-ray(0.05 ether)));
-        assertEq(vox.cron(3), int(-ray(0.075 ether)));
-        assertEq(vox.cron(4), int(-ray(0.1 ether)));
-        assertEq(vox.cron(5), int(-ray(0.125 ether)));
-        assertEq(vox.cron(6), int(-ray(0.15 ether)));
-        assertEq(vox.cron(7), int(-175000029527503745421310299));
+        assertEq(spot.par(), 1000000029527503745421310299);
+        assertEq(vox.fix(), 825000000000000000000000000);
+        assertEq(spot.way(), 1000000029370913805045019395);
 
-        (int P, int I , int D, uint pid) = vox.full(spot.par(), vox.fix(), vox.site(), vox.road());
-        assertEq(P, 175000029527503745421310299);
-        assertEq(I, 675000029527503745421310299);
-        assertEq(D, int(2000000131233349979650267995));
-        assertEq(pid, 2525000155101418677427905665);
+        assertEq(vox.thin(), -450000029527503745421310299);
+        assertEq(vox.fat(), -225000000000000000000000000);
+        assertEq(vox.fit(), -675000029527503745421310299);
+
+        // ---
 
         hevm.warp(now + 1 seconds);
         stableFeed.poke(1.006 ether);
         vox.back();
 
         assertEq(vox.site(), 1);
-        assertEq(vox.cron(8), int(5999941101581582283902922));
+        assertEq(vox.road(), -1);
 
-        (P, I , D, pid) = vox.full(vox.fix(), spot.par(), vox.site(), vox.road());
+        assertEq(spot.par(), 1000000058898418417716097078);
+        assertEq(vox.fix(), 1006000000000000000000000000);
+        assertEq(spot.way(), 1000000015724819266824747955);
 
-        assertEq(P, -5999941101581582283902922);
-        assertEq(I, 619000088425922163137407377);
-        assertEq(D, 1063333628086407210458024590);
-        assertEq(pid, 1641971898181224267398942029);
+        assertEq(vox.thin(), -319000088425922163137407377);
+        assertEq(vox.fat(), -300000000000000000000000000);
+        assertEq(vox.fit(), -619000088425922163137407377);
+
+        // ---
 
         hevm.warp(now + 1 seconds);
         stableFeed.poke(1.035 ether);
@@ -465,12 +464,18 @@ contract Vox2Test is DSTest {
 
         assertEq(vox.cron(9), int(34999925376761389292170247));
 
-        (P, I, D, pid) = vox.full(vox.fix(), spot.par(), vox.site(), vox.road());
+        assertEq(vox.site(), 1);
+        assertEq(vox.road(), -1);
 
-        assertEq(P, -34999925376761389292170247);
-        assertEq(I, 509000163049160773845237130);
-        assertEq(D, 357333768131095396920632346);
-        assertEq(pid, 1129832237338890706946082515);
+        assertEq(spot.par(), 1000000074623238610707829753);
+        assertEq(vox.fix(), 1035000000000000000000000000);
+        assertEq(spot.way(), 1000000003870787652425589541);
+
+        assertEq(vox.thin(), -134000163049160773845237130);
+        assertEq(vox.fat(), -375000000000000000000000000);
+        assertEq(vox.fit(), -509000163049160773845237130);
+
+        // ---
 
         hevm.warp(now + 1 seconds);
         stableFeed.poke(1.075 ether);
@@ -478,42 +483,142 @@ contract Vox2Test is DSTest {
 
         assertEq(vox.cron(10), int(74999921505973448015870108));
 
-        (P, I, D, pid) = vox.full(vox.fix(), spot.par(), vox.site(), vox.road());
+        assertEq(spot.par(), 1000000078494026551984129892);
+        assertEq(vox.fix(), 1075000000000000000000000000);
 
-        assertEq(P, -74999921505973448015870108);
-        assertEq(I, 334000241543187325829367022);
-        assertEq(D, int(ray(1 ether)));
-        assertEq(pid, 1171163161424409702137327261);
+        assertEq(spot.way(), 1000000000242001321791172359);
 
-        hevm.warp(now + 1 seconds);
-        stableFeed.poke(1.075 ether);
-        vox.back();
+        assertEq(vox.thin(), 115999787984316419591943277);
+        assertEq(vox.fat(), -450000029527503745421310299);
+        assertEq(vox.fit(), -334000241543187325829367022);
 
-        assertEq(vox.cron(11), int(74999916495908036231318905));
-
-        (P, I, D, pid) = vox.full(vox.fix(), spot.par(), vox.site(), vox.road());
-
-        assertEq(P, -74999916495908036231318905);
-        assertEq(I, 134000325047279289598048117);
-        assertEq(D, int(ray(1 ether)));
-        assertEq(pid, 985116736795779736870149122);
+        // ---
 
         hevm.warp(now + 1 seconds);
         stableFeed.poke(1.075 ether);
         vox.back();
 
-        assertEq(vox.cron(12), int(74999916027440396230521595));
+        assertEq(vox.cron(11), int(74999921263972107229039571));
 
-        assertEq(vox.thin(), 0);
-        assertEq(vox.fat(), 0);
-        assertEq(vox.fit(), 0);
+        assertEq(spot.par(), 1000000078736027892770960429);
+        assertEq(vox.fix(), 1075000000000000000000000000);
+        assertEq(spot.way(), 1000000001180750080709243029);
 
-        (P, I, D, pid) = vox.full(vox.fix(), spot.par(), vox.site(), vox.road());
+        assertEq(vox.thin(), 184999768146706944537079926);
+        assertEq(vox.fat(), -319000088425922163137407377);
+        assertEq(vox.fit(), -134000320279215218600327451);
 
-        // assertEq(P, -74999916027440396230521595);
-        // assertEq(I, -90999590980161106632473478);
-        // assertEq(D, int(ray(1 ether)));
-        // assertEq(pid, 0);
+        // ---
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(1.075 ether);
+        vox.back();
+
+        assertEq(vox.cron(12), int(74999920083221933552225253));
+
+        assertEq(spot.par(), 1000000079916778066447774747);
+        assertEq(vox.fix(), 1075000000000000000000000000);
+        assertEq(spot.way(), 999999990482702392239753688);
+
+        assertEq(vox.thin(), 224999762853167488797134932);
+        assertEq(vox.fat(), -134000163049160773845237130);
+        assertEq(vox.fit(), 90999599804006714951897802);
+
+        // ---
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(0.990 ether);
+        vox.back();
+
+        assertEq(vox.cron(13), int(-10000070399479698095767723));
+
+        assertEq(spot.par(), 1000000070399479698095767723);
+        assertEq(vox.fix(), ray(0.990 ether));
+        assertEq(spot.way(), 999999988830212436175464411);
+
+        assertEq(vox.thin(), 139999770947714342685497101);
+        assertEq(vox.fat(), 115999787984316419591943277);
+        assertEq(vox.fit(), 255999558932030762277440378);
+
+        // ---
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(0.995 ether);
+        vox.back();
+
+        assertEq(vox.cron(14), int(-5000059229691347923999302));
+
+        assertEq(spot.par(), 1000000059229691347923999302);
+        assertEq(vox.fix(), ray(0.995 ether));
+        assertEq(spot.way(), 999999997430434422546000846);
+
+        assertEq(vox.thin(), 59999790454050887532458228);
+        assertEq(vox.fat(), 184999768146706944537079926);
+        assertEq(vox.fit(), 244999558600757832069538154);
+
+        // ---
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(0.995 ether);
+        vox.back();
+
+        assertEq(vox.cron(15), int(-5000056660125618275424097));
+
+        assertEq(spot.par(), 1000000056660125618275424097);
+        assertEq(vox.fix(), ray(0.995 ether));
+        assertEq(spot.way(), 999999999431194701844308122);
+
+        assertEq(vox.thin(), -20000186289296664295191122);
+        assertEq(vox.fat(), 224999762853167488797134932);
+        assertEq(vox.fit(), 204999576563870824501943810);
+
+        // ---
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(0.995 ether);
+        vox.back();
+
+        assertEq(vox.cron(16), int(-5000056091320287891152573));
+
+        assertEq(spot.par(), 1000000056091320287891152573);
+        assertEq(vox.fix(), ray(0.995 ether));
+        assertEq(spot.way(), 999999999589655264660387835);
+
+        assertEq(vox.thin(), -15000171981137254090575972);
+        assertEq(vox.fat(), 139999770947714342685497101);
+        assertEq(vox.fit(), 124999598966577088594921129);
+
+        // ---
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(0.985 ether);
+        vox.back();
+
+        assertEq(vox.cron(17), int(-15000055680975529534762429));
+
+        assertEq(spot.par(), 1000000055680975529534762429);
+        assertEq(vox.fix(), ray(0.985 ether));
+        assertEq(spot.way(), 999999999734647610462053644);
+
+        assertEq(vox.thin(), -25000168432421435701339099);
+        assertEq(vox.fat(), 59999790454050887532458228);
+        assertEq(vox.fit(), 34999622021629451831119129);
+
+        // ---
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(0.985 ether);
+        vox.back();
+
+        assertEq(vox.cron(18), int(-15000055415623125221736164));
+
+        assertEq(spot.par(), 1000000055415623125221736164);
+        assertEq(vox.fix(), ray(0.985 ether));
+        assertEq(spot.way(), 1000000003237738200330359969);
+
+        assertEq(vox.thin(), -35000167187918942647651166);
+        assertEq(vox.fat(), -20000186289296664295191122);
+        assertEq(vox.fit(), -55000353477215606942842288);
     }
 
     // function test_drop_back_to_normal() public {

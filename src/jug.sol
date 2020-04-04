@@ -177,22 +177,4 @@ contract Jug is LibNote {
         ilks[ilk].rho = now;
         return rate;
     }
-    function leap() external note auth {
-        (bool lap_, ) = lap();
-        uint i;
-        // First dripping positive rate ilks
-        for (i = 0; i < bank.length; i++) {
-          if (both(add(base, ilks[bank[i]].duty) >= RAY, now > ilks[bank[i]].rho)) {
-            drip(bank[i]);
-          }
-        }
-        // Then Dripping/updating negative rate ilks
-        for (i = 0; i < bank.length; i++) {
-          if (!lap_) {
-            ilks[bank[i]].rho = now;
-          } else if (now > ilks[bank[i]].rho) {
-            drip(bank[i]);
-          }
-        }
-    }
 }

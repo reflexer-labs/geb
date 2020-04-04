@@ -39,7 +39,6 @@ contract JugLike {
     function file(bytes32, uint) external;
     function late() external view returns (bool);
     function lap() external view returns (bool);
-    function leap() external;
 }
 
 contract PotLike {
@@ -205,7 +204,9 @@ contract Vox1 is LibNote, Exp {
         require(y == 0 || (z = x * int(y)) / int(y) == x);
     }
     function div(uint x, uint y) internal pure returns (uint z) {
-        return x / y;
+        require(y > 0);
+        z = x / y;
+        require(z <= x);
     }
     function delt(uint x, uint y) internal pure returns (uint z) {
         z = (x >= y) ? x - y : y - x;
@@ -416,7 +417,7 @@ contract Vox2 is LibNote, Exp {
     // --- Fluctuating Variables ---
     int256  public site; // latest type of deviation between the integral accumulator and par
     int256  public road; // latest type of deviation between fix and par
-    uint256 public fix;  // latest market price
+    uint256 public fix;  // latest market price                                          [ray]
 
     // --- Accumulator ---
     int256[]  public cron; // deviation history
@@ -447,7 +448,6 @@ contract Vox2 is LibNote, Exp {
         pan  = pan_;
         bowl = bowl_;
         mug  = mug_;
-        cron.push(0);
         deaf = RAY;
         wand = RAY;
         up   = MAX;
@@ -457,6 +457,7 @@ contract Vox2 is LibNote, Exp {
         spot = SpotLike(spot_);
         fix  = spot.par();
         core = PID(RAY, RAY, RAY);
+        cron.push(0);
     }
 
     // --- Administration ---
@@ -533,7 +534,9 @@ contract Vox2 is LibNote, Exp {
         require(y == 0 || (z = x * y) / y == x);
     }
     function div(uint x, uint y) internal pure returns (uint z) {
-        return x / y;
+        require(y > 0);
+        z = x / y;
+        require(z <= x);
     }
     function delt(uint x, uint y) internal pure returns (uint z) {
         z = (x >= y) ? x - y : y - x;
@@ -587,7 +590,7 @@ contract Vox2 is LibNote, Exp {
     function pole(uint x, uint y) internal view returns (int z) {
         z = (x >= y) ? int(-1) : int(1);
     }
-    // Compute the per second 'base rate'
+    // Compute the per-second 'base rate'
     function br(uint256 x) internal pure returns (uint256 z) {
         return RAY + delt(x, RAY);
     }
@@ -619,20 +622,17 @@ contract Vox2 is LibNote, Exp {
     // Calculate yearly rate according to PID settings
     function full(uint x, uint y, int site_, int road_) public view returns (int P, int I, int D, uint pid) {
         P   = mul(mul(road_, sub(x, y)), core.go) / int(RAY);
-
         I   = mul(int(-1), int(mul(fit, core.how) / int(RAY)));
-
-        if (either(fat < 0 && thin > 0, fat > 0 && thin < 0)) {
-          D = int(RAY);
-        } else if (either(fat == 0, thin == 0)) {
-          D = int(RAY);
-        } else {
-          D = mul(thin, RAY) / fat;
-        }
-
-        D   = mul(D, core.gain) / int(RAY);
+        D   = either(fat == 0, thin == 0) ? int(RAY) : mul((mul(thin, RAY) / fat), core.gain) / int(RAY);
 
         int  diff = mul(add(P, I), D) / int(RAY);
+        /***
+          Minimize the current direction even more if the market prices are predominantly on the
+          other side (they already overshoot a bit)
+        ***/
+        if (either(fat < 0 && thin > 0, thin < 0 && fat > 0)) {
+          diff = -diff;
+        }
         uint den  = (site_ > 0) ? add(y, diff) : add(x, diff);
 
         pid = (site_ > 0) ? mul(den, RAY) / x : mul(x, RAY) / den;
@@ -664,7 +664,7 @@ contract Vox2 is LibNote, Exp {
         // Get feed latest price timestamp
         uint zzz_ = pip.zzz();
         // If there's no new time in the feed, simply return
-        if (zzz_ <= zzz) return;
+        require(zzz_ > zzz, "Vox2/old-zzz");
         // Get price feed updates
         (bytes32 val, bool has) = pip.peek();
         // If the OSM has a value
@@ -674,7 +674,7 @@ contract Vox2 is LibNote, Exp {
           acc(dox(ray(uint(val)), par));
           // If we don't have enough datapoints, return
           if (either(either(cron.length <= mug, cron.length <= bowl), cron.length <= pan)) return;
-          // Initialize new rate
+          // Initialize new per-second target rate
           uint way_;
           // Compute the deviation of the fit accumulator from par
           int dev = (fit == 0) ? 0 : fit / int(bowl);
@@ -728,7 +728,7 @@ contract Vox2 is LibNote, Exp {
   rate according to deviations from the peg.
 
   As opposed to the previous Vox flavours, this one does not change the target price (par) but rather
-  tries to maintain a strong peg.
+  tries to maintain a strong peg without the need of continuous governance intervention.
 ***/
 // contract Vox3 is LibNote, Exp {
 //     // --- Auth ---
@@ -1011,21 +1011,6 @@ contract Vox2 is LibNote, Exp {
 //           uint tmp = rmul(rpow(way, gap, RAY), par);
 //           spot.file("par", tmp);
 //         }
-//     }
-//     // Set the new base stability fee and target rate of change
-//     function pull(uint sf, uint way_, bool late) internal note {
-//         // Update sf
-//         if (late) {
-//           /***
-//             If we lap for a long time and then go positive with the sf,
-//             there will be an abrupt change in ilks' rates. To avoid this,
-//             ilks with negative rates (base + duty) will have rho updated
-//           ***/
-//           jug.leap();
-//         }
-//         (sf > 0) ? jug.file("base", sf) : jug.file("base", RAY);
-//         // Update rate of change
-//         way = way_;
 //     }
 // }
 
