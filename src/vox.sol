@@ -414,7 +414,8 @@ contract Vox2 is LibNote, Exp {
     uint256 public live; // access flag
 
     // --- Fluctuating Variables ---
-    int256  public path; // latest type of deviation
+    int256  public site; // latest type of deviation between the integral accumulator and par
+    int256  public road; // latest type of deviation between fix and par
     uint256 public fix;  // latest market price
 
     // --- Accumulator ---
@@ -583,21 +584,25 @@ contract Vox2 is LibNote, Exp {
     function era() internal view returns (uint) {
         return block.timestamp;
     }
-    function site(uint x, uint y) internal view returns (int z) {
+    function pole(uint x, uint y) internal view returns (int z) {
         z = (x >= y) ? int(-1) : int(1);
     }
     // Compute the per second 'base rate'
     function br(uint256 x) internal pure returns (uint256 z) {
         return RAY + delt(x, RAY);
     }
-    // Set the current deviation direction
+    // Set the opposite integral deviation
     function rash(int site_) internal {
-        path = (path == 0) ? site_ : -path;
+        site = (site == 0) ? site_ : -site;
     }
-    function road(uint x, uint y) internal view returns (int z) {
+    // Set the opposite market price deviation
+    function wild(int road_) internal {
+        road = (road == 0) ? road_ : -road;
+    }
+    function dox(uint x, uint y) internal view returns (int z) {
         uint dev  = delt(x, y);
-        int site_ = site(x, y);
-        return mul(-site_, dev);
+        int pole_ = pole(x, y);
+        return mul(-pole_, dev);
     }
     // Update accumulators and deviation history
     function acc(int x) internal {
@@ -612,8 +617,8 @@ contract Vox2 is LibNote, Exp {
         fat  = sub(fit, thin);
     }
     // Calculate yearly rate according to PID settings
-    function full(uint x, uint y, int site_) public view returns (int P, int I, int D, uint pid) {
-        P   = mul(mul(site_, sub(x, y)), core.go) / int(RAY);
+    function full(uint x, uint y, int site_, int road_) public view returns (int P, int I, int D, uint pid) {
+        P   = mul(mul(road_, sub(x, y)), core.go) / int(RAY);
 
         I   = mul(int(-1), int(mul(fit, core.how) / int(RAY)));
 
@@ -640,9 +645,9 @@ contract Vox2 is LibNote, Exp {
           x = (deaf < RAY) ? sub(deaf, sub(way_, RAY)) : sub(RAY, sub(way_, RAY));
         }
     }
-    function adj(uint val, uint par, int site_) public view returns (uint256) {
+    function adj(uint val, uint par, int site_, int road_) public view returns (uint256) {
         // Calculate adjusted annual rate
-        (, , , uint full_) = (site_ == 1) ? full(par, val, site_) : full(val, par, site_);
+        (, , , uint full_) = (road_ == 1) ? full(par, val, site_, road_) : full(val, par, site_, road_);
 
         // Calculate the per-second target rate of change
         uint way_ = comp(br(full_));
@@ -666,27 +671,32 @@ contract Vox2 is LibNote, Exp {
         if (has) {
           uint par = spot.par();
           // Update accumulators and deviation history
-          acc(road(ray(uint(val)), par));
+          acc(dox(ray(uint(val)), par));
           // If we don't have enough datapoints, return
           if (either(either(cron.length <= mug, cron.length <= bowl), cron.length <= pan)) return;
           // Initialize new rate
           uint way_;
           // Compute the deviation of the fit accumulator from par
           int dev = (fit == 0) ? 0 : fit / int(bowl);
+          // Compute the opposite of the current accumulator sign
           int site_ = (dev < 0) ? int(1) : int(-1);
+          // Compute the opposite of the current market price deviation
+          int road_ = pole(ray(uint(val)), par);
           // If the deviation is at least 'trim'
           if (dev >= int(trim) || dev <= -int(trim)) {
             /**
               If the current deviation is different than the latest one,
               update the latest one
             **/
-            if (site_ != path) rash(site_);
+            if (site_ != site) rash(site_);
+            if (road_ != road) wild(road_);
             // Compute the new per-second rate
-            way_ = adj(ray(uint(val)), par, site_);
+            way_ = adj(ray(uint(val)), par, site_, road_);
             spot.file("way", way_);
           } else {
-            // Restart deviation
-            path = 0;
+            // Restart deviation types
+            site = 0;
+            road = 0;
             // Set default rate
             spot.file("way", prod());
           }
