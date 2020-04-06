@@ -4,7 +4,7 @@ This repository contains the core smart contract code for Rai Reflex-Bond System
 
 # What is a Reflex-Bond?
 
-A reflex-bond is a low volatility proxy for the underlying collateral that supports its value. The _future_ price of a reflex-bond depends on the market price deviation from its _current_ price. This means that even if its price floats, the future price of the bond is fairly predictable.
+A reflex-bond is a low volatility proxy for the underlying collateral that supports its value. The _future_ target price of a reflex-bond depends on the market price deviation from its _current_ target price. This means that even if it floats, the future target price of the bond is fairly predictable.
 
 To summarise:
 
@@ -19,7 +19,6 @@ To summarise:
 - Apart from 'spot', we added 'risk'. CDP creators use spot when creating bonds/pegged coins but get liquidated at risk. An incentive mechanism for keeping CDPs above spot is still being designed
 - The Flapper no longer allows auctions but directly buys governance tokens from DEXs and burns them
 - A CDP holder can specify a trigger for when their CDP gets bitten. The trigger can, for example, sell a position in another protocol and add more collateral in the CDP, thus saving it from liquidation
-- (TODO) unified interface for aggregating oracle calls to multiple networks (in a separate repo)
 - (TODO) jug drips part of the stability fees in a separate contract that pays for oracle calls
 - (TODO) stability fee "treasury" that manages sf payments to different addresses (e.g oracles)
 - (TODO) default scenarios for triggering End without the need for ESM (in a separate repo)
