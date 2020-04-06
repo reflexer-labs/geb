@@ -1,4 +1,4 @@
-/// pot.sol -- Synthetic Assets Savings Rate
+/// pot.sol -- Coin Savings Rate
 
 // Copyright (C) 2018 Rain <rainbreak@riseup.net>
 //
@@ -20,15 +20,15 @@ pragma solidity ^0.5.15;
 import "./lib.sol";
 
 /*
-   "Savings Synthetics" are obtained when the core synthetic created by the protocol
-   is deposited into this contract. Each "Savings Synthetic" accrues interest
+   "Savings Coin" are obtained when the core coin created by the protocol
+   is deposited into this contract. Each "Savings Coin" accrues interest
    at the "Savings Rate". This contract does not implement a user tradeable token
    and is intended to be used with adapters.
-         --- `save` your `synthetic` in the `pot` ---
+         --- `save` your `coin` in the `pot` ---
    - `sr`: the Savings Rate
-   - `pie`: user balance of Savings Synthetics
-   - `join`: start saving some synthetic assets
-   - `exit`: remove some synthetic assets
+   - `pie`: user balance of Savings Coins
+   - `join`: start saving some coins
+   - `exit`: remove some coins
    - `drip`: perform rate collection
 */
 
@@ -133,7 +133,7 @@ contract Pot is LibNote {
     // --- Savings Rate Accumulation ---
     function drip() external note returns (uint tmp) {
         require(now >= rho, "Pot/invalid-now");
-        tmp = rmul(rpow(sr, now - rho, ONE), chi);
+        tmp = rmul(rpow(sr, sub(now, rho), ONE), chi);
         uint chi_ = sub(tmp, chi);
         chi = tmp;
         rho = now;

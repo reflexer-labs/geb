@@ -20,4 +20,5 @@ To summarise:
 - The Flapper no longer allows auctions but directly buys governance tokens from DEXs and burns them
 - A CDP holder can specify a trigger for when their CDP gets bitten. The trigger can, for example, sell a position in another protocol and add more collateral in the CDP, thus saving it from liquidation
 - (TODO) jug drips part of the stability fees in a separate contract that pays for oracle calls
-- (TODO) default scenarios for triggering End without the need for ESM
+- (TODO) stability fee "treasury" that manages sf payments to different addresses (e.g oracles)
+- (TODO) default scenarios for triggering End without the need for ESM (in a separate repo)

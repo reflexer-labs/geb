@@ -108,6 +108,9 @@ contract Jug is LibNote {
     function both(bool x, bool y) internal pure returns (bool z) {
         assembly{ z := and(x, y)}
     }
+    function either(bool x, bool y) internal pure returns (bool z) {
+        assembly{ z := or(x, y)}
+    }
 
     // --- Administration ---
     function init(bytes32 ilk) external note auth {
@@ -143,7 +146,7 @@ contract Jug is LibNote {
     function lap() public view returns (bool ok, int rad) {
         int  diff;
         uint Art;
-        int  good = -int(vat.good(vow));
+        int  good_ = -int(vat.good(vow));
         for (uint i = 0; i < bank.length; i++) {
           if (now > ilks[bank[i]].rho) {
             (Art, )  = vat.ilks(bank[i]);
@@ -152,7 +155,7 @@ contract Jug is LibNote {
           }
         }
         if (rad < 0) {
-          ok = (rad < good) ? false : true;
+          ok = (rad < good_) ? false : true;
         } else {
           ok = true;
         }
@@ -172,27 +175,14 @@ contract Jug is LibNote {
     }
     function drip(bytes32 ilk) public note returns (uint) {
         require(now >= ilks[ilk].rho, "Jug/invalid-now");
+        int  good_           = -int(vat.good(vow));
+        (uint Art, )         = vat.ilks(ilk);
         (uint rate, int rad) = drop(ilk);
-        vat.fold(ilk, vow, rad);
+        int leap = mul(Art, rad);
+        if ( either(leap >= 0, both(leap < 0, good_ <= leap)) ) {
+          vat.fold(ilk, vow, rad);
+        }
         ilks[ilk].rho = now;
         return rate;
-    }
-    function leap() external note auth {
-        (bool lap_, ) = lap();
-        uint i;
-        // First dripping positive rate ilks
-        for (i = 0; i < bank.length; i++) {
-          if (both(add(base, ilks[bank[i]].duty) >= RAY, now > ilks[bank[i]].rho)) {
-            drip(bank[i]);
-          }
-        }
-        // Then Dripping/updating negative rate ilks
-        for (i = 0; i < bank.length; i++) {
-          if (!lap_) {
-            ilks[bank[i]].rho = now;
-          } else if (now > ilks[bank[i]].rho) {
-            drip(bank[i]);
-          }
-        }
     }
 }

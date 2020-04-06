@@ -3,7 +3,7 @@ pragma solidity ^0.5.15;
 import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
 import {Flopper as Flop} from './flop.t.sol';
-import {Flapper as Flap} from './flap.t.sol';
+import {Flapper2 as Flap} from './flap.t.sol';
 import {TestVat as  Vat} from './vat.t.sol';
 import {Vow}             from '../vow.sol';
 import {CoinJoin}        from '../join.sol';
@@ -21,9 +21,9 @@ contract BinLike {
       give = give_;
     }
 
-    function swap(address bond, address gov, uint sell) external returns (uint) {
+    function swap(address lad, address bond, address gov, uint sell) external returns (uint) {
         DSToken(bond).transferFrom(msg.sender, address(this), sell);
-        DSToken(gov).transfer(msg.sender, give);
+        DSToken(gov).transfer(lad, give);
         return give;
     }
 }

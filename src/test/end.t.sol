@@ -28,7 +28,7 @@ import {Vow}  from '../vow.sol';
 import {Pot}  from '../pot.sol';
 import {Vox2} from '../vox.sol';
 import {Flipper} from '../flip.sol';
-import {Flapper} from '../flap.sol';
+import {Flapper2} from '../flap.sol';
 import {Flopper} from '../flop.sol';
 import {GemJoin} from '../join.sol';
 import {End}  from '../end.sol';
@@ -153,7 +153,7 @@ contract EndTest is DSTest {
 
     mapping (bytes32 => Ilk) ilks;
 
-    Flapper flap;
+    Flapper2 flap;
     Flopper flop;
 
     uint constant WAD = 10 ** 18;
@@ -253,7 +253,7 @@ contract EndTest is DSTest {
         bin  = new BinLike(1 ether);
         coinA = new CoinJoin(address(vat), address(bond));
 
-        flap = new Flapper(address(vat));
+        flap = new Flapper2(address(vat));
         flap.file("bond", address(bond));
         flap.file("gov", address(gov));
         flap.file("bin", address(bin));
