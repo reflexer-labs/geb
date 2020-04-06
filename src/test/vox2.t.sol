@@ -620,8 +620,4 @@ contract Vox2Test is DSTest {
         assertEq(vox.fat(), -20000186289296664295191122);
         assertEq(vox.fit(), -55000353477215606942842288);
     }
-
-    // function test_drop_back_to_normal() public {
-    //
-    // }
 }

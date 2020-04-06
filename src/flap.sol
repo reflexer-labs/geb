@@ -40,13 +40,145 @@ contract BinLike {
     function swap(address,address,address,uint256) external returns (uint256);
 }
 
-contract Flapper is LibNote {
+/*
+   This thing lets you sell some coin in return for gov tokens.
+ - `lot` coin for sale
+ - `bid` got tokens paid
+ - `ttl` single bid lifetime
+ - `beg` minimum bid increase
+ - `end` max auction duration
+*/
+
+contract Flapper1 is LibNote {
     // --- Auth ---
     mapping (address => uint) public wards;
     function rely(address usr) external note auth { wards[usr] = 1; }
     function deny(address usr) external note auth { wards[usr] = 0; }
     modifier auth {
-        require(wards[msg.sender] == 1, "Flapper/not-authorized");
+        require(wards[msg.sender] == 1, "Flapper1/not-authorized");
+        _;
+    }
+
+    // --- Data ---
+    struct Bid {
+        uint256 bid;
+        uint256 lot;
+        address guy;  // high bidder
+        uint48  tic;  // expiry time
+        uint48  end;
+    }
+
+    mapping (uint => Bid) public bids;
+
+    VatLike  public   vat;
+    GemLike  public   gem;
+
+    uint256  constant ONE = 1.00E18;
+    uint256  public   beg = 1.05E18;  // 5% minimum bid increase
+    uint48   public   ttl = 3 hours;  // 3 hours bid duration
+    uint48   public   tau = 2 days;   // 2 days total auction length
+    uint256  public kicks = 0;
+    uint256  public live;
+
+    // --- Events ---
+    event Kick(
+      uint256 id,
+      uint256 lot,
+      uint256 bid
+    );
+
+    // --- Init ---
+    constructor(address vat_, address gem_) public {
+        wards[msg.sender] = 1;
+        vat = VatLike(vat_);
+        gem = GemLike(gem_);
+        live = 1;
+    }
+
+    // --- Math ---
+    function add(uint48 x, uint48 y) internal pure returns (uint48 z) {
+        require((z = x + y) >= x);
+    }
+    function mul(uint x, uint y) internal pure returns (uint z) {
+        require(y == 0 || (z = x * y) / y == x);
+    }
+
+    // --- Admin ---
+    function file(bytes32 what, uint data) external note auth {
+        if (what == "beg") beg = data;
+        else if (what == "ttl") ttl = uint48(data);
+        else if (what == "tau") tau = uint48(data);
+        else revert("Flapper1/file-unrecognized-param");
+    }
+
+    // --- Auction ---
+    function kick(uint lot, uint bid) external auth returns (uint id) {
+        require(live == 1, "Flapper1/not-live");
+        require(kicks < uint(-1), "Flapper1/overflow");
+        id = ++kicks;
+
+        bids[id].bid = bid;
+        bids[id].lot = lot;
+        bids[id].guy = msg.sender; // configurable??
+        bids[id].end = add(uint48(now), tau);
+
+        vat.move(msg.sender, address(this), lot);
+
+        emit Kick(id, lot, bid);
+    }
+    function tick(uint id) external note {
+        require(bids[id].end < now, "Flapper1/not-finished");
+        require(bids[id].tic == 0, "Flapper1/bid-already-placed");
+        bids[id].end = add(uint48(now), tau);
+    }
+    function tend(uint id, uint lot, uint bid) external note {
+        require(live == 1, "Flapper1/not-live");
+        require(bids[id].guy != address(0), "Flapper1/guy-not-set");
+        require(bids[id].tic > now || bids[id].tic == 0, "Flapper1/already-finished-tic");
+        require(bids[id].end > now, "Flapper1/already-finished-end");
+
+        require(lot == bids[id].lot, "Flapper1/lot-not-matching");
+        require(bid >  bids[id].bid, "Flapper1/bid-not-higher");
+        require(mul(bid, ONE) >= mul(beg, bids[id].bid), "Flapper1/insufficient-increase");
+
+        gem.move(msg.sender, bids[id].guy, bids[id].bid);
+        gem.move(msg.sender, address(this), bid - bids[id].bid);
+
+        bids[id].guy = msg.sender;
+        bids[id].bid = bid;
+        bids[id].tic = add(uint48(now), ttl);
+    }
+    function deal(uint id) external note {
+        require(live == 1, "Flapper1/not-live");
+        require(bids[id].tic != 0 && (bids[id].tic < now || bids[id].end < now), "Flapper1/not-finished");
+        vat.move(address(this), bids[id].guy, bids[id].lot);
+        gem.burn(address(this), bids[id].bid);
+        delete bids[id];
+    }
+
+    function cage(uint rad) external note auth {
+       live = 0;
+       vat.move(address(this), msg.sender, rad);
+    }
+    function yank(uint id) external note {
+        require(live == 0, "Flapper1/still-live");
+        require(bids[id].guy != address(0), "Flapper1/guy-not-set");
+        gem.move(address(this), bids[id].guy, bids[id].bid);
+        delete bids[id];
+    }
+}
+
+/*
+  This thing automatically buys gov tokens from DEXs with surplus coming from Vow.
+*/
+
+contract Flapper2 is LibNote {
+    // --- Auth ---
+    mapping (address => uint) public wards;
+    function rely(address usr) external note auth { wards[usr] = 1; }
+    function deny(address usr) external note auth { wards[usr] = 0; }
+    modifier auth {
+        require(wards[msg.sender] == 1, "Flapper2/not-authorized");
         _;
     }
 
@@ -91,7 +223,7 @@ contract Flapper is LibNote {
 
     // --- Admin ---
     function file(bytes32 what, address addr) external note auth {
-        require(live == 1, "Flapper/not-live");
+        require(live == 1, "Flapper2/not-live");
         if (what == "bond") bond = GemLike(addr);
         else if (what == "gov") gov = GemLike(addr);
         else if (what == "join") {
@@ -104,7 +236,7 @@ contract Flapper is LibNote {
         }
         else if (what == "bin") bin = BinLike(addr);
         else if (what == "safe") safe = addr;
-        else revert("Flapper/file-unrecognized-param");
+        else revert("Flapper2/file-unrecognized-param");
     }
     function cage() external note auth {
         live = 0;
@@ -123,20 +255,20 @@ contract Flapper is LibNote {
 
     // --- Buyout ---
     function kick(uint lot) external auth returns (uint id) {
-        require(live == 1, "Flapper/not-live");
-        require(kicks < uint(-1), "Flapper/overflow");
-        require(safe != address(0), "Flapper/no-safe");
-        require(lot % RAY == 0, "Flapper/wasted-lot");
+        require(live == 1, "Flapper2/not-live");
+        require(kicks < uint(-1), "Flapper2/overflow");
+        require(safe != address(0), "Flapper2/no-safe");
+        require(lot % RAY == 0, "Flapper2/wasted-lot");
 
         id = ++kicks;
 
         uint own = bond.balanceOf(address(this));
-        require(fund(div(lot, RAY), address(bin)) == true, "Flapper/cannot-fund");
+        require(fund(div(lot, RAY), address(bin)) == true, "Flapper2/cannot-fund");
         uint bid = bin.swap(address(this), address(bond), address(gov), div(lot, RAY));
 
-        require(bid > 0, "Flapper/invalid-bid");
-        require(bond.balanceOf(address(this)) == own, "Flapper/cannot-buy");
-        require(gov.balanceOf(address(this)) >= bid, "Flapper/bid-not-received");
+        require(bid > 0, "Flapper2/invalid-bid");
+        require(bond.balanceOf(address(this)) == own, "Flapper2/cannot-buy");
+        require(gov.balanceOf(address(this)) >= bid, "Flapper2/bid-not-received");
 
         loot();
 
@@ -157,5 +289,7 @@ contract Flapper is LibNote {
         return bond.approve(guy, lot);
     }
 
-    function() external payable {}
+    function() external payable {
+        revert();
+    }
 }

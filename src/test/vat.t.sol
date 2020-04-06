@@ -13,7 +13,7 @@ import {Spotter} from '../spot.sol';
 
 import {Flipper} from './flip.t.sol';
 import {Flopper} from './flop.t.sol';
-import {Flapper} from './flap.t.sol';
+import {Flapper2} from './flap.t.sol';
 
 
 contract Hevm {
@@ -551,7 +551,7 @@ contract BiteTest is DSTest {
 
     Flipper flip;
     Flopper flop;
-    Flapper flap;
+    Flapper2 flap;
 
     DSToken gov;
 
@@ -597,7 +597,7 @@ contract BiteTest is DSTest {
         vat = new TestVat();
         vat = vat;
 
-        flap = new Flapper(address(vat));
+        flap = new Flapper2(address(vat));
         //TODO: add gov and bond to flapper
         flop = new Flopper(address(vat), address(gov));
 

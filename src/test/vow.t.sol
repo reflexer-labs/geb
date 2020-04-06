@@ -3,7 +3,7 @@ pragma solidity ^0.5.15;
 import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
 import {Flopper as Flop} from './flop.t.sol';
-import {Flapper as Flap} from './flap.t.sol';
+import {Flapper2 as Flap} from './flap.t.sol';
 import {TestVat as  Vat} from './vat.t.sol';
 import {Vow}             from '../vow.sol';
 import {CoinJoin}        from '../join.sol';
