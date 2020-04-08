@@ -1,3 +1,6 @@
 [submodule "lib/ds-token"]
 	path = lib/ds-token
 	url = https://github.com/dapphub/ds-token
+[submodule "lib/ds-list"]
+	path = lib/ds-list
+	url = https://github.com/sweatdao/ds-list
