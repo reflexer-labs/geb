@@ -25,7 +25,7 @@ import "./exp.sol";
 
 contract PipLike {
     function peek() external returns (bytes32, bool);
-    function zzz() external view returns (uint256);
+    function zzz() external view returns (uint64);
 }
 
 contract SpotLike {
@@ -417,14 +417,14 @@ contract Vox2 is LibNote, Exp {
     uint256 public live; // access flag
 
     // --- Fluctuating Variables ---
-    int256  public site; // latest type of deviation between the integral accumulator and par
-    int256  public road; // latest type of deviation between fix and par
-    uint256 public fix;  // latest market price                                          [ray]
+    int256  public site;   // latest type of deviation between the integral accumulator and par
+    int256  public road;   // latest type of deviation between fix and par
+    uint256 public fix;    // latest market price                                          [ray]
 
     // --- Accumulator ---
-    int256[]  public cron; // deviation history
-    uint256   public kick; // how many times we received new prices from OSM
-    uint256   public zzz;  // latest update time of the OSM
+    int256[] public cron; // deviation history
+    uint256  public kick; // how many times we received new prices from OSM
+    uint64   public zzz;  // latest update time of the OSM
 
     int256   public fat;  // accumulator used for derivative (old deviations) and manipulation resistance
     int256   public fit;  // integral accumulator
@@ -629,12 +629,17 @@ contract Vox2 is LibNote, Exp {
         int  diff = mul(add(P, I), D) / int(RAY);
         /***
           Minimize the current direction even more if the market prices are predominantly on the
-          other side (they already overshoot a bit)
+          other side (they already overshoot)
         ***/
         if (either(fat < 0 && thin > 0, thin < 0 && fat > 0)) {
           diff = -diff;
         }
-        uint den  = (site_ > 0) ? add(y, diff) : add(x, diff);
+
+        // If diff is smaller than both x and y, make it zero
+        diff = (both(diff < 0, both(site_ > 0, diff < int(-y)))) ? 0 : diff;
+        diff = (both(diff < 0, both(site_ < 0, diff < int(-x)))) ? 0 : diff;
+
+        uint den = (site_ > 0) ? add(y, diff) : add(x, diff);
 
         pid = (site_ > 0) ? mul(den, RAY) / x : mul(x, RAY) / den;
     }
@@ -663,7 +668,7 @@ contract Vox2 is LibNote, Exp {
     function back() external note {
         require(live == 1, "Vox2/not-live");
         // Get feed latest price timestamp
-        uint zzz_ = pip.zzz();
+        uint64 zzz_ = pip.zzz();
         // If there's no new time in the feed, simply return
         require(zzz_ > zzz, "Vox2/old-zzz");
         // Get price feed updates

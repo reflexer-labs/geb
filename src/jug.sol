@@ -239,7 +239,7 @@ contract Jug is LibNote {
     }
     function drip() external note {
         for (uint i = 0; i < bank.length; i++) {
-            if (now > ilks[bank[i]].rho) {drip(bank[i]);}
+            if (now >= ilks[bank[i]].rho) {drip(bank[i]);}
         }
     }
     function drip(bytes32 ilk) public note returns (uint) {
