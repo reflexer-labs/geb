@@ -14,6 +14,7 @@
 pragma solidity ^0.5.15;
 
 import "./lib.sol";
+import "./list.sol";
 
 contract VatLike {
     function ilks(bytes32) external view returns (
@@ -25,6 +26,8 @@ contract VatLike {
 }
 
 contract Jug is LibNote {
+    using Link for Link.List;
+
     // --- Auth ---
     mapping (address => uint) public wards;
     function rely(address usr) external note auth { wards[usr] = 1; }
@@ -39,13 +42,30 @@ contract Jug is LibNote {
         uint256 duty;
         uint256  rho;
     }
+    struct Heir {
+        uint256 take;
+        uint256 cut;
+        address gal;
+    }
+    struct Clan {
+        uint256 cut;
+        uint256 boon;
+    }
 
-    mapping (bytes32 => Ilk) public ilks;
-    VatLike                  public vat;
-    address                  public vow;
-    uint256                  public base;
+    mapping (bytes32 => Ilk)                      public ilks;
+    mapping (bytes32 => Clan)                     public clan;
+    mapping (address => uint256)                  public born;   // already born heirs
+    mapping (bytes32 => mapping(uint256 => Heir)) public heirs;  // data about each heir
 
-    bytes32[] public bank;
+    address    public vow;
+    uint256    public base;
+    uint256    public max;  // max number of heirs an ilk can have
+    uint256    public last; // latest node
+
+    bytes32[]  public  bank;
+    Link.List  private gift;
+
+    VatLike    public vat;
 
     // --- Init ---
     constructor(address vat_) public {
@@ -77,7 +97,10 @@ contract Jug is LibNote {
         }
       }
     }
-    uint256 constant RAY = 10 ** 27;
+    uint256 constant RAY     = 10 ** 27;
+    uint256 constant HUNDRED = 10 ** 29;
+    uint256 constant ONE     = 1;
+
     function add(uint x, uint y) internal pure returns (uint z) {
         z = x + y;
         require(z >= x);
@@ -89,6 +112,11 @@ contract Jug is LibNote {
     }
     function sub(uint x, uint y) internal pure returns (uint z) {
         require((z = x - y) <= x);
+    }
+    function sub(int x, int y) internal pure returns (int z) {
+        z = x - y;
+        require(y <= 0 || z <= x);
+        require(y >= 0 || z >= x);
     }
     function diff(uint x, uint y) internal pure returns (int z) {
         z = int(x) - int(y);
@@ -127,14 +155,55 @@ contract Jug is LibNote {
     }
     function file(bytes32 what, uint data) external note auth {
         if (what == "base") base = data;
+        else if (what == "max") max = data;
         else revert("Jug/file-unrecognized-param");
     }
     function file(bytes32 what, address data) external note auth {
         if (what == "vow") vow = data;
         else revert("Jug/file-unrecognized-param");
     }
+    function file(bytes32 ilk, uint256 what, uint256 val) external note auth {
+        if (heirs[ilk][what].cut > 0) {
+            heirs[ilk][what].take = val;
+        }
+        else revert("Jug/unknown-heir");
+    }
+    function file(bytes32 ilk, uint256 what, uint256 val, address addr) external note auth {
+        (clan[ilk].boon <= what) ? form(ilk, val, addr) : fix(ilk, what, val);
+    }
 
     // --- Utils ---
+    function form(bytes32 ilk, uint256 val, address addr) internal {
+        require(val > 0, "Jug/null-val");
+        require(born[addr] == 0, "Jug/already-born");
+        require(add(gift.range(), ONE) <= max, "Jug/exceeds-max");
+        require(add(clan[ilk].cut, val) < HUNDRED, "Jug/too-much-cut");
+        born[addr]                     = ONE;
+        clan[ilk].boon                 = add(clan[ilk].boon, ONE);
+        clan[ilk].cut                  = add(clan[ilk].cut, val);
+        heirs[ilk][clan[ilk].boon].cut = val;
+        heirs[ilk][clan[ilk].boon].gal = addr;
+        last                           = clan[ilk].boon;
+        gift.push(clan[ilk].boon, true);
+    }
+    function fix(bytes32 ilk, uint256 what, uint256 val) internal {
+        require(both(gift.isNode(what), heirs[ilk][what].cut > 0), "Jug/unknown-heir");
+        if (val == 0) {
+          born[heirs[ilk][what].gal] = 0;
+          clan[ilk].cut  = sub(clan[ilk].cut, heirs[ilk][what].cut);
+          if (what == last) {
+            (, uint256 prev) = gift.prev(last);
+            last = prev;
+          }
+          gift.del(what);
+          delete(heirs[ilk][what]);
+        } else {
+          uint256 Cut = add(sub(clan[ilk].cut, heirs[ilk][what].cut), val);
+          require(Cut < HUNDRED, "Jug/too-much-cut");
+          clan[ilk].cut                  = Cut;
+          heirs[ilk][clan[ilk].boon].cut = val;
+        }
+    }
     function late() public view returns (bool ko) {
         for (uint i = 0; i < bank.length; i++) {
           if (now > ilks[bank[i]].rho) {
@@ -144,14 +213,14 @@ contract Jug is LibNote {
         }
     }
     function lap() public view returns (bool ok, int rad) {
-        int  diff;
+        int  diff_;
         uint Art;
         int  good_ = -int(vat.good(vow));
         for (uint i = 0; i < bank.length; i++) {
           if (now > ilks[bank[i]].rho) {
             (Art, )  = vat.ilks(bank[i]);
-            (, diff) = drop(bank[i]);
-            rad = add(rad, mul(Art, diff));
+            (, diff_) = drop(bank[i]);
+            rad = add(rad, mul(Art, diff_));
           }
         }
         if (rad < 0) {
@@ -164,25 +233,43 @@ contract Jug is LibNote {
     // --- Stability Fee Collection ---
     function drop(bytes32 ilk) internal view returns (uint, int) {
         (, uint prev) = vat.ilks(ilk);
-        uint rate  = rmul(rpow(add(base, ilks[ilk].duty), sub(now, ilks[ilk].rho), RAY), prev);
+        uint rate = rmul(rpow(add(base, ilks[ilk].duty), sub(now, ilks[ilk].rho), RAY), prev);
         int  diff_ = diff(rate, prev);
         return (rate, diff_);
     }
     function drip() external note {
         for (uint i = 0; i < bank.length; i++) {
-            if (now > ilks[bank[i]].rho) {drip(bank[i]);}
+            if (now >= ilks[bank[i]].rho) {drip(bank[i]);}
         }
     }
     function drip(bytes32 ilk) public note returns (uint) {
         require(now >= ilks[ilk].rho, "Jug/invalid-now");
-        int  good_           = -int(vat.good(vow));
-        (uint Art, )         = vat.ilks(ilk);
         (uint rate, int rad) = drop(ilk);
-        int leap = mul(Art, rad);
-        if ( either(leap >= 0, both(leap < 0, good_ <= leap)) ) {
-          vat.fold(ilk, vow, rad);
-        }
+        roll(ilk, rad);
         ilks[ilk].rho = now;
         return rate;
+    }
+    function roll(bytes32 ilk, int rad) internal {
+        (uint Art, )  = vat.ilks(ilk);
+        int256  left  = rad;
+        uint256 prev_ = last;
+        int256  much;
+        int256  leap;
+        int     good_;
+        while (prev_ > 0) {
+          good_  = -int(vat.good(heirs[ilk][prev_].gal));
+          much   = mul(RAY, rad) / int(heirs[ilk][prev_].cut);
+          leap   = mul(Art, much);
+          if ( either(leap >= 0, both(both(leap < 0, good_ <= leap), heirs[ilk][prev_].take > 0)) ) {
+            vat.fold(ilk, heirs[ilk][prev_].gal, much);
+          }
+          left = sub(left, much);
+          (, prev_) = gift.prev(prev_);
+        }
+        good_  = -int(vat.good(vow));
+        leap   = mul(Art, left);
+        if ( either(leap >= 0, both(leap < 0, good_ <= leap)) ) {
+          vat.fold(ilk, vow, left);
+        }
     }
 }

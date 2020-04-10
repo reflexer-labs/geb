@@ -169,7 +169,7 @@ contract Flapper1 is LibNote {
 }
 
 /*
-  This thing automatically buys gov tokens from DEXs with surplus coming from Vow.
+  This thing automatically buys gov tokens from DEXs with surplus coming from Vow
 */
 
 contract Flapper2 is LibNote {

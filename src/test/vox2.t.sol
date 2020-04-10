@@ -237,7 +237,7 @@ contract Vox2Test is DSTest {
         }
     }
 
-    function sudden_big_deviation(int side_) internal {
+    function sudden_big_deviation(int side_, uint times) internal {
         uint price = 1 ether;
         uint i;
         for (i = 0; i <= bowl; i++) {
@@ -248,7 +248,8 @@ contract Vox2Test is DSTest {
         }
 
         hevm.warp(now + 1 seconds);
-        price = add(price, mul(side_ * int(-1), trim * 50));
+        price = add(price, mul(side_ * int(-1), trim * times));
+
         stableFeed.poke(price);
         vox.back();
     }
@@ -415,14 +416,124 @@ contract Vox2Test is DSTest {
         assertEq(pid, ray(1 ether));
     }
 
-    // function test_sudden_big_negative_deviation() public {
-    //     sudden_big_deviation(1);
-    //
-    // }
-    //
-    // function test_sudden_big_positive_deviation() public {
-    //     sudden_big_deviation(-1);
-    // }
+    function test_sudden_big_negative_deviation() public {
+        sudden_big_deviation(1, 20);
+
+        assertEq(vox.site(), 1);
+
+        assertEq(spot.way(), 1000000026434345167789949754);
+        assertEq(spot.par(), ray(1 ether));
+        assertEq(vox.fix(), 905833333333333331000000000);
+
+        assertEq(vox.cron(1), int(833333333333333000000000));
+        assertEq(vox.cron(2), int(1666666666666666000000000));
+        assertEq(vox.cron(3), int(2499999999999999000000000));
+        assertEq(vox.cron(4), int(3333333333333332000000000));
+        assertEq(vox.cron(5), int(4166666666666665000000000));
+        assertEq(vox.cron(6), int(4999999999999998000000000));
+        assertEq(vox.cron(7), int(5833333333333331000000000));
+        assertEq(vox.cron(8), int(-94166666666666669000000000));
+
+        assertEq(vox.fat(), int(9999999999999996000000000));
+        assertEq(int(vox.thin()), int(-83333333333333340000000000));
+        assertEq(vox.fit(), -73333333333333344000000000);
+
+        // Push more prices in order to test reaction to big deviation
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(1.005 ether);
+        vox.back();
+
+        assertEq(spot.way(), 1000000011380137982592083044);
+        assertEq(spot.par(), 1000000026434345167789949754);
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(1.005 ether);
+        vox.back();
+
+        assertEq(spot.way(), 1000000009593222078580520730);
+        assertEq(spot.par(), 1000000037814483451208528286);
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(1.005 ether);
+        vox.back();
+
+        assertEq(spot.way(), 1000000000201292473137013550);
+        assertEq(spot.par(), 1000000047407705892551786550);
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(1.005 ether);
+        vox.back();
+
+        assertEq(spot.way(), 1000000000201292131336386858);
+        assertEq(spot.par(), 1000000047608998375231614464);
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(1.005 ether);
+        vox.back();
+
+        assertEq(spot.way(), 1000000000202409475952048060);
+        assertEq(spot.par(), 1000000047810290516151318075);
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(1.005 ether);
+        vox.back();
+
+        assertEq(spot.way(), 1000000000000000000000000000);
+        assertEq(spot.par(), 1000000048012700001780621983);
+    }
+
+    function test_sudden_big_positive_deviation() public {
+        sudden_big_deviation(-1, 20);
+
+        assertEq(vox.site(), -1);
+        assertEq(vox.road(), -1);
+
+        assertEq(spot.way(), RAY);
+        assertEq(spot.par(), ray(1 ether));
+        assertEq(vox.fix(), 1094166666666666669000000000);
+
+        assertEq(vox.cron(1), -int(833333333333333000000000));
+        assertEq(vox.cron(2), -int(1666666666666666000000000));
+        assertEq(vox.cron(3), -int(2499999999999999000000000));
+        assertEq(vox.cron(4), -int(3333333333333332000000000));
+        assertEq(vox.cron(5), -int(4166666666666665000000000));
+        assertEq(vox.cron(6), -int(4999999999999998000000000));
+        assertEq(vox.cron(7), -int(5833333333333331000000000));
+        assertEq(vox.cron(8), int(94166666666666669000000000));
+
+        assertEq(vox.fat(), int(-9999999999999996000000000));
+        assertEq(int(vox.thin()), int(83333333333333340000000000));
+        assertEq(vox.fit(), 73333333333333344000000000);
+
+        // Push more prices in order to test reaction to big deviation
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(0.995 ether);
+        vox.back();
+
+        assertEq(spot.way(), 999999981676929878779197921);
+        assertEq(spot.par(), 1000000000000000000000000000);
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(0.995 ether);
+        vox.back();
+
+        assertEq(spot.way(), 999999985846020406211282846);
+        assertEq(spot.par(), 999999981676929878779197921);
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(0.995 ether);
+        vox.back();
+
+        assertEq(spot.way(), 999999999636432819784832491);
+        assertEq(spot.par(), 999999967522950544334841358);
+
+        hevm.warp(now + 1 seconds);
+        stableFeed.poke(0.995 ether);
+        vox.back();
+
+        assertEq(spot.way(), 999999999636433428513951286);
+        assertEq(spot.par(), 999999967159383375927263141);
+    }
 
     // TODO: simplify test
     function test_deviation_waves() public {
