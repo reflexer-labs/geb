@@ -1,4 +1,4 @@
-/// flap.sol -- Gov token buyout
+/// flap.sol -- Gov token burning
 
 // Copyright (C) 2018 Rain <rainbreak@riseup.net>
 // Copyright (C) 2020 Stefan C. Ionescu <stefanionescu@protonmail.com>

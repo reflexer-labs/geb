@@ -1,6 +1,6 @@
-# Reflex-Bond System
+# Reflexer Protocol
 
-This repository contains the core smart contract code for Reflex-Bond System.
+This repository contains the core smart contract code for Reflexer Protocol.
 
 # What is a Reflex-Bond?
 
@@ -20,5 +20,4 @@ To summarise:
 - A second Flapper version that buys protocol tokens from DEXs and burns them
 - A CDP holder can specify a trigger for when their CDP gets bitten. The trigger can, for example, sell a position in another protocol and add more collateral in the CDP, thus saving it from liquidation
 - Jug drips part of the stability fees in a separate contract that pays for oracle calls
-- (TODO) stability fee "treasury" that manages sf payments to different addresses (e.g oracles)
 - (TODO) default scenarios for triggering End without the need for ESM (in a separate repo)

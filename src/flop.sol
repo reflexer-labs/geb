@@ -23,6 +23,10 @@ contract VatLike {
     function move(address,address,uint) external;
     function suck(address,address,uint) external;
 }
+contract VowLike {
+    function Ash() external view returns (uint256);
+    function kiss(uint256) external;
+}
 contract GemLike {
     function mint(address,uint) external;
 }
@@ -133,6 +137,14 @@ contract Flopper is LibNote {
         require(mul(beg, lot) <= mul(bids[id].lot, ONE), "Flopper/insufficient-decrease");
 
         vat.move(msg.sender, bids[id].guy, bid);
+
+        // TODO: make tests for this stuck debt fix
+
+        // if (bids[id].tic == 0) {
+        //   VowLike vow = VowLike(bids[id].guy);  // first guy = gal = Vow
+        //   uint rad = vow.Ash() >= bid ? bid : vow.Ash();
+        //   vow.kiss(rad);
+        // }
 
         bids[id].guy = msg.sender;
         bids[id].lot = lot;

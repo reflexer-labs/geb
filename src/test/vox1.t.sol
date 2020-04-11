@@ -1,4 +1,4 @@
-/// vox.t.sol -- tests for vox.sol
+/// vox1.t.sol -- tests for Vox1
 
 // Copyright (C) 2015-2020  DappHub, LLC
 // Copyright (C) 2020       Stefan C. Ionescu <stefanionescu@protonmail.com>
