@@ -19,5 +19,5 @@ To summarise:
 - Apart from 'spot', we added 'risk'. CDP creators use spot when creating bonds/pegged coins but get liquidated at risk. An incentive mechanism for keeping CDPs above spot is still being designed
 - A second Flapper version that buys protocol tokens from DEXs and burns them
 - A CDP holder can specify a trigger for when their CDP gets bitten. The trigger can, for example, sell a position in another protocol and add more collateral in the CDP, thus saving it from liquidation
-- Jug drips part of the stability fees in a separate contract that pays for oracle calls
+- Jug can drip stability fees in multiple contracts at once
 - (TODO) default scenarios for triggering End without the need for ESM (in a separate repo)
