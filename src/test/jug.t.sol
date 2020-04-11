@@ -173,14 +173,38 @@ contract JugTest is DSTest {
         jug.init("j");
         jug.file("vow", ali);
 
-        jug.file("i", "duty", 1050000000000000000000000000);  // 5% / second
-        jug.file("j", "duty", 1000000000000000000000000000);  // 0% / second
+        jug.file("i", "duty", 1050000000000000000000000000); // 5% / second
+        jug.file("j", "duty", 1000000000000000000000000000); // 0% / second
         jug.file("base",  uint(50000000000000000000000000)); // 5% / second
         hevm.warp(now + 1);
         jug.drip("i");
         assertEq(wad(vat.good(ali)), 10 ether);
     }
-    function test_drip_all() public {
+    // function test_drip_all_positive() public {
+    //     vat.init("j");
+    //     draw("j", 100 ether);
+    //
+    //     jug.init("i");
+    //     jug.init("j");
+    //     jug.file("vow", ali);
+    //
+    //     jug.file("i", "duty", 1050000000000000000000000000);  // 5% / second
+    //     jug.file("j", "duty", 1030000000000000000000000000);  // 3% / second
+    //     jug.file("base",  uint(50000000000000000000000000));  // 5% / second
+    //
+    //     hevm.warp(now + 1);
+    //     jug.drip();
+    //
+    //     assertEq(wad(vat.good(ali)), 18 ether);
+    //
+    //     (, uint rho) = jug.ilks("i");
+    //     assertEq(rho, now);
+    //     (, rho) = jug.ilks("j");
+    //     assertEq(rho, now);
+    //
+    //     assertTrue(!jug.late());
+    // }
+    function test_drip_all_some_negative() public {
         vat.init("j");
         draw("j", 100 ether);
 
@@ -188,14 +212,15 @@ contract JugTest is DSTest {
         jug.init("j");
         jug.file("vow", ali);
 
-        jug.file("i", "duty", 1050000000000000000000000000);  // 5% / second
-        jug.file("j", "duty", 1000000000000000000000000000);  // 0% / second
-        jug.file("base",  uint(50000000000000000000000000)); // 5% / second
+        jug.file("i", "duty", 1050000000000000000000000000);
+        jug.file("j", "duty", 900000000000000000000000000);
 
-        hevm.warp(now + 1);
-        jug.drip();
+        hevm.warp(now + 10);
+        jug.drip("i");
+        assertEq(wad(vat.good(ali)), 62889462677744140625);
 
-        assertEq(wad(vat.good(ali)), 15 ether);
+        jug.drip("j");
+        assertEq(wad(vat.good(ali)), 0);
 
         (, uint rho) = jug.ilks("i");
         assertEq(rho, now);
@@ -214,9 +239,12 @@ contract JugTest is DSTest {
 
         jug.file("i", "duty", 1050000000000000000000000000);  // 5% / second
         jug.file("j", "duty", 1000000000000000000000000000);  // 0% / second
-        jug.file("base",  uint(50000000000000000000000000)); // 5% / second
+        jug.file("base",  uint(50000000000000000000000000));  // 5% / second
 
         hevm.warp(now + 1);
+        assertTrue(jug.late());
+
+        jug.drip("i");
         assertTrue(jug.late());
     }
     function test_file_duty() public {

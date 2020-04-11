@@ -231,7 +231,7 @@ contract Jug is LibNote {
     }
 
     // --- Stability Fee Collection ---
-    function drop(bytes32 ilk) internal view returns (uint, int) {
+    function drop(bytes32 ilk) public view returns (uint, int) {
         (, uint prev) = vat.ilks(ilk);
         uint rate = rmul(rpow(add(base, ilks[ilk].duty), sub(now, ilks[ilk].rho), RAY), prev);
         int  diff_ = diff(rate, prev);
@@ -246,30 +246,31 @@ contract Jug is LibNote {
         require(now >= ilks[ilk].rho, "Jug/invalid-now");
         (uint rate, int rad) = drop(ilk);
         roll(ilk, rad);
+        (, rate) = vat.ilks(ilk);
         ilks[ilk].rho = now;
         return rate;
     }
     function roll(bytes32 ilk, int rad) internal {
         (uint Art, )  = vat.ilks(ilk);
-        int256  left  = rad;
         uint256 prev_ = last;
-        int256  much;
+        int256  left  = rad;
         int256  leap;
-        int     good_;
+        int256  much;
+        int256  good_;
         while (prev_ > 0) {
-          good_  = -int(vat.good(heirs[ilk][prev_].gal));
-          much   = mul(RAY, rad) / int(heirs[ilk][prev_].cut);
-          leap   = mul(Art, much);
-          if ( either(leap >= 0, both(both(leap < 0, good_ <= leap), heirs[ilk][prev_].take > 0)) ) {
+          good_ = -int(vat.good(heirs[ilk][prev_].gal));
+          much  = mul(RAY, rad) / int(heirs[ilk][prev_].cut);
+          leap  = mul(Art, much);
+          much  = (both(leap < 0, good_ > leap)) ? good_ / int(Art) : much;
+          if ( both(much != 0, either(rad >= 0, both(much < 0, heirs[ilk][prev_].take > 0))) ) {
             vat.fold(ilk, heirs[ilk][prev_].gal, much);
+            left = (rad < 0) ? add(left, much) : add(left, -much);
           }
-          left = sub(left, much);
           (, prev_) = gift.prev(prev_);
         }
-        good_  = -int(vat.good(vow));
-        leap   = mul(Art, left);
-        if ( either(leap >= 0, both(leap < 0, good_ <= leap)) ) {
-          vat.fold(ilk, vow, left);
-        }
+        good_ = -int(vat.good(vow));
+        leap  = mul(Art, left);
+        left  = (both(leap < 0, good_ > leap)) ? good_ / int(Art) : left;
+        if (left != 0) vat.fold(ilk, vow, left);
     }
 }

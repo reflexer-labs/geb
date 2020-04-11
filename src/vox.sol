@@ -419,7 +419,7 @@ contract Vox2 is LibNote, Exp {
     // --- Fluctuating Variables ---
     int256  public site;   // latest type of deviation between the integral accumulator and par
     int256  public road;   // latest type of deviation between fix and par
-    uint256 public fix;    // latest market price                                          [ray]
+    uint256 public fix;    // latest market price                                        [ray]
 
     // --- Accumulator ---
     int256[] public cron; // deviation history
@@ -454,7 +454,6 @@ contract Vox2 is LibNote, Exp {
         up   = MAX;
         down = MAX;
         rho  = now;
-        zzz  = now;
         spot = SpotLike(spot_);
         fix  = spot.par();
         core = PID(RAY, RAY);
@@ -635,7 +634,7 @@ contract Vox2 is LibNote, Exp {
           diff = -diff;
         }
 
-        // If diff is smaller than both x and y, make it zero
+        // If diff is smaller than either -x or -y, make it zero
         diff = (both(diff < 0, both(site_ > 0, diff < int(-y)))) ? 0 : diff;
         diff = (both(diff < 0, both(site_ < 0, diff < int(-x)))) ? 0 : diff;
 

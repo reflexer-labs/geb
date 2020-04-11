@@ -1,6 +1,6 @@
-# Reflex-Bond System
+# Reflexer Protocol
 
-This repository contains the core smart contract code for Reflex-Bond System.
+This repository contains the core smart contract code for Reflexer Protocol.
 
 # What is a Reflex-Bond?
 

@@ -1,4 +1,4 @@
-/// vox.t.sol -- tests for vox.sol
+/// vox2.t.sol -- tests for Vox2
 
 // Copyright (C) 2015-2020  DappHub, LLC
 // Copyright (C) 2020       Stefan C. Ionescu <stefanionescu@protonmail.com>
@@ -730,5 +730,13 @@ contract Vox2Test is DSTest {
         assertEq(vox.thin(), -35000167187918942647651166);
         assertEq(vox.fat(), -20000186289296664295191122);
         assertEq(vox.fit(), -55000353477215606942842288);
+    }
+
+    function test_mixed_deviations() public {
+        sudden_big_deviation(1, 30);
+        sudden_big_deviation(-1, 40);
+        major_one_side_deviations(1, 4);
+        major_one_side_deviations(-1, 3);
+        zig_zag_deviations(-1, 20);
     }
 }
