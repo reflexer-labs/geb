@@ -136,7 +136,10 @@ contract Flopper is LibNote {
         require(lot <  bids[id].lot, "Flopper/lot-not-lower");
         require(mul(beg, lot) <= mul(bids[id].lot, ONE), "Flopper/insufficient-decrease");
 
-        vat.move(msg.sender, bids[id].guy, bid);
+        if (msg.sender != bids[id].guy) {
+            vat.move(msg.sender, bids[id].guy, bid);
+            bids[id].guy = msg.sender;
+        }
 
         // TODO: make tests for this stuck debt fix
 
@@ -146,7 +149,6 @@ contract Flopper is LibNote {
         //   vow.kiss(rad);
         // }
 
-        bids[id].guy = msg.sender;
         bids[id].lot = lot;
         bids[id].tic = add(uint48(now), ttl);
     }

@@ -86,6 +86,15 @@ contract FlapOneTest is DSTest {
         assertEq(vat.good(address(this)),  900 ether);
         assertEq(vat.good(address(flap)),  100 ether);
     }
+    function test_tend_same_bidder() public {
+        uint id = flap.kick({ lot: 100 ether
+                            , bid: 0
+                            });
+        Guy(ali).tend(id, 100 ether, 190 ether);
+        assertEq(gem.balanceOf(ali), 10 ether);
+        Guy(ali).tend(id, 100 ether, 200 ether);
+        assertEq(gem.balanceOf(ali), 0);
+    }
     function test_tend() public {
         uint id = flap.kick({ lot: 100 ether
                             , bid: 0

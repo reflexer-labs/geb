@@ -151,6 +151,21 @@ contract FlipTest is DSTest {
         // can't tend on non-existent
         flip.tend(42, 0, 0);
     }
+    function test_tend_dent_same_bidder() public {
+       uint id = flip.kick({ lot: 100 ether
+                            , tab: 200 ether
+                            , usr: usr
+                            , gal: gal
+                            , bid: 0
+                            });
+
+        assertEq(vat.coin_balance(ali), 200 ether);
+        Guy(ali).tend(id, 100 ether, 190 ether);
+        assertEq(vat.coin_balance(ali), 10 ether);
+        Guy(ali).tend(id, 100 ether, 200 ether);
+        assertEq(vat.coin_balance(ali), 0);
+        Guy(ali).dent(id, 80 ether, 200 ether);
+    }
     function test_tend() public {
         uint id = flip.kick({ lot: 100 ether
                             , tab: 50 ether

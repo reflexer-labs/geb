@@ -59,11 +59,11 @@ contract Jug is LibNote {
 
     address    public vow;
     uint256    public base;
-    uint256    public max;  // max number of heirs an ilk can have
+    uint256    public max;  // max number of heirs any ilk can have
     uint256    public last; // latest node
 
     bytes32[]  public  bank;
-    Link.List  private gift;
+    Link.List  internal gift;
 
     VatLike    public vat;
 
@@ -176,7 +176,7 @@ contract Jug is LibNote {
         (clan[ilk].boon < what) ? form(ilk, val, addr) : fix(ilk, what, val);
     }
 
-    // --- Stability Fee Targets ---
+    // --- Stability Fee Heirs ---
     function form(bytes32 ilk, uint256 val, address addr) internal {
         require(addr != address(0), "Jug/null-heir");
         require(addr != vow, "Jug/vow-cannot-heir");
@@ -236,6 +236,14 @@ contract Jug is LibNote {
         } else {
           ok = true;
         }
+    }
+
+    // --- Gifts Utils ---
+    function range() public view returns (uint) {
+        return gift.range();
+    }
+    function isNode(uint256 _node) public view returns (bool) {
+        return gift.isNode(_node);
     }
 
     // --- Stability Fee Collection ---

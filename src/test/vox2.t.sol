@@ -738,5 +738,12 @@ contract Vox2Test is DSTest {
         major_one_side_deviations(1, 4);
         major_one_side_deviations(-1, 3);
         zig_zag_deviations(-1, 20);
+
+        assertTrue(spot.par() != 0);
+        assertTrue(spot.way() != 0);
+        assertTrue(vox.fix() != 0);
+        assertTrue(vox.fat() != 0);
+        assertTrue(vox.thin() != 0);
+        assertTrue(vox.fit() != 0);
     }
 }

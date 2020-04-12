@@ -64,14 +64,14 @@ contract Pot is LibNote {
     constructor(address vat_) public {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
-        sr = ONE;
-        chi = ONE;
+        sr = RAY;
+        chi = RAY;
         rho = now;
         live = 1;
     }
 
     // --- Math ---
-    uint256 constant ONE = 10 ** 27;
+    uint256 constant RAY = 10 ** 27;
     function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
         assembly {
             switch x case 0 {switch n case 0 {z := base} default {z := 0}}
@@ -97,7 +97,7 @@ contract Pot is LibNote {
     }
 
     function rmul(uint x, uint y) internal pure returns (uint z) {
-        z = mul(x, y) / ONE;
+        z = mul(x, y) / RAY;
     }
 
     function add(uint x, uint y) internal pure returns (uint z) {
@@ -127,17 +127,21 @@ contract Pot is LibNote {
 
     function cage() external note auth {
         live = 0;
-        sr = ONE;
+        sr = RAY;
     }
 
     // --- Savings Rate Accumulation ---
     function drip() external note returns (uint tmp) {
         require(now >= rho, "Pot/invalid-now");
-        tmp = rmul(rpow(sr, sub(now, rho), ONE), chi);
+        tmp = rmul(rpow(sr, sub(now, rho), RAY), chi);
         uint chi_ = sub(tmp, chi);
         chi = tmp;
         rho = now;
         vat.suck(address(vow), address(this), mul(Pie, chi_));
+    }
+    function drop() external view returns (uint) {
+        if (now == rho) return chi;
+        return rmul(rpow(sr, sub(now, rho), RAY), chi);
     }
 
     // --- Savings Management ---

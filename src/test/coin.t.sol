@@ -377,7 +377,7 @@ contract CoinTest is DSTest {
         assertEq(token.DOMAIN_SEPARATOR(), 0x97141fb38ffcc05ea35adb1bbbb8bad44b568ce6423f4a9466d8e215ec2398c4);
     }
 
-    //TODO: remake with v,r,s for coin now that we changed the DOMAIN SEPARATOR because of the dai->coin rename
+    //TODO: remake with v,r,s for coin now that we changed the DOMAIN SEPARATOR because of the dai->coin renaming
 
     // function testPermit() public {
     //     assertEq(token.nonces(cal), 0);
@@ -392,7 +392,7 @@ contract CoinTest is DSTest {
         token.permit(address(0), del, 0, 0, true, v, r, s);
     }
 
-    //TODO: remake with _v,_r,_s for coin now that we changed the DOMAIN SEPARATOR because of the dai->coin rename
+    //TODO: remake with _v,_r,_s for coin now that we changed the DOMAIN SEPARATOR because of the dai->coin renaming
 
     // function testPermitWithExpiry() public {
     //     assertEq(now, 604411200);

@@ -634,7 +634,7 @@ contract Vox2 is LibNote, Exp {
           diff = -diff;
         }
 
-        // If diff is smaller than either -x or -y, make it zero
+        // If diff is smaller than -x or -y (depending on site_), make it zero
         diff = (both(diff < 0, both(site_ > 0, diff < int(-y)))) ? 0 : diff;
         diff = (both(diff < 0, both(site_ < 0, diff < int(-x)))) ? 0 : diff;
 
