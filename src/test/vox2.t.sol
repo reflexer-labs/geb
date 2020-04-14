@@ -337,9 +337,9 @@ contract Vox2Test is DSTest {
         assertEq(spot.par(), 1000000028783058593493768971);
         assertEq(vox.fix(), ray(0.965 ether));
 
-        assertEq(vox.fat(), int(-ray(0.165 ether)));
-        assertEq(int(vox.thin()), int(-120000063727530115134064360));
-        assertEq(vox.fit(), int(-285000063727530115134064360));
+        assertEq(vox.og(), int(-ray(0.165 ether)));
+        assertEq(int(vox.baby()), int(-120000063727530115134064360));
+        assertEq(vox.all(), int(-285000063727530115134064360));
 
         (int P, int I , int D, uint pid) = vox.full(spot.par(), vox.fix(), vox.site(), vox.road());
 
@@ -368,9 +368,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.cron(5), int(ray(0.035 ether)));
         assertEq(vox.cron(6), int(ray(0.030 ether)));
 
-        assertEq(vox.fat(), int(ray(0.105 ether)));
-        assertEq(int(vox.thin()), int(60000057219766193509306514));
-        assertEq(vox.fit(), int(165000057219766193509306514));
+        assertEq(vox.og(), int(ray(0.105 ether)));
+        assertEq(int(vox.baby()), int(60000057219766193509306514));
+        assertEq(vox.all(), int(165000057219766193509306514));
 
         (int P, int I , int D, uint pid) = vox.full(vox.fix(), spot.par(), vox.site(), vox.road());
 
@@ -404,9 +404,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.cron(11), int(-ray(0.1 ether)));
         assertEq(vox.cron(12), int(ray(0.1 ether)));
 
-        assertEq(vox.fat(), int(ray(0.1 ether)));
-        assertEq(int(vox.thin()), int(-ray(0.1 ether)));
-        assertEq(vox.fit(), 0);
+        assertEq(vox.og(), int(ray(0.1 ether)));
+        assertEq(int(vox.baby()), int(-ray(0.1 ether)));
+        assertEq(vox.all(), 0);
 
         (int P, int I , int D, uint pid) = vox.full(spot.par(), vox.fix(), vox.site(), vox.road());
 
@@ -434,9 +434,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.cron(7), int(5833333333333331000000000));
         assertEq(vox.cron(8), int(-94166666666666669000000000));
 
-        assertEq(vox.fat(), int(9999999999999996000000000));
-        assertEq(int(vox.thin()), int(-83333333333333340000000000));
-        assertEq(vox.fit(), -73333333333333344000000000);
+        assertEq(vox.og(), int(9999999999999996000000000));
+        assertEq(int(vox.baby()), int(-83333333333333340000000000));
+        assertEq(vox.all(), -73333333333333344000000000);
 
         // Push more prices in order to test reaction to big deviation
         hevm.warp(now + 1 seconds);
@@ -501,9 +501,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.cron(7), -int(5833333333333331000000000));
         assertEq(vox.cron(8), int(94166666666666669000000000));
 
-        assertEq(vox.fat(), int(-9999999999999996000000000));
-        assertEq(int(vox.thin()), int(83333333333333340000000000));
-        assertEq(vox.fit(), 73333333333333344000000000);
+        assertEq(vox.og(), int(-9999999999999996000000000));
+        assertEq(int(vox.baby()), int(83333333333333340000000000));
+        assertEq(vox.all(), 73333333333333344000000000);
 
         // Push more prices in order to test reaction to big deviation
         hevm.warp(now + 1 seconds);
@@ -546,9 +546,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.fix(), 825000000000000000000000000);
         assertEq(spot.way(), 1000000029370913805045019395);
 
-        assertEq(vox.thin(), -450000029527503745421310299);
-        assertEq(vox.fat(), -225000000000000000000000000);
-        assertEq(vox.fit(), -675000029527503745421310299);
+        assertEq(vox.baby(), -450000029527503745421310299);
+        assertEq(vox.og(), -225000000000000000000000000);
+        assertEq(vox.all(), -675000029527503745421310299);
 
         // ---
 
@@ -563,9 +563,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.fix(), 1006000000000000000000000000);
         assertEq(spot.way(), 1000000015724819266824747955);
 
-        assertEq(vox.thin(), -319000088425922163137407377);
-        assertEq(vox.fat(), -300000000000000000000000000);
-        assertEq(vox.fit(), -619000088425922163137407377);
+        assertEq(vox.baby(), -319000088425922163137407377);
+        assertEq(vox.og(), -300000000000000000000000000);
+        assertEq(vox.all(), -619000088425922163137407377);
 
         // ---
 
@@ -582,9 +582,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.fix(), 1035000000000000000000000000);
         assertEq(spot.way(), 1000000003870787652425589541);
 
-        assertEq(vox.thin(), -134000163049160773845237130);
-        assertEq(vox.fat(), -375000000000000000000000000);
-        assertEq(vox.fit(), -509000163049160773845237130);
+        assertEq(vox.baby(), -134000163049160773845237130);
+        assertEq(vox.og(), -375000000000000000000000000);
+        assertEq(vox.all(), -509000163049160773845237130);
 
         // ---
 
@@ -599,9 +599,9 @@ contract Vox2Test is DSTest {
 
         assertEq(spot.way(), 1000000000242001321791172359);
 
-        assertEq(vox.thin(), 115999787984316419591943277);
-        assertEq(vox.fat(), -450000029527503745421310299);
-        assertEq(vox.fit(), -334000241543187325829367022);
+        assertEq(vox.baby(), 115999787984316419591943277);
+        assertEq(vox.og(), -450000029527503745421310299);
+        assertEq(vox.all(), -334000241543187325829367022);
 
         // ---
 
@@ -615,9 +615,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.fix(), 1075000000000000000000000000);
         assertEq(spot.way(), 1000000001180750080709243029);
 
-        assertEq(vox.thin(), 184999768146706944537079926);
-        assertEq(vox.fat(), -319000088425922163137407377);
-        assertEq(vox.fit(), -134000320279215218600327451);
+        assertEq(vox.baby(), 184999768146706944537079926);
+        assertEq(vox.og(), -319000088425922163137407377);
+        assertEq(vox.all(), -134000320279215218600327451);
 
         // ---
 
@@ -631,9 +631,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.fix(), 1075000000000000000000000000);
         assertEq(spot.way(), 999999990482702392239753688);
 
-        assertEq(vox.thin(), 224999762853167488797134932);
-        assertEq(vox.fat(), -134000163049160773845237130);
-        assertEq(vox.fit(), 90999599804006714951897802);
+        assertEq(vox.baby(), 224999762853167488797134932);
+        assertEq(vox.og(), -134000163049160773845237130);
+        assertEq(vox.all(), 90999599804006714951897802);
 
         // ---
 
@@ -647,9 +647,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.fix(), ray(0.990 ether));
         assertEq(spot.way(), 999999988830212436175464411);
 
-        assertEq(vox.thin(), 139999770947714342685497101);
-        assertEq(vox.fat(), 115999787984316419591943277);
-        assertEq(vox.fit(), 255999558932030762277440378);
+        assertEq(vox.baby(), 139999770947714342685497101);
+        assertEq(vox.og(), 115999787984316419591943277);
+        assertEq(vox.all(), 255999558932030762277440378);
 
         // ---
 
@@ -663,9 +663,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.fix(), ray(0.995 ether));
         assertEq(spot.way(), 999999997430434422546000846);
 
-        assertEq(vox.thin(), 59999790454050887532458228);
-        assertEq(vox.fat(), 184999768146706944537079926);
-        assertEq(vox.fit(), 244999558600757832069538154);
+        assertEq(vox.baby(), 59999790454050887532458228);
+        assertEq(vox.og(), 184999768146706944537079926);
+        assertEq(vox.all(), 244999558600757832069538154);
 
         // ---
 
@@ -679,9 +679,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.fix(), ray(0.995 ether));
         assertEq(spot.way(), 999999999431194701844308122);
 
-        assertEq(vox.thin(), -20000186289296664295191122);
-        assertEq(vox.fat(), 224999762853167488797134932);
-        assertEq(vox.fit(), 204999576563870824501943810);
+        assertEq(vox.baby(), -20000186289296664295191122);
+        assertEq(vox.og(), 224999762853167488797134932);
+        assertEq(vox.all(), 204999576563870824501943810);
 
         // ---
 
@@ -695,9 +695,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.fix(), ray(0.995 ether));
         assertEq(spot.way(), 999999999589655264660387835);
 
-        assertEq(vox.thin(), -15000171981137254090575972);
-        assertEq(vox.fat(), 139999770947714342685497101);
-        assertEq(vox.fit(), 124999598966577088594921129);
+        assertEq(vox.baby(), -15000171981137254090575972);
+        assertEq(vox.og(), 139999770947714342685497101);
+        assertEq(vox.all(), 124999598966577088594921129);
 
         // ---
 
@@ -711,9 +711,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.fix(), ray(0.985 ether));
         assertEq(spot.way(), 999999999734647610462053644);
 
-        assertEq(vox.thin(), -25000168432421435701339099);
-        assertEq(vox.fat(), 59999790454050887532458228);
-        assertEq(vox.fit(), 34999622021629451831119129);
+        assertEq(vox.baby(), -25000168432421435701339099);
+        assertEq(vox.og(), 59999790454050887532458228);
+        assertEq(vox.all(), 34999622021629451831119129);
 
         // ---
 
@@ -727,9 +727,9 @@ contract Vox2Test is DSTest {
         assertEq(vox.fix(), ray(0.985 ether));
         assertEq(spot.way(), 1000000003237738200330359969);
 
-        assertEq(vox.thin(), -35000167187918942647651166);
-        assertEq(vox.fat(), -20000186289296664295191122);
-        assertEq(vox.fit(), -55000353477215606942842288);
+        assertEq(vox.baby(), -35000167187918942647651166);
+        assertEq(vox.og(), -20000186289296664295191122);
+        assertEq(vox.all(), -55000353477215606942842288);
     }
 
     function test_mixed_deviations() public {
@@ -742,8 +742,8 @@ contract Vox2Test is DSTest {
         assertTrue(spot.par() != 0);
         assertTrue(spot.way() != 0);
         assertTrue(vox.fix() != 0);
-        assertTrue(vox.fat() != 0);
-        assertTrue(vox.thin() != 0);
-        assertTrue(vox.fit() != 0);
+        assertTrue(vox.og() != 0);
+        assertTrue(vox.baby() != 0);
+        assertTrue(vox.all() != 0);
     }
 }

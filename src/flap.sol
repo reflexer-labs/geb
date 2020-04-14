@@ -37,7 +37,7 @@ contract GemLike {
     function burn(address,uint) external;
 }
 contract BinLike {
-    function swap(address,address,address,uint256) external returns (uint256);
+    function tkntkn(bytes32,uint256,address,address[] calldata) external returns (uint256);
 }
 
 /*
@@ -191,8 +191,10 @@ contract Flapper2 is LibNote {
     BinLike     public bin;
     address     public safe;
 
-    uint256  public kicks = 0;
-    uint256  public live;
+    address[]   public path;
+
+    uint256     public kicks = 0;
+    uint256     public live;
 
     // --- Events ---
     event Kick(
@@ -205,6 +207,8 @@ contract Flapper2 is LibNote {
     constructor(address vat_) public {
         wards[msg.sender] = 1;
         vat = VatLike(vat_);
+        path.push(address(0));
+        path.push(address(0));
         live = 1;
     }
 
@@ -223,11 +227,21 @@ contract Flapper2 is LibNote {
         z = x / y;
     }
 
+    function both(bool x, bool y) internal pure returns (bool z) {
+        assembly{ z := and(x, y)}
+    }
+
     // --- Admin ---
     function file(bytes32 what, address addr) external note auth {
         require(live == 1, "Flapper2/not-live");
-        if (what == "bond") bond = GemLike(addr);
-        else if (what == "gov") gov = GemLike(addr);
+        if (what == "bond") {
+          bond    = GemLike(addr);
+          path[0] = addr;
+        }
+        else if (what == "gov") {
+          gov     = GemLike(addr);
+          path[1] = addr;
+        }
         else if (what == "join") {
           if (address(bond) != address(0)) {
             bond.approve(address(join), 0);
@@ -260,13 +274,14 @@ contract Flapper2 is LibNote {
         require(live == 1, "Flapper2/not-live");
         require(kicks < uint(-1), "Flapper2/overflow");
         require(safe != address(0), "Flapper2/no-safe");
+        require(both(path[0] != address(0), path[1] != address(0)), "Flapper2/null-path");
         require(lot % RAY == 0, "Flapper2/wasted-lot");
 
         id = ++kicks;
 
         uint own = bond.balanceOf(address(this));
         require(fund(div(lot, RAY), address(bin)) == true, "Flapper2/cannot-fund");
-        uint bid = bin.swap(address(this), address(bond), address(gov), div(lot, RAY));
+        uint bid = bin.tkntkn(bytes32(0), div(lot, RAY), address(this), path);
 
         require(bid > 0, "Flapper2/invalid-bid");
         require(bond.balanceOf(address(this)) == own, "Flapper2/cannot-buy");

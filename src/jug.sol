@@ -237,6 +237,13 @@ contract Jug is LibNote {
           ok = true;
         }
     }
+    function bend() public view returns (uint z) {
+        if (bank.length == 0) return base;
+        for (uint i = 0; i < bank.length; i++) {
+          z = add(base, ilks[bank[i]].duty);
+        }
+        return z / bank.length;
+    }
 
     // --- Gifts Utils ---
     function range() public view returns (uint) {
@@ -249,7 +256,7 @@ contract Jug is LibNote {
     // --- Stability Fee Collection ---
     function drop(bytes32 ilk) public view returns (uint, int) {
         (, uint prev) = vat.ilks(ilk);
-        uint rate = rmul(rpow(add(base, ilks[ilk].duty), sub(now, ilks[ilk].rho), RAY), prev);
+        uint rate  = rmul(rpow(add(base, ilks[ilk].duty), sub(now, ilks[ilk].rho), RAY), prev);
         int  diff_ = diff(rate, prev);
         return (rate, diff_);
     }

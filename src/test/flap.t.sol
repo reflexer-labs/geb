@@ -160,9 +160,9 @@ contract BinLike {
       give = give_;
     }
 
-    function swap(address lad, address bond, address gov, uint sell) external returns (uint) {
-        DSToken(bond).transferFrom(msg.sender, address(this), sell);
-        DSToken(gov).transfer(lad, give);
+    function tkntkn(bytes32 side, uint sell, address lad, address[] calldata path) external returns (uint) {
+        DSToken(path[0]).transferFrom(msg.sender, address(this), sell);
+        DSToken(path[1]).transfer(lad, give);
         return give;
     }
 }
@@ -213,6 +213,10 @@ contract FlapTwoTest is DSTest {
         gov.mint(1000 ether);
         gov.setOwner(address(flap));
         gov.push(address(bin), 200 ether);
+    }
+    function test_setup() public {
+        assertEq(flap.path(0), address(bond));
+        assertEq(flap.path(1), address(gov));
     }
     function test_kick() public {
         assertEq(vat.good(address(this)), rad(1000 ether));
