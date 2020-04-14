@@ -75,6 +75,16 @@ contract JugTest is DSTest {
         vat.frob(ilk, self, self, self, int(1 ether), int(coin));
     }
 
+    function test_bend() public {
+        jug.init("i");
+        jug.init("j");
+
+        jug.file("i", "duty", 999999706969857929985428567);
+        jug.file("j", "duty", 1000000564701133626865910626);
+
+        assertEq(jug.bend(0), 1000000135835495778425669596);
+        assertEq(jug.bend(ray(1 ether)), 2000000135835495778425669596);
+    }
     function test_drip_setup() public {
         hevm.warp(0);
         assertEq(uint(now), 0);

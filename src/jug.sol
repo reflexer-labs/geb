@@ -62,7 +62,7 @@ contract Jug is LibNote {
     uint256    public max;  // max number of heirs any ilk can have
     uint256    public last; // latest node
 
-    bytes32[]  public  bank;
+    bytes32[]  public   bank;
     Link.List  internal gift;
 
     VatLike    public vat;
@@ -237,12 +237,12 @@ contract Jug is LibNote {
           ok = true;
         }
     }
-    function bend() public view returns (uint z) {
-        if (bank.length == 0) return base;
+    function bend(uint base_) public view returns (uint256 z) {
+        if (bank.length == 0) return base_;
         for (uint i = 0; i < bank.length; i++) {
-          z = add(base, ilks[bank[i]].duty);
+          z = add(z, add(base_, ilks[bank[i]].duty));
         }
-        return z / bank.length;
+        z = z / bank.length;
     }
 
     // --- Gifts Utils ---
