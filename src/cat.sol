@@ -154,7 +154,7 @@ contract Cat is LibNote {
         require(live == 1, "Cat/not-live");
         require(both(risk > 0, mul(ink, risk) < mul(art, rate)), "Cat/not-unsafe");
 
-        //TODO: try/catch the Hero call
+        //TODO: try/catch the hero call
         if (tasks[ilk][urn] != address(0) && jobs[tasks[ilk][urn]] == 1) {
           (bool ok, uint dose) = HeroLike(tasks[ilk][urn]).help(msg.sender, ilk, urn);
           if (both(ok, dose > 0)) {

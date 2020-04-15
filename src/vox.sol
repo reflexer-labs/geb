@@ -406,28 +406,28 @@ contract Vox2 is LibNote, Exp {
     uint256 public up;   // upper bound for deaf                                         [ray]
     uint256 public down; // lower bound for deaf                                         [ray]
 
-    uint256 public rho;  // last timestamp of then deaf was updated
+    uint256 public rho;  // last timestamp of when deaf was updated
 
-    uint256 public pan;  // length of the og cron snapshot
-    uint256 public bowl; // length of the all cron snapshot
-    uint256 public mug;  // length of the baby cron snapshot
+    uint256 public dino;  // length of the og cron snapshot
+    uint256 public whole; // length of the all cron snapshot
+    uint256 public crude;  // length of the baby cron snapshot
 
     PID     public core; // default PID values
 
     uint256 public live; // access flag
 
     // --- Fluctuating Variables ---
-    int256  public site;   // latest type of deviation between the integral accumulator and par
-    int256  public road;   // latest type of deviation between fix and par
-    uint256 public fix;    // latest market price 
+    int256  public site;  // latest type of deviation between the integral accumulator and par
+    int256  public road;  // latest type of deviation between fix and par
+    uint256 public fix;   // latest market price
 
     // --- Accumulator ---
     int256[] public cron; // deviation history
     uint64   public zzz;  // latest update time of the OSM
 
-    int256   public og;   // accumulator used for derivative (old deviations) and manipulation resistance
+    int256   public og;   // accumulator used for the derivative (old deviations)
     int256   public all;  // integral accumulator
-    int256   public baby; // accumulator used for derivative (newer deviations)
+    int256   public baby; // accumulator used for the derivative (newer deviations)
 
     // --- Other System Components ---
     PipLike  public pip;
@@ -435,19 +435,19 @@ contract Vox2 is LibNote, Exp {
 
     constructor(
       address spot_,
-      uint256 pan_,
-      uint256 bowl_,
-      uint256 mug_
+      uint256 dino_,
+      uint256 whole_,
+      uint256 crude_
     ) public {
-        require(bowl_ == pan_ + mug_, "Vox2/pan-and-mug-must-sum-bowl");
-        require(bowl_ > 0, "Vox2/null-bowl");
+        require(whole_ == dino_ + crude_, "Vox2/dino-and-crude-must-sum-whole");
+        require(whole_ > 0, "Vox2/null-whole");
         wards[msg.sender] = 1;
         og   = 0;
         all  = 0;
         baby = 0;
-        pan  = pan_;
-        bowl = bowl_;
-        mug  = mug_;
+        dino  = dino_;
+        whole = whole_;
+        crude  = crude_;
         deaf = RAY;
         wand = RAY;
         up   = MAX;
@@ -612,10 +612,10 @@ contract Vox2 is LibNote, Exp {
         cron.push(x);
         // Update the integral accumulator
         all  = add(all, x);
-        if (cron.length > bowl) {all  = sub(all, cron[sub(cron.length, add(bowl, uint(1)))]);}
+        if (cron.length > whole) {all  = sub(all, cron[sub(cron.length, add(whole, uint(1)))]);}
         // Update the derivative accumulators
         baby = add(baby, x);
-        if (cron.length > mug)  {baby = sub(baby, cron[sub(cron.length, add(mug, uint(1)))]);}
+        if (cron.length > crude)  {baby = sub(baby, cron[sub(cron.length, add(crude, uint(1)))]);}
         og  = sub(all, baby);
     }
     // Calculate yearly rate according to PID settings
@@ -633,7 +633,7 @@ contract Vox2 is LibNote, Exp {
           diff = -diff;
         }
 
-        // If diff is smaller than -x or -y (depending on site_), make it zero
+        // If diff is smaller than -x or -y (depending on site_), make it zero for this update
         diff = (both(diff < 0, both(site_ > 0, diff < int(-y)))) ? 0 : diff;
         diff = (both(diff < 0, both(site_ < 0, diff < int(-x)))) ? 0 : diff;
 
@@ -677,11 +677,11 @@ contract Vox2 is LibNote, Exp {
           // Update accumulators and deviation history
           acc(dox(ray(uint(val)), par));
           // If we don't have enough datapoints, return
-          if (either(either(cron.length <= mug, cron.length <= bowl), cron.length <= pan)) return;
+          if (either(either(cron.length <= crude, cron.length <= whole), cron.length <= dino)) return;
           // Initialize new per-second target rate
           uint way_;
           // Compute the deviation of the all accumulator from par
-          int dev = (all == 0) ? 0 : all / int(bowl);
+          int dev = (all == 0) ? 0 : all / int(whole);
           // Compute the opposite of the current accumulator sign
           int site_ = (dev < 0) ? int(1) : int(-1);
           // Compute the opposite of the current market price deviation
