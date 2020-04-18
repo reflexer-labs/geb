@@ -70,9 +70,18 @@ contract Cat is LibNote {
         uint256 lump;  // Liquidation Quantity  [wad]
     }
 
+    // --- Locking ---
+    modifier lock() {
+        require(mutex == 0, "Cat/non-null-mutex");
+        mutex = 1;
+        _;
+        mutex = 0;
+    }
+
     mapping (bytes32 => Ilk)                         public ilks;
     mapping (bytes32 => mapping(address => address)) public tasks;
 
+    uint8   public mutex;
     uint256 public live;
 
     VatLike  public vat;
@@ -147,7 +156,7 @@ contract Cat is LibNote {
         require(j == address(0) || jobs[j] == 1, "Cat/job-not-allowed");
         tasks[ilk][urn] = j;
     }
-    function bite(bytes32 ilk, address urn) external returns (uint id) {
+    function bite(bytes32 ilk, address urn) external lock returns (uint id) {
         (, uint rate, , , , uint risk) = vat.ilks(ilk);
         (uint ink, uint art) = vat.urns(ilk, urn);
 

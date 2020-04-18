@@ -50,6 +50,9 @@ contract CatLike {
     );
     function cage() external;
 }
+contract PurseLike {
+    function cage() external;
+}
 contract VowLike {
     function cage() external;
 }
@@ -172,12 +175,13 @@ contract End is LibNote {
     }
 
     // --- Data ---
-    VatLike  public vat;
-    CatLike  public cat;
-    VowLike  public vow;
-    Spotty   public spot;
-    PotLike  public pot;
-    VoxLike  public vox;
+    VatLike   public vat;
+    CatLike   public cat;
+    VowLike   public vow;
+    Spotty    public spot;
+    PotLike   public pot;
+    VoxLike   public vox;
+    PurseLike public purse;
 
     uint256  public live;  // cage flag
     uint256  public when;  // time of cage
@@ -228,11 +232,12 @@ contract End is LibNote {
     function file(bytes32 what, address data) external note auth {
         require(live == 1, "End/not-live");
         if (what == "vat")  vat = VatLike(data);
-        else if (what == "cat")  cat = CatLike(data);
-        else if (what == "vow")  vow = VowLike(data);
-        else if (what == "spot") spot = Spotty(data);
-        else if (what == "pot") pot = PotLike(data);
-        else if (what == "vox") vox = VoxLike(data);
+        else if (what == "cat")   cat = CatLike(data);
+        else if (what == "vow")   vow = VowLike(data);
+        else if (what == "spot")  spot = Spotty(data);
+        else if (what == "pot")   pot = PotLike(data);
+        else if (what == "vox")   vox = VoxLike(data);
+        else if (what == "purse") purse = PurseLike(data);
         else revert("End/file-unrecognized-param");
     }
     function file(bytes32 what, uint256 data) external note auth {
@@ -255,6 +260,9 @@ contract End is LibNote {
         }
         if (address(vox) != address(0)) {
           vox.cage();
+        }
+        if (address(purse) != address(0)) {
+          purse.cage();
         }
     }
 

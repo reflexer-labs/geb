@@ -184,6 +184,13 @@ contract Flapper2 is LibNote {
         _;
     }
 
+    modifier lock() {
+        require(mutex == 0, "Flapper2/non-null-mutex");
+        mutex = 1;
+        _;
+        mutex = 0;
+    }
+
     VatLike     public vat;
     MaiJoinLike public join;
     GemLike     public bond;
@@ -193,6 +200,7 @@ contract Flapper2 is LibNote {
 
     address[]   public path;
 
+    uint8       public mutex;
     uint256     public kicks = 0;
     uint256     public live;
 
@@ -270,7 +278,7 @@ contract Flapper2 is LibNote {
     }
 
     // --- Buyout ---
-    function kick(uint lot) external auth returns (uint id) {
+    function kick(uint lot) external auth lock returns (uint id) {
         require(live == 1, "Flapper2/not-live");
         require(kicks < uint(-1), "Flapper2/overflow");
         require(safe != address(0), "Flapper2/no-safe");
