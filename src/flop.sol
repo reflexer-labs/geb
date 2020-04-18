@@ -23,12 +23,12 @@ contract VatLike {
     function move(address,address,uint) external;
     function suck(address,address,uint) external;
 }
-contract VowLike {
-    function Ash() external view returns (uint256);
-    function kiss(uint256) external;
-}
 contract GemLike {
     function mint(address,uint) external;
+}
+contract VowLike {
+    function Ash() public returns (uint);
+    function kiss(uint) external;
 }
 
 /*
@@ -97,6 +97,9 @@ contract Flopper is LibNote {
     function mul(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
+    function min(uint x, uint y) internal pure returns (uint z) {
+        if (x > y) { z = y; } else { z = x; }
+    }
 
     // --- Admin ---
     function file(bytes32 what, uint data) external note auth {
@@ -136,19 +139,15 @@ contract Flopper is LibNote {
         require(lot <  bids[id].lot, "Flopper/lot-not-lower");
         require(mul(beg, lot) <= mul(bids[id].lot, ONE), "Flopper/insufficient-decrease");
 
-        if (msg.sender != bids[id].guy) {
-            vat.move(msg.sender, bids[id].guy, bid);
-            bids[id].guy = msg.sender;
+        vat.move(msg.sender, bids[id].guy, bid);
+
+        // on first dent, clear as much Ash as possible
+        if (bids[id].tic == 0) {
+            uint Ash = VowLike(bids[id].guy).Ash();
+            VowLike(bids[id].guy).kiss(min(bid, Ash));
         }
 
-        // TODO: make tests for this stuck debt fix
-
-        // if (bids[id].tic == 0) {
-        //   VowLike vow = VowLike(bids[id].guy);  // first guy = gal = Vow
-        //   uint rad = vow.Ash() >= bid ? bid : vow.Ash();
-        //   vow.kiss(rad);
-        // }
-
+        bids[id].guy = msg.sender;
         bids[id].lot = lot;
         bids[id].tic = add(uint48(now), ttl);
     }

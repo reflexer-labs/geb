@@ -57,6 +57,7 @@ contract Purse is LibNote {
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
         require(live == 1, "Purse/not-live");
+        require(addr != address(0), "Purse/null-addr");
         if (what == "vow") vow = addr;
         else revert("Purse/file-unrecognized-param");
     }
