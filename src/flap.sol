@@ -37,6 +37,7 @@ contract GemLike {
     function burn(address,uint) external;
 }
 contract BinLike {
+    function INPUT() public view returns (bytes32);
     function tkntkn(bytes32,uint256,address,address[] calldata) external returns (uint256);
 }
 
@@ -184,13 +185,6 @@ contract Flapper2 is LibNote {
         _;
     }
 
-    modifier lock() {
-        require(mutex == 0, "Flapper2/non-null-mutex");
-        mutex = 1;
-        _;
-        mutex = 0;
-    }
-
     VatLike     public vat;
     MaiJoinLike public join;
     GemLike     public bond;
@@ -278,8 +272,12 @@ contract Flapper2 is LibNote {
     }
 
     // --- Buyout ---
-    function kick(uint lot) external auth lock returns (uint id) {
+    function kick(uint lot) external auth returns (uint id) {
         require(live == 1, "Flapper2/not-live");
+
+        require(mutex == 0, "Flapper2/non-null-mutex");
+        mutex = 1;
+
         require(kicks < uint(-1), "Flapper2/overflow");
         require(safe != address(0), "Flapper2/no-safe");
         require(both(path[0] != address(0), path[1] != address(0)), "Flapper2/null-path");
@@ -289,7 +287,7 @@ contract Flapper2 is LibNote {
 
         uint own = bond.balanceOf(address(this));
         require(fund(div(lot, RAY), address(bin)) == true, "Flapper2/cannot-fund");
-        uint bid = bin.tkntkn(bytes32(0), div(lot, RAY), address(this), path);
+        uint bid = bin.tkntkn(bin.INPUT(), div(lot, RAY), address(this), path);
 
         require(bid > 0, "Flapper2/invalid-bid");
         require(bond.balanceOf(address(this)) == own, "Flapper2/cannot-buy");
@@ -303,6 +301,8 @@ contract Flapper2 is LibNote {
         gov.burn(address(this), gov.balanceOf(address(this)));
 
         emit Kick(id, lot, address(bin));
+
+        mutex = 0;
     }
     function fund(uint lot, address guy) internal auth returns (bool) {
         uint own = bond.balanceOf(address(this));
@@ -312,9 +312,5 @@ contract Flapper2 is LibNote {
           return false;
         }
         return bond.approve(guy, lot);
-    }
-
-    function() external payable {
-        revert();
     }
 }

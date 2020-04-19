@@ -24,6 +24,8 @@ contract Purse is LibNote {
 
     address public vow;
 
+    uint8   public mutex;
+
     uint256 public live;
 
     constructor(address vat_, address vow_) public {
@@ -86,11 +88,15 @@ contract Purse is LibNote {
     }
 
     // --- Stability Fee Transfer (Approved Gals) ---
-    function pull(address gal, uint val) external {
+    function pull(address gal, uint val) external returns (bool) {
+        require(mutex == 0, "Purse/non-null-mutex");
+        mutex = 1;
         if (pace[msg.sender] > 0) {
           require(val <= pace[msg.sender], "Purse/exceeds-pace");
         }
         allowance[msg.sender] = sub(allowance[msg.sender], val);
         vat.move(address(this), gal, val);
+        mutex = 0;
+        return true;
     }
 }

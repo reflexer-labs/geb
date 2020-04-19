@@ -262,11 +262,14 @@ contract Jug is LibNote {
     }
     function drip() external note {
         for (uint i = 0; i < bank.length; i++) {
-            if (now >= ilks[bank[i]].rho) {drip(bank[i]);}
+            drip(bank[i]);
         }
     }
     function drip(bytes32 ilk) public note returns (uint) {
-        require(now >= ilks[ilk].rho, "Jug/invalid-now");
+        if (now <= ilks[ilk].rho) {
+          (, uint prev) = vat.ilks(ilk);
+          return prev;
+        }
         (uint rate, int rad) = drop(ilk);
         roll(ilk, rad);
         (, rate) = vat.ilks(ilk);

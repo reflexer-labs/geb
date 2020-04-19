@@ -132,7 +132,7 @@ contract Pot is LibNote {
 
     // --- Savings Rate Accumulation ---
     function drip() external note returns (uint tmp) {
-        require(now >= rho, "Pot/invalid-now");
+        if (now <= rho) return chi;
         tmp = rmul(rpow(sr, sub(now, rho), RAY), chi);
         uint chi_ = sub(tmp, chi);
         chi = tmp;

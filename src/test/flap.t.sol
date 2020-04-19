@@ -152,6 +152,8 @@ contract FlapOneTest is DSTest {
 }
 
 contract BinLike {
+    bytes32 public constant INPUT  = bytes32("INPUT");
+
     uint256 give;
 
     constructor(

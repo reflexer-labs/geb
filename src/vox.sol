@@ -668,7 +668,7 @@ contract Vox2 is LibNote, Exp {
         // Get feed latest price timestamp
         uint64 zzz_ = pip.zzz();
         // If there's no new time in the feed, simply return
-        require(zzz_ > zzz, "Vox2/old-zzz");
+        if (zzz_ <= zzz) return;
         // Get price feed updates
         (bytes32 val, bool has) = pip.peek();
         // If the OSM has a value
