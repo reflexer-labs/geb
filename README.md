@@ -20,4 +20,7 @@ To summarise:
 - A second Flapper version that buys protocol tokens from DEXs and burns them
 - A CDP holder can specify a trigger for when their CDP gets bitten. The trigger can, for example, sell a position in another protocol and add more collateral in the CDP, thus saving it from liquidation
 - Jug can drip stability fees in multiple contracts at once
-- (TODO) default scenarios for triggering End without the need for ESM (in a separate repo)
+- Pot & jug return early if no update is needed
+- Utils in jug that help with drip pre-calculation
+- Stability fee treasury (Purse)
+- Mutexes in new flapper, purse and cat
