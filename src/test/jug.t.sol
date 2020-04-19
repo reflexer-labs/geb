@@ -75,6 +75,16 @@ contract JugTest is DSTest {
         vat.frob(ilk, self, self, self, int(1 ether), int(coin));
     }
 
+    function test_bend() public {
+        jug.init("i");
+        jug.init("j");
+
+        jug.file("i", "duty", 999999706969857929985428567);
+        jug.file("j", "duty", 1000000564701133626865910626);
+
+        assertEq(jug.bend(0), 1000000135835495778425669596);
+        assertEq(jug.bend(ray(1 ether)), 2000000135835495778425669596);
+    }
     function test_drip_setup() public {
         hevm.warp(0);
         assertEq(uint(now), 0);
@@ -248,28 +258,6 @@ contract JugTest is DSTest {
         jug.file("i", 1, ray(1 ether), address(this));
         jug.file("i", 2, ray(1 ether), ali);
     }
-    function test_add_heirs() public {
-        jug.file("max", 2);
-        jug.file("i", 1, ray(1 ether), address(this));
-        (uint Cut, uint boon) = jug.clan("i");
-        assertEq(Cut, ray(1 ether));
-        assertEq(boon, 1);
-        assertEq(jug.born(address(this)), 1);
-        (uint take, uint cut, address gal) = jug.heirs("i", 1);
-        assertEq(take, 0);
-        assertEq(cut, ray(1 ether));
-        assertEq(gal, address(this));
-        assertEq(jug.last(), 1);
-    }
-    function test_modify_heir_cut() public {
-        jug.file("max", 1);
-        jug.file("i", 1, ray(1 ether), address(this));
-        jug.file("i", 1, ray(99.9 ether), address(this));
-        (uint Cut, ) = jug.clan("i");
-        assertEq(Cut, ray(99.9 ether));
-        (,uint cut,) = jug.heirs("i", 1);
-        assertEq(cut, ray(99.9 ether));
-    }
     function testFail_modify_cut_total_over_hundred() public {
         jug.file("max", 1);
         jug.file("i", 1, ray(1 ether), address(this));
@@ -300,6 +288,28 @@ contract JugTest is DSTest {
     function testFail_heir_null() public {
         jug.file("max", 1);
         jug.file("i", 1, ray(1 ether), address(0));
+    }
+    function test_add_heirs() public {
+        jug.file("max", 2);
+        jug.file("i", 1, ray(1 ether), address(this));
+        (uint Cut, uint boon) = jug.clan("i");
+        assertEq(Cut, ray(1 ether));
+        assertEq(boon, 1);
+        assertEq(jug.born(address(this)), 1);
+        (uint take, uint cut, address gal) = jug.heirs("i", 1);
+        assertEq(take, 0);
+        assertEq(cut, ray(1 ether));
+        assertEq(gal, address(this));
+        assertEq(jug.last(), 1);
+    }
+    function test_modify_heir_cut() public {
+        jug.file("max", 1);
+        jug.file("i", 1, ray(1 ether), address(this));
+        jug.file("i", 1, ray(99.9 ether), address(this));
+        (uint Cut, ) = jug.clan("i");
+        assertEq(Cut, ray(99.9 ether));
+        (,uint cut,) = jug.heirs("i", 1);
+        assertEq(cut, ray(99.9 ether));
     }
     function test_remove_some_heirs() public {
         // Add

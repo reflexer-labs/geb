@@ -72,6 +72,7 @@ contract Cat is LibNote {
 
     mapping (bytes32 => Ilk)                         public ilks;
     mapping (bytes32 => mapping(address => address)) public tasks;
+    mapping (bytes32 => mapping(address => uint8))   public mutex;
 
     uint256 public live;
 
@@ -148,13 +149,16 @@ contract Cat is LibNote {
         tasks[ilk][urn] = j;
     }
     function bite(bytes32 ilk, address urn) external returns (uint id) {
+        require(mutex[ilk][urn] == 0, "Cat/non-null-mutex");
+        mutex[ilk][urn] = 1;
+
         (, uint rate, , , , uint risk) = vat.ilks(ilk);
         (uint ink, uint art) = vat.urns(ilk, urn);
 
         require(live == 1, "Cat/not-live");
         require(both(risk > 0, mul(ink, risk) < mul(art, rate)), "Cat/not-unsafe");
 
-        //TODO: try/catch the Hero call
+        //TODO: try/catch the hero call
         if (tasks[ilk][urn] != address(0) && jobs[tasks[ilk][urn]] == 1) {
           (bool ok, uint dose) = HeroLike(tasks[ilk][urn]).help(msg.sender, ilk, urn);
           if (both(ok, dose > 0)) {
@@ -183,5 +187,7 @@ contract Cat is LibNote {
 
           emit Bite(ilk, urn, lot, art, mul(art, rate), ilks[ilk].flip, id);
         }
+
+        mutex[ilk][urn] = 0;
     }
 }

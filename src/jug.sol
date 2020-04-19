@@ -59,11 +59,11 @@ contract Jug is LibNote {
 
     address    public vow;
     uint256    public base;
-    uint256    public max;  // max number of heirs an ilk can have
+    uint256    public max;  // max number of heirs any ilk can have
     uint256    public last; // latest node
 
-    bytes32[]  public  bank;
-    Link.List  private gift;
+    bytes32[]  public   bank;
+    Link.List  internal gift;
 
     VatLike    public vat;
 
@@ -176,7 +176,7 @@ contract Jug is LibNote {
         (clan[ilk].boon < what) ? form(ilk, val, addr) : fix(ilk, what, val);
     }
 
-    // --- Stability Fee Targets ---
+    // --- Stability Fee Heirs ---
     function form(bytes32 ilk, uint256 val, address addr) internal {
         require(addr != address(0), "Jug/null-heir");
         require(addr != vow, "Jug/vow-cannot-heir");
@@ -237,21 +237,39 @@ contract Jug is LibNote {
           ok = true;
         }
     }
+    function bend(uint base_) public view returns (uint256 z) {
+        if (bank.length == 0) return base_;
+        for (uint i = 0; i < bank.length; i++) {
+          z = add(z, add(base_, ilks[bank[i]].duty));
+        }
+        z = z / bank.length;
+    }
+
+    // --- Gifts Utils ---
+    function range() public view returns (uint) {
+        return gift.range();
+    }
+    function isNode(uint256 _node) public view returns (bool) {
+        return gift.isNode(_node);
+    }
 
     // --- Stability Fee Collection ---
     function drop(bytes32 ilk) public view returns (uint, int) {
         (, uint prev) = vat.ilks(ilk);
-        uint rate = rmul(rpow(add(base, ilks[ilk].duty), sub(now, ilks[ilk].rho), RAY), prev);
+        uint rate  = rmul(rpow(add(base, ilks[ilk].duty), sub(now, ilks[ilk].rho), RAY), prev);
         int  diff_ = diff(rate, prev);
         return (rate, diff_);
     }
     function drip() external note {
         for (uint i = 0; i < bank.length; i++) {
-            if (now >= ilks[bank[i]].rho) {drip(bank[i]);}
+            drip(bank[i]);
         }
     }
     function drip(bytes32 ilk) public note returns (uint) {
-        require(now >= ilks[ilk].rho, "Jug/invalid-now");
+        if (now <= ilks[ilk].rho) {
+          (, uint prev) = vat.ilks(ilk);
+          return prev;
+        }
         (uint rate, int rad) = drop(ilk);
         roll(ilk, rad);
         (, rate) = vat.ilks(ilk);

@@ -13,6 +13,8 @@ contract Hevm {
 }
 
 contract BinLike {
+    bytes32 public constant INPUT  = bytes32("INPUT");
+
     uint256 give;
 
     constructor(
@@ -21,9 +23,9 @@ contract BinLike {
       give = give_;
     }
 
-    function swap(address lad, address bond, address gov, uint sell) external returns (uint) {
-        DSToken(bond).transferFrom(msg.sender, address(this), sell);
-        DSToken(gov).transfer(lad, give);
+    function tkntkn(bytes32 side, uint sell, address lad, address[] calldata path) external returns (uint) {
+        DSToken(path[0]).transferFrom(msg.sender, address(this), sell);
+        DSToken(path[1]).transfer(lad, give);
         return give;
     }
 }
@@ -204,10 +206,10 @@ contract VowTest is DSTest {
     function test_cage_prefunded_flapper() public {
         bond.transfer(address(flap), 50 ether);
         vow.cage();
-        // assertEq(bond.balanceOf(address(flap)), 0);
-        // assertEq(vat.coin(address(flap)), 0);
-        // assertEq(bond.balanceOf(address(vow)), 0);
-        // assertEq(vat.coin(address(vow)), 0);
+        assertEq(bond.balanceOf(address(flap)), 0);
+        assertEq(vat.good(address(flap)), 0);
+        assertEq(bond.balanceOf(address(vow)), 0);
+        assertEq(vat.good(address(vow)), 0);
     }
 
     function test_flap() public {

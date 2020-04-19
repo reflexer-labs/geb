@@ -86,6 +86,15 @@ contract FlapOneTest is DSTest {
         assertEq(vat.good(address(this)),  900 ether);
         assertEq(vat.good(address(flap)),  100 ether);
     }
+    function test_tend_same_bidder() public {
+        uint id = flap.kick({ lot: 100 ether
+                            , bid: 0
+                            });
+        Guy(ali).tend(id, 100 ether, 190 ether);
+        assertEq(gem.balanceOf(ali), 10 ether);
+        Guy(ali).tend(id, 100 ether, 200 ether);
+        assertEq(gem.balanceOf(ali), 0);
+    }
     function test_tend() public {
         uint id = flap.kick({ lot: 100 ether
                             , bid: 0
@@ -143,6 +152,8 @@ contract FlapOneTest is DSTest {
 }
 
 contract BinLike {
+    bytes32 public constant INPUT  = bytes32("INPUT");
+
     uint256 give;
 
     constructor(
@@ -151,9 +162,9 @@ contract BinLike {
       give = give_;
     }
 
-    function swap(address lad, address bond, address gov, uint sell) external returns (uint) {
-        DSToken(bond).transferFrom(msg.sender, address(this), sell);
-        DSToken(gov).transfer(lad, give);
+    function tkntkn(bytes32 side, uint sell, address lad, address[] calldata path) external returns (uint) {
+        DSToken(path[0]).transferFrom(msg.sender, address(this), sell);
+        DSToken(path[1]).transfer(lad, give);
         return give;
     }
 }
@@ -204,6 +215,10 @@ contract FlapTwoTest is DSTest {
         gov.mint(1000 ether);
         gov.setOwner(address(flap));
         gov.push(address(bin), 200 ether);
+    }
+    function test_setup() public {
+        assertEq(flap.path(0), address(bond));
+        assertEq(flap.path(1), address(gov));
     }
     function test_kick() public {
         assertEq(vat.good(address(this)), rad(1000 ether));
