@@ -273,6 +273,7 @@ contract Vat {
         vice    = sub(vice,   rad);
         debt    = sub(debt,   rad);
     }
+    //TODO: do we allow sucking negative rad?
     function suck(address u, address v, uint rad) external note auth {
         sin[u]  = add(sin[u], rad);
         good[v] = add(good[v], rad);

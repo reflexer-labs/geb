@@ -119,10 +119,18 @@ contract Purse is LibNote {
 
     // --- Stability Fee Transfer (Approved Gals) ---
     function pull(address gal, address tkn, uint val) external returns (bool) {
-        if (either(either(allowance[msg.sender] < val, either(gal == address(0), val == 0)), tkn != address(coin))) {
-          return false;
-        }
-        if (add(coin.balanceOf(address(this)), vat.good(address(this))) < val) {
+        if (
+          either(
+            add(coin.balanceOf(address(this)), vat.good(address(this))) < val,
+            either(
+              either(
+                allowance[msg.sender] < val,
+                either(gal == address(0), val == 0)
+              ),
+              tkn != address(coin)
+            )
+          )
+        ) {
           return false;
         }
         allowance[msg.sender] = sub(allowance[msg.sender], val);
