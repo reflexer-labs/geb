@@ -122,6 +122,9 @@ contract Purse is LibNote {
         if (either(either(allowance[msg.sender] < val, either(gal == address(0), val == 0)), tkn != address(coin))) {
           return false;
         }
+        if (add(coin.balanceOf(address(this)), vat.good(address(this))) < val) {
+          return false;
+        }
         allowance[msg.sender] = sub(allowance[msg.sender], val);
         uint exit = (coin.balanceOf(address(this)) >= val) ? 0 : sub(val, coin.balanceOf(address(this)));
         if (exit > 0) {
