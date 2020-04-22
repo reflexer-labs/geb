@@ -75,8 +75,8 @@ contract BinLike {
       give = give_;
     }
 
-    function swap(address bond, address gov, uint sell) external returns (uint) {
-        DSToken(bond).transferFrom(msg.sender, address(this), sell);
+    function swap(address coin, address gov, uint sell) external returns (uint) {
+        DSToken(coin).transferFrom(msg.sender, address(this), sell);
         DSToken(gov).transfer(msg.sender, give);
         return give;
     }
@@ -141,7 +141,7 @@ contract EndTest is DSTest {
 
     BinLike bin;
     DSToken gov;
-    DSToken bond;
+    DSToken coin;
     CoinJoin coinA;
 
     struct Ilk {
@@ -178,7 +178,7 @@ contract EndTest is DSTest {
     function min(uint x, uint y) internal pure returns (uint z) {
         (x >= y) ? z = y : z = x;
     }
-    function coin(address urn) internal view returns (uint) {
+    function good(address urn) internal view returns (uint) {
         return uint(vat.good(urn) / RAY);
     }
     function gem(bytes32 ilk, address urn) internal view returns (uint) {
@@ -249,12 +249,12 @@ contract EndTest is DSTest {
 
         vat  = new Vat();
         gov  = new DSToken('GOV');
-        bond = new DSToken("Coin");
+        coin = new DSToken("Coin");
         bin  = new BinLike(1 ether);
-        coinA = new CoinJoin(address(vat), address(bond));
+        coinA = new CoinJoin(address(vat), address(coin));
 
         flap = new Flapper2(address(vat));
-        flap.file("bond", address(bond));
+        flap.file("coin", address(coin));
         flap.file("gov", address(gov));
         flap.file("bin", address(bin));
         flap.file("join", address(coinA));
@@ -266,8 +266,8 @@ contract EndTest is DSTest {
         flop = new Flopper(address(vat), address(gov));
 
         vat.rely(address(coinA));
-        bond.mint(address(this), 50 ether);
-        bond.setOwner(address(coinA));
+        coin.mint(address(this), 50 ether);
+        coin.setOwner(address(coinA));
 
         gov.mint(200 ether);
         gov.push(address(bin), 200 ether);
@@ -404,7 +404,7 @@ contract EndTest is DSTest {
         ali.cash("gold", 15 ether);
 
         // local checks:
-        assertEq(coin(urn1), 0);
+        assertEq(good(urn1), 0);
         assertEq(gem("gold", urn1), 3 ether);
         ali.exit(gold.gemA, address(this), 3 ether);
 
@@ -460,47 +460,47 @@ contract EndTest is DSTest {
         assertEq(gem("gold", urn1), 2.5 ether);
         ali.exit(gold.gemA, address(this), 2.5 ether);
 
-        // hevm.warp(now + 1 hours);
-        // end.thaw();
-        // end.flow("gold");
-        // assertTrue(end.fix("gold") != 0);
-        //
-        // // first coin redemption
-        // ali.hope(address(end));
-        // ali.pack(15 ether);
-        // vow.heal(rad(15 ether));
-        //
-        // // global checks:
-        // assertEq(vat.debt(), rad(3 ether));
-        // assertEq(vat.vice(), rad(3 ether));
-        //
-        // ali.cash("gold", 15 ether);
-        //
-        // // local checks:
-        // assertEq(coin(urn1), 0);
-        // uint fix = end.fix("gold");
-        // assertEq(gem("gold", urn1), rmul(fix, 15 ether));
-        // ali.exit(gold.gemA, address(this), uint(rmul(fix, 15 ether)));
-        //
-        // // second coin redemption
-        // bob.hope(address(end));
-        // bob.pack(3 ether);
-        // vow.heal(rad(3 ether));
-        //
-        // // global checks:
-        // assertEq(vat.debt(), 0);
-        // assertEq(vat.vice(), 0);
-        //
-        // bob.cash("gold", 3 ether);
-        //
-        // // local checks:
-        // assertEq(coin(urn2), 0);
-        // assertEq(gem("gold", urn2), rmul(fix, 3 ether));
-        // bob.exit(gold.gemA, address(this), uint(rmul(fix, 3 ether)));
-        //
-        // // some dust recoinns in the End because of rounding:
-        // assertEq(gem("gold", address(end)), 1);
-        // assertEq(balanceOf("gold", address(gold.gemA)), 1);
+        hevm.warp(now + 1 hours);
+        end.thaw();
+        end.flow("gold");
+        assertTrue(end.fix("gold") != 0);
+
+        // first coin redemption
+        ali.hope(address(end));
+        ali.pack(15 ether);
+        vow.heal(rad(15 ether));
+
+        // global checks:
+        assertEq(vat.debt(), rad(3 ether));
+        assertEq(vat.vice(), rad(3 ether));
+
+        ali.cash("gold", 15 ether);
+
+        // local checks:
+        assertEq(good(urn1), 0);
+        uint fix = end.fix("gold");
+        assertEq(gem("gold", urn1), rmul(fix, 15 ether));
+        ali.exit(gold.gemA, address(this), uint(rmul(fix, 15 ether)));
+
+        // second coin redemption
+        bob.hope(address(end));
+        bob.pack(3 ether);
+        vow.heal(rad(3 ether));
+
+        // global checks:
+        assertEq(vat.debt(), 0);
+        assertEq(vat.vice(), 0);
+
+        bob.cash("gold", 3 ether);
+
+        // local checks:
+        assertEq(good(urn2), 0);
+        assertEq(gem("gold", urn2), rmul(fix, 3 ether));
+        bob.exit(gold.gemA, address(this), uint(rmul(fix, 3 ether)));
+
+        // some dust recoinns in the End because of rounding:
+        assertEq(gem("gold", address(end)), 1);
+        assertEq(balanceOf("gold", address(gold.gemA)), 1);
     }
 
     // -- Scenario where there is one collateralised CDP
@@ -525,7 +525,7 @@ contract EndTest is DSTest {
         ali.move(address(ali), address(this), rad(1 ether));
         vat.hope(address(gold.flip));
         gold.flip.tend(auction, 10 ether, rad(1 ether)); // bid 1 coin
-        assertEq(coin(urn1), 14 ether);
+        assertEq(good(urn1), 14 ether);
 
         // collateral price is 5
         gold.pip.poke(bytes32(5 * WAD));
@@ -533,7 +533,7 @@ contract EndTest is DSTest {
         end.cage("gold");
 
         end.skip("gold", auction);
-        assertEq(coin(address(this)), 1 ether);       // bid refunded
+        assertEq(good(address(this)), 1 ether);       // bid refunded
         vat.move(address(this), urn1, rad(1 ether)); // return 1 coin to ali
 
         end.skim("gold", urn1);
@@ -572,7 +572,7 @@ contract EndTest is DSTest {
         ali.cash("gold", 15 ether);
 
         // local checks:
-        assertEq(coin(urn1), 0);
+        assertEq(good(urn1), 0);
         assertEq(gem("gold", urn1), 3 ether);
         ali.exit(gold.gemA, address(this), 3 ether);
 
@@ -637,7 +637,7 @@ contract EndTest is DSTest {
         ali.cash("gold", 16 ether);
 
         // local checks:
-        assertEq(coin(urn1), 0);
+        assertEq(good(urn1), 0);
         assertEq(gem("gold", urn1), 3 ether);
         ali.exit(gold.gemA, address(this), 3 ether);
 
@@ -715,7 +715,7 @@ contract EndTest is DSTest {
         ali.cash("gold", 14 ether);
 
         // local checks:
-        assertEq(coin(urn1), 0);
+        assertEq(good(urn1), 0);
         uint256 fix = end.fix("gold");
         assertEq(gem("gold", urn1), uint(rmul(fix, 14 ether)));
         ali.exit(gold.gemA, address(this), uint(rmul(fix, 14 ether)));
@@ -732,7 +732,7 @@ contract EndTest is DSTest {
         bob.cash("gold", 3 ether);
 
         // local checks:
-        assertEq(coin(urn2), 0);
+        assertEq(good(urn2), 0);
         assertEq(gem("gold", urn2), rmul(fix, 3 ether));
         bob.exit(gold.gemA, address(this), uint(rmul(fix, 3 ether)));
 

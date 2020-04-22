@@ -202,7 +202,7 @@ contract CoinTest is DSTest {
     }
 
     function createToken() internal returns (Coin) {
-        return new Coin("Mai Reflex-Bond", "MAI", 18, 99);
+        return new Coin("Mai Reflex-Bond", "MAI", 99);
     }
 
     function testSetup() public {

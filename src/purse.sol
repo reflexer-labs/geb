@@ -52,20 +52,29 @@ contract Purse is LibNote {
 
     address public vow;
 
+    uint256 public full;
+    uint256 public times;
+    uint256 public gap;
+    uint256 public cron;
+    uint256 public pin;
+    uint256 public rho;
     uint256 public live;
 
-    constructor(address vat_, address vow_, address coinJoin_) public {
+    constructor(address vat_, address vow_, address coinJoin_, uint gap_) public {
+        require(address(CoinJoinLike(coinJoin_).coin()) != address(0), "Purse/null-coin");
         wards[msg.sender] = 1;
-        vat  = VatLike(vat_);
-        vow  = vow_;
+        vat      = VatLike(vat_);
+        vow      = vow_;
         coinJoin = CoinJoinLike(coinJoin_);
-        coin = GemLike(coinJoin.coin());
-        require(address(coin) != address(0), "Purse/null-coin");
-        live = 1;
+        coin     = GemLike(coinJoin.coin());
+        gap      = gap_;
+        rho      = now;
+        times    = 1;
+        live     = 1;
     }
 
     // --- Math ---
-    uint256 constant RAY = 10 ** 27;
+    uint256 constant WAD = 10 ** 18;
 
     function add(uint x, uint y) internal pure returns (uint z) {
         z = x + y;
@@ -84,12 +93,22 @@ contract Purse is LibNote {
         require(y <= 0 || z <= x);
         require(y >= 0 || z >= x);
     }
+    function mul(uint x, uint y) internal pure returns (uint z) {
+        require(y == 0 || (z = x * y) / y == x);
+    }
 
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
         require(live == 1, "Purse/not-live");
         require(addr != address(0), "Purse/null-addr");
         if (what == "vow") vow = addr;
+        else revert("Purse/file-unrecognized-param");
+    }
+    function file(bytes32 what, uint val) external note auth {
+        require(live == 1, "Purse/not-live");
+        if (what == "times") times = val;
+        else if (what == "full") full = val;
+        else if (what == "gap") gap = val;
         else revert("Purse/file-unrecognized-param");
     }
     function cage() external note auth {
@@ -101,6 +120,9 @@ contract Purse is LibNote {
     function either(bool x, bool y) internal pure returns (bool z) {
         assembly{ z := or(x, y)}
     }
+    function both(bool x, bool y) internal pure returns (bool z) {
+        assembly{ z := and(x, y)}
+    }
 
     // --- Allowance ---
     function allow(address gal, uint val) external note auth {
@@ -111,6 +133,7 @@ contract Purse is LibNote {
     // --- Stability Fee Transfer (Governance) ---
     function give(address gal, uint val) external note auth {
         require(gal != address(0), "Purse/null-gal");
+        cron = add(cron, val);
         vat.move(address(this), gal, val);
     }
     function take(address gal, uint val) external note auth {
@@ -134,11 +157,32 @@ contract Purse is LibNote {
           return false;
         }
         allowance[msg.sender] = sub(allowance[msg.sender], val);
+        cron = add(cron, val);
         uint exit = (coin.balanceOf(address(this)) >= val) ? 0 : sub(val, coin.balanceOf(address(this)));
         if (exit > 0) {
           coinJoin.exit(address(this), exit);
         }
         coin.transfer(gal, val);
         return true;
+    }
+
+    // --- Treasury Maintenance ---
+    function keep() external {
+        require(now >= add(rho, gap), "Purse/gap-not-passed");
+        // Compute current pin and minimum reserves
+        uint pin_  = sub(cron, pin);
+        uint min   = (both(full > 0, full <= mul(times, pin_) / WAD)) ? full : mul(times, pin_) / WAD;
+        // Set internal vars
+        pin = cron;
+        rho = now;
+        // Join all coins in system
+        if (coin.balanceOf(address(this)) > 0) {
+          coinJoin.join(address(this), coin.balanceOf(address(this)));
+        }
+        // Check if we have too much money
+        if (vat.good(address(this)) > min) {
+          // transfer surplus to vow
+          vat.move(address(this), vow, sub(vat.good(address(this)), min));
+        }
     }
 }

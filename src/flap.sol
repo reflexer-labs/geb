@@ -187,7 +187,7 @@ contract Flapper2 is LibNote {
 
     VatLike     public vat;
     MaiJoinLike public join;
-    GemLike     public bond;
+    GemLike     public coin;
     GemLike     public gov;
     BinLike     public bin;
     address     public safe;
@@ -215,6 +215,7 @@ contract Flapper2 is LibNote {
     }
 
     // --- Math ---
+    uint256 constant RAD = 10 ** 45;
     uint256 constant RAY = 10 ** 27;
     function add(uint x, uint y) internal pure returns (uint z) {
         require((z = x + y) >= x);
@@ -236,8 +237,8 @@ contract Flapper2 is LibNote {
     // --- Admin ---
     function file(bytes32 what, address addr) external note auth {
         require(live == 1, "Flapper2/not-live");
-        if (what == "bond") {
-          bond    = GemLike(addr);
+        if (what == "coin") {
+          coin    = GemLike(addr);
           path[0] = addr;
         }
         else if (what == "gov") {
@@ -245,8 +246,8 @@ contract Flapper2 is LibNote {
           path[1] = addr;
         }
         else if (what == "join") {
-          if (address(bond) != address(0)) {
-            bond.approve(address(join), 0);
+          if (address(coin) != address(0)) {
+            coin.approve(address(join), 0);
           }
           vat.nope(address(join));
           vat.hope(addr);
@@ -264,33 +265,32 @@ contract Flapper2 is LibNote {
 
     // --- Utils ---
     function loot() internal {
-        uint own = bond.balanceOf(address(this));
+        uint own = coin.balanceOf(address(this));
         if (own > 0) {
-          bond.approve(address(join), own);
+          coin.approve(address(join), own);
           join.join(safe, own);
         }
     }
 
     // --- Buyout ---
-    function kick(uint lot) external auth returns (uint id) {
+    function kick(uint lot, uint bid) external auth returns (uint id) {
         require(live == 1, "Flapper2/not-live");
-
         require(mutex == 0, "Flapper2/non-null-mutex");
         mutex = 1;
 
         require(kicks < uint(-1), "Flapper2/overflow");
         require(safe != address(0), "Flapper2/no-safe");
         require(both(path[0] != address(0), path[1] != address(0)), "Flapper2/null-path");
-        require(lot % RAY == 0, "Flapper2/wasted-lot");
+        require(mul(div(lot, RAY), RAY) == lot, "Flapper2/wasted-lot");
 
         id = ++kicks;
 
-        uint own = bond.balanceOf(address(this));
-        require(fund(div(lot, RAY), address(bin)) == true, "Flapper2/cannot-fund");
+        uint own = coin.balanceOf(address(this));
+        require(fund(lot, address(bin)) == true, "Flapper2/cannot-fund");
         uint bid = bin.tkntkn(bin.INPUT(), div(lot, RAY), address(this), path);
 
         require(bid > 0, "Flapper2/invalid-bid");
-        require(bond.balanceOf(address(this)) == own, "Flapper2/cannot-buy");
+        require(coin.balanceOf(address(this)) == own, "Flapper2/cannot-buy");
         require(gov.balanceOf(address(this)) >= bid, "Flapper2/bid-not-received");
 
         loot();
@@ -305,12 +305,12 @@ contract Flapper2 is LibNote {
         mutex = 0;
     }
     function fund(uint lot, address guy) internal auth returns (bool) {
-        uint own = bond.balanceOf(address(this));
-        vat.move(msg.sender, address(this), mul(lot, RAY));
-        join.exit(address(this), lot);
-        if (add(own, lot) != bond.balanceOf(address(this))) {
+        uint own = coin.balanceOf(address(this));
+        vat.move(msg.sender, address(this), lot);
+        join.exit(address(this), div(lot, RAY));
+        if (add(own, div(lot, RAY)) != coin.balanceOf(address(this))) {
           return false;
         }
-        return bond.approve(guy, lot);
+        return coin.approve(guy, lot);
     }
 }

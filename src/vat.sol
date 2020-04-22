@@ -208,7 +208,7 @@ contract Vat {
         require(either(urn.art == 0, tab >= ilk.dust), "Vat/dust");
 
         gem[i][v] = sub(gem[i][v], dink);
-        good[w]    = add(good[w],    dtab);
+        good[w]   = add(good[w],   dtab);
 
         urns[i][u] = urn;
         ilks[i]    = ilk;

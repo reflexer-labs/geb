@@ -31,7 +31,8 @@ contract Coin is LibNote {
     string  public name;
     string  public symbol;
     string  public version;
-    uint8   public decimals;
+    
+    uint8   public constant decimals = 18;
     uint256 public totalSupply;
 
     mapping (address => uint)                      public balanceOf;
@@ -57,13 +58,11 @@ contract Coin is LibNote {
     constructor(
       string memory name_,
       string memory symbol_,
-      uint8 decimals_,
       uint256 chainId_
       ) public {
         wards[msg.sender] = 1;
         name     = name_;
         symbol   = symbol_;
-        decimals = decimals_;
         DOMAIN_SEPARATOR = keccak256(abi.encode(
             keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
             keccak256(bytes(name)),
