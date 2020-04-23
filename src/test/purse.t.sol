@@ -281,4 +281,18 @@ contract PurseTest is DSTest {
         assertEq(vat.good(address(purse)), rad(30 ether));
         assertEq(vat.good(address(alice)), rad(70 ether));
     }
+    function test_full_and_min_bigger_than_treasury_amount() public {
+        purse.file("full", rad(120 ether));
+        purse.file("min", rad(130 ether));
+        purse.file("gap", 10 minutes);
+        purse.give(bytes32("INTERNAL"), alice, rad(40 ether));
+        hevm.warp(now + 10 minutes);
+        purse.keep();
+        assertEq(vat.good(address(purse)), rad(60 ether));
+        assertEq(vat.good(address(alice)), rad(40 ether));
+        hevm.warp(now + 10 minutes);
+        purse.keep();
+        assertEq(vat.good(address(purse)), rad(60 ether));
+        assertEq(vat.good(address(alice)), rad(40 ether));
+    }
 }

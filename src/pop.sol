@@ -67,16 +67,14 @@ contract Pop1 is LibNote, Exp {
 
     uint256 public fix;  // market price                                                 [ray]
     uint256 public tau;  // when fix was last updated
+    uint256 public bowl; // accrued time since the deviation has been positive/negative
 
     uint256 public trim; // deviation from target price at which rates are recalculated  [ray]
-    uint256 public bowl; // accrued time since the deviation has been positive/negative
     uint256 public cup;  // time to spend for rates to come back to normal
-
-    uint256 public wand; // rate of change for default stability fee                     [ray]
+    uint256 public pace; // default time to spend in order to bring rates back to normal
 
     uint256 public span; // spread between sf and sr
     uint256 public bulk; // a proportion of bowl
-    uint256 public pace; // last time when cup was updated
 
     uint256 public live; // access flag
 
@@ -98,7 +96,6 @@ contract Pop1 is LibNote, Exp {
     ) public {
         wards[msg.sender] = 1;
         fix  = RAY;
-        wand = RAY;
         span = RAY;
         bulk = RAY;
         tau  = now;
@@ -127,6 +124,7 @@ contract Pop1 is LibNote, Exp {
         if (what == "trim") trim = val;
         else if (what == "span") span = val;
         else if (what == "bulk") bulk = val;
+        else if (what == "pace") pace = val;
         else if (what == "sf") {
           require(val >= norm.sr, "Pop1/small-sf");
           norm.sf = val;
@@ -134,10 +132,6 @@ contract Pop1 is LibNote, Exp {
         else if (what == "sr") {
           require(val <= norm.sf, "Pop1/big-sr");
           norm.sr = val;
-        }
-        else if (what == "wand") {
-          require(val > 0, "Pop1/null-wand");
-          wand = val;
         }
         else if (what == "how")  {
           core.how  = val;
@@ -331,9 +325,8 @@ contract Pop1 is LibNote, Exp {
           int site_ = site(ray(uint(val)), par);
           // If the deviation is at least 'trim'
           if (dev >= trim) {
-            // Restart cup and pace
+            // Restart cup
             cup  = 0;
-            pace = 0;
             /**
               If the current deviation is the same as the latest deviation, add seconds
               passed to bowl using grab(). Otherwise change the latest deviation type
@@ -347,11 +340,9 @@ contract Pop1 is LibNote, Exp {
           } else {
             // Restart latest deviation type
             path = 0;
-            // Set pace
-            pace = (pace == 0) ? era() : pace;
             // Set cup
-            cup = (bowl > 0) ? mul(bulk, bowl) / RAY : cup;
-            cup = (cup > uint256(uint32(-1))) ? uint256(uint32(-1)) : cup;
+            cup = (bowl >= pace) ? pace : bowl;
+            cup = (pace == 0) ? bowl : cup;
             // Restart bowl
             bowl = 0;
             // TEMPORARY: set default rates right away
