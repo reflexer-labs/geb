@@ -37,7 +37,7 @@ contract PotLike {
   It does not change the target price (par) but rather tries to maintain a strong peg without the need
   for continuous governance intervention.
 
-  This Pop into consideration the deviation between the latest market price and the target price.
+  This Pop takes into consideration the deviation between the latest market price and the target price.
 ***/
 contract Pop1 is LibNote, Exp {
     // --- Auth ---
@@ -354,7 +354,7 @@ contract Pop1 is LibNote, Exp {
             cup = (cup > uint256(uint32(-1))) ? uint256(uint32(-1)) : cup;
             // Restart bowl
             bowl = 0;
-            // TEMPORARY: set default rates
+            // TEMPORARY: set default rates right away
             pry(norm.sf, norm.sr);
             // // Adjust rates so they go toward their default values
             // turn();

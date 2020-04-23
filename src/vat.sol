@@ -216,9 +216,9 @@ contract Vat {
 
     // -- CDP Insurance --
     function dose(address usr, bytes32 i, address u, uint dink, uint dgem) external note auth {
-        if (live == 0) return;
-        if (usr == address(0)) return;
-        if (urns[i][u].ink == 0) return;
+        require(live == 0, "Vat/not-live");
+        require(usr == address(0), "Vat/null-usr");
+        require(urns[i][u].ink == 0, "Vat/no-predeposited-ink");
         urns[i][u].ink = add(urns[i][u].ink, dink);
         gem[i][usr] = add(gem[i][usr], dgem);
     }
@@ -273,7 +273,6 @@ contract Vat {
         vice    = sub(vice,   rad);
         debt    = sub(debt,   rad);
     }
-    //TODO: do we allow sucking negative rad?
     function suck(address u, address v, uint rad) external note auth {
         sin[u]  = add(sin[u], rad);
         good[v] = add(good[v], rad);

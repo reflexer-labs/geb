@@ -26,6 +26,7 @@ import {Vat}  from '../vat.sol';
 import {Cat}  from '../cat.sol';
 import {Vow}  from '../vow.sol';
 import {Pot}  from '../pot.sol';
+import {Purse}  from '../purse.sol';
 import {Vox2} from '../vox.sol';
 import {Flipper} from '../flip.sol';
 import {Flapper2} from '../flap.sol';
@@ -137,6 +138,7 @@ contract EndTest is DSTest {
     Cat   cat;
     Spotter spot;
     Pot   pot;
+    Purse purse;
     Vox2  vox;
 
     BinLike bin;
@@ -289,6 +291,8 @@ contract EndTest is DSTest {
         vat.file("Line",         rad(1000 ether));
         vat.rely(address(spot));
 
+        purse = new Purse(address(vat), address(vow), address(coinA), 10 minutes);
+
         vox = new Vox2(address(spot), 3, 6, 3);
 
         end = new End();
@@ -303,6 +307,7 @@ contract EndTest is DSTest {
         vox.rely(address(end));
         pot.rely(address(end));
         cat.rely(address(end));
+        purse.rely(address(end));
         flap.rely(address(vow));
         flop.rely(address(vow));
     }
@@ -328,6 +333,7 @@ contract EndTest is DSTest {
     function test_cage_pot_and_vox_filed() public {
         end.file("pot", address(pot));
         end.file("vox", address(vox));
+        end.file("purse", address(purse));
         assertEq(end.live(), 1);
         assertEq(vat.live(), 1);
         assertEq(cat.live(), 1);
@@ -336,6 +342,7 @@ contract EndTest is DSTest {
         assertEq(vow.flopper().live(), 1);
         assertEq(vow.flapper().live(), 1);
         assertEq(pot.live(), 1);
+        assertEq(purse.live(), 1);
         assertEq(vox.live(), 1);
         end.cage();
         assertEq(end.live(), 0);
@@ -345,6 +352,7 @@ contract EndTest is DSTest {
         assertEq(spot.live(), 0);
         assertEq(vow.flopper().live(), 0);
         assertEq(vow.flapper().live(), 0);
+        assertEq(purse.live(), 0);
         assertEq(pot.live(), 0);
         assertEq(vox.live(), 0);
     }

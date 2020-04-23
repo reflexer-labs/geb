@@ -31,8 +31,9 @@ contract Coin is LibNote {
     string  public name;
     string  public symbol;
     string  public version;
-    
+
     uint8   public constant decimals = 18;
+
     uint256 public totalSupply;
 
     mapping (address => uint)                      public balanceOf;

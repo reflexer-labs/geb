@@ -20,11 +20,14 @@ pragma solidity ^0.5.15;
 import "./lib.sol";
 
 contract VatLike {
+    function hope(address) external;
+    function nope(address) external;
     function move(address,address,uint) external;
     function good(address) external view returns (uint);
 }
 contract GemLike {
     function balanceOf(address) external view returns (uint);
+    function approve(address, uint) external returns (uint);
     function transfer(address,uint) external returns (bool);
     function transferFrom(address,address,uint) external returns (bool);
 }
@@ -44,6 +47,8 @@ contract Purse is LibNote {
         _;
     }
 
+    bytes32 public constant INTERNAL = bytes32("INTERNAL");
+
     mapping(address => uint) public allowance;
 
     VatLike      public vat;
@@ -52,12 +57,13 @@ contract Purse is LibNote {
 
     address public vow;
 
-    uint256 public full;
-    uint256 public times;
-    uint256 public gap;
-    uint256 public cron;
-    uint256 public pin;
-    uint256 public rho;
+    uint256 public full;  // max amount of SF that can be kept in purse
+    uint256 public min;   // minimum amount of SF that must be kept in the purse at all times
+    uint256 public times; // multiplier for expenses
+    uint256 public gap;   // minimum time between keep calls
+    uint256 public cron;  // expenses accumulator
+    uint256 public pin;   // latest tagged accumulator price
+    uint256 public rho;   // latest timestamp when keep was called
     uint256 public live;
 
     constructor(address vat_, address vow_, address coinJoin_, uint gap_) public {
@@ -69,12 +75,15 @@ contract Purse is LibNote {
         coin     = GemLike(coinJoin.coin());
         gap      = gap_;
         rho      = now;
-        times    = 1;
+        times    = WAD;
         live     = 1;
+        coin.approve(address(coinJoin), uint(-1));
+        vat.hope(address(coinJoin));
     }
 
     // --- Math ---
     uint256 constant WAD = 10 ** 18;
+    uint256 constant RAY = 10 ** 27;
 
     function add(uint x, uint y) internal pure returns (uint z) {
         z = x + y;
@@ -96,6 +105,11 @@ contract Purse is LibNote {
     function mul(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
+    function div(uint x, uint y) internal pure returns (uint z) {
+        require(y > 0);
+        z = x / y;
+        require(z <= x);
+    }
 
     // --- Administration ---
     function file(bytes32 what, address addr) external note auth {
@@ -108,10 +122,14 @@ contract Purse is LibNote {
         require(live == 1, "Purse/not-live");
         if (what == "times") times = val;
         else if (what == "full") full = val;
+        else if (what == "min") min = val;
         else if (what == "gap") gap = val;
         else revert("Purse/file-unrecognized-param");
     }
     function cage() external note auth {
+        if (coin.balanceOf(address(this)) > 0) {
+          coinJoin.join(address(this), coin.balanceOf(address(this)));
+        }
         vat.move(address(this), vow, vat.good(address(this)));
         live = 0;
     }
@@ -131,20 +149,37 @@ contract Purse is LibNote {
     }
 
     // --- Stability Fee Transfer (Governance) ---
-    function give(address gal, uint val) external note auth {
+    function give(bytes32 form, address gal, uint val) external note auth {
         require(gal != address(0), "Purse/null-gal");
-        cron = add(cron, val);
-        vat.move(address(this), gal, val);
+        if (form == INTERNAL) {
+          require(add(mul(coin.balanceOf(address(this)), RAY), vat.good(address(this))) >= val, "Purse/not-enough-money");
+          if (vat.good(address(this)) < val) {
+            coinJoin.join(address(this), coin.balanceOf(address(this)));
+          }
+          cron = add(cron, val);
+          vat.move(address(this), gal, val);
+        } else {
+          require(add(coin.balanceOf(address(this)), div(vat.good(address(this)), RAY)) >= val, "Purse/not-enough-money");
+          if (coin.balanceOf(address(this)) < val) {
+            coinJoin.exit(address(this), div(vat.good(address(this)), RAY));
+          }
+          cron = add(cron, mul(RAY, val));
+          coin.transfer(gal, val);
+        }
     }
-    function take(address gal, uint val) external note auth {
-        vat.move(gal, address(this), val);
+    function take(bytes32 form, address gal, uint val) external note auth {
+        if (form == INTERNAL) {
+          vat.move(gal, address(this), val);
+        } else {
+          coin.transferFrom(gal, address(this), val);
+        }
     }
 
     // --- Stability Fee Transfer (Approved Gals) ---
     function pull(address gal, address tkn, uint val) external returns (bool) {
         if (
           either(
-            add(coin.balanceOf(address(this)), vat.good(address(this))) < val,
+            add(coin.balanceOf(address(this)), div(vat.good(address(this)), RAY)) < val,
             either(
               either(
                 allowance[msg.sender] < val,
@@ -157,11 +192,12 @@ contract Purse is LibNote {
           return false;
         }
         allowance[msg.sender] = sub(allowance[msg.sender], val);
-        cron = add(cron, val);
-        uint exit = (coin.balanceOf(address(this)) >= val) ? 0 : sub(val, coin.balanceOf(address(this)));
-        if (exit > 0) {
-          coinJoin.exit(address(this), exit);
+        cron = add(cron, mul(val, RAY));
+        if (coin.balanceOf(address(this)) < val) {
+          //TODO: wrap in try/catch
+          coinJoin.exit(address(this), div(vat.good(address(this)), RAY));
         }
+        //TODO: wrap in try/catch
         coin.transfer(gal, val);
         return true;
     }
@@ -171,7 +207,7 @@ contract Purse is LibNote {
         require(now >= add(rho, gap), "Purse/gap-not-passed");
         // Compute current pin and minimum reserves
         uint pin_  = sub(cron, pin);
-        uint min   = (both(full > 0, full <= mul(times, pin_) / WAD)) ? full : mul(times, pin_) / WAD;
+        uint min_  = (both(full > 0, full <= div(mul(times, pin_), WAD))) ? full : div(mul(times, pin_), WAD);
         // Set internal vars
         pin = cron;
         rho = now;
@@ -180,9 +216,11 @@ contract Purse is LibNote {
           coinJoin.join(address(this), coin.balanceOf(address(this)));
         }
         // Check if we have too much money
-        if (vat.good(address(this)) > min) {
-          // transfer surplus to vow
-          vat.move(address(this), vow, sub(vat.good(address(this)), min));
+        if (both(vat.good(address(this)) > min_, vat.good(address(this)) > min)) {
+          // Check that we still keep min SF in purse
+          min_ = (sub(vat.good(address(this)), sub(vat.good(address(this)), min_)) < min) ? sub(vat.good(address(this)), min) : sub(vat.good(address(this)), min_);
+          // Transfer surplus to vow
+          vat.move(address(this), vow, min_);
         }
     }
 }
