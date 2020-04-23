@@ -208,7 +208,7 @@ contract Vat {
         require(either(urn.art == 0, tab >= ilk.dust), "Vat/dust");
 
         gem[i][v] = sub(gem[i][v], dink);
-        good[w]    = add(good[w],    dtab);
+        good[w]   = add(good[w],   dtab);
 
         urns[i][u] = urn;
         ilks[i]    = ilk;
@@ -216,9 +216,9 @@ contract Vat {
 
     // -- CDP Insurance --
     function dose(address usr, bytes32 i, address u, uint dink, uint dgem) external note auth {
-        if (live == 0) return;
-        if (usr == address(0)) return;
-        if (urns[i][u].ink == 0) return;
+        require(live == 0, "Vat/not-live");
+        require(usr == address(0), "Vat/null-usr");
+        require(urns[i][u].ink == 0, "Vat/no-predeposited-ink");
         urns[i][u].ink = add(urns[i][u].ink, dink);
         gem[i][usr] = add(gem[i][usr], dgem);
     }

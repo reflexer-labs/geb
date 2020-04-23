@@ -535,7 +535,6 @@ contract Vox2Test is DSTest {
         assertEq(spot.par(), 999999967159383375927263141);
     }
 
-    // TODO: simplify test
     function test_deviation_waves() public {
         monotonous_deviations(1 ether, -1, 5);
 

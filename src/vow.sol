@@ -26,7 +26,7 @@ contract FlopLike {
 }
 
 contract FlapLike {
-    function kick(uint lot) external returns (uint);
+    function kick(uint, uint) external returns (uint);
     function cage() external;
     function live() external returns (uint);
 }
@@ -58,6 +58,8 @@ contract Vow is LibNote {
     uint256 public Sin;   // queued debt          [rad]
     uint256 public Ash;   // on-auction debt      [rad]
 
+    uint256 public rho;   // last flap timestamp
+    uint256 public gap;   // flap delay
     uint256 public wait;  // flop delay
     uint256 public dump;  // flop initial lot size  [wad]
     uint256 public sump;  // flop fixed bid size    [rad]
@@ -74,6 +76,7 @@ contract Vow is LibNote {
         flapper = FlapLike(flapper_);
         flopper = FlopLike(flopper_);
         vat.hope(flapper_);
+        rho     = now;
         live = 1;
     }
 
@@ -90,7 +93,8 @@ contract Vow is LibNote {
 
     // --- Administration ---
     function file(bytes32 what, uint data) external note auth {
-        if (what == "wait") wait = data;
+        if (what == "gap") gap = data;
+        else if (what == "wait") wait = data;
         else if (what == "bump") bump = data;
         else if (what == "sump") sump = data;
         else if (what == "dump") dump = data;
@@ -142,9 +146,11 @@ contract Vow is LibNote {
     }
     // Surplus auction
     function flap() external note returns (uint id) {
+        require(now >= add(rho, gap), "Vox/gap-not-passed");
         require(vat.good(address(this)) >= add(add(vat.sin(address(this)), bump), hump), "Vow/insufficient-surplus");
         require(sub(sub(vat.sin(address(this)), Sin), Ash) == 0, "Vow/debt-not-zero");
-        id = flapper.kick(bump);
+        rho = now;
+        id  = flapper.kick(bump, 0);
     }
 
     function cage() external note auth {

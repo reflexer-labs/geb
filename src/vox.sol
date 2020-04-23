@@ -1,4 +1,4 @@
-/// vox.sol -- rate setter
+/// vox.sol -- redemption rate feedback mechanism
 
 // Copyright (C) 2016, 2017  Nikolai Mushegian <nikolai@dapphub.com>
 // Copyright (C) 2016, 2017  Daniel Brockman <daniel@dapphub.com>
@@ -98,15 +98,12 @@ contract Vox1 is LibNote, Exp {
     uint256 public trim; // deviation from target price at which rates are recalculated  [ray]
     uint256 public bowl; // accrued time since the deviation has been positive/negative
 
-    uint256 public live; // access flag
-
     uint256 public deaf; // default per-second way                                       [ray]
-    uint256 public wand; // rate of change for deaf                                      [ray]
 
     uint256 public up;   // upper bound for deaf                                         [ray]
     uint256 public down; // lower bound for deaf                                         [ray]
 
-    uint256 public rho;  // last timestamp of then deaf was updated
+    uint256 public live; // access flag
 
     PI     public core;
 
@@ -119,11 +116,9 @@ contract Vox1 is LibNote, Exp {
         wards[msg.sender] = 1;
         fix  = RAY;
         deaf = RAY;
-        wand = RAY;
         up   = MAX;
         down = MAX;
         tau  = now;
-        rho  = now;
         spot = SpotLike(spot_);
         core = PI(RAY, 0);
         live = 1;
@@ -140,10 +135,6 @@ contract Vox1 is LibNote, Exp {
         require(live == 1, "Vox1/not-live");
         if (what == "trim") trim = val;
         else if (what == "deaf") deaf = val;
-        else if (what == "wand") {
-          require(val > 0, "Vox1/null-wand");
-          wand = val;
-        }
         else if (what == "how")  {
           core.how  = val;
         }
@@ -213,33 +204,6 @@ contract Vox1 is LibNote, Exp {
     }
     function delt(uint x, uint y) internal pure returns (uint z) {
         z = (x >= y) ? x - y : y - x;
-    }
-    function rmul(uint x, uint y) internal pure returns (uint z) {
-        // alsites rounds down
-        z = mul(x, y) / RAY;
-    }
-    function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
-        assembly {
-            switch x case 0 {switch n case 0 {z := base} default {z := 0}}
-            default {
-                switch mod(n, 2) case 0 { z := base } default { z := x }
-                let half := div(base, 2)  // for rounding.
-                for { n := div(n, 2) } n { n := div(n,2) } {
-                    let xx := mul(x, x)
-                    if iszero(eq(div(xx, x), x)) { revert(0,0) }
-                    let xxRound := add(xx, half)
-                    if lt(xxRound, xx) { revert(0,0) }
-                    x := div(xxRound, base)
-                    if mod(n,2) {
-                        let zx := mul(z, x)
-                        if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
-                        let zxRound := add(zx, half)
-                        if lt(zxRound, zx) { revert(0,0) }
-                        z := div(zxRound, base)
-                    }
-                }
-            }
-        }
     }
     function comp(uint x) internal view returns (uint z) {
         /**
@@ -331,29 +295,14 @@ contract Vox1 is LibNote, Exp {
           } else {
             // Restart counting the seconds since the deviation has been constant
             wipe();
-            // Simply set default values for the rates
-            spot.file("way", prod());
+            // Simply set default value for way
+            spot.file("way", deaf);
           }
           // Make sure you store the latest price as a ray
           fix = ray(uint(val));
           // Also store the timestamp of the update
           tau = era();
         }
-    }
-    function prod() internal returns (uint tmp) {
-        tmp = (now > rho) ? rmul(rpow(wand, sub(now, rho), RAY), deaf) : deaf;
-
-        // Deaf might have bounds so make sure you don't pass them
-        if (down != MAX) {
-          tmp = (tmp < down) ? down : tmp;
-        }
-
-        if (up != MAX) {
-          tmp = (tmp > up) ? up : tmp;
-        }
-
-        deaf = tmp;
-        rho  = now;
     }
 }
 
@@ -376,7 +325,6 @@ contract Vox1 is LibNote, Exp {
   After deployment, you can set several parameters such as:
 
     - Default value for DEAF
-    - A rate of change for the default DEAF value
     - A default deviation multiplier
     - A default sensitivity parameter to apply over time
     - A default multiplier for the slope of change in price
@@ -401,12 +349,9 @@ contract Vox2 is LibNote, Exp {
     // -- Static & Default Variables ---
     uint256 public trim; // deviation at which rates are recalculated
     uint256 public deaf; // default per-second way
-    uint256 public wand; // rate of change for deaf                                      [ray]
 
     uint256 public up;   // upper bound for deaf                                         [ray]
     uint256 public down; // lower bound for deaf                                         [ray]
-
-    uint256 public rho;  // last timestamp of when deaf was updated
 
     uint256 public dino;  // length of the og cron snapshot
     uint256 public whole; // length of the all cron snapshot
@@ -449,10 +394,8 @@ contract Vox2 is LibNote, Exp {
         whole = whole_;
         crude  = crude_;
         deaf = RAY;
-        wand = RAY;
         up   = MAX;
         down = MAX;
-        rho  = now;
         spot = SpotLike(spot_);
         fix  = spot.par();
         core = PID(RAY, RAY);
@@ -539,33 +482,6 @@ contract Vox2 is LibNote, Exp {
     }
     function delt(uint x, uint y) internal pure returns (uint z) {
         z = (x >= y) ? x - y : y - x;
-    }
-    function rmul(uint x, uint y) internal pure returns (uint z) {
-        // alsites rounds down
-        z = mul(x, y) / RAY;
-    }
-    function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
-        assembly {
-            switch x case 0 {switch n case 0 {z := base} default {z := 0}}
-            default {
-                switch mod(n, 2) case 0 { z := base } default { z := x }
-                let half := div(base, 2)  // for rounding.
-                for { n := div(n, 2) } n { n := div(n,2) } {
-                    let xx := mul(x, x)
-                    if iszero(eq(div(xx, x), x)) { revert(0,0) }
-                    let xxRound := add(xx, half)
-                    if lt(xxRound, xx) { revert(0,0) }
-                    x := div(xxRound, base)
-                    if mod(n,2) {
-                        let zx := mul(z, x)
-                        if and(iszero(iszero(x)), iszero(eq(div(zx, x), z))) { revert(0,0) }
-                        let zxRound := add(zx, half)
-                        if lt(zxRound, zx) { revert(0,0) }
-                        z := div(zxRound, base)
-                    }
-                }
-            }
-        }
     }
     function comp(uint x) internal view returns (uint z) {
         /**
@@ -702,27 +618,12 @@ contract Vox2 is LibNote, Exp {
             site = 0;
             road = 0;
             // Set default rate
-            spot.file("way", prod());
+            spot.file("way", deaf);
           }
           // Store the latest market price
           fix = ray(uint(val));
           // Store the timestamp of the oracle update
           zzz = zzz_;
         }
-    }
-    function prod() internal returns (uint tmp) {
-        tmp = (now > rho) ? rmul(rpow(wand, sub(now, rho), RAY), deaf) : deaf;
-
-        // Deaf might have bounds so make sure you don't pass them
-        if (down != MAX) {
-          tmp = (tmp < down) ? down : tmp;
-        }
-
-        if (up != MAX) {
-          tmp = (tmp > up) ? up : tmp;
-        }
-
-        deaf = tmp;
-        rho  = now;
     }
 }

@@ -172,11 +172,11 @@ contract BinLike {
 contract FlapTwoTest is DSTest {
     Hevm hevm;
 
-    Flapper2 flap;
+    Flapper2 flap2;
     BinLike  bin;
     Vat      vat;
     DSToken  gov;
-    DSToken  bond;
+    DSToken  coin;
     CoinJoin coinA;
 
     address ali;
@@ -192,78 +192,90 @@ contract FlapTwoTest is DSTest {
 
         vat  = new Vat();
         gov  = new DSToken('');
-        bond = new DSToken("Coin");
+        coin = new DSToken("Coin");
         bin  = new BinLike(1 ether);
 
-        coinA = new CoinJoin(address(vat), address(bond));
+        coinA = new CoinJoin(address(vat), address(coin));
         vat.rely(address(coinA));
-        bond.mint(address(this), 50 ether);
-        bond.setOwner(address(coinA));
+        coin.mint(address(this), 50 ether);
+        coin.setOwner(address(coinA));
 
-        flap = new Flapper2(address(vat));
-        flap.file("bond", address(bond));
-        flap.file("gov", address(gov));
-        flap.file("bin", address(bin));
-        flap.file("join", address(coinA));
-        flap.file("safe", address(this));
+        flap2 = new Flapper2(address(vat));
+        flap2.file("coin", address(coin));
+        flap2.file("gov", address(gov));
+        flap2.file("bin", address(bin));
+        flap2.file("join", address(coinA));
+        flap2.file("safe", address(this));
 
-        vat.hope(address(flap));
-        gov.approve(address(flap));
+        vat.hope(address(flap2));
+        gov.approve(address(flap2));
 
-        vat.suck(address(this), address(this), 1000 ether * 10 ** 27);
+        vat.suck(address(this), address(this), rad(1000 ether));
 
         gov.mint(1000 ether);
-        gov.setOwner(address(flap));
+        gov.setOwner(address(flap2));
         gov.push(address(bin), 200 ether);
     }
     function test_setup() public {
-        assertEq(flap.path(0), address(bond));
-        assertEq(flap.path(1), address(gov));
+        assertEq(flap2.path(0), address(coin));
+        assertEq(flap2.path(1), address(gov));
     }
     function test_kick() public {
         assertEq(vat.good(address(this)), rad(1000 ether));
-        assertEq(gov.balanceOf(address(flap)), 0);
-        assertEq(vat.good(address(flap)),    0 ether);
-        assertEq(bond.balanceOf(address(flap)), 0 ether);
-        flap.kick(rad(100 ether));
-        assertEq(gov.balanceOf(address(flap)), 0);
-        assertEq(vat.good(address(flap)),    0 ether);
-        assertEq(bond.balanceOf(address(flap)), 0 ether);
+        assertEq(gov.balanceOf(address(flap2)), 0);
+        assertEq(vat.good(address(flap2)),    0 ether);
+        assertEq(coin.balanceOf(address(flap2)), 0 ether);
+        flap2.kick({ lot: rad(100 ether)
+                  , bid: 0
+                  });
+        assertEq(gov.balanceOf(address(flap2)), 0);
+        assertEq(vat.good(address(flap2)),    0 ether);
+        assertEq(coin.balanceOf(address(flap2)), 0 ether);
         assertEq(vat.good(address(this)),  rad(900 ether));
     }
     function testFail_wasted_lot() public {
-        flap.kick(rad(100 ether) + 1);
+      flap2.kick({ lot: rad(100 ether) + 1
+                , bid: 0
+                });
     }
     function test_kick_gov_prefunded() public {
-        gov.transfer(address(flap), 2 ether);
-        assertEq(gov.balanceOf(address(flap)), 2 ether);
-        flap.kick(rad(100 ether));
-        assertEq(gov.balanceOf(address(flap)), 0);
-    }
-    function test_kick_bond_prefunded() public {
-        bond.transfer(address(flap), 50 ether);
-        assertEq(vat.good(address(this)), rad(1000 ether));
-        assertEq(bond.balanceOf(address(this)), 0 ether);
-        assertEq(bond.balanceOf(address(flap)), 50 ether);
-        flap.kick(rad(100 ether));
-        assertEq(gov.balanceOf(address(flap)), 0);
-        assertEq(vat.good(address(flap)),    0 ether);
-        assertEq(bond.balanceOf(address(flap)), 0 ether);
+        gov.transfer(address(flap2), 2 ether);
+        assertEq(gov.balanceOf(address(flap2)), 2 ether);
+        flap2.kick({ lot: rad(100 ether)
+                  , bid: 0
+                  });
+        assertEq(gov.balanceOf(address(flap2)), 0);
     }
     function test_kick_coin_prefunded() public {
-        vat.move(address(this), address(flap), rad(50 ether));
-        assertEq(vat.good(address(this)), rad(950 ether));
-        assertEq(vat.good(address(flap)), rad(50 ether));
-        flap.kick(rad(100 ether));
-        assertEq(vat.good(address(this)), rad(900 ether));
-        assertEq(vat.good(address(flap)), 0);
+        coin.transfer(address(flap2), 50 ether);
+        assertEq(vat.good(address(this)), rad(1000 ether));
+        assertEq(coin.balanceOf(address(this)), 0 ether);
+        assertEq(coin.balanceOf(address(flap2)), 50 ether);
+        flap2.kick({ lot: rad(100 ether)
+                  , bid: 0
+                  });
+        assertEq(gov.balanceOf(address(flap2)), 0);
+        assertEq(vat.good(address(flap2)),    0 ether);
+        assertEq(coin.balanceOf(address(flap2)), 0 ether);
     }
-    function test_coin_and_bond_prefunded() public {
-        bond.transfer(address(flap), 50 ether);
-        vat.move(address(this), address(flap), rad(50 ether));
-        flap.kick(rad(150 ether));
-        assertEq(gov.balanceOf(address(flap)), 0);
-        assertEq(vat.good(address(flap)),    0 ether);
-        assertEq(bond.balanceOf(address(flap)), 0 ether);
+    function test_kick_good_prefunded() public {
+        vat.move(address(this), address(flap2), rad(50 ether));
+        assertEq(vat.good(address(this)), rad(950 ether));
+        assertEq(vat.good(address(flap2)), rad(50 ether));
+        flap2.kick({ lot: rad(100 ether)
+                  , bid: 0
+                  });
+        assertEq(vat.good(address(this)), rad(900 ether));
+        assertEq(vat.good(address(flap2)), 0);
+    }
+    function test_good_and_coin_prefunded() public {
+        coin.transfer(address(flap2), 50 ether);
+        vat.move(address(this), address(flap2), rad(50 ether));
+        flap2.kick({ lot: rad(150 ether)
+                  , bid: 0
+                  });
+        assertEq(gov.balanceOf(address(flap2)), 0);
+        assertEq(vat.good(address(flap2)),    0 ether);
+        assertEq(coin.balanceOf(address(flap2)), 0 ether);
     }
 }

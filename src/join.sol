@@ -42,7 +42,7 @@ contract VatLike {
       - `GemJoin`: For well behaved ERC20 tokens, with simple transfer
                    semantics.
       - `ETHJoin`: For native Ether.
-      - `CoinJoin`: For connecting internal Mai balances to an external
+      - `CoinJoin`: For connecting internal coin balances to an external
                    `DSToken` implementation.
     In practice, adapter implementations will be varied and specific to
     individual collateral types, accounting for different transfer
