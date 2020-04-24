@@ -1,4 +1,4 @@
-/// vat.sol -- Urn database
+/// CDPEngine.sol -- Urn database
 
 // Copyright (C) 2018 Rain <rainbreak@riseup.net>
 // Copyright (C) 2020 Stefan C. Ionescu <stefanionescu@protonmail.com>
@@ -18,47 +18,51 @@
 
 pragma solidity ^0.5.15;
 
-contract Vat {
+contract CDPEngine {
     // --- Auth ---
-    mapping (address => uint) public wards;
-    function rely(address usr) external note auth { require(live == 1, "Vat/not-live"); wards[usr] = 1; }
-    function deny(address usr) external note auth { require(live == 1, "Vat/not-live"); wards[usr] = 0; }
-    modifier auth {
-        require(wards[msg.sender] == 1, "Vat/not-authorized");
+    mapping (address => uint) public authorizedAccounts;
+    function addAuthorization(address account) external emitLog isAuthorized {
+      require(contractEnabled == 1, "CDPEngine/contract-not-enabled"); authorizedAccounts[account] = 1;
+    }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+      require(contractEnabled == 1, "CDPEngine/contract-not-enabled"); authorizedAccounts[account] = 0;
+    }
+    modifier isAuthorized {
+        require(authorizedAccounts[msg.sender] == 1, "CDPEngine/account-not-authorized");
         _;
     }
 
-    mapping(address => mapping (address => uint)) public can;
-    function hope(address usr) external note { can[msg.sender][usr] = 1; }
-    function nope(address usr) external note { can[msg.sender][usr] = 0; }
-    function wish(address bit, address usr) public view returns (bool) {
-        return either(bit == usr, can[bit][usr] == 1);
+    mapping(address => mapping (address => uint)) public cdpRights;
+    function approveCDPModification(address account) external emitLog { cdpRights[msg.sender][account] = 1; }
+    function denyCDPModification(address account) external emitLog { cdpRights[msg.sender][account] = 0; }
+    function canModifyCDP(address cdp, address account) public view returns (bool) {
+        return either(cdp == account, cdpRights[cdp][account] == 1);
     }
 
     // --- Data ---
-    struct Ilk {
-        uint256 Art;   // Total Normalised Debt     [wad]
-        uint256 rate;  // Accumulated Rates         [ray]
-        uint256 spot;  // Minimum Permitted Price   [ray]
-        uint256 line;  // Debt Ceiling              [rad]
-        uint256 dust;  // Urn Debt Floor            [rad]
-        uint256 risk;  // Liquidation Price         [ray]
+    struct CollateralType {
+        uint256 debtAmount,        // wad
+        uint256 accumulatedRates,  // ray
+        uint256 safetyPrice,       // ray
+        uint256 debtCeiling,       // rad
+        uint256 debtFloor,         // rad
+        uint256 liquidationPrice   // ray
     }
-    struct Urn {
-        uint256 ink;   // Locked Collateral  [wad]
-        uint256 art;   // Normalised Debt    [wad]
+    struct CDP {
+        uint256 lockedCollateral, // wad
+        uint256 generatedDebt     // wad
     }
 
-    mapping (bytes32 => Ilk)                       public ilks;
-    mapping (bytes32 => mapping (address => Urn )) public urns;
-    mapping (bytes32 => mapping (address => uint)) public gem;   // [wad]
-    mapping (address => uint)                      public good;  // [rad]
-    mapping (address => uint)                      public sin;   // [rad]
+    mapping (bytes32 => CollateralType)            public collateralTypes;
+    mapping (bytes32 => mapping (address => CDP )) public cdps;
+    mapping (bytes32 => mapping (address => uint)) public tokenCollateral;  // [wad]
+    mapping (address => uint)                      public coinBalance;      // [rad]
+    mapping (address => uint)                      public unbackedDebt;     // [rad]
 
-    uint256  public debt;  // Total Goods Issued   [rad]
-    uint256  public vice;  // Total Unbacked Goods [rad]
-    uint256  public Line;  // Total Debt Ceiling   [rad]
-    uint256  public live;  // Access Flag
+    uint256  public globalDebt;          // [rad]
+    uint256  public globalUnbackedDebt;  // [rad]
+    uint256  public globalDebtCeiling;   // [rad]
+    uint256  public contractEnabled;
 
     // --- Logs ---
     event LogNote(
@@ -69,7 +73,7 @@ contract Vat {
         bytes             data
     ) anonymous;
 
-    modifier note {
+    modifier emitLog {
         _;
         assembly {
             // log an 'anonymous' event with a constant 6 words of calldata
@@ -90,8 +94,8 @@ contract Vat {
 
     // --- Init ---
     constructor() public {
-        wards[msg.sender] = 1;
-        live = 1;
+        authorizedAccounts[msg.sender] = 1;
+        contractEnabled = 1;
     }
 
     // --- Math ---
@@ -131,40 +135,40 @@ contract Vat {
     }
 
     // --- Administration ---
-    function init(bytes32 ilk) external note auth {
-        require(ilks[ilk].rate == 0, "Vat/ilk-already-init");
-        ilks[ilk].rate = 10 ** 27;
+    function initializeCollateralType(bytes32 collateralType) external emitLog isAuthorized {
+        require(collateralTypes[collateralType].accumulatedRates == 0, "CDPEngine/collateral-type-already-exists");
+        collateralTypes[collateralType].accumulatedRates = 10 ** 27;
     }
-    function file(bytes32 what, uint data) external note auth {
-        require(live == 1, "Vat/not-live");
-        if (what == "Line") Line = data;
-        else revert("Vat/file-unrecognized-param");
+    function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
+        require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
+        if (parameter == "globalDebtCeiling") globalDebtCeiling = data;
+        else revert("CDPEngine/modify-unrecognized-param");
     }
-    function file(bytes32 ilk, bytes32 what, uint data) external note auth {
-        require(live == 1, "Vat/not-live");
-        if (what == "spot") ilks[ilk].spot = data;
-        else if (what == "risk") ilks[ilk].risk = data;
-        else if (what == "line") ilks[ilk].line = data;
-        else if (what == "dust") ilks[ilk].dust = data;
-        else revert("Vat/file-unrecognized-param");
+    function modifyParameters(bytes32 collateralType, bytes32 parameter, uint data) external emitLog isAuthorized {
+        require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
+        if (parameter == "safetyPrice") collateralTypes[collateralType].safetyPrice = data;
+        else if (parameter == "liquidationPrice") collateralTypes[collateralType].liquidationPrice = data;
+        else if (parameter == "debtCeiling") collateralTypes[collateralType].debtCeiling = data;
+        else if (parameter == "debtFloor") collateralTypes[collateralType].debtFloor = data;
+        else revert("CDPEngine/modify-unrecognized-param");
     }
-    function cage() external note auth {
-        live = 0;
+    function disableContract() external emitLog isAuthorized {
+        contractEnabled = 0;
     }
 
     // --- Fungibility ---
-    function slip(bytes32 ilk, address usr, int256 wad) external note auth {
-        gem[ilk][usr] = add(gem[ilk][usr], wad);
+    function modifyCollateralBalance(bytes32 collateralType, address account, int256 wad) external emitLog isAuthorized {
+        tokenCollateral[collateralType][account] = add(tokenCollateral[collateralType][account], wad);
     }
-    function flux(bytes32 ilk, address src, address dst, uint256 wad) external note {
-        require(wish(src, msg.sender), "Vat/not-allowed");
-        gem[ilk][src] = sub(gem[ilk][src], wad);
-        gem[ilk][dst] = add(gem[ilk][dst], wad);
+    function transferCollateral(bytes32 collateralType, address src, address dst, uint256 wad) external emitLog {
+        require(canModifyCDP(src, msg.sender), "CDPEngine/not-allowed");
+        tokenCollateral[collateralType][src] = sub(tokenCollateral[collateralType][src], wad);
+        tokenCollateral[collateralType][dst] = add(tokenCollateral[collateralType][dst], wad);
     }
-    function move(address src, address dst, uint256 rad) external note {
-        require(wish(src, msg.sender), "Vat/not-allowed");
-        good[src] = sub(good[src], rad);
-        good[dst] = add(good[dst], rad);
+    function transferInternalCoins(address src, address dst, uint256 rad) external emitLog {
+        require(canModifyCDP(src, msg.sender), "CDPEngine/not-allowed");
+        coinBalance[src] = sub(coinBalance[src], rad);
+        coinBalance[dst] = add(coinBalance[dst], rad);
     }
 
     function either(bool x, bool y) internal pure returns (bool z) {
@@ -175,118 +179,167 @@ contract Vat {
     }
 
     // --- CDP Manipulation ---
-    function frob(bytes32 i, address u, address v, address w, int dink, int dart) external note {
+    function modifyCDP(
+      bytes32 collateralType,
+      address cdp,
+      address collateralSource,
+      address debtDestination,
+      int deltaCollateral,
+      int deltaDebt
+    ) external emitLog {
         // system is live
-        require(live == 1, "Vat/not-live");
+        require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
 
-        Urn memory urn = urns[i][u];
-        Ilk memory ilk = ilks[i];
+        CDP memory cdp_ = cdps[collateralType][cdp];
+        CollateralType memory collateralType_ = collateralTypes[collateralType];
         // ilk has been initialised
-        require(ilk.rate != 0, "Vat/ilk-not-init");
+        require(collateralType_.accumulatedRates != 0, "CDPEngine/collateral-type-not-initialized");
 
-        urn.ink = add(urn.ink, dink);
-        urn.art = add(urn.art, dart);
-        ilk.Art = add(ilk.Art, dart);
+        cdp_.lockedCollateral      = add(cdp_.lockedCollateral, deltaCollateral);
+        cdp_.generatedDebt         = add(cdp_.generatedDebt, deltaDebt);
+        collateralType_.debtAmount = add(collateralType_.debtAmount, deltaDebt);
 
-        int dtab = mul(ilk.rate, dart);
-        uint tab = mul(ilk.rate, urn.art);
-        debt     = add(debt, dtab);
+        int deltaAdjustedDebt = mul(collateralType_.accumulatedRates, deltaDebt);
+        uint totalDebtIssued  = mul(collateralType_.accumulatedRates, cdp_.generatedDebt);
+        globalDebt            = add(globalDebt, deltaAdjustedDebt);
 
         // either debt has decreased, or debt ceilings are not exceeded
-        require(either(dart <= 0, both(mul(ilk.Art, ilk.rate) <= ilk.line, debt <= Line)), "Vat/ceiling-exceeded");
-        // urn is either less risky than before, or it is safe
-        require(either(both(dart <= 0, dink >= 0), tab <= mul(urn.ink, ilk.spot)), "Vat/not-safe");
+        require(
+          either(
+            deltaDebt <= 0,
+            both(mul(collateralType_.debtAmount, collateralType_.accumulatedRates) <= collateralType_.debtCeiling,
+              globalDebt <= globalDebtCeiling)
+            ),
+          "CDPEngine/ceiling-exceeded"
+        );
+        // cdp is either less risky than before, or it is safe
+        require(
+          either(
+            both(deltaDebt <= 0, deltaCollateral >= 0),
+            totalDebtIssued <= mul(cdp_.lockedCollateral, collateralType_.safetyPrice)
+          ),
+          "CDPEngine/not-safe"
+        );
 
-        // urn is either more safe, or the owner consents
-        require(either(both(dart <= 0, dink >= 0), wish(u, msg.sender)), "Vat/not-allowed-u");
+        // cdp is either more safe, or the owner consents
+        require(either(both(deltaDebt <= 0, deltaCollateral >= 0), canModifyCDP(cdp, msg.sender)), "CDPEngine/not-allowed-to-modify-cdp");
         // collateral src consents
-        require(either(dink <= 0, wish(v, msg.sender)), "Vat/not-allowed-v");
+        require(either(deltaCollateral <= 0, canModifyCDP(collateralSource, msg.sender)), "CDPEngine/not-allowed-collateral-src");
         // debt dst consents
-        require(either(dart >= 0, wish(w, msg.sender)), "Vat/not-allowed-w");
+        require(either(deltaDebt >= 0, canModifyCDP(debtDestination, msg.sender)), "CDPEngine/not-allowed-debt-dst");
 
-        // urn has no debt, or a non-dusty amount
-        require(either(urn.art == 0, tab >= ilk.dust), "Vat/dust");
+        // cdp has no debt, or a non-dusty amount
+        require(either(cdp_.generatedDebt == 0, totalDebtIssued >= collateralType_.debtFloor), "CDPEngine/dust");
 
-        gem[i][v] = sub(gem[i][v], dink);
-        good[w]   = add(good[w],   dtab);
+        tokenCollateral[collateralType][collateralSource] =
+          sub(tokenCollateral[collateralType][collateralSource], deltaCollateral);
 
-        urns[i][u] = urn;
-        ilks[i]    = ilk;
+        coinBalance[debtDestination] = add(coinBalance[debtDestination], deltaAdjustedDebt);
+
+        cdps[collateralType][cdp] = cdp_;
+        collateralTypes[collateralType] = collateralType_;
     }
 
     // -- CDP Insurance --
-    function dose(address usr, bytes32 i, address u, uint dink, uint dgem) external note auth {
-        require(live == 0, "Vat/not-live");
-        require(usr == address(0), "Vat/null-usr");
-        require(urns[i][u].ink == 0, "Vat/no-predeposited-ink");
-        urns[i][u].ink = add(urns[i][u].ink, dink);
-        gem[i][usr] = add(gem[i][usr], dgem);
+    function saveCDP(
+      address liquidator,
+      bytes32 collateralType,
+      address cdp,
+      uint collateralToAdd,
+      uint reward
+    ) external emitLog isAuthorized {
+        require(contractEnabled == 0, "CDPEngine/contract-not-enabled");
+        require(liquidator == address(0), "CDPEngine/null-liquidator");
+        require(cdps[collateralType][cdp].lockedCollateral == 0, "CDPEngine/no-predeposited-collateral");
+        cdps[collateralType][cdp].lockedCollateral = add(cdps[collateralType][cdp].lockedCollateral, collateralToAdd);
+        tokenCollateral[collateralType][liquidator] = add(tokenCollateral[collateralType][liquidator], reward);
     }
 
     // --- CDP Fungibility ---
-    function fork(bytes32 ilk, address src, address dst, int dink, int dart) external note {
-        Urn storage u = urns[ilk][src];
-        Urn storage v = urns[ilk][dst];
-        Ilk storage i = ilks[ilk];
+    function transferCollateralAndDebt(
+      bytes32 collateralType,
+      address src,
+      address dst,
+      int deltaCollateral,
+      int deltaDebt
+    ) external emitLog {
+        CDP storage srcCDP = cdps[collateralType][src];
+        CDP storage dstCDP = cdps[collateralType][dst];
+        CollateralType storage collateralType_ = collateralTypes[collateralType];
 
-        u.ink = sub(u.ink, dink);
-        u.art = sub(u.art, dart);
-        v.ink = add(v.ink, dink);
-        v.art = add(v.art, dart);
+        srcCDP.lockedCollateral = sub(srcCDP.lockedCollateral, deltaCollateral);
+        srcCDP.generatedDebt    = sub(srcCDP.generatedDebt, deltaDebt);
+        dstCDP.lockedCollateral = add(dstCDP.lockedCollateral, deltaCollateral);
+        dstCDP.generatedDebt    = add(dstCDP.generatedDebt, deltaDebt);
 
-        uint utab = mul(u.art, i.rate);
-        uint vtab = mul(v.art, i.rate);
+        uint srcTotalDebtIssued = mul(srcCDP.generatedDebt, collateralType_.accumulatedRates);
+        uint dstTotalDebtIssued = mul(dstCDP.generatedDebt, collateralType_.accumulatedRates);
 
         // both sides consent
-        require(both(wish(src, msg.sender), wish(dst, msg.sender)), "Vat/not-allowed");
+        require(both(canModifyCDP(src, msg.sender), canModifyCDP(dst, msg.sender)), "CDPEngine/not-allowed");
 
         // both sides safe
-        require(utab <= mul(u.ink, i.spot), "Vat/not-safe-src");
-        require(vtab <= mul(v.ink, i.spot), "Vat/not-safe-dst");
+        require(srcTotalDebtIssued <= mul(srcCDP.lockedCollateral, collateralType_.safetyPrice), "CDPEngine/not-safe-src");
+        require(dstTotalDebtIssued <= mul(dstCDP.lockedCollateral, collateralType_.safetyPrice), "CDPEngine/not-safe-dst");
 
         // both sides non-dusty
-        require(either(utab >= i.dust, u.art == 0), "Vat/dust-src");
-        require(either(vtab >= i.dust, v.art == 0), "Vat/dust-dst");
+        require(either(srcTotalDebtIssued >= collateralType_.debtFloor, srcCDP.generatedDebt == 0), "CDPEngine/dust-src");
+        require(either(dstTotalDebtIssued >= collateralType_.debtFloor, dstCDP.generatedDebt == 0), "CDPEngine/dust-dst");
     }
 
     // --- CDP Confiscation ---
-    function confiscateCollateralAndDebt(bytes32 i, address u, address v, address w, int dink, int dart) external note auth {
-        Urn storage urn = urns[i][u];
-        Ilk storage ilk = ilks[i];
+    function confiscateCollateralAndDebt(
+      bytes32 collateralType,
+      address targetCDP,
+      address collateralCounterparty,
+      address debtCounterparty,
+      int deltaCollateral,
+      int deltaDebt
+    ) external emitLog isAuthorized {
+        CDP storage cdp_ = cdps[collateralType][targetCDP];
+        CollateralType storage collateralType_ = collateralTypes[collateralType];
 
-        urn.ink = add(urn.ink, dink);
-        urn.art = add(urn.art, dart);
-        ilk.Art = add(ilk.Art, dart);
+        cdp_.lockedCollateral = add(cdp_.lockedCollateral, deltaCollateral);
+        cdp_.generatedDebt = add(cdp_.generatedDebt, deltaDebt);
+        collateralType_.debtAmount = add(collateralType_.debtAmount, deltaDebt);
 
-        int dtab = mul(ilk.rate, dart);
+        int deltaTotalIssuedDebt = mul(collateralType_.accumulatedRates, deltaDebt);
 
-        gem[i][v] = sub(gem[i][v], dink);
-        sin[w]    = sub(sin[w],    dtab);
-        vice      = sub(vice,      dtab);
+        tokenCollateral[collateralType][collateralCounterparty] = sub(tokenCollateral[collateralType][collateralCounterparty], deltaCollateral);
+        unbackedDebt[debtCounterparty]                          = sub(unbackedDebt[debtCounterparty], deltaTotalIssuedDebt);
+        globalUnbackedDebt                                      = sub(globalUnbackedDebt, deltaTotalIssuedDebt);
     }
 
     // --- Settlement ---
-    function heal(uint rad) external note {
-        address u = msg.sender;
-        sin[u]  = sub(sin[u], rad);
-        good[u] = sub(good[u], rad);
-        vice    = sub(vice,   rad);
-        debt    = sub(debt,   rad);
+    function settleDebt(uint rad) external emitLog {
+        address account       = msg.sender;
+        unbackedDebt[account] = sub(unbackedDebt[account], rad);
+        coinBalance[account]  = sub(coinBalance[account], rad);
+        globalUnbackedDebt    = sub(globalUnbackedDebt, rad);
+        globalDebt            = sub(globalDebt, rad);
     }
-    function suck(address u, address v, uint rad) external note auth {
-        sin[u]  = add(sin[u], rad);
-        good[v] = add(good[v], rad);
-        vice    = add(vice,   rad);
-        debt    = add(debt,   rad);
+    function createUnbackedDebt(
+      address debtDestination,
+      address coinDestination,
+      uint rad
+    ) external emitLog isAuthorized {
+        unbackedDebt[debtDestination] = add(unbackedDebt[debtDestination], rad);
+        coinBalance[coinDestination]  = add(coinBalance[coinDestination], rad);
+        globalUnbackedDebt            = add(globalUnbackedDebt, rad);
+        globalDebt                    = add(globalDebt, rad);
     }
 
     // --- Rates ---
-    function fold(bytes32 i, address u, int rate) external note auth {
-        require(live == 1, "Vat/not-live");
-        Ilk storage ilk = ilks[i];
-        ilk.rate = add(ilk.rate, rate);
-        int rad  = mul(ilk.Art, rate);
-        good[u]  = add(good[u], rad);
-        debt     = add(debt,   rad);
+    function updateAccumulatedRate(
+      bytes32 collateralType,
+      address surplusDst,
+      int rateMultiplier
+    ) external emitLog isAuthorized {
+        require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
+        CollateralType storage collateralType_ = collateralTypes[collateralType];
+        collateralType_.accumulatedRates       = add(collateralType_.accumulatedRates, rateMultiplier);
+        int deltaSurplus                       = mul(collateralType_.debtAmount, rateMultiplier);
+        coinBalance[surplusDst]                = add(coinBalance[surplusDst], deltaSurplus);
+        globalDebt                             = add(globalDebt, deltaSurplus);
     }
 }

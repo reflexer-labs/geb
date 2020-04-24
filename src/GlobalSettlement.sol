@@ -35,11 +35,11 @@ contract CDPEngineLike {
         uint256 generatedDebt     // wad
     );
     function globalDebt() external returns (uint256);
-    function transferInternalCoins(address src, address dst, uint256 amount) external;
+    function transferInternalCoins(address src, address dst, uint256 rad) external;
     function approveCDPModification(address) external;
-    function transferCollateral(bytes32 collateralType, address src, address dst, uint256 amount) external;
+    function transferCollateral(bytes32 collateralType, address src, address dst, uint256 wad) external;
     function confiscateCollateralAndDebt(bytes32 collateralType, address cdp, address collateralSource, address debtDestination, int256 deltaCollateral, int256 deltaDebt) external;
-    function createUnbackedDebt(address debtDestination, address coinDestination, uint256 amount) external;
+    function createUnbackedDebt(address debtDestination, address coinDestination, uint256 rad) external;
     function disableContract() external;
 }
 contract LiquidationEngineLike {

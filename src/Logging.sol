@@ -14,7 +14,7 @@
 pragma solidity ^0.5.15;
 
 contract Logging {
-    event LogFunctionCall(
+    event LogNote(
         bytes4   indexed  sig,
         address  indexed  usr,
         bytes32  indexed  arg1,

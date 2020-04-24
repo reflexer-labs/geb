@@ -22,7 +22,7 @@ contract CDPEngineLike {
 }
 
 contract OracleLike {
-    function peek() external returns (bytes32, bool);
+    function getPriceWithValidity() external returns (bytes32, bool);
 }
 
 contract OracleRelayer is Logging {
@@ -38,8 +38,8 @@ contract OracleRelayer is Logging {
     // --- Data ---
     struct CollateralType {
         OracleLike orcl;
-        uint256 safetyCollateralization;
-        uint256 riskyCollateralization;
+        uint256 safetyCRatio;
+        uint256 liquidationCRatio;
     }
 
     mapping (bytes32 => CollateralType) public collateralTypes;
@@ -128,13 +128,13 @@ contract OracleRelayer is Logging {
     }
     function modifyParameters(bytes32 collateralType, bytes32 parameter, uint data) external emitLog isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
-        if (parameter == "safetyCollateralization") {
-          require(data <= collateralTypes[collateralType].riskyCollateralization, "OracleRelayer/mat-lower-than-tam");
-          collateralTypes[collateralType].safetyCollateralization = data;
+        if (parameter == "safetyCRatio") {
+          require(data <= collateralTypes[collateralType].liquidationCRatio, "OracleRelayer/mat-lower-than-tam");
+          collateralTypes[collateralType].safetyCRatio = data;
         }
-        else if (what == "riskyCollateralization") {
-          require(data >= collateralTypes[collateralType].safetyCollateralization, "OracleRelayer/tam-bigger-than-mat");
-          collateralTypes[collateralType].riskyCollateralization = data;
+        else if (what == "liquidationCRatio") {
+          require(data >= collateralTypes[collateralType].safetyCRatio, "OracleRelayer/tam-bigger-than-mat");
+          collateralTypes[collateralType].liquidationCRatio = data;
         }
         else revert("OracleRelayer/modify-unrecognized-param");
     }
@@ -154,10 +154,10 @@ contract OracleRelayer is Logging {
 
     // --- Update value ---
     function updateCollateralPrice(bytes32 collateralType) external {
-        (bytes32 priceFeedValue, bool hasValidValue) = collateralTypes[collateralType].orcl.peek();
+        (bytes32 priceFeedValue, bool hasValidValue) = collateralTypes[collateralType].orcl.getPriceWithValidity();
         uint redemptionPrice_ = redemptionPrice();
-        uint256 safetyPrice_ = hasValidValue ? rdiv(rdiv(mul(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].safetyCollateralization) : 0;
-        uint256 liquidationPrice_ = (hasValidValue && collateralTypes[collateralType].riskyCollateralization > 0) ? rdiv(rdiv(mul(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].riskyCollateralization) : 0;
+        uint256 safetyPrice_ = hasValidValue ? rdiv(rdiv(mul(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].safetyCRatio) : 0;
+        uint256 liquidationPrice_ = (hasValidValue && collateralTypes[collateralType].liquidationCRatio > 0) ? rdiv(rdiv(mul(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].liquidationCRatio) : 0;
         cdpEngine.modifyParameters(collateralType, "safetyPrice", safetyPrice_);
         cdpEngine.modifyParameters(collateralType, "liquidationPrice", liquidationPrice_);
         emit UpdateCollateralPrice(collateralType, priceFeedValue, safetyPrice_, liquidationPrice_);
@@ -167,12 +167,12 @@ contract OracleRelayer is Logging {
         contractEnabled = 0;
     }
 
-    function safetyCollateralization(bytes32 collateralType) public view returns (uint256) {
-        return collateralTypes[collateralType].safetyCollateralization;
+    function safetyCRatio(bytes32 collateralType) public view returns (uint256) {
+        return collateralTypes[collateralType].safetyCRatio;
     }
 
-    function riskyCollateralization(bytes32 collateralType) public view returns (uint256) {
-        return collateralTypes[collateralType].riskyCollateralization;
+    function liquidationCRatio(bytes32 collateralType) public view returns (uint256) {
+        return collateralTypes[collateralType].liquidationCRatio;
     }
 
     function orcl(bytes32 collateralType) public view returns (address) {
