@@ -151,7 +151,7 @@ contract OracleRelayerLike {
     unit coin can claim a fixed basket of collateral.
     Coin holders must first `prepareCoinsForRedeeming` into a `coinBag`. Once prepared,
     coins cannot be transferred out of the bag. More coin can be added to a bag later.
-    8. `collateralCashPrice(coinAmount)`:
+    8. `prepareCoinsForRedeeming(coinAmount)`:
         - put some coin into a bag in preparation for `redeemCollateral`
     Finally, collateral can be obtained with `redeemCollateral`. The bigger the bag,
     the more collateral can be released.
@@ -297,13 +297,13 @@ contract GlobalSettlement is Logging {
 
         uint amountOwed = rmul(rmul(cdpDebt, accumulatedRates), finalCollateralPrice[collateralType]);
         uint minCollateral = min(cdpCollateral, amountOwed);
-        collateralShortfall[ilk] = add(collateralShortfall[ilk], sub(amountOwed, minCollateral));
+        collateralShortfall[collateralType] = add(collateralShortfall[collateralType], sub(amountOwed, minCollateral));
 
         require(minCollateral <= 2**255 && cdpDebt <= 2**255, "GlobalSettlement/overflow");
         cdpEngine.confiscateCollateralAndDebt(collateralType, cdp, address(this), address(accountingEngine), -int(minCollateral), -int(cdpDebt));
     }
 
-    function free(bytes32 collateralType) external emitLog {
+    function freeCollateral(bytes32 collateralType) external emitLog {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         (uint cdpCollateral, uint cdpDebt) = cdpEngine.cdps(collateralType, msg.sender);
         require(cdpDebt == 0, "GlobalSettlement/art-not-zero");
@@ -314,28 +314,28 @@ contract GlobalSettlement is Logging {
     function calculateFinalCollateralPrice() external emitLog {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         require(outstandingCoinSupply == 0, "GlobalSettlement/outstanding-coin-supply-not-zero");
-        require(vat.good(address(vow)) == 0, "GlobalSettlement/surplus-not-zero");
+        require(cdpEngine.coinBalance(address(accountingEngine)) == 0, "GlobalSettlement/surplus-not-zero");
         require(now >= add(shutdownTime, shutdownCooldown), "GlobalSettlement/shutdown-cooldown-not-finished");
-        outstandingCoinSupply = vat.debt();
+        outstandingCoinSupply = cdpEngine.globalDebt();
     }
-    function calculateCashPrice(bytes32 ilk) external emitLog {
+    function calculateCashPrice(bytes32 collateralType) external emitLog {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
-        require(collateralCashPrice[ilk] == 0, "GlobalSettlement/collateral-cash-price-already-defined");
+        require(collateralCashPrice[collateralType] == 0, "GlobalSettlement/collateral-cash-price-already-defined");
 
-        (, uint rate,,,,) = vat.ilks(ilk);
-        uint256 wad = rmul(rmul(collateralTypeTotalDebt[ilk], rate), finalCollateralPrice[ilk]);
-        collateralCashPrice[ilk] = rdiv(mul(sub(wad, collateralShortfall[ilk]), RAY), outstandingCoinSupply);
+        (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
+        uint256 wad = rmul(rmul(collateralTypeTotalDebt[collateralType], accumulatedRates), finalCollateralPrice[collateralType]);
+        collateralCashPrice[collateralType] = rdiv(mul(sub(wad, collateralShortfall[collateralType]), RAY), outstandingCoinSupply);
     }
 
-    function pack(uint256 wad) external note {
+    function prepareCoinsForRedeeming(uint256 coinAmount) external emitLog {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
-        vat.move(msg.sender, address(vow), mul(wad, RAY));
-        coinBag[msg.sender] = add(coinBag[msg.sender], wad);
+        cdpEngine.transferInternalCoins(msg.sender, address(accountingEngine), mul(coinAmount, RAY));
+        coinBag[msg.sender] = add(coinBag[msg.sender], coinAmount);
     }
-    function redeemCollateral(bytes32 ilk, uint wad) external note {
-        require(collateralCashPrice[ilk] != 0, "GlobalSettlement/collateral-cash-price-not-defined");
-        vat.flux(ilk, address(this), msg.sender, rmul(wad, collateralCashPrice[ilk]));
-        coinsUsedToRedeem[ilk][msg.sender] = add(coinsUsedToRedeem[ilk][msg.sender], wad);
-        require(coinsUsedToRedeem[ilk][msg.sender] <= coinBag[msg.sender], "GlobalSettlement/insufficient-bag-balance");
+    function redeemCollateral(bytes32 collateralType, uint coinsAmount) external note {
+        require(collateralCashPrice[collateralType] != 0, "GlobalSettlement/collateral-cash-price-not-defined");
+        cdpEngine.flux(collateralType, address(this), msg.sender, rmul(coinsAmount, collateralCashPrice[collateralType]));
+        coinsUsedToRedeem[collateralType][msg.sender] = add(coinsUsedToRedeem[collateralType][msg.sender], coinsAmount);
+        require(coinsUsedToRedeem[collateralType][msg.sender] <= coinBag[msg.sender], "GlobalSettlement/insufficient-bag-balance");
     }
 }
