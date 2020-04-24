@@ -15,15 +15,15 @@
 
 pragma solidity ^0.5.15;
 
-import "./lib.sol";
+import "./Logging.sol";
 
-contract Coin is LibNote {
+contract Coin is Logging {
     // --- Auth ---
-    mapping (address => uint) public wards;
-    function rely(address guy) external note auth { wards[guy] = 1; }
-    function deny(address guy) external note auth { wards[guy] = 0; }
-    modifier auth {
-        require(wards[msg.sender] == 1, "Coin/not-authorized");
+    mapping (address => uint) public authorizedAccounts;
+    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    modifier isAuthorized {
+        require(authorizedAccounts[msg.sender] == 1, "Coin/account-not-authorized");
         _;
     }
 
@@ -40,8 +40,8 @@ contract Coin is LibNote {
     mapping (address => mapping (address => uint)) public allowance;
     mapping (address => uint)                      public nonces;
 
-    event Approval(address indexed src, address indexed guy, uint wad);
-    event Transfer(address indexed src, address indexed dst, uint wad);
+    event Approval(address indexed src, address indexed guy, uint amount);
+    event Transfer(address indexed src, address indexed dst, uint amount);
 
     // --- Math ---
     function add(uint x, uint y) internal pure returns (uint z) {
@@ -61,7 +61,7 @@ contract Coin is LibNote {
       string memory symbol_,
       uint256 chainId_
       ) public {
-        wards[msg.sender] = 1;
+        authorizedAccounts[msg.sender] = 1;
         name     = name_;
         symbol   = symbol_;
         DOMAIN_SEPARATOR = keccak256(abi.encode(
@@ -74,52 +74,52 @@ contract Coin is LibNote {
     }
 
     // --- Token ---
-    function transfer(address dst, uint wad) external returns (bool) {
-        return transferFrom(msg.sender, dst, wad);
+    function transfer(address dst, uint amount) external returns (bool) {
+        return transferFrom(msg.sender, dst, amount);
     }
-    function transferFrom(address src, address dst, uint wad)
+    function transferFrom(address src, address dst, uint amount)
         public returns (bool)
     {
-        require(balanceOf[src] >= wad, "Coin/insufficient-balance");
+        require(balanceOf[src] >= amount, "Coin/insufficient-balance");
         if (src != msg.sender && allowance[src][msg.sender] != uint(-1)) {
-            require(allowance[src][msg.sender] >= wad, "Coin/insufficient-allowance");
-            allowance[src][msg.sender] = sub(allowance[src][msg.sender], wad);
+            require(allowance[src][msg.sender] >= amount, "Coin/insufficient-allowance");
+            allowance[src][msg.sender] = sub(allowance[src][msg.sender], amount);
         }
-        balanceOf[src] = sub(balanceOf[src], wad);
-        balanceOf[dst] = add(balanceOf[dst], wad);
-        emit Transfer(src, dst, wad);
+        balanceOf[src] = sub(balanceOf[src], amount);
+        balanceOf[dst] = add(balanceOf[dst], amount);
+        emit Transfer(src, dst, amount);
         return true;
     }
-    function mint(address usr, uint wad) external auth {
-        balanceOf[usr] = add(balanceOf[usr], wad);
-        totalSupply    = add(totalSupply, wad);
-        emit Transfer(address(0), usr, wad);
+    function mint(address usr, uint amount) external isAuthorized {
+        balanceOf[usr] = add(balanceOf[usr], amount);
+        totalSupply    = add(totalSupply, amount);
+        emit Transfer(address(0), usr, amount);
     }
-    function burn(address usr, uint wad) external {
-        require(balanceOf[usr] >= wad, "Coin/insufficient-balance");
+    function burn(address usr, uint amount) external {
+        require(balanceOf[usr] >= amount, "Coin/insufficient-balance");
         if (usr != msg.sender && allowance[usr][msg.sender] != uint(-1)) {
-            require(allowance[usr][msg.sender] >= wad, "Coin/insufficient-allowance");
-            allowance[usr][msg.sender] = sub(allowance[usr][msg.sender], wad);
+            require(allowance[usr][msg.sender] >= amount, "Coin/insufficient-allowance");
+            allowance[usr][msg.sender] = sub(allowance[usr][msg.sender], amount);
         }
-        balanceOf[usr] = sub(balanceOf[usr], wad);
-        totalSupply    = sub(totalSupply, wad);
-        emit Transfer(usr, address(0), wad);
+        balanceOf[usr] = sub(balanceOf[usr], amount);
+        totalSupply    = sub(totalSupply, amount);
+        emit Transfer(usr, address(0), amount);
     }
-    function approve(address usr, uint wad) external returns (bool) {
-        allowance[msg.sender][usr] = wad;
-        emit Approval(msg.sender, usr, wad);
+    function approve(address usr, uint amount) external returns (bool) {
+        allowance[msg.sender][usr] = amount;
+        emit Approval(msg.sender, usr, amount);
         return true;
     }
 
     // --- Alias ---
-    function push(address usr, uint wad) external {
-        transferFrom(msg.sender, usr, wad);
+    function push(address usr, uint amount) external {
+        transferFrom(msg.sender, usr, amount);
     }
-    function pull(address usr, uint wad) external {
-        transferFrom(usr, msg.sender, wad);
+    function pull(address usr, uint amount) external {
+        transferFrom(usr, msg.sender, amount);
     }
-    function move(address src, address dst, uint wad) external {
-        transferFrom(src, dst, wad);
+    function move(address src, address dst, uint amount) external {
+        transferFrom(src, dst, amount);
     }
 
     // --- Approve by signature ---

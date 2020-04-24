@@ -1,4 +1,4 @@
-/// vox.sol -- redemption rate feedback mechanism
+/// vox.sol -- rate feedback mechanism
 
 // Copyright (C) 2016, 2017  Nikolai Mushegian <nikolai@dapphub.com>
 // Copyright (C) 2016, 2017  Daniel Brockman <daniel@dapphub.com>

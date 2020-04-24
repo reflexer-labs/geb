@@ -13,8 +13,8 @@
 
 pragma solidity ^0.5.15;
 
-contract LibNote {
-    event LogNote(
+contract Logging {
+    event LogFunctionCall(
         bytes4   indexed  sig,
         address  indexed  usr,
         bytes32  indexed  arg1,
@@ -22,7 +22,7 @@ contract LibNote {
         bytes             data
     ) anonymous;
 
-    modifier note {
+    modifier emitLog {
         _;
         assembly {
             // log an 'anonymous' event with a constant 6 words of calldata

@@ -250,7 +250,7 @@ contract Vat {
     }
 
     // --- CDP Confiscation ---
-    function grab(bytes32 i, address u, address v, address w, int dink, int dart) external note auth {
+    function confiscateCollateralAndDebt(bytes32 i, address u, address v, address w, int dink, int dart) external note auth {
         Urn storage urn = urns[i][u];
         Ilk storage ilk = ilks[i];
 
