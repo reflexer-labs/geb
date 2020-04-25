@@ -73,7 +73,7 @@ contract SurplusAuctionHouseOne is Logging {
     uint256  public   bidIncrease = 1.05E18;
     uint48   public   bidDuration = 3 hours;
     uint48   public   totalAuctionLength = 2 days;
-    uint256  public   startedAuctions = 0;
+    uint256  public   auctionsStarted = 0;
     uint256  public   contractEnabled;
 
     // --- Events ---
@@ -110,8 +110,8 @@ contract SurplusAuctionHouseOne is Logging {
     // --- Auction ---
     function startAuction(uint amountToSell, uint initialBid) external isAuthorized returns (uint id) {
         require(contractEnabled == 1, "SurplusAuctionHouseOne/contract-not-enabled");
-        require(startedAuctions < uint(-1), "SurplusAuctionHouseOne/overflow");
-        id = ++startedAuctions;
+        require(auctionsStarted < uint(-1), "SurplusAuctionHouseOne/overflow");
+        id = ++auctionsStarted;
 
         bids[id].initialBid = initialBid;
         bids[id].amountToSell = amountToSell;
@@ -170,48 +170,49 @@ contract SurplusAuctionHouseOne is Logging {
   This thing automatically buys protocol tokens from DEXs and burns them
 */
 
-contract Flapper2 is LibNote {
+contract SurplusAuctionHouseTwo is Logging {
     // --- Auth ---
-    mapping (address => uint) public wards;
-    function rely(address usr) external note auth { wards[usr] = 1; }
-    function deny(address usr) external note auth { wards[usr] = 0; }
-    modifier auth {
-        require(wards[msg.sender] == 1, "Flapper2/not-authorized");
+    mapping (address => uint) public authorizedAccounts;
+    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    modifier isAuthorized {
+        require(authorizedAccounts[msg.sender] == 1, "SurplusAuctionHouseTwo/account-not-authorized");
         _;
     }
 
-    VatLike     public vat;
-    CoinJoinLike public join;
-    TokenLike     public coin;
-    TokenLike     public gov;
-    DexLike     public bin;
-    address     public safe;
+    CDPEngineLike public cdpEngine;
+    CoinJoinLike  public coinJoin;
+    TokenLike     public systemCoin;
+    TokenLike     public protocolToken;
+    DexLike       public dex;
+    address       public leftoverReceiver;
 
-    address[]   public path;
+    address[]     public swapPath;
 
-    uint8       public mutex;
-    uint256     public startedAuctions;
-    uint256     public live;
+    uint8         public mutex;
+    uint256       public auctionsStarted;
+    uint256       public contractEnabled;
 
     // --- Events ---
-    event Kick(
+    event SoldSurplus(
       uint256 id,
-      uint256 lot,
-      address lad
+      uint256 amountToSell,
+      uint256 initialBid
     );
 
     // --- Init ---
-    constructor(address vat_) public {
-        wards[msg.sender] = 1;
-        vat = VatLike(vat_);
-        path.push(address(0));
-        path.push(address(0));
-        live = 1;
+    constructor(address cdpEngine_) public {
+        authorizedAccounts[msg.sender] = 1;
+        cdpEngine = VatLike(cdpEngine_);
+        swapPath.push(address(0));
+        swapPath.push(address(0));
+        contractEnabled = 1;
     }
 
     // --- Math ---
     uint256 constant RAD = 10 ** 45;
     uint256 constant RAY = 10 ** 27;
+
     function add(uint x, uint y) internal pure returns (uint z) {
         require((z = x + y) >= x);
     }
@@ -230,82 +231,82 @@ contract Flapper2 is LibNote {
     }
 
     // --- Admin ---
-    function file(bytes32 what, address addr) external note auth {
-        require(live == 1, "Flapper2/not-live");
-        if (what == "coin") {
-          coin    = TokenLike(addr);
-          path[0] = addr;
+    function modifyParameters(bytes32 parameter, address addr) external emitLog isAuthorized {
+        require(contractEnabled == 1, "SurplusAuctionHouseTwo/contract-not-enabled");
+        if (parameter == "systemCoin") {
+          systemCoin = TokenLike(addr);
+          swapPath[0] = addr;
         }
-        else if (what == "gov") {
-          gov     = TokenLike(addr);
-          path[1] = addr;
+        else if (parameter == "protocolToken") {
+          protocolToken = TokenLike(addr);
+          swapPath[1] = addr;
         }
-        else if (what == "join") {
-          if (address(coin) != address(0)) {
-            coin.approve(address(join), 0);
+        else if (parameter == "coinJoin") {
+          if (address(systemCoin) != address(0)) {
+            systemCoin.approve(address(coinJoin), 0);
           }
-          vat.nope(address(join));
-          vat.hope(addr);
-          join = CoinJoinLike(addr);
+          cdpEngine.nope(address(coinJoin));
+          cdpEngine.hope(addr);
+          coinJoin = CoinJoinLike(addr);
         }
-        else if (what == "bin") bin = DexLike(addr);
-        else if (what == "safe") safe = addr;
-        else revert("Flapper2/file-unrecognized-param");
+        else if (parameter == "bin") dex = DexLike(addr);
+        else if (parameter == "safe") leftoverReceiver = addr;
+        else revert("SurplusAuctionHouseTwo/modify-unrecognized-param");
     }
-    function cage() external note auth {
-        live = 0;
-        loot();
-        vat.move(address(this), msg.sender, vat.good(address(this)));
+    function disableContract() external emitLog isAuthorized {
+        contractEnabled = 0;
+        joinCoinsInSystem();
+        cdpEngine.transferInternalCoins(address(this), msg.sender, cdpEngine.coinBalance(address(this)));
     }
 
     // --- Utils ---
-    function loot() internal {
-        uint own = coin.balanceOf(address(this));
-        if (own > 0) {
-          coin.approve(address(join), own);
-          join.join(safe, own);
+    function joinCoinsInSystem() internal {
+        uint externalCoinBalance = systemCoin.balanceOf(address(this));
+        if (externalCoinBalance > 0) {
+          systemCoin.approve(address(coinJoin), externalCoinBalance);
+          coinJoin.join(leftoverReceiver, externalCoinBalance);
         }
     }
 
     // --- Buyout ---
-    function kick(uint lot, uint bid) external auth returns (uint id) {
-        require(live == 1, "Flapper2/not-live");
-        require(mutex == 0, "Flapper2/non-null-mutex");
+    function startAuction(uint amountToSell, uint initialBid) external isAuthorized returns (uint id) {
+        require(contractEnabled == 1, "SurplusAuctionHouseTwo/contract-not-enabled");
+        require(mutex == 0, "SurplusAuctionHouseTwo/non-null-mutex");
         mutex = 1;
 
-        require(startedAuctions < uint(-1), "Flapper2/overflow");
-        require(safe != address(0), "Flapper2/no-safe");
-        require(both(path[0] != address(0), path[1] != address(0)), "Flapper2/null-path");
-        require(mul(div(lot, RAY), RAY) == lot, "Flapper2/wasted-lot");
+        require(auctionsStarted < uint(-1), "SurplusAuctionHouseTwo/overflow");
+        require(leftoverReceiver != address(0), "SurplusAuctionHouseTwo/no-leftover-receiver");
+        require(both(swapPath[0] != address(0), swapPath[1] != address(0)), "SurplusAuctionHouseTwo/null-swap-path");
+        require(mul(div(amountToSell, RAY), RAY) == amountToSell, "SurplusAuctionHouseTwo/wasted-sold-amount");
 
-        id = ++startedAuctions;
+        id = ++auctionsStarted;
 
-        uint own = coin.balanceOf(address(this));
-        require(fund(lot, address(bin)) == true, "Flapper2/cannot-fund");
-        uint bid = bin.tkntkn(bin.INPUT(), div(lot, RAY), address(this), path);
+        uint externalCoinBalance = systemCoin.balanceOf(address(this));
+        require(exitAndApproveInternalCoins(amountToSell, address(dex)) == true, "SurplusAuctionHouseTwo/cannot-exit-coins");
+        uint swapResult = dex.tkntkn(dex.INPUT(), div(lot, RAY), address(this), path);
 
-        require(bid > 0, "Flapper2/invalid-bid");
-        require(coin.balanceOf(address(this)) == own, "Flapper2/cannot-buy");
-        require(gov.balanceOf(address(this)) >= bid, "Flapper2/bid-not-received");
+        require(swapResult > 0, "SurplusAuctionHouseTwo/invalid-swap-result");
+        require(systemCoin.balanceOf(address(this)) == externalCoinBalance, "SurplusAuctionHouseTwo/could-not-swap");
+        require(protocolToken.balanceOf(address(this)) >= swapResult, "SurplusAuctionHouseTwo/swapped-amount-not-received");
 
-        loot();
+        joinCoinsInSystem();
 
-        if (vat.good(address(this)) > 0) {
-          vat.move(address(this), safe, vat.good(address(this)));
+        if (cdpEngine.coinBalance(address(this)) > 0) {
+          cdpEngine.transferInternalCoins(address(this), leftoverReceiver, cdpEngine.transferInternalCoins(address(this)));
         }
-        gov.burn(address(this), gov.balanceOf(address(this)));
+        protocolToken.burn(address(this), protocolToken.balanceOf(address(this)));
 
-        emit Kick(id, lot, address(bin));
+        emit SoldSurplus(id, amountToSell, initialBid);
 
         mutex = 0;
     }
-    function fund(uint lot, address guy) internal auth returns (bool) {
-        uint own = coin.balanceOf(address(this));
-        vat.move(msg.sender, address(this), lot);
-        join.exit(address(this), div(lot, RAY));
-        if (add(own, div(lot, RAY)) != coin.balanceOf(address(this))) {
+    function exitAndApproveInternalCoins(uint amountToSell, address dst) internal isAuthorized returns (bool) {
+        uint externalCoinBalance = systemCoin.balanceOf(address(this));
+        cdpEngine.transferInternalCoins(msg.sender, address(this), amountToSell);
+        coinJoin.exit(address(this), div(amountToSell, RAY));
+        if (add(externalCoinBalance, div(amountToSell, RAY)) != systemCoin.balanceOf(address(this))) {
           return false;
         }
-        return coin.approve(guy, lot);
+        return systemCoin.approve(dst, amountToSell);
     }
 }

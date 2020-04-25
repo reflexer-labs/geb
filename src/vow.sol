@@ -56,7 +56,7 @@ contract Vow is LibNote {
 
     mapping (uint256 => uint256) public sin; // debt queue
     uint256 public Sin;   // queued debt          [rad]
-    uint256 public Ash;   // on-auction debt      [rad]
+    uint256 public totalOnAuctionDebt;   // on-auction debt      [rad]
 
     uint256 public rho;   // last flap timestamp
     uint256 public gap;   // flap delay
@@ -127,28 +127,28 @@ contract Vow is LibNote {
     // Debt settlement
     function heal(uint rad) external note {
         require(rad <= vat.good(address(this)), "Vow/insufficient-surplus");
-        require(rad <= sub(sub(vat.sin(address(this)), Sin), Ash), "Vow/insufficient-debt");
+        require(rad <= sub(sub(vat.sin(address(this)), Sin), totalOnAuctionDebt), "Vow/insufficient-debt");
         vat.heal(rad);
     }
     function kiss(uint rad) external note {
-        require(rad <= Ash, "Vow/not-enough-ash");
+        require(rad <= totalOnAuctionDebt, "Vow/not-enough-ash");
         require(rad <= vat.good(address(this)), "Vow/insufficient-surplus");
-        Ash = sub(Ash, rad);
+        totalOnAuctionDebt = sub(totalOnAuctionDebt, rad);
         vat.heal(rad);
     }
 
     // Debt auction
     function flop() external note returns (uint id) {
-        require(sump <= sub(sub(vat.sin(address(this)), Sin), Ash), "Vow/insufficient-debt");
+        require(sump <= sub(sub(vat.sin(address(this)), Sin), totalOnAuctionDebt), "Vow/insufficient-debt");
         require(vat.good(address(this)) == 0, "Vow/surplus-not-zero");
-        Ash = add(Ash, sump);
+        totalOnAuctionDebt = add(totalOnAuctionDebt, sump);
         id = flopper.kick(address(this), dump, sump);
     }
     // Surplus auction
     function flap() external note returns (uint id) {
         require(now >= add(rho, gap), "Vox/gap-not-passed");
         require(vat.good(address(this)) >= add(add(vat.sin(address(this)), bump), hump), "Vow/insufficient-surplus");
-        require(sub(sub(vat.sin(address(this)), Sin), Ash) == 0, "Vow/debt-not-zero");
+        require(sub(sub(vat.sin(address(this)), Sin), totalOnAuctionDebt) == 0, "Vow/debt-not-zero");
         rho = now;
         id  = flapper.kick(bump, 0);
     }
@@ -157,7 +157,7 @@ contract Vow is LibNote {
         require(live == 1, "Vow/not-live");
         live = 0;
         Sin = 0;
-        Ash = 0;
+        totalOnAuctionDebt = 0;
         flapper.cage();
         flopper.cage();
         vat.heal(min(vat.good(address(this)), vat.sin(address(this))));

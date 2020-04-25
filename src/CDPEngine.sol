@@ -179,7 +179,7 @@ contract CDPEngine {
     }
 
     // --- CDP Manipulation ---
-    function modifyCDP(
+    function modifyCDPCollateralization(
       bytes32 collateralType,
       address cdp,
       address collateralSource,
@@ -256,7 +256,7 @@ contract CDPEngine {
     }
 
     // --- CDP Fungibility ---
-    function transferCollateralAndDebt(
+    function transferCDPCollateralAndDebt(
       bytes32 collateralType,
       address src,
       address dst,
@@ -288,7 +288,7 @@ contract CDPEngine {
     }
 
     // --- CDP Confiscation ---
-    function confiscateCollateralAndDebt(
+    function confiscateCDPCollateralAndDebt(
       bytes32 collateralType,
       address targetCDP,
       address collateralCounterparty,

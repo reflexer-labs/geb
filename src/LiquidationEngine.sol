@@ -45,7 +45,7 @@ contract CDPEngineLike {
         uint256 lockedCollateral, // wad
         uint256 generatedDebt     // wad
     );
-    function transferCollateralAndDebt(bytes32,address,address,address,int,int) external;
+    function transferCDPCollateralAndDebt(bytes32,address,address,address,int,int) external;
     function canModifyCDP(address, address) external view returns (bool);
     function allowCDPModification(address) external;
     function disallowCDPModification(address) external;
@@ -179,7 +179,7 @@ contract LiquidationEngine is Logging {
           cdpDebt               = min(cdpDebt, mul(collateralToSell, cdpDebt) / cdpCollateral);
 
           require(collateralToSell <= 2**255 && cdpDebt <= 2**255, "LiquidationEngine/overflow");
-          cdpEngine.transferCollateralAndDebt(collateralType, cdp, address(this), address(accountingEngine), -int(collateralToSell), -int(cdpDebt));
+          cdpEngine.transferCDPCollateralAndDebt(collateralType, cdp, address(this), address(accountingEngine), -int(collateralToSell), -int(cdpDebt));
 
           accountingEngine.addDebtToQueue(mul(cdpDebt, accumulatedRates));
 
