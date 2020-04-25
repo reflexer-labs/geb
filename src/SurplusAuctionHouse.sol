@@ -262,6 +262,7 @@ contract SurplusAuctionHouseTwo is Logging {
     // --- Utils ---
     function joinCoinsInSystem() internal {
         uint externalCoinBalance = systemCoin.balanceOf(address(this));
+        //TODO: wrap in try/catch
         if (externalCoinBalance > 0) {
           systemCoin.approve(address(coinJoin), externalCoinBalance);
           coinJoin.join(leftoverReceiver, externalCoinBalance);

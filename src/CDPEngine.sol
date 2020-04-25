@@ -1,4 +1,4 @@
-/// CDPEngine.sol -- Urn database
+/// CDPEngine.sol -- CDP database
 
 // Copyright (C) 2018 Rain <rainbreak@riseup.net>
 // Copyright (C) 2020 Stefan C. Ionescu <stefanionescu@protonmail.com>
@@ -57,7 +57,7 @@ contract CDPEngine {
     mapping (bytes32 => mapping (address => CDP )) public cdps;
     mapping (bytes32 => mapping (address => uint)) public tokenCollateral;  // [wad]
     mapping (address => uint)                      public coinBalance;      // [rad]
-    mapping (address => uint)                      public unbackedDebt;     // [rad]
+    mapping (address => uint)                      public debtBalance;      // [rad]
 
     uint256  public globalDebt;          // [rad]
     uint256  public globalUnbackedDebt;  // [rad]
@@ -306,14 +306,14 @@ contract CDPEngine {
         int deltaTotalIssuedDebt = mul(collateralType_.accumulatedRates, deltaDebt);
 
         tokenCollateral[collateralType][collateralCounterparty] = sub(tokenCollateral[collateralType][collateralCounterparty], deltaCollateral);
-        unbackedDebt[debtCounterparty]                          = sub(unbackedDebt[debtCounterparty], deltaTotalIssuedDebt);
+        debtBalance[debtCounterparty]                           = sub(debtBalance[debtCounterparty], deltaTotalIssuedDebt);
         globalUnbackedDebt                                      = sub(globalUnbackedDebt, deltaTotalIssuedDebt);
     }
 
     // --- Settlement ---
     function settleDebt(uint rad) external emitLog {
         address account       = msg.sender;
-        unbackedDebt[account] = sub(unbackedDebt[account], rad);
+        debtBalance[account]  = sub(debtBalance[account], rad);
         coinBalance[account]  = sub(coinBalance[account], rad);
         globalUnbackedDebt    = sub(globalUnbackedDebt, rad);
         globalDebt            = sub(globalDebt, rad);
@@ -323,7 +323,7 @@ contract CDPEngine {
       address coinDestination,
       uint rad
     ) external emitLog isAuthorized {
-        unbackedDebt[debtDestination] = add(unbackedDebt[debtDestination], rad);
+        debtBalance[debtDestination]  = add(debtBalance[debtDestination], rad);
         coinBalance[coinDestination]  = add(coinBalance[coinDestination], rad);
         globalUnbackedDebt            = add(globalUnbackedDebt, rad);
         globalDebt                    = add(globalDebt, rad);

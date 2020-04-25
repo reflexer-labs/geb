@@ -90,8 +90,8 @@ contract VowDexFlapperTest is DSTest {
         vat.move(address(this), address(coinA), 100 ether * 10 ** 27);
     }
 
-    function try_flog(uint era) internal returns (bool ok) {
-        string memory sig = "flog(uint256)";
+    function try_popDebtFromQueue(uint era) internal returns (bool ok) {
+        string memory sig = "popDebtFromQueue(uint256)";
         (ok,) = address(vow).call(abi.encodeWithSignature(sig, era));
     }
     function try_dent(uint id, uint lot, uint bid) internal returns (bool ok) {
@@ -135,13 +135,13 @@ contract VowDexFlapperTest is DSTest {
     }
 
     function suck(address who, uint wad) internal {
-        vow.fess(rad(wad));
+        vow.pushDebtToQueue(rad(wad));
         vat.init('');
         vat.suck(address(vow), who, rad(wad));
     }
-    function flog(uint wad) internal {
+    function popDebtFromQueue(uint wad) internal {
         suck(address(0), wad);  // suck coin into the zero address
-        vow.flog(now);
+        vow.popDebtFromQueue(now);
     }
     function heal(uint wad) internal {
         vow.heal(rad(wad));
@@ -167,27 +167,27 @@ contract VowDexFlapperTest is DSTest {
         assertEq(vat.can(address(vow), address(newFlap2)), 1);
     }
 
-    function test_flog_wait() public {
+    function test_popDebtFromQueue_wait() public {
         assertEq(vow.wait(), 0);
         vow.file('wait', uint(100 seconds));
         assertEq(vow.wait(), 100 seconds);
 
         uint tic = now;
-        vow.fess(100 ether);
-        assertTrue(!try_flog(tic) );
+        vow.pushDebtToQueue(100 ether);
+        assertTrue(!try_popDebtFromQueue(tic) );
         hevm.warp(now + tic + 100 seconds);
-        assertTrue( try_flog(tic) );
+        assertTrue( try_popDebtFromQueue(tic) );
     }
 
     function test_no_reflop() public {
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         assertTrue( can_flop() );
         vow.flop();
         assertTrue(!can_flop() );
     }
 
     function test_no_flop_pending_joy() public {
-        flog(200 ether);
+        popDebtFromQueue(200 ether);
 
         vat.mint(address(vow), 100 ether);
         assertTrue(!can_flop() );
@@ -220,19 +220,19 @@ contract VowDexFlapperTest is DSTest {
 
     function test_no_flap_pending_sin() public {
         vow.file("bump", uint256(0 ether));
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
 
         vat.mint(address(vow), 50 ether);
         assertTrue(!can_flap2() );
     }
     function test_no_flap_nonzero_woe() public {
         vow.file("bump", uint256(0 ether));
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         vat.mint(address(vow), 50 ether);
         assertTrue(!can_flap2() );
     }
     function test_no_flap_pending_flop() public {
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         vow.flop();
 
         vat.mint(address(vow), 100 ether);
@@ -240,7 +240,7 @@ contract VowDexFlapperTest is DSTest {
         assertTrue(!can_flap2() );
     }
     function test_no_flap_pending_heal() public {
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         uint id = vow.flop();
 
         vat.mint(address(this), 100 ether);
@@ -250,7 +250,7 @@ contract VowDexFlapperTest is DSTest {
     }
 
     function test_no_surplus_after_good_flop() public {
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         uint id = vow.flop();
         vat.mint(address(this), 100 ether);
 
@@ -260,7 +260,7 @@ contract VowDexFlapperTest is DSTest {
     }
 
     function test_multiple_flop_dents() public {
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         uint id = vow.flop();
 
         vat.mint(address(this), 100 ether);
@@ -308,8 +308,8 @@ contract VowAuctionFlapperTest is DSTest {
         vat.hope(address(flop));
     }
 
-    function try_flog(uint era) internal returns (bool ok) {
-        string memory sig = "flog(uint256)";
+    function try_popDebtFromQueue(uint era) internal returns (bool ok) {
+        string memory sig = "popDebtFromQueue(uint256)";
         (ok,) = address(vow).call(abi.encodeWithSignature(sig, era));
     }
     function try_dent(uint id, uint lot, uint bid) internal returns (bool ok) {
@@ -353,13 +353,13 @@ contract VowAuctionFlapperTest is DSTest {
     }
 
     function suck(address who, uint wad) internal {
-        vow.fess(rad(wad));
+        vow.pushDebtToQueue(rad(wad));
         vat.init('');
         vat.suck(address(vow), who, rad(wad));
     }
-    function flog(uint wad) internal {
+    function popDebtFromQueue(uint wad) internal {
         suck(address(0), wad);  // suck dai into the zero address
-        vow.flog(now);
+        vow.popDebtFromQueue(now);
     }
     function heal(uint wad) internal {
         vow.heal(rad(wad));
@@ -385,27 +385,27 @@ contract VowAuctionFlapperTest is DSTest {
         assertEq(vat.can(address(vow), address(newFlap1)), 1);
     }
 
-    function test_flog_wait() public {
+    function test_popDebtFromQueue_wait() public {
         assertEq(vow.wait(), 0);
         vow.file('wait', uint(100 seconds));
         assertEq(vow.wait(), 100 seconds);
 
         uint tic = now;
-        vow.fess(100 ether);
-        assertTrue(!try_flog(tic) );
+        vow.pushDebtToQueue(100 ether);
+        assertTrue(!try_popDebtFromQueue(tic) );
         hevm.warp(now + tic + 100 seconds);
-        assertTrue( try_flog(tic) );
+        assertTrue( try_popDebtFromQueue(tic) );
     }
 
     function test_no_reflop() public {
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         assertTrue( can_flop() );
         vow.flop();
         assertTrue(!can_flop() );
     }
 
     function test_no_flop_pending_joy() public {
-        flog(200 ether);
+        popDebtFromQueue(200 ether);
 
         vat.mint(address(vow), 100 ether);
         assertTrue(!can_flop() );
@@ -421,19 +421,19 @@ contract VowAuctionFlapperTest is DSTest {
 
     function test_no_flap_pending_sin() public {
         vow.file("bump", uint256(0 ether));
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
 
         vat.mint(address(vow), 50 ether);
         assertTrue(!can_flap1() );
     }
     function test_no_flap_nonzero_woe() public {
         vow.file("bump", uint256(0 ether));
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         vat.mint(address(vow), 50 ether);
         assertTrue(!can_flap1() );
     }
     function test_no_flap_pending_flop() public {
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         vow.flop();
 
         vat.mint(address(vow), 100 ether);
@@ -441,7 +441,7 @@ contract VowAuctionFlapperTest is DSTest {
         assertTrue(!can_flap1() );
     }
     function test_no_flap_pending_heal() public {
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         uint id = vow.flop();
 
         vat.mint(address(this), 100 ether);
@@ -451,7 +451,7 @@ contract VowAuctionFlapperTest is DSTest {
     }
 
     function test_no_surplus_after_good_flop() public {
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         uint id = vow.flop();
         vat.mint(address(this), 100 ether);
 
@@ -461,7 +461,7 @@ contract VowAuctionFlapperTest is DSTest {
     }
 
     function test_multiple_flop_dents() public {
-        flog(100 ether);
+        popDebtFromQueue(100 ether);
         uint id = vow.flop();
 
         vat.mint(address(this), 100 ether);

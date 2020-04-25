@@ -763,7 +763,7 @@ contract BiteTest is DSTest {
         assertEq(vow.sin(now), rad(100 ether));
 
         assertEq(vow.Sin(), rad(100 ether));
-        vow.flog(now);
+        vow.popDebtFromQueue(now);
         assertEq(vow.Sin(), rad(  0 ether));
         assertEq(vow.Woe(), rad(100 ether));
         assertEq(vow.Joy(), rad(  0 ether));

@@ -323,8 +323,12 @@ contract GlobalSettlement is Logging {
         require(collateralCashPrice[collateralType] == 0, "GlobalSettlement/collateral-cash-price-already-defined");
 
         (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
-        uint256 wad = rmul(rmul(collateralTypeTotalDebt[collateralType], accumulatedRates), finalCollateralPrice[collateralType]);
-        collateralCashPrice[collateralType] = rdiv(mul(sub(wad, collateralShortfall[collateralType]), RAY), outstandingCoinSupply);
+        uint256 redemptionAdjustedDebt = rmul(
+          rmul(collateralTypeTotalDebt[collateralType], accumulatedRates), finalCollateralPrice[collateralType]
+        );
+        collateralCashPrice[collateralType] = rdiv(
+          mul(sub(redemptionAdjustedDebt, collateralShortfall[collateralType]), RAY), outstandingCoinSupply
+        );
     }
 
     function prepareCoinsForRedeeming(uint256 coinAmount) external emitLog {

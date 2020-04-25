@@ -57,31 +57,31 @@ contract StabilityFeeTreasury is Logging {
 
     address public accountingEngine;
 
-    uint256 public treasuryCapacity;         // max amount of SF that can be kept in treasury
-    uint256 public minimumFundsRequired;     // minimum amount of SF that must be kept in the treasury at all times
-    uint256 public expensesMultiplier;       // multiplier for expenses
-    uint256 public surplusTransferCooldown;  // minimum time between transferSurplusFunds calls
-    uint256 public expensesAccumulator;      // expenses accumulator
-    uint256 public accumulatorTag;           // latest tagged accumulator price
-    uint256 public latestSurplusTransferTime;    // latest timestamp when transferSurplusFunds was called
+    uint256 public treasuryCapacity;           // max amount of SF that can be kept in treasury
+    uint256 public minimumFundsRequired;       // minimum amount of SF that must be kept in the treasury at all times
+    uint256 public expensesMultiplier;         // multiplier for expenses
+    uint256 public surplusTransferDelay;       // minimum time between transferSurplusFunds calls
+    uint256 public expensesAccumulator;        // expenses accumulator
+    uint256 public accumulatorTag;             // latest tagged accumulator price
+    uint256 public latestSurplusTransferTime;  // latest timestamp when transferSurplusFunds was called
     uint256 public contractEnabled;
 
     constructor(
       address cdpEngine_,
       address accountingEngine_,
       address coinJoin_,
-      uint surplusTransferCooldown_
+      uint surplusTransferDelay_
     ) public {
         require(address(CoinJoinLike(coinJoin_).systemCoin()) != address(0), "StabilityFeeTreasury/null-system-coin");
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine               = CDPEngineLike(cdpEngine_);
-        accountingEngine        = accountingEngine_;
-        coinJoin                = CoinJoinLike(coinJoin_);
-        systemCoin              = GemLike(coinJoin.systemCoin());
-        surplusTransferCooldown = surplusTransferCooldown_;
-        latestSurplusTransferTime   = now;
-        expensesMultiplier      = WAD;
-        contractEnabled         = 1;
+        cdpEngine                 = CDPEngineLike(cdpEngine_);
+        accountingEngine          = accountingEngine_;
+        coinJoin                  = CoinJoinLike(coinJoin_);
+        systemCoin                = GemLike(coinJoin.systemCoin());
+        surplusTransferDelay      = surplusTransferDelay_;
+        latestSurplusTransferTime = now;
+        expensesMultiplier        = WAD;
+        contractEnabled           = 1;
         systemCoin.approve(address(coinJoin), uint(-1));
         cdpEngine.hope(address(coinJoin));
     }
@@ -128,7 +128,7 @@ contract StabilityFeeTreasury is Logging {
         if (parameter == "expensesMultiplier") expensesMultiplier = val;
         else if (parameter == "treasuryCapacity") treasuryCapacity = val;
         else if (parameter == "minimumFundsRequired") minimumFundsRequired = val;
-        else if (parameter == "surplusTransferCooldown") surplusTransferCooldown = val;
+        else if (parameter == "surplusTransferDelay") surplusTransferDelay = val;
         else revert("StabilityFeeTreasury/modify-unrecognized-param");
     }
     function disableContract() external emitLog isAuthorized {
@@ -209,7 +209,7 @@ contract StabilityFeeTreasury is Logging {
 
     // --- Treasury Maintenance ---
     function transferSurplusFunds() external {
-        require(now >= add(latestSurplusTransferTime, surplusTransferCooldown), "StabilityFeeTreasury/transfer-cooldown-not-passed");
+        require(now >= add(latestSurplusTransferTime, surplusTransferDelay), "StabilityFeeTreasury/transfer-cooldown-not-passed");
         // Compute current accumulatorTag and minimum reserves
         uint latestExpenses         = sub(expensesAccumulator, accumulatorTag);
         uint minimumFundsRequired_  =
