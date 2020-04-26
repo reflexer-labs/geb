@@ -184,10 +184,10 @@ contract TaxCollector is Logging {
     function createBucket(bytes32 collateralType, uint256 taxPercentage, address bucketAccount) internal {
         require(bucketAccount != address(0), "TaxCollector/null-account");
         require(bucketAccount != accountingEngine, "TaxCollector/accounting-engine-cannot-be-bucket");
-        require(stabilityFee > 0, "TaxCollector/null-sf");
+        require(taxPercentage > 0, "TaxCollector/null-sf");
         require(usedBucket[bucketAccount] == 0, "TaxCollector/account-already-used");
         require(add(bucketListLength(), ONE) <= maxBuckets, "TaxCollector/exceeds-max-buckets");
-        require(add(bucketTaxCut[collateralType], stabilityFee) < HUNDRED, "TaxCollector/tax-cut-exceeds-hundred");
+        require(add(bucketTaxCut[collateralType], taxPercentage) < HUNDRED, "TaxCollector/tax-cut-exceeds-hundred");
         bucketNonce                                         = add(bucketNonce, 1);
         latestBucket                                        = bucketNonce;
         usedBucket[bucketAccount]                           = ONE;
@@ -197,11 +197,11 @@ contract TaxCollector is Logging {
         bucketRevenueSources[bucketAccount]                 = ONE;
         bucketList.push(latestBucket, false);
     }
-    function fixBucket(bytes32 collateralType, uint256 position, uint256 stabilityFee) internal {
-        if (stabilityFee == 0) {
+    function fixBucket(bytes32 collateralType, uint256 position, uint256 taxPercentage) internal {
+        if (taxPercentage == 0) {
           bucketTaxCut[collateralType] = sub(
             bucketTaxCut[collateralType],
-            buckets[collateralType][position].stabilityFee
+            buckets[collateralType][position].taxPercentage
           );
           if (bucketRevenueSources[bucketAccounts[position]] == 1) {
             if (position == latestBucket) {
@@ -213,24 +213,24 @@ contract TaxCollector is Logging {
             delete(buckets[collateralType][position]);
             delete(bucketRevenueSources[bucketAccounts[position]]);
             delete(bucketAccounts[position]);
-          } else if (buckets[collateralType][position].stabilityFee > 0) {
+          } else if (buckets[collateralType][position].taxPercentage > 0) {
             bucketRevenueSources[bucketAccounts[position]] = sub(bucketRevenueSources[bucketAccounts[position]], 1);
             delete(buckets[collateralType][position]);
           }
         } else {
           uint256 bucketTaxCut_ = add(
-            sub(bucketTaxCut[collateralType], buckets[collateralType][position].stabilityFee),
-            stabilityFee
+            sub(bucketTaxCut[collateralType], buckets[collateralType][position].taxPercentage),
+            taxPercentage
           );
           require(bucketTaxCut_ < HUNDRED, "TaxCollector/tax-cut-too-big");
-          if (buckets[collateralType][position].stabilityFee == 0) {
+          if (buckets[collateralType][position].taxPercentage == 0) {
             bucketRevenueSources[bucketAccounts[position]] = add(
               bucketRevenueSources[bucketAccounts[position]],
               1
             );
           }
-          bucketTaxCut[collateralType]                   = bucketTaxCut_;
-          buckets[collateralType][position].stabilityFee = stabilityFee;
+          bucketTaxCut[collateralType]                    = bucketTaxCut_;
+          buckets[collateralType][position].taxPercentage = taxPercentage;
         }
     }
 
@@ -328,7 +328,7 @@ contract TaxCollector is Logging {
                 currentTaxCut != 0,
                 either(
                   deltaRate >= 0,
-                  both(currentTaxCut < 0, buckets[collateralType][currentBucket].take > 0)
+                  both(currentTaxCut < 0, buckets[collateralType][currentBucket].canTakeBackTax > 0)
                 )
               )
             ) {
@@ -337,7 +337,7 @@ contract TaxCollector is Logging {
           }
           (, currentBucket) = bucketList.prev(currentBucket);
         }
-        coinBalance = -int(cdpEngine.cinBalance(accountingEngine));
+        coinBalance = -int(cdpEngine.coinBalance(accountingEngine));
         currentTaxCut  = mul(sub(HUNDRED, bucketTaxCut[collateralType]), deltaRate) / int(HUNDRED);
         currentTaxCut  = (
           both(mul(debtAmount, currentTaxCut) < 0, coinBalance > mul(debtAmount, currentTaxCut))
