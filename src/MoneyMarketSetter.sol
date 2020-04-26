@@ -1,7 +1,7 @@
 pragma solidity ^0.5.15;
 
-import "./lib.sol";
-import "./exp.sol";
+import "./Logging.sol";
+import "./ExponentialMath.sol";
 
 contract PipLike {
     function peek() external returns (bytes32, bool);
@@ -31,8 +31,8 @@ contract PotLike {
 }
 
 /***
-  Pop1 is a PI controller for a pegged coin. It automatically adjusts the stability fee and the savings
-  rate according to deviations from the peg.
+  MoneyMarketSetterOne is a PI controller for a pegged coin.
+  It automatically adjusts the stability fee and the savings rate according to deviations from the peg.
 
   It does not change the target price (par) but rather tries to maintain a strong peg without the need
   for continuous governance intervention.

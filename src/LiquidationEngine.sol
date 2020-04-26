@@ -47,11 +47,11 @@ contract CDPEngineLike {
     );
     function transferCDPCollateralAndDebt(bytes32,address,address,address,int,int) external;
     function canModifyCDP(address, address) external view returns (bool);
-    function allowCDPModification(address) external;
-    function disallowCDPModification(address) external;
+    function approveCDPModification(address) external;
+    function denyCDPModification(address) external;
 }
 contract AccountingEngineLike {
-    function addDebtInQueue(uint) external;
+    function pushDebtToQueue(uint) external;
 }
 
 contract LiquidationEngine is Logging {
@@ -136,10 +136,10 @@ contract LiquidationEngine is Logging {
         else revert("LiquidationEngine/modify-unrecognized-param");
     }
     function modifyParameters(bytes32 collateralType, bytes32 parameter, address data) external emitLog isAuthorized {
-        if (what == "collateralAuctionHouse") {
-            cdpEngine.nope(collateralTypes[collateralType].collateralAuctionHouse);
-            collateralType[collateralType].collateralAuctionHouse = data;
-            cdpEngine.hope(data);
+        if (parameter == "collateralAuctionHouse") {
+            cdpEngine.denyCDPModification(collateralTypes[collateralType].collateralAuctionHouse);
+            collateralTypes[collateralType].collateralAuctionHouse = data;
+            cdpEngine.approveCDPModification(data);
         }
         else revert("LiquidationEngine/modify-unrecognized-param");
     }
@@ -151,7 +151,7 @@ contract LiquidationEngine is Logging {
     function protectCDP(bytes32 collateralType, address cdp, address saviour) external emitLog {
         require(cdpEngine.canModifyCDP(cdp, msg.sender), "LiquidationEngine/cannot-modify-this-cdp");
         require(saviour == address(0) || cdpSaviours[saviour] == 1, "LiquidationEngine/saviour-not-authorized");
-        cdpSaviours[collateralType][cdp] = saviour;
+        chosenCDPSaviour[collateralType][cdp] = saviour;
     }
     function liquidateCDP(bytes32 collateralType, address cdp) external returns (uint auctionId) {
         require(mutex[collateralType][cdp] == 0, "LiquidationEngine/non-null-mutex");
@@ -164,24 +164,26 @@ contract LiquidationEngine is Logging {
         require(both(liquidationPrice > 0, mul(cdpCollateral, liquidationPrice) < mul(cdpDebt, accumulatedRates)), "LiquidationEngine/cdp-not-unsafe");
 
         //TODO: try/catch the cdp saviour call
-        if (tasks[collateralType][cdp] != address(0) && jobs[tasks[collateralType][cdp]] == 1) {
-          (bool ok, uint collateralAdded) = CDPSaviourLike(tasks[collateralType][urn]).help(msg.sender, collateralType, cdp);
+        if (chosenCDPSaviour[collateralType][cdp] != address(0) &&
+            cdpSaviours[chosenCDPSaviour[collateralType][cdp]] == 1) {
+          (bool ok, uint collateralAdded) =
+            CDPSaviourLike(chosenCDPSaviour[collateralType][cdp]).saveCDP(msg.sender, collateralType, cdp);
           if (both(ok, collateralAdded > 0)) {
             emit SavedCDP(collateralType, cdp, collateralAdded);
           }
         }
 
-        (, rate, , , , ) = vat.ilks(ilk);
-        (ink, art)       = vat.urns(ilk, urn);
+        (, accumulatedRates, , , , ) = cdpEngine.collateralTypes(collateralType);
+        (cdpCollateral, cdpDebt)     = cdpEngine.cdps(collateralType, cdp);
 
         if (both(liquidationPrice > 0, mul(cdpCollateral, liquidationPrice) < mul(cdpDebt, accumulatedRates))) {
-          uint collateralToSell = min(cdpCollateral, collateralTypes[collateralType].lump);
+          uint collateralToSell = min(cdpCollateral, collateralTypes[collateralType].collateralToSell);
           cdpDebt               = min(cdpDebt, mul(collateralToSell, cdpDebt) / cdpCollateral);
 
           require(collateralToSell <= 2**255 && cdpDebt <= 2**255, "LiquidationEngine/overflow");
           cdpEngine.transferCDPCollateralAndDebt(collateralType, cdp, address(this), address(accountingEngine), -int(collateralToSell), -int(cdpDebt));
 
-          accountingEngine.addDebtToQueue(mul(cdpDebt, accumulatedRates));
+          accountingEngine.pushDebtToQueue(mul(cdpDebt, accumulatedRates));
 
           auctionId = CollateralAuctionHouseLike(collateralTypes[collateralType].collateralAuctionHouse).startAuction(
             { cdp: cdp

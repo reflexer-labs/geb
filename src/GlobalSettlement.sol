@@ -44,9 +44,9 @@ contract CDPEngineLike {
 }
 contract LiquidationEngineLike {
     function collateralTypes(bytes32) external returns (
-        address collateralAuctionHouse;
-        uint256 liquidationPenalty; // [ray]
-        uint256 collateralToSell;   // [wad]
+        address collateralAuctionHouse,
+        uint256 liquidationPenalty, // [ray]
+        uint256 collateralToSel     // [wad]
     );
     function disableContract() external;
 }
@@ -75,16 +75,14 @@ contract CollateralAuctionHouseLike {
     );
     function terminateAuctionPrematurely(uint auctionId) external;
 }
-
-contract OracleFeedLike {
+contract OracleLike {
     function getPrice() external view returns (bytes32);
 }
-
 contract OracleRelayerLike {
     function redemptionPrice() external view returns (uint256);
     function collateralTypes(bytes32) external view returns (
-        OracleFeedLike oracleFeed,
-        uint256 safetyCollateralization
+        OracleLike orcl,
+        uint256 safetyCRatio
     );
     function disableContract() external;
 }
@@ -236,7 +234,7 @@ contract GlobalSettlement is Logging {
         else if (parameter == "stabilityFeeTreasury") stabilityFeeTreasury = StabilityFeeTreasuryLike(data);
         else revert("GlobalSettlement/modify-unrecognized-parameter");
     }
-    function modifyParameters(bytes32 parameter, uint256 data) external note auth {
+    function modifyParameters(bytes32 parameter, uint256 data) external emitLog isAuthorized {
         require(contractEnabled == 1, "GlobalSettlement/contract-not-enabled");
         if (parameter == "shutdownCooldown") shutdownCooldown = data;
         else revert("GlobalSettlement/modify-unrecognized-parameter");
@@ -247,18 +245,18 @@ contract GlobalSettlement is Logging {
         require(contractEnabled == 1, "GlobalSettlement/contract-not-enabled");
         contractEnabled = 0;
         shutdownTime = now;
-        cdpEngine.cage();
-        liquidationEngine.cage();
-        accountingEngine.cage();
-        oracleRelayer.cage();
+        cdpEngine.disableContract();
+        liquidationEngine.disableContract();
+        accountingEngine.disableContract();
+        oracleRelayer.disableContract();
         if (address(stabilityFeeTreasury) != address(0)) {
-          stabilityFeeTreasury.cage();
+          stabilityFeeTreasury.disableContract();
         }
         if (address(rateSetter) != address(0)) {
-          rateSetter.cage();
+          rateSetter.disableContract();
         }
         if (address(coinSavingsAccount) != address(0)) {
-          coinSavingsAccount.cage();
+          coinSavingsAccount.disableContract();
         }
     }
 
@@ -308,7 +306,14 @@ contract GlobalSettlement is Logging {
         (uint cdpCollateral, uint cdpDebt) = cdpEngine.cdps(collateralType, msg.sender);
         require(cdpDebt == 0, "GlobalSettlement/art-not-zero");
         require(cdpCollateral <= 2**255, "GlobalSettlement/overflow");
-        cdpEngine.confiscateCDPCollateralAndDebt(cdpCollateral, msg.sender, msg.sender, address(accountingEngine), -int(cdpCollateral), 0);
+        cdpEngine.confiscateCDPCollateralAndDebt(
+          collateralType,
+          msg.sender, 
+          msg.sender,
+          address(accountingEngine),
+          -int(cdpCollateral),
+          0
+        );
     }
 
     function calculateFinalCollateralPrice() external emitLog {
@@ -336,9 +341,14 @@ contract GlobalSettlement is Logging {
         cdpEngine.transferInternalCoins(msg.sender, address(accountingEngine), mul(coinAmount, RAY));
         coinBag[msg.sender] = add(coinBag[msg.sender], coinAmount);
     }
-    function redeemCollateral(bytes32 collateralType, uint coinsAmount) external note {
+    function redeemCollateral(bytes32 collateralType, uint coinsAmount) external emitLog {
         require(collateralCashPrice[collateralType] != 0, "GlobalSettlement/collateral-cash-price-not-defined");
-        cdpEngine.flux(collateralType, address(this), msg.sender, rmul(coinsAmount, collateralCashPrice[collateralType]));
+        cdpEngine.transferCollateral(
+          collateralType,
+          address(this),
+          msg.sender,
+          rmul(coinsAmount, collateralCashPrice[collateralType])
+        );
         coinsUsedToRedeem[collateralType][msg.sender] = add(coinsUsedToRedeem[collateralType][msg.sender], coinsAmount);
         require(coinsUsedToRedeem[collateralType][msg.sender] <= coinBag[msg.sender], "GlobalSettlement/insufficient-bag-balance");
     }

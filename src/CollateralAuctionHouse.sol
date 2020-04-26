@@ -109,7 +109,7 @@ contract CollateralAuctionHouse is Logging {
         if (parameter == "bidIncrease") bidIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
-        else if (what == "bidToMarketPriceRatio") bidToMarketPriceRatio = data;
+        else if (parameter == "bidToMarketPriceRatio") bidToMarketPriceRatio = data;
         else revert("CollateralAuctionHouse/modify-unrecognized-param");
     }
     function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
@@ -189,7 +189,12 @@ contract CollateralAuctionHouse is Logging {
             cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bid);
             bids[id].highBidder = msg.sender;
         }
-        cdpEngine.transferCollateral(collateralType, address(this), bids[id].cdp, bids[id].amountToSell - amountToBuy);
+        cdpEngine.transferCollateral(
+          collateralType,
+          address(this),
+          bids[id].cdpAuctioned, 
+          bids[id].amountToSell - amountToBuy
+        );
 
         bids[id].amountToSell = amountToBuy;
         bids[id].bidExpiry    = add(uint48(now), bidDuration);

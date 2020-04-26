@@ -82,7 +82,7 @@ contract CollateralJoin is Logging {
         require(contractEnabled == 1, "CollateralJoin/contract-not-enabled");
         require(int(wad) >= 0, "CollateralJoin/overflow");
         cdpEngine.modifyCollateralBalance(collateralType, account, int(wad));
-        require(gem.transferFrom(msg.sender, address(this), wad), "CollateralJoin/failed-transfer");
+        require(collateral.transferFrom(msg.sender, address(this), wad), "CollateralJoin/failed-transfer");
     }
     function exit(address account, uint wad) external emitLog {
         require(wad <= 2 ** 255, "CollateralJoin/overflow");
@@ -115,9 +115,9 @@ contract ETHJoin is Logging {
         contractEnabled = 0;
     }
     function join(address account) external payable emitLog {
-        require(live == 1, "ETHJoin/contract-not-enabled");
+        require(contractEnabled == 1, "ETHJoin/contract-not-enabled");
         require(int(msg.value) >= 0, "ETHJoin/overflow");
-        vat.modifyCollateralBalance(collateralType, account, int(msg.value));
+        cdpEngine.modifyCollateralBalance(collateralType, account, int(msg.value));
     }
     function exit(address payable account, uint wad) external emitLog {
         require(int(wad) >= 0, "ETHJoin/overflow");

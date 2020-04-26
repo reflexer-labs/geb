@@ -47,12 +47,12 @@ contract TaxCollector is Logging {
         uint256 taxPercentage;
     }
 
-    mapping (bytes32 => CollateralType)           public collateralTypes;
-    mapping (bytes32 => uint)                     public bucketTaxCut;
-    mapping (address => uint256)                  public usedBucket;
-    mapping (uint256 => address)                  public bucketAccounts;
-    mapping (address => uint256)                  public bucketRevenueSources;
-    mapping (bytes32 => mapping(uint256 => Heir)) public buckets;
+    mapping (bytes32 => CollateralType)                public collateralTypes;
+    mapping (bytes32 => uint)                          public bucketTaxCut;
+    mapping (address => uint256)                       public usedBucket;
+    mapping (uint256 => address)                       public bucketAccounts;
+    mapping (address => uint256)                       public bucketRevenueSources;
+    mapping (bytes32 => mapping(uint256 => TaxBucket)) public buckets;
 
     address    public accountingEngine;
     uint256    public globalStabilityFee;
@@ -60,8 +60,8 @@ contract TaxCollector is Logging {
     uint256    public maxBuckets;
     uint256    public latestBucket;
 
-    bytes32[]  public   collateralList;
-    Link.List  internal bucketList;
+    bytes32[]        public   collateralList;
+    LinkedList.List  internal bucketList;
 
     CDPEngineLike public cdpEngine;
 
@@ -151,12 +151,12 @@ contract TaxCollector is Logging {
     }
     function modifyParameters(bytes32 collateralType, bytes32 parameter, uint data) external emitLog isAuthorized {
         require(now == collateralTypes[collateralType].updateTime, "TaxCollector/update-time-not-now");
-        if (what == "stabilityFee") collateralTypes[collateralType].stabilityFee = data;
+        if (parameter == "stabilityFee") collateralTypes[collateralType].stabilityFee = data;
         else revert("TaxCollector/modify-unrecognized-param");
     }
     function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
-        if (what == "globalStabilityFee") globalStabilityFee = data;
-        else if (what == "maxBuckets") maxBuckets = data;
+        if (parameter == "globalStabilityFee") globalStabilityFee = data;
+        else if (parameter == "maxBuckets") maxBuckets = data;
         else revert("TaxCollector/modify-unrecognized-param");
     }
     function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
@@ -165,7 +165,7 @@ contract TaxCollector is Logging {
         else revert("TaxCollector/modify-unrecognized-param");
     }
     function modifyParameters(bytes32 collateralType, uint256 position, uint256 val) external emitLog isAuthorized {
-        if (both(bucketList.isNode(position), buckets[collateralType][position].stabilityFee > 0)) {
+        if (both(bucketList.isNode(position), buckets[collateralType][position].taxPercentage > 0)) {
             buckets[collateralType][position].canTakeBackTax = val;
         }
         else revert("TaxCollector/unknown-bucket");
@@ -181,7 +181,7 @@ contract TaxCollector is Logging {
     }
 
     // --- Bucket Utils ---
-    function createBucket(bytes32 collateralType, uint256 stabilityFee, address bucketAccount) internal {
+    function createBucket(bytes32 collateralType, uint256 taxPercentage, address bucketAccount) internal {
         require(bucketAccount != address(0), "TaxCollector/null-account");
         require(bucketAccount != accountingEngine, "TaxCollector/accounting-engine-cannot-be-bucket");
         require(stabilityFee > 0, "TaxCollector/null-sf");
@@ -191,8 +191,8 @@ contract TaxCollector is Logging {
         bucketNonce                                         = add(bucketNonce, 1);
         latestBucket                                        = bucketNonce;
         usedBucket[bucketAccount]                           = ONE;
-        bucketTaxCut[collateralType]                        = add(bucketTaxCut[collateralType], stabilityFee);
-        buckets[collateralType][latestBucket].stabilityFee  = stabilityFee;
+        bucketTaxCut[collateralType]                        = add(bucketTaxCut[collateralType], taxPercentage);
+        buckets[collateralType][latestBucket].taxPercentage = taxPercentage;
         bucketAccounts[latestBucket]                        = bucketAccount;
         bucketRevenueSources[bucketAccount]                 = ONE;
         bucketList.push(latestBucket, false);
@@ -213,7 +213,7 @@ contract TaxCollector is Logging {
             delete(buckets[collateralType][position]);
             delete(bucketRevenueSources[bucketAccounts[position]]);
             delete(bucketAccounts[position]);
-          } else if (buckets[ilk][position].stabilityFee > 0) {
+          } else if (buckets[collateralType][position].stabilityFee > 0) {
             bucketRevenueSources[bucketAccounts[position]] = sub(bucketRevenueSources[bucketAccounts[position]], 1);
             delete(buckets[collateralType][position]);
           }
@@ -248,9 +248,9 @@ contract TaxCollector is Logging {
         int  deltaRate;
         uint debtAmount;
         for (uint i = 0; i < collateralList.length; i++) {
-          if (now > collateralType[collateralList[i]].updateTime) {
+          if (now > collateralTypes[collateralList[i]].updateTime) {
             (debtAmount, ) = cdpEngine.collateralTypes(collateralList[i]);
-            (, deltaRate) = drop(collateralList[i]);
+            (, deltaRate) = taxationOutcome(collateralList[i]);
             rad = add(rad, mul(debtAmount, deltaRate));
           }
         }
@@ -291,17 +291,18 @@ contract TaxCollector is Logging {
                 collateralTypes[collateralType].updateTime
               ),
             RAY),
-          latestAccumulatedRate);
+          lastAccumulatedRate);
         return (newlyAccumulatedRate, diff(newlyAccumulatedRate, lastAccumulatedRate));
     }
     function taxAll() external emitLog {
         for (uint i = 0; i < collateralList.length; i++) {
-            drip(collateralList[i]);
+            taxSingle(collateralList[i]);
         }
     }
     function taxSingle(bytes32 collateralType) public emitLog returns (uint) {
+        uint latestAccumulatedRate;
         if (now <= collateralTypes[collateralType].updateTime) {
-          (, uint latestAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
+          (, latestAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
           return latestAccumulatedRate;
         }
         (uint newlyAccumulatedRate, int deltaRate) = taxationOutcome(collateralType);

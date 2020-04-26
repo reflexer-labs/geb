@@ -41,16 +41,16 @@ contract CDPEngine {
 
     // --- Data ---
     struct CollateralType {
-        uint256 debtAmount,        // wad
-        uint256 accumulatedRates,  // ray
-        uint256 safetyPrice,       // ray
-        uint256 debtCeiling,       // rad
-        uint256 debtFloor,         // rad
-        uint256 liquidationPrice   // ray
+        uint256 debtAmount;        // wad
+        uint256 accumulatedRates;  // ray
+        uint256 safetyPrice;       // ray
+        uint256 debtCeiling;       // rad
+        uint256 debtFloor;         // rad
+        uint256 liquidationPrice;  // ray
     }
     struct CDP {
-        uint256 lockedCollateral, // wad
-        uint256 generatedDebt     // wad
+        uint256 lockedCollateral;  // wad
+        uint256 generatedDebt;     // wad
     }
 
     mapping (bytes32 => CollateralType)            public collateralTypes;

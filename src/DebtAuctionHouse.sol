@@ -117,7 +117,7 @@ contract DebtAuctionHouse is Logging {
         bids[id].bidAmount = initialBid;
         bids[id].amountToSell = amountToSell;
         bids[id].highBidder = incomeReceiver;
-        bids[id].end = add(uint48(now), tau);
+        bids[id].auctionDeadline = add(uint48(now), totalAuctionLength);
 
         emit StartAuction(id, amountToSell, initialBid, incomeReceiver);
     }

@@ -17,7 +17,7 @@
 
 pragma solidity ^0.5.15;
 
-import "./lib.sol";
+import "./Logging.sol";
 
 contract DebtAuctionHouseLike {
     function startAuction(address incomeReceiver, uint amountToSell, uint initialBid) external returns (uint);
@@ -43,8 +43,8 @@ contract AccountingEngine is Logging {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     function addAuthorization(address account) external emitLog isAuthorized {
-        require(live == 1, "AccountingEngine/contract-not-enabled");
-        authorizedAccounts[usr] = 1;
+        require(contractEnabled == 1, "AccountingEngine/contract-not-enabled");
+        authorizedAccounts[account] = 1;
     }
     function removeAuthorization(address account) external emitLog isAuthorized {
         authorizedAccounts[account] = 0;
@@ -109,7 +109,7 @@ contract AccountingEngine is Logging {
 
     function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
         if (parameter == "surplusAuctionHouse") {
-            cdpEngine.nope(address(surplusAuctionHouse));
+            cdpEngine.denyCDPModification(address(surplusAuctionHouse));
             surplusAuctionHouse = SurplusAuctionHouseLike(data);
             cdpEngine.approveCDPModification(data);
         }

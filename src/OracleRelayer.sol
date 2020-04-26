@@ -132,7 +132,7 @@ contract OracleRelayer is Logging {
           require(data <= collateralTypes[collateralType].liquidationCRatio, "OracleRelayer/mat-lower-than-tam");
           collateralTypes[collateralType].safetyCRatio = data;
         }
-        else if (what == "liquidationCRatio") {
+        else if (parameter == "liquidationCRatio") {
           require(data >= collateralTypes[collateralType].safetyCRatio, "OracleRelayer/tam-bigger-than-mat");
           collateralTypes[collateralType].liquidationCRatio = data;
         }

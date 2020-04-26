@@ -113,14 +113,14 @@ contract SurplusAuctionHouseOne is Logging {
         require(auctionsStarted < uint(-1), "SurplusAuctionHouseOne/overflow");
         id = ++auctionsStarted;
 
-        bids[id].initialBid = initialBid;
+        bids[id].bidAmount = initialBid;
         bids[id].amountToSell = amountToSell;
         bids[id].highBidder = msg.sender;
         bids[id].auctionDeadline = add(uint48(now), totalAuctionLength);
 
         cdpEngine.transferInternalCoins(msg.sender, address(this), amountToSell);
 
-        emit StartedAuction(id, amountToSell, initialBid);
+        emit StartAuction(id, amountToSell, initialBid);
     }
     function restartAuction(uint id) external emitLog {
         require(bids[id].auctionDeadline < now, "SurplusAuctionHouseOne/not-finished");
@@ -203,7 +203,7 @@ contract SurplusAuctionHouseTwo is Logging {
     // --- Init ---
     constructor(address cdpEngine_) public {
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine = VatLike(cdpEngine_);
+        cdpEngine = CDPEngineLike(cdpEngine_);
         swapPath.push(address(0));
         swapPath.push(address(0));
         contractEnabled = 1;
@@ -245,8 +245,8 @@ contract SurplusAuctionHouseTwo is Logging {
           if (address(systemCoin) != address(0)) {
             systemCoin.approve(address(coinJoin), 0);
           }
-          cdpEngine.nope(address(coinJoin));
-          cdpEngine.hope(addr);
+          cdpEngine.denyCDPModification(address(coinJoin));
+          cdpEngine.approveCDPModification(addr);
           coinJoin = CoinJoinLike(addr);
         }
         else if (parameter == "bin") dex = DexLike(addr);
@@ -284,7 +284,7 @@ contract SurplusAuctionHouseTwo is Logging {
 
         uint externalCoinBalance = systemCoin.balanceOf(address(this));
         require(exitAndApproveInternalCoins(amountToSell, address(dex)) == true, "SurplusAuctionHouseTwo/cannot-exit-coins");
-        uint swapResult = dex.tkntkn(dex.INPUT(), div(lot, RAY), address(this), path);
+        uint swapResult = dex.tkntkn(dex.INPUT(), div(amountToSell, RAY), address(this), swapPath);
 
         require(swapResult > 0, "SurplusAuctionHouseTwo/invalid-swap-result");
         require(systemCoin.balanceOf(address(this)) == externalCoinBalance, "SurplusAuctionHouseTwo/could-not-swap");
@@ -293,7 +293,7 @@ contract SurplusAuctionHouseTwo is Logging {
         joinCoinsInSystem();
 
         if (cdpEngine.coinBalance(address(this)) > 0) {
-          cdpEngine.transferInternalCoins(address(this), leftoverReceiver, cdpEngine.transferInternalCoins(address(this)));
+          cdpEngine.transferInternalCoins(address(this), leftoverReceiver, cdpEngine.coinBalance(address(this)));
         }
         protocolToken.burn(address(this), protocolToken.balanceOf(address(this)));
 

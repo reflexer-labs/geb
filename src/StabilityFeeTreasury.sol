@@ -77,13 +77,13 @@ contract StabilityFeeTreasury is Logging {
         cdpEngine                 = CDPEngineLike(cdpEngine_);
         accountingEngine          = accountingEngine_;
         coinJoin                  = CoinJoinLike(coinJoin_);
-        systemCoin                = GemLike(coinJoin.systemCoin());
+        systemCoin                = SystemCoinLike(coinJoin.systemCoin());
         surplusTransferDelay      = surplusTransferDelay_;
         latestSurplusTransferTime = now;
         expensesMultiplier        = WAD;
         contractEnabled           = 1;
         systemCoin.approve(address(coinJoin), uint(-1));
-        cdpEngine.hope(address(coinJoin));
+        cdpEngine.approveCDPModification(address(coinJoin));
     }
 
     // --- Math ---
@@ -135,7 +135,7 @@ contract StabilityFeeTreasury is Logging {
         if (systemCoin.balanceOf(address(this)) > 0) {
           coinJoin.join(address(this), systemCoin.balanceOf(address(this)));
         }
-        cdpEngine.move(address(this), accountingEngine, cdpEngine.good(address(this)));
+        cdpEngine.transferInternalCoins(address(this), accountingEngine, cdpEngine.coinBalance(address(this)));
         contractEnabled = 0;
     }
 
@@ -157,16 +157,22 @@ contract StabilityFeeTreasury is Logging {
     function giveFunds(bytes32 transferType, address account, uint rad) external emitLog isAuthorized {
         require(account != address(0), "StabilityFeeTreasury/null-account");
         if (transferType == INTERNAL) {
-          require(add(mul(systemCoin.balanceOf(address(this)), RAY), cdpEngine.good(address(this))) >= rad, "StabilityFeeTreasury/not-enough-money");
+          require(
+            add(mul(systemCoin.balanceOf(address(this)), RAY), cdpEngine.coinBalance(address(this))) >= rad,
+            "StabilityFeeTreasury/not-enough-money"
+          );
           if (cdpEngine.coinBalance(address(this)) < rad) {
             coinJoin.join(address(this), systemCoin.balanceOf(address(this)));
           }
           expensesAccumulator = add(expensesAccumulator, rad);
           cdpEngine.transferInternalCoins(address(this), account, rad);
         } else {
-          require(add(systemCoin.balanceOf(address(this)), div(cdpEngine.good(address(this)), RAY)) >= rad, "StabilityFeeTreasury/not-enough-money");
+          require(
+            add(systemCoin.balanceOf(address(this)), div(cdpEngine.coinBalance(address(this)), RAY)) >= rad,
+            "StabilityFeeTreasury/not-enough-money"
+          );
           if (systemCoin.balanceOf(address(this)) < rad) {
-            coinJoin.exit(address(this), div(cdpEngine.good(address(this)), RAY));
+            coinJoin.exit(address(this), div(cdpEngine.coinBalance(address(this)), RAY));
           }
           expensesAccumulator = add(expensesAccumulator, mul(RAY, rad));
           systemCoin.transfer(account, rad);
@@ -174,7 +180,7 @@ contract StabilityFeeTreasury is Logging {
     }
     function takeFunds(bytes32 transferType, address account, uint rad) external emitLog isAuthorized {
         if (transferType == INTERNAL) {
-          cdpEngine.move(account, address(this), rad);
+          cdpEngine.transferInternalCoins(account, address(this), rad);
         } else {
           systemCoin.transferFrom(account, address(this), rad);
         }
@@ -184,7 +190,7 @@ contract StabilityFeeTreasury is Logging {
     function pullFunds(address dstAccount, address token, uint wad) external emitLog returns (bool) {
         if (
           either(
-            add(systemCoin.balanceOf(address(this)), div(cdpEngine.good(address(this)), RAY)) < wad,
+            add(systemCoin.balanceOf(address(this)), div(cdpEngine.coinBalance(address(this)), RAY)) < wad,
             either(
               either(
                 allowance[msg.sender] < wad,
@@ -200,7 +206,7 @@ contract StabilityFeeTreasury is Logging {
         expensesAccumulator = add(expensesAccumulator, mul(wad, RAY));
         if (systemCoin.balanceOf(address(this)) < wad) {
           //TODO: wrap in try/catch
-          coinJoin.exit(address(this), div(cdpEngine.good(address(this)), RAY));
+          coinJoin.exit(address(this), div(cdpEngine.coinBalance(address(this)), RAY));
         }
         //TODO: wrap in try/catch
         systemCoin.transfer(dstAccount, wad);
@@ -223,13 +229,17 @@ contract StabilityFeeTreasury is Logging {
           coinJoin.join(address(this), systemCoin.balanceOf(address(this)));
         }
         // Check if we have too much money
-        if (both(cdpEngine.good(address(this)) > minimumFundsRequired_, cdpEngine.good(address(this)) > minimumFundsRequired)) {
+        if (
+          both(cdpEngine.coinBalance(address(this)) > minimumFundsRequired_,
+          cdpEngine.coinBalance(address(this)) > minimumFundsRequired)
+        ) {
           // Check that we still keep min SF in treasury
           minimumFundsRequired_ =
-            (sub(cdpEngine.good(address(this)), sub(cdpEngine.good(address(this)), minimumFundsRequired_)) < minimumFundsRequired) ?
-            sub(cdpEngine.good(address(this)), minimumFundsRequired) : sub(cdpEngine.good(address(this)), minimumFundsRequired_);
+            (sub(cdpEngine.coinBalance(address(this)), sub(cdpEngine.coinBalance(address(this)), minimumFundsRequired_)) < minimumFundsRequired) ?
+            sub(cdpEngine.coinBalance(address(this)), minimumFundsRequired) :
+            sub(cdpEngine.coinBalance(address(this)), minimumFundsRequired_);
           // Transfer surplus to accounting engine
-          cdpEngine.move(address(this), accountingEngine, minimumFundsRequired_);
+          cdpEngine.transferInternalCoins(address(this), accountingEngine, minimumFundsRequired_);
         }
     }
 }
