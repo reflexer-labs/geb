@@ -65,6 +65,14 @@ contract RedemptionRateSetterOne is Logging, ExponentialMath {
         _;
     }
 
+    // --- Events ---
+    event UpdateRedemptionRate(
+      uint marketPrice,
+      uint redemptionRate,
+      uint proportionalSensitivity,
+      uint integralSensitivity
+    );
+
     // --- Structs ---
     struct PI {
         uint proportionalSensitivity;
@@ -272,10 +280,24 @@ contract RedemptionRateSetterOne is Logging, ExponentialMath {
             );
             // Set the new rate
             oracleRelayer.modifyParameters("redemptionRate", perSecondRedemptionRate_);
+            // Emit event
+            emit UpdateRedemptionRate(
+              ray(uint(priceFeedValue)),
+              perSecondRedemptionRate_,
+              piSettings.proportionalSensitivity,
+              piSettings.integralSensitivity
+            );
           } else {
             restartDeviation();
             // Simply set default value for way
             oracleRelayer.modifyParameters("redemptionRate", defaultRedemptionRate);
+            // Emit event
+            emit UpdateRedemptionRate(
+              ray(uint(priceFeedValue)),
+              defaultRedemptionRate,
+              piSettings.proportionalSensitivity,
+              piSettings.integralSensitivity
+            );
           }
           // Make sure you store the latest price as a ray
           latestMarketPrice = ray(uint(priceFeedValue));
@@ -316,6 +338,19 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
         require(authorizedAccounts[msg.sender] == 1, "RedemptionRateSetterTwo/account-not-authorized");
         _;
     }
+
+    // --- Events ---
+    event UpdateRedemptionRate(
+      uint marketPrice,
+      uint redemptionRate,
+      uint proportionalSensitivity,
+      uint integralSensitivity
+    );
+    event AccumulatedDeviation(
+      int256 oldAccumulator,
+      int256 integralAccumulator,
+      int256 rawAccumulator
+    );
 
     // --- Structs ---
     struct PID {
@@ -620,17 +655,37 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
               latestDeviationType_
             );
             oracleRelayer.modifyParameters("redemptionRate", perSecondRedemptionRate_);
+            // Emit event
+            emit UpdateRedemptionRate(
+              ray(uint(priceFeedValue)),
+              perSecondRedemptionRate_,
+              pidSettings.proportionalSensitivity,
+              pidSettings.integralSensitivity
+            );
           } else {
             // Restart deviation types
             deviationType_ = 0;
             latestDeviationType = 0;
             // Set default rate
             oracleRelayer.modifyParameters("redemptionRate", defaultRedemptionRate);
+            // Emit event
+            emit UpdateRedemptionRate(
+              ray(uint(priceFeedValue)),
+              defaultRedemptionRate,
+              pidSettings.proportionalSensitivity,
+              pidSettings.integralSensitivity
+            );
           }
           // Store the latest market price
           latestMarketPrice = ray(uint(priceFeedValue));
           // Store the timestamp of the oracle update
           lastUpdateTime = lastUpdateTime_;
+          // Emit event
+          emit AccumulatedDeviation(
+            oldAccumulator,
+            integralAccumulator,
+            rawAccumulator
+          );
         }
     }
 }

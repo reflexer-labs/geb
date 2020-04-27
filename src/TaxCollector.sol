@@ -37,6 +37,10 @@ contract TaxCollector is Logging {
         _;
     }
 
+    // --- Events ---
+    event Taxed(bytes32 collateralType, uint latestAccumulatedRate, int deltaRate);
+    event UpdatedAccumulatedRate(bytes32 collateralType, address target, int taxCut);
+
     // --- Data ---
     struct CollateralType {
         uint256 stabilityFee;
@@ -305,10 +309,11 @@ contract TaxCollector is Logging {
           (, latestAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
           return latestAccumulatedRate;
         }
-        (uint newlyAccumulatedRate, int deltaRate) = taxationOutcome(collateralType);
+        (, int deltaRate) = taxationOutcome(collateralType);
         splitTaxIncome(collateralType, deltaRate);
         (, latestAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
         collateralTypes[collateralType].updateTime = now;
+        emit Taxed(collateralType, latestAccumulatedRate, deltaRate);
         return latestAccumulatedRate;
     }
     function splitTaxIncome(bytes32 collateralType, int deltaRate) internal {
@@ -333,6 +338,7 @@ contract TaxCollector is Logging {
               )
             ) {
               cdpEngine.updateAccumulatedRate(collateralType, bucketAccounts[currentBucket], currentTaxCut);
+              emit UpdatedAccumulatedRate(collateralType, bucketAccounts[currentBucket], currentTaxCut);
             }
           }
           (, currentBucket) = bucketList.prev(currentBucket);
@@ -344,6 +350,7 @@ contract TaxCollector is Logging {
         ) ? coinBalance / int(debtAmount) : currentTaxCut;
         if (currentTaxCut != 0) {
           cdpEngine.updateAccumulatedRate(collateralType, accountingEngine, currentTaxCut);
+          emit UpdatedAccumulatedRate(collateralType, accountingEngine, currentTaxCut);
         }
     }
 }

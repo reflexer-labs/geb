@@ -47,6 +47,9 @@ contract StabilityFeeTreasury is Logging {
         _;
     }
 
+    // --- Events ---
+    event TransferSurplusFunds(address accountingEngine, uint fundsToTransfer);
+
     bytes32 public constant INTERNAL = bytes32("INTERNAL");
 
     mapping(address => uint) public allowance;
@@ -187,21 +190,15 @@ contract StabilityFeeTreasury is Logging {
     }
 
     // --- Stability Fee Transfer (Approved Accounts) ---
-    function pullFunds(address dstAccount, address token, uint wad) external emitLog returns (bool) {
-        if (
-          either(
-            add(systemCoin.balanceOf(address(this)), div(cdpEngine.coinBalance(address(this)), RAY)) < wad,
-            either(
-              either(
-                allowance[msg.sender] < wad,
-                either(dstAccount == address(0), wad == 0)
-              ),
-              token != address(systemCoin)
-            )
-          )
-        ) {
-          return false;
-        }
+    function pullFunds(address dstAccount, address token, uint wad) external emitLog {
+        require(
+          add(systemCoin.balanceOf(address(this)), div(cdpEngine.coinBalance(address(this)), RAY)) > wad,
+          "StabilityFeeTreasury/not-enough-funds-in-treasury"
+        );
+        require(allowance[msg.sender] >= wad, "StabilityFeeTreasury/not-allowed");
+        require(dstAccount != address(0), "StabilityFeeTreasury/null-dst-account");
+        require(wad > 0, "StabilityFeeTreasury/null-transfer-amount");
+        require(token == address(systemCoin), "StabilityFeeTreasury/token-unavailable");
         allowance[msg.sender] = sub(allowance[msg.sender], wad);
         expensesAccumulator = add(expensesAccumulator, mul(wad, RAY));
         if (systemCoin.balanceOf(address(this)) < wad) {
@@ -210,13 +207,12 @@ contract StabilityFeeTreasury is Logging {
         }
         //TODO: wrap in try/catch
         systemCoin.transfer(dstAccount, wad);
-        return true;
     }
 
     // --- Treasury Maintenance ---
-    function transferSurplusFunds() external {
+    function transferSurplusFunds() external emitLog {
         require(now >= add(latestSurplusTransferTime, surplusTransferDelay), "StabilityFeeTreasury/transfer-cooldown-not-passed");
-        // Compute current accumulatorTag and minimum reserves
+        // Compute latestExpenses and minimum reserves
         uint latestExpenses         = sub(expensesAccumulator, accumulatorTag);
         uint minimumFundsRequired_  =
           (both(treasuryCapacity > 0, treasuryCapacity <= div(mul(expensesMultiplier, latestExpenses), WAD))) ?
@@ -234,12 +230,14 @@ contract StabilityFeeTreasury is Logging {
           cdpEngine.coinBalance(address(this)) > minimumFundsRequired)
         ) {
           // Check that we still keep min SF in treasury
-          minimumFundsRequired_ =
+          uint fundsToTransfer =
             (sub(cdpEngine.coinBalance(address(this)), sub(cdpEngine.coinBalance(address(this)), minimumFundsRequired_)) < minimumFundsRequired) ?
             sub(cdpEngine.coinBalance(address(this)), minimumFundsRequired) :
             sub(cdpEngine.coinBalance(address(this)), minimumFundsRequired_);
           // Transfer surplus to accounting engine
-          cdpEngine.transferInternalCoins(address(this), accountingEngine, minimumFundsRequired_);
+          cdpEngine.transferInternalCoins(address(this), accountingEngine, fundsToTransfer);
+          // Emit event
+          emit TransferSurplusFunds(accountingEngine, fundsToTransfer);
         }
     }
 }

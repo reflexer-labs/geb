@@ -57,7 +57,7 @@ contract DebtAuctionHouse is Logging {
     mapping (uint => Bid) public bids;
 
     CDPEngineLike public cdpEngine;
-    TokenLike  public    protocolToken;
+    TokenLike public protocolToken;
 
     uint256  constant ONE = 1.00E18;
     uint256  public   bidIncrease = 1.05E18;

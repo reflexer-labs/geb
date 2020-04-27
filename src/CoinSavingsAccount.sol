@@ -47,6 +47,9 @@ contract CoinSavingsAccount is Logging {
         _;
     }
 
+    // --- Events ---
+    event UpdatedAccumulatedRate(uint newAccumulatedRate, uint coinAmount);
+
     // --- Data ---
     mapping (address => uint256) public savings;
 
@@ -138,6 +141,7 @@ contract CoinSavingsAccount is Logging {
         accumulatedRate = newAccumulatedRate;
         latestAccumulationTime = now;
         cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), mul(totalSavings, accumulatedRate_));
+        emit UpdatedAccumulatedRate(newAccumulatedRate, mul(totalSavings, accumulatedRate_));
     }
     function nextAccumulatedRate() external view returns (uint) {
         if (now == latestAccumulationTime) return accumulatedRate;

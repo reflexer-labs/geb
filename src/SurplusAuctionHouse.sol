@@ -194,7 +194,7 @@ contract SurplusAuctionHouseTwo is Logging {
     uint256       public contractEnabled;
 
     // --- Events ---
-    event SoldSurplus(
+    event StartAuction(
       uint256 id,
       uint256 amountToSell,
       uint256 initialBid
@@ -297,7 +297,7 @@ contract SurplusAuctionHouseTwo is Logging {
         }
         protocolToken.burn(address(this), protocolToken.balanceOf(address(this)));
 
-        emit SoldSurplus(id, amountToSell, initialBid);
+        emit StartAuction(id, amountToSell, initialBid);
 
         mutex = 0;
     }
