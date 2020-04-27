@@ -111,9 +111,9 @@ contract OracleRelayer is Logging {
     }
 
     // --- Administration ---
-    function modifyParameters(bytes32 collateralType, bytes32 parameter, address orcl_) external emitLog isAuthorized {
+    function modifyParameters(bytes32 collateralType, bytes32 parameter, address addr) external emitLog isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
-        if (parameter == "orcl") collateralTypes[collateralType].orcl = OracleLike(orcl_);
+        if (parameter == "orcl") collateralTypes[collateralType].orcl = OracleLike(addr);
         else revert("OracleRelayer/modify-unrecognized-param");
     }
     function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {

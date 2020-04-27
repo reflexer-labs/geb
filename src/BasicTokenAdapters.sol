@@ -1,4 +1,4 @@
-/// BasicCollateralAdapters.sol
+/// BasicTokenAdapters.sol
 
 // Copyright (C) 2018 Rain <rainbreak@riseup.net>
 //

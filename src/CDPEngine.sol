@@ -305,9 +305,18 @@ contract CDPEngine {
 
         int deltaTotalIssuedDebt = mul(collateralType_.accumulatedRates, deltaDebt);
 
-        tokenCollateral[collateralType][collateralCounterparty] = sub(tokenCollateral[collateralType][collateralCounterparty], deltaCollateral);
-        debtBalance[debtCounterparty]                           = sub(debtBalance[debtCounterparty], deltaTotalIssuedDebt);
-        globalUnbackedDebt                                      = sub(globalUnbackedDebt, deltaTotalIssuedDebt);
+        tokenCollateral[collateralType][collateralCounterparty] = sub(
+          tokenCollateral[collateralType][collateralCounterparty],
+          deltaCollateral
+        );
+        debtBalance[debtCounterparty] = sub(
+          debtBalance[debtCounterparty],
+          deltaTotalIssuedDebt
+        );
+        globalUnbackedDebt = sub(
+          globalUnbackedDebt,
+          deltaTotalIssuedDebt
+        );
     }
 
     // --- Settlement ---

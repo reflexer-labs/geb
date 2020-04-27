@@ -119,7 +119,7 @@ contract CollateralAuctionHouse is Logging {
     }
 
     // --- Auction ---
-    function kick(
+    function startAuction(
       address cdpAuctioned,
       address auctionIncomeRecipient,
       uint amountToRaise,
@@ -192,7 +192,7 @@ contract CollateralAuctionHouse is Logging {
         cdpEngine.transferCollateral(
           collateralType,
           address(this),
-          bids[id].cdpAuctioned, 
+          bids[id].cdpAuctioned,
           bids[id].amountToSell - amountToBuy
         );
 

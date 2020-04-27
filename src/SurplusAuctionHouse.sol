@@ -249,8 +249,8 @@ contract SurplusAuctionHouseTwo is Logging {
           cdpEngine.approveCDPModification(addr);
           coinJoin = CoinJoinLike(addr);
         }
-        else if (parameter == "bin") dex = DexLike(addr);
-        else if (parameter == "safe") leftoverReceiver = addr;
+        else if (parameter == "dex") dex = DexLike(addr);
+        else if (parameter == "leftoverReceiver") leftoverReceiver = addr;
         else revert("SurplusAuctionHouseTwo/modify-unrecognized-param");
     }
     function disableContract() external emitLog isAuthorized {
