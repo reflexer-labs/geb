@@ -5,11 +5,11 @@ contract StructLike {
 }
 
 /**
- * @title Link (Structured Link List)
+ * @title LinkedList (Structured Link List)
  * @author Vittorio Minacori (https://github.com/vittominacori)
  * @dev An utility library for using sorted linked list data structures in your Solidity project.
  */
-library Link {
+library LinkedList {
 
     uint256 private constant NULL = 0;
     uint256 private constant HEAD = 0;
@@ -132,12 +132,12 @@ library Link {
             return 0;
         }
         bool exists;
-        uint256 next;
-        (exists, next) = adj(self, HEAD, NEXT);
-        while ((next != 0) && ((_val < StructLike(_struct).val(next)) != NEXT)) {
-            next = self.list[next][NEXT];
+        uint256 next_;
+        (exists, next_) = adj(self, HEAD, NEXT);
+        while ((next_ != 0) && ((_val < StructLike(_struct).val(next_)) != NEXT)) {
+            next_ = self.list[next_][NEXT];
         }
-        return next;
+        return next_;
     }
 
     /**

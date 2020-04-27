@@ -46,7 +46,7 @@
 
 pragma solidity ^0.5.15;
 
-contract Exp {
+contract ExponentialMath {
     uint256 private constant ONE = 1;
     uint32 private constant MAX_RATIO = 1000000;
     uint8 private constant MIN_PRECISION = 32;

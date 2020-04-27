@@ -1,4 +1,4 @@
-/// coin.t.sol -- tests for coin.sol
+/// Coin.t.sol -- tests for Coin.sol
 
 // Copyright (C) 2015-2020  DappHub, LLC
 // Copyright (C) 2020       Stefan C. Ionescu <stefanionescu@protonmail.com>
@@ -21,21 +21,21 @@ pragma solidity ^0.5.15;
 import "ds-test/test.sol";
 import "ds-token/token.sol";
 
-import {Coin} from "../coin.sol";
-import {Vat} from '../vat.sol';
-import {Vow} from '../vow.sol';
-import {GemJoin} from '../join.sol';
-import {Spotter} from '../spot.sol';
+import {Coin} from "../Coin.sol";
+import {CDPEngine} from '../CDPEngine.sol';
+import {AccountingEngine} from '../AccountingEngine.sol';
+import {CollateralJoin} from '../BasicTokenAdapters.sol';
+import {OracleRelayer} from '../OracleRelayer.sol';
 
 contract Feed {
-    bytes32 public val;
-    bool public has;
-    constructor(uint256 initVal, bool initHas) public {
-        val = bytes32(initVal);
-        has = initHas;
+    bytes32 public priceFeedValue;
+    bool public hasValidValue;
+    constructor(uint256 initPrice, bool initHas) public {
+        priceFeedValue = bytes32(initPrice);
+        hasValidValue = initHas;
     }
-    function peek() external returns (bytes32, bool) {
-        return (val, has);
+    function getPriceWithValidity() external returns (bytes32, bool) {
+        return (priceFeedValue, hasValidValue);
     }
 }
 
@@ -108,10 +108,10 @@ contract CoinTest is DSTest {
     uint constant initialBalanceThis = 1000;
     uint constant initialBalanceCal = 100;
 
-    Vat     vat;
-    Spotter spot;
+    CDPEngine cdpEngine;
+    OracleRelayer oracleRelayer;
 
-    GemJoin gemA;
+    CollateralJoin collateralA;
     DSToken gold;
     Feed    goldFeed;
 
@@ -148,34 +148,34 @@ contract CoinTest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        vat = new Vat();
-        spot = new Spotter(address(vat));
-        vat.rely(address(spot));
+        cdpEngine = new CDPEngine();
+        oracleRelayer = new OracleRelayer(address(cdpEngine));
+        cdpEngine.addAuthorization(address(oracleRelayer));
 
         gold = new DSToken("GEM");
         gold.mint(1000 ether);
-        vat.init("gold");
+        cdpEngine.initializeCollateralType("gold");
         goldFeed = new Feed(1 ether, true);
-        spot.file("gold", "pip", address(goldFeed));
-        spot.file("gold", "tam", 1000000000000000000000000000);
-        spot.file("gold", "mat", 1000000000000000000000000000);
-        spot.poke("gold");
-        gemA = new GemJoin(address(vat), "gold", address(gold));
+        oracleRelayer.modifyParameters("gold", "orcl", address(goldFeed));
+        oracleRelayer.modifyParameters("gold", "liquidationCRatio", 1000000000000000000000000000);
+        oracleRelayer.modifyParameters("gold", "safetyCRatio", 1000000000000000000000000000);
+        oracleRelayer.updateCollateralPrice("gold");
+        collateralA = new CollateralJoin(address(cdpEngine), "gold", address(gold));
 
-        vat.file("gold", "line", rad(1000 ether));
-        vat.file("Line",         rad(1000 ether));
+        cdpEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
+        cdpEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
 
-        gold.approve(address(gemA));
-        gold.approve(address(vat));
+        gold.approve(address(collateralA));
+        gold.approve(address(cdpEngine));
 
-        vat.rely(address(gemA));
+        cdpEngine.addAuthorization(address(collateralA));
 
-        gemA.join(address(this), 1000 ether);
+        collateralA.join(address(this), 1000 ether);
 
         token = createToken();
 
-        spot.rely(address(token));
-        vat.rely(address(token));
+        oracleRelayer.addAuthorization(address(token));
+        cdpEngine.addAuthorization(address(token));
 
         user1 = address(new TokenUser(token));
         user2 = address(new TokenUser(token));
@@ -186,32 +186,32 @@ contract CoinTest is DSTest {
 
         self = address(this);
 
-        vat.frob("gold", self, self, self, 10 ether, 5 ether);
+        cdpEngine.modifyCDPCollateralization("gold", self, self, self, 10 ether, 5 ether);
     }
 
-    function gem(bytes32 ilk, address urn) internal view returns (uint) {
-        return vat.gem(ilk, urn);
+    function tokenCollateral(bytes32 collateralType, address cdp) internal view returns (uint) {
+        return cdpEngine.tokenCollateral(collateralType, cdp);
     }
-    function ink(bytes32 ilk, address urn) internal view returns (uint) {
-        (uint ink_, uint art_) = vat.urns(ilk, urn); art_;
-        return ink_;
+    function lockedCollateral(bytes32 collateralType, address cdp) internal view returns (uint) {
+        (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.cdps(collateralType, cdp); generatedDebt_;
+        return lockedCollateral_;
     }
-    function art(bytes32 ilk, address urn) internal view returns (uint) {
-        (uint ink_, uint art_) = vat.urns(ilk, urn); ink_;
-        return art_;
+    function art(bytes32 collateralType, address urn) internal view returns (uint) {
+        (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.cdps(collateralType, urn); lockedCollateral_;
+        return generatedDebt_;
     }
 
     function createToken() internal returns (Coin) {
-        return new Coin("Mai Reflex-Bond", "MAI", 99);
+        return new Coin("Rai Reflex-Bond", "RAI", 99);
     }
 
     function testSetup() public {
-        assertEq(spot.par(), 10 ** 27);
+        assertEq(oracleRelayer.redemptionPrice(), 10 ** 27);
         assertEq(token.balanceOf(self), initialBalanceThis);
         assertEq(token.balanceOf(cal), initialBalanceCal);
         token.mint(self, 0);
-        (,,uint price,,,) = vat.ilks("gold");
-        assertEq(price, ray(1 ether));
+        (,,uint safetyPrice,,,) = cdpEngine.collateralTypes("gold");
+        assertEq(safetyPrice, ray(1 ether));
     }
 
     function testSetupPrecondition() public {
@@ -294,7 +294,7 @@ contract CoinTest is DSTest {
         TokenUser(user1).doMint(user2, 10);
     }
     function testMintGuyAuth() public {
-        token.rely(user1);
+        token.addAuthorization(user1);
         TokenUser(user1).doMint(user2, 10);
     }
 
@@ -319,12 +319,12 @@ contract CoinTest is DSTest {
     }
     function testBurnAuth() public {
         token.transfer(user1, 10);
-        token.rely(user1);
+        token.addAuthorization(user1);
         TokenUser(user1).doBurn(10);
     }
     function testBurnGuyAuth() public {
         token.transfer(user2, 10);
-        token.rely(user1);
+        token.addAuthorization(user1);
         TokenUser(user2).doApprove(user1);
         TokenUser(user1).doBurn(user2, 10);
     }
@@ -374,7 +374,7 @@ contract CoinTest is DSTest {
     }
 
     function testDomain_Separator() public {
-        assertEq(token.DOMAIN_SEPARATOR(), 0x97141fb38ffcc05ea35adb1bbbb8bad44b568ce6423f4a9466d8e215ec2398c4);
+        assertEq(token.DOMAIN_SEPARATOR(), 0xeace45279df01580efc495f589c7de57948ac856933b95a37a864ccfe9d68dae);
     }
 
     //TODO: remake with v,r,s for coin now that we changed the DOMAIN SEPARATOR because of the dai->coin renaming
