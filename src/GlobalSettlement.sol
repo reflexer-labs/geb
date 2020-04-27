@@ -182,10 +182,10 @@ contract GlobalSettlement is Logging {
     uint256  public shutdownCooldown;
     uint256  public outstandingCoinSupply; // [rad]
 
-    mapping (bytes32 => uint256) public finalCollateralPrice;     // [ray]
-    mapping (bytes32 => uint256) public collateralShortfall;      // [wad]
-    mapping (bytes32 => uint256) public collateralTypeTotalDebt;  // [wad]
-    mapping (bytes32 => uint256) public collateralCashPrice;      // [ray]
+    mapping (bytes32 => uint256) public finalCollateralPrice;   // [ray]
+    mapping (bytes32 => uint256) public collateralShortfall;    // [wad]
+    mapping (bytes32 => uint256) public collateralTotalDebt;    // [wad]
+    mapping (bytes32 => uint256) public collateralCashPrice;    // [ray]
 
     mapping (address => uint256)                      public coinBag;           // [wad]
     mapping (bytes32 => mapping (address => uint256)) public coinsUsedToRedeem; // [wad]
@@ -263,7 +263,7 @@ contract GlobalSettlement is Logging {
     function freezeCollateralType(bytes32 collateralType) external emitLog {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         require(finalCollateralPrice[collateralType] == 0, "GlobalSettlement/final-collateral-price-already-defined");
-        (collateralTypeTotalDebt[collateralType],,,,,) = cdpEngine.collateralTypes(collateralType);
+        (collateralTotalDebt[collateralType],,,,,) = cdpEngine.collateralTypes(collateralType);
         (OracleLike orcl,) = oracleRelayer.collateralTypes(collateralType);
         // redemptionPrice is a ray, orcl returns a wad
         finalCollateralPrice[collateralType] = wdiv(oracleRelayer.redemptionPrice(), uint(orcl.getPrice()));
@@ -283,7 +283,7 @@ contract GlobalSettlement is Logging {
         collateralAuctionHouse.terminateAuctionPrematurely(auctionId);
 
         uint debt_ = amountToRaise / accumulatedRates;
-        collateralTypeTotalDebt[collateralType] = add(collateralTypeTotalDebt[collateralType], debt_);
+        collateralTotalDebt[collateralType] = add(collateralTotalDebt[collateralType], debt_);
         require(int(collateralToSell) >= 0 && int(debt_) >= 0, "GlobalSettlement/overflow");
         cdpEngine.confiscateCDPCollateralAndDebt(collateralType, cdpAuctioned, address(this), address(accountingEngine), int(collateralToSell), int(debt_));
     }
@@ -308,7 +308,7 @@ contract GlobalSettlement is Logging {
         require(cdpCollateral <= 2**255, "GlobalSettlement/overflow");
         cdpEngine.confiscateCDPCollateralAndDebt(
           collateralType,
-          msg.sender, 
+          msg.sender,
           msg.sender,
           address(accountingEngine),
           -int(cdpCollateral),
@@ -329,7 +329,7 @@ contract GlobalSettlement is Logging {
 
         (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
         uint256 redemptionAdjustedDebt = rmul(
-          rmul(collateralTypeTotalDebt[collateralType], accumulatedRates), finalCollateralPrice[collateralType]
+          rmul(collateralTotalDebt[collateralType], accumulatedRates), finalCollateralPrice[collateralType]
         );
         collateralCashPrice[collateralType] = rdiv(
           mul(sub(redemptionAdjustedDebt, collateralShortfall[collateralType]), RAY), outstandingCoinSupply

@@ -640,7 +640,7 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
           // Compute the opposite sign of the current market price deviation
           int latestDeviationType_ = oppositeDeviationSign(ray(uint(priceFeedValue)), redemptionPrice);
           // If the deviation is exceeding 'noiseBarrier'
-          if (deviation_ >= int(noiseBarrier) || deviation_ <= -int(noiseBarrier)) {
+          if (either(deviation_ >= int(noiseBarrier), deviation_ <= -int(noiseBarrier))) {
             /**
               If the current deviation is different than the latest one,
               update the latest one
