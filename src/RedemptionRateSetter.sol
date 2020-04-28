@@ -346,7 +346,7 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
       uint proportionalSensitivity,
       uint integralSensitivity
     );
-    event AccumulatedDeviation(
+    event AccumulateDeviation(
       int256 oldAccumulator,
       int256 integralAccumulator,
       int256 rawAccumulator
@@ -685,7 +685,7 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
           // Store the timestamp of the oracle update
           lastUpdateTime = lastUpdateTime_;
           // Emit event
-          emit AccumulatedDeviation(
+          emit AccumulateDeviation(
             oldAccumulator,
             integralAccumulator,
             rawAccumulator
