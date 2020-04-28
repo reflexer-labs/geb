@@ -94,7 +94,7 @@ contract LiquidationEngine is Logging {
       address collateralAuctioner,
       uint256 auctionId
     );
-    event SavedCDP(
+    event SaveCDP(
       bytes32 indexed collateralType,
       address indexed cdp,
       uint256 collateralAdded
@@ -169,7 +169,7 @@ contract LiquidationEngine is Logging {
           (bool ok, uint collateralAdded) =
             CDPSaviourLike(chosenCDPSaviour[collateralType][cdp]).saveCDP(msg.sender, collateralType, cdp);
           if (both(ok, collateralAdded > 0)) {
-            emit SavedCDP(collateralType, cdp, collateralAdded);
+            emit SaveCDP(collateralType, cdp, collateralAdded);
           }
         }
 
