@@ -65,7 +65,7 @@ contract AccountingEngine is Logging {
 
     uint256 public lastSurplusAuctionTime;
     uint256 public surplusAuctionDelay;
-    uint256 public debtAuctionDelay;
+    uint256 public popDebtDelay;
     uint256 public initialDebtAuctionAmount;  // [wad]
     uint256 public debtAuctionBidSize;        // [rad]
 
@@ -99,6 +99,7 @@ contract AccountingEngine is Logging {
     // --- Administration ---
     function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
         if (parameter == "surplusAuctionDelay") surplusAuctionDelay = data;
+        else if (parameter == "popDebtDelay") popDebtDelay = data;
         else if (parameter == "surplusAuctionDelay") surplusAuctionDelay = data;
         else if (parameter == "surplusAuctionAmountSold") surplusAuctionAmountSold = data;
         else if (parameter == "debtAuctionBidSize") debtAuctionBidSize = data;
@@ -123,7 +124,7 @@ contract AccountingEngine is Logging {
         totalQueuedDebt = add(totalQueuedDebt, debtBlock);
     }
     function popDebtFromQueue(uint era) external emitLog {
-        require(add(era, surplusAuctionDelay) <= now, "AccountingEngine/debt-auction-delay-not-passed");
+        require(add(era, popDebtDelay) <= now, "AccountingEngine/pop-debt-delay-not-passed");
         totalQueuedDebt = sub(totalQueuedDebt, debtQueue[era]);
         debtQueue[era] = 0;
     }

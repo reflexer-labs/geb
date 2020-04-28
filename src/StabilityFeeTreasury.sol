@@ -196,7 +196,7 @@ contract StabilityFeeTreasury is Logging {
           "StabilityFeeTreasury/not-enough-funds-in-treasury"
         );
         require(allowance[msg.sender] >= wad, "StabilityFeeTreasury/not-allowed");
-        require(dstAccount != address(0), "StabilityFeeTreasury/null-dst-account");
+        require(dstAccount != address(0), "StabilityFeeTreasury/null-dst");
         require(wad > 0, "StabilityFeeTreasury/null-transfer-amount");
         require(token == address(systemCoin), "StabilityFeeTreasury/token-unavailable");
         allowance[msg.sender] = sub(allowance[msg.sender], wad);

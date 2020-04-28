@@ -45,7 +45,7 @@ contract CDPEngineLike {
         uint256 lockedCollateral, // wad
         uint256 generatedDebt     // wad
     );
-    function transferCDPCollateralAndDebt(bytes32,address,address,address,int,int) external;
+    function confiscateCDPCollateralAndDebt(bytes32,address,address,address,int,int) external;
     function canModifyCDP(address, address) external view returns (bool);
     function approveCDPModification(address) external;
     function denyCDPModification(address) external;
@@ -85,7 +85,7 @@ contract LiquidationEngine is Logging {
     AccountingEngineLike public accountingEngine;
 
     // --- Events ---
-    event Liquidated(
+    event Liquidate(
       bytes32 indexed collateralType,
       address indexed cdp,
       uint256 collateralAmount,
@@ -94,7 +94,7 @@ contract LiquidationEngine is Logging {
       address collateralAuctioner,
       uint256 auctionId
     );
-    event SavedCDP(
+    event SaveCDP(
       bytes32 indexed collateralType,
       address indexed cdp,
       uint256 collateralAdded
@@ -169,19 +169,21 @@ contract LiquidationEngine is Logging {
           (bool ok, uint collateralAdded) =
             CDPSaviourLike(chosenCDPSaviour[collateralType][cdp]).saveCDP(msg.sender, collateralType, cdp);
           if (both(ok, collateralAdded > 0)) {
-            emit SavedCDP(collateralType, cdp, collateralAdded);
+            emit SaveCDP(collateralType, cdp, collateralAdded);
           }
         }
 
-        (, accumulatedRates, , , , ) = cdpEngine.collateralTypes(collateralType);
-        (cdpCollateral, cdpDebt)     = cdpEngine.cdps(collateralType, cdp);
+        (, accumulatedRates, , , , liquidationPrice) = cdpEngine.collateralTypes(collateralType);
+        (cdpCollateral, cdpDebt) = cdpEngine.cdps(collateralType, cdp);
 
         if (both(liquidationPrice > 0, mul(cdpCollateral, liquidationPrice) < mul(cdpDebt, accumulatedRates))) {
           uint collateralToSell = min(cdpCollateral, collateralTypes[collateralType].collateralToSell);
           cdpDebt               = min(cdpDebt, mul(collateralToSell, cdpDebt) / cdpCollateral);
 
           require(collateralToSell <= 2**255 && cdpDebt <= 2**255, "LiquidationEngine/overflow");
-          cdpEngine.transferCDPCollateralAndDebt(collateralType, cdp, address(this), address(accountingEngine), -int(collateralToSell), -int(cdpDebt));
+          cdpEngine.confiscateCDPCollateralAndDebt(
+            collateralType, cdp, address(this), address(accountingEngine), -int(collateralToSell), -int(cdpDebt)
+          );
 
           accountingEngine.pushDebtToQueue(mul(cdpDebt, accumulatedRates));
 
@@ -193,7 +195,7 @@ contract LiquidationEngine is Logging {
             , initialBid: 0
            });
 
-          emit Liquidated(collateralType, cdp, collateralToSell, cdpDebt, mul(cdpDebt, accumulatedRates), collateralTypes[collateralType].collateralAuctionHouse, auctionId);
+          emit Liquidate(collateralType, cdp, collateralToSell, cdpDebt, mul(cdpDebt, accumulatedRates), collateralTypes[collateralType].collateralAuctionHouse, auctionId);
         }
 
         mutex[collateralType][cdp] = 0;

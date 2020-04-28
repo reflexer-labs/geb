@@ -48,7 +48,7 @@ contract CoinSavingsAccount is Logging {
     }
 
     // --- Events ---
-    event UpdatedAccumulatedRate(uint newAccumulatedRate, uint coinAmount);
+    event UpdateAccumulatedRate(uint newAccumulatedRate, uint coinAmount);
 
     // --- Data ---
     mapping (address => uint256) public savings;
@@ -59,7 +59,7 @@ contract CoinSavingsAccount is Logging {
 
     CDPEngineLike public cdpEngine;
     address public accountingEngine;
-    uint256 public latestAccumulationTime;
+    uint256 public latestUpdateTime;
 
     uint256 public contractEnabled;
 
@@ -69,7 +69,7 @@ contract CoinSavingsAccount is Logging {
         cdpEngine = CDPEngineLike(cdpEngine_);
         savingsRate = RAY;
         accumulatedRate = RAY;
-        latestAccumulationTime = now;
+        latestUpdateTime = now;
         contractEnabled = 1;
     }
 
@@ -118,7 +118,7 @@ contract CoinSavingsAccount is Logging {
     // --- Administration ---
     function modifyParameters(bytes32 parameter, uint256 data) external emitLog isAuthorized {
         require(contractEnabled == 1, "CoinSavingsAccount/contract-not-enabled");
-        require(now == latestAccumulationTime, "CoinSavingsAccount/accumulation-time-not-updated");
+        require(now == latestUpdateTime, "CoinSavingsAccount/accumulation-time-not-updated");
         if (parameter == "savingsRate") savingsRate = data;
         else revert("CoinSavingsAccount/modify-unrecognized-param");
     }
@@ -135,22 +135,22 @@ contract CoinSavingsAccount is Logging {
 
     // --- Savings Rate Accumulation ---
     function updateAccumulatedRate() external emitLog returns (uint newAccumulatedRate) {
-        if (now <= latestAccumulationTime) return accumulatedRate;
-        newAccumulatedRate = rmul(rpow(savingsRate, sub(now, latestAccumulationTime), RAY), accumulatedRate);
+        if (now <= latestUpdateTime) return accumulatedRate;
+        newAccumulatedRate = rmul(rpow(savingsRate, sub(now, latestUpdateTime), RAY), accumulatedRate);
         uint accumulatedRate_ = sub(newAccumulatedRate, accumulatedRate);
         accumulatedRate = newAccumulatedRate;
-        latestAccumulationTime = now;
+        latestUpdateTime = now;
         cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), mul(totalSavings, accumulatedRate_));
-        emit UpdatedAccumulatedRate(newAccumulatedRate, mul(totalSavings, accumulatedRate_));
+        emit UpdateAccumulatedRate(newAccumulatedRate, mul(totalSavings, accumulatedRate_));
     }
     function nextAccumulatedRate() external view returns (uint) {
-        if (now == latestAccumulationTime) return accumulatedRate;
-        return rmul(rpow(savingsRate, sub(now, latestAccumulationTime), RAY), accumulatedRate);
+        if (now == latestUpdateTime) return accumulatedRate;
+        return rmul(rpow(savingsRate, sub(now, latestUpdateTime), RAY), accumulatedRate);
     }
 
     // --- Savings Management ---
     function deposit(uint wad) external emitLog {
-        require(now == latestAccumulationTime, "CoinSavingsAccount/accumulation-time-not-updated");
+        require(now == latestUpdateTime, "CoinSavingsAccount/accumulation-time-not-updated");
         savings[msg.sender] = add(savings[msg.sender], wad);
         totalSavings        = add(totalSavings, wad);
         cdpEngine.transferInternalCoins(msg.sender, address(this), mul(accumulatedRate, wad));
