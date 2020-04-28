@@ -199,13 +199,13 @@ contract StabilityFeeTreasury is Logging {
         require(dstAccount != address(0), "StabilityFeeTreasury/null-dst");
         require(wad > 0, "StabilityFeeTreasury/null-transfer-amount");
         require(token == address(systemCoin), "StabilityFeeTreasury/token-unavailable");
+
         allowance[msg.sender] = sub(allowance[msg.sender], wad);
-        expensesAccumulator = add(expensesAccumulator, mul(wad, RAY));
+        expensesAccumulator   = add(expensesAccumulator, mul(wad, RAY));
+
         if (systemCoin.balanceOf(address(this)) < wad) {
-          //TODO: wrap in try/catch
           coinJoin.exit(address(this), div(cdpEngine.coinBalance(address(this)), RAY));
         }
-        //TODO: wrap in try/catch
         systemCoin.transfer(dstAccount, wad);
     }
 

@@ -28,7 +28,7 @@ import "./Logging.sol";
    - `savingsRate`: the Savings Rate
    - `savings`: user balance of Savings Coins
    - `deposit`: start saving some coins
-   - `withdraw`: remove some coins
+   - `withdraw`: withdraw coins from the savings account
    - `updateAccumulatedRate`: perform rate collection
 */
 
