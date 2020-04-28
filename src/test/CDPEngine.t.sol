@@ -410,446 +410,440 @@ contract ModifyCDPCollateralizationTest is DSTest {
     }
 }
 
-// contract JoinTest is DSTest {
-//     TestCDPEngine cdpEngine;
-//     DSToken collateral;
-//     CollateralJoin collateralA;
-//     ETHJoin ethA;
-//     CoinJoin coinA;
-//     DSToken coin;
-//     address me;
-//
-//     uint constant WAD = 10 ** 18;
-//
-//     function setUp() public {
-//         cdpEngine = new TestCDPEngine();
-//         cdpEngine.initializeCollateralType("ETH");
-//
-//         collateral  = new DSToken("Gem");
-//         collateralA = new CollateralJoin(address(cdpEngine), "collateral", address(collateral));
-//         cdpEngine.addAuthorization(address(collateralA));
-//
-//         ethA = new ETHJoin(address(cdpEngine), "ETH");
-//         cdpEngine.addAuthorization(address(ethA));
-//
-//         coin  = new DSToken("Coin");
-//         coinA = new CoinJoin(address(cdpEngine), address(coin));
-//         cdpEngine.addAuthorization(address(coinA));
-//         coin.setOwner(address(coinA));
-//
-//         me = address(this);
-//     }
-//     function draw(bytes32 collateralType, int wad, int coin_) internal {
-//         address self = address(this);
-//         cdpEngine.modifyCollateralBalance(collateralType, self, wad);
-//         cdpEngine.modifyCDPCollateralization(collateralType, self, self, self, wad, coin_);
-//     }
-//     function try_cage(address a) public payable returns (bool ok) {
-//         string memory sig = "cage()";
-//         (ok,) = a.call(abi.encodeWithSignature(sig));
-//     }
-//     function try_join_tokenCollateral(address usr, uint wad) public returns (bool ok) {
-//         string memory sig = "join(address,uint256)";
-//         (ok,) = address(collateralA).call(abi.encodeWithSignature(sig, usr, wad));
-//     }
-//     function try_join_eth(address usr) public payable returns (bool ok) {
-//         string memory sig = "join(address)";
-//         (ok,) = address(ethA).call.value(msg.value)(abi.encodeWithSignature(sig, usr));
-//     }
-//     function try_exit_coin(address usr, uint wad) public returns (bool ok) {
-//         string memory sig = "exit(address,uint256)";
-//         (ok,) = address(coinA).call(abi.encodeWithSignature(sig, usr, wad));
-//     }
-//     function try_dres_tokenCollateral(int wad) public returns (bool ok) {
-//         string memory sig = "dres(int256)";
-//         (ok,) = address(collateralA).call(abi.encodeWithSignature(sig, wad));
-//     }
-//     function try_dres_eth(int wad) public payable returns (bool ok) {
-//         string memory sig = "dres(int256)";
-//         (ok,) = address(ethA).call.value(msg.value)(abi.encodeWithSignature(sig, wad));
-//     }
-//
-//     function () external payable {}
-//     function test_collateral_join() public {
-//         collateral.mint(20 ether);
-//         collateral.approve(address(collateralA), 20 ether);
-//         assertTrue( try_join_tokenCollateral(address(this), 10 ether));
-//         assertEq(cdpEngine.tokenCollateral("collateral", me), 10 ether);
-//         assertTrue( try_cage(address(collateralA)));
-//         assertTrue(!try_join_tokenCollateral(address(this), 10 ether));
-//         assertEq(cdpEngine.tokenCollateral("collateral", me), 10 ether);
-//     }
-//     function test_eth_join() public {
-//         assertTrue( this.try_join_eth.value(10 ether)(address(this)));
-//         assertEq(cdpEngine.tokenCollateral("ETH", me), 10 ether);
-//         assertTrue( try_cage(address(ethA)));
-//         assertTrue(!this.try_join_eth.value(10 ether)(address(this)));
-//         assertEq(cdpEngine.tokenCollateral("ETH", me), 10 ether);
-//     }
-//     function test_eth_exit() public {
-//         address payable cdp = address(this);
-//         ethA.join.value(50 ether)(cdp);
-//         ethA.exit(cdp, 10 ether);
-//         assertEq(cdpEngine.tokenCollateral("ETH", me), 40 ether);
-//     }
-//     function rad(uint wad) internal pure returns (uint) {
-//         return wad * 10 ** 27;
-//     }
-//     function test_coin_exit() public {
-//         address cdp = address(this);
-//         cdpEngine.mint(address(this), 100 ether);
-//         cdpEngine.approveCDPModification(address(coinA));
-//         assertTrue( try_exit_coin(cdp, 40 ether));
-//         assertEq(coin.balanceOf(address(this)), 40 ether);
-//         assertEq(cdpEngine.coinBalance(me),              rad(60 ether));
-//         assertTrue( try_cage(address(coinA)));
-//         assertTrue(!try_exit_coin(cdp, 40 ether));
-//         assertEq(coin.balanceOf(address(this)), 40 ether);
-//         assertEq(cdpEngine.coinBalance(me),              rad(60 ether));
-//     }
-//     function test_coin_exit_join() public {
-//         address cdp = address(this);
-//         cdpEngine.mint(address(this), 100 ether);
-//         cdpEngine.approveCDPModification(address(coinA));
-//         coinA.exit(cdp, 60 ether);
-//         coin.approve(address(coinA), uint(-1));
-//         coinA.join(cdp, 30 ether);
-//         assertEq(coin.balanceOf(address(this)),     30 ether);
-//         assertEq(cdpEngine.coinBalance(me),                  rad(70 ether));
-//     }
-//     function test_fallback_reverts() public {
-//         (bool ok,) = address(ethA).call("invalid calldata");
-//         assertTrue(!ok);
-//     }
-//     function test_nonzero_fallback_reverts() public {
-//         (bool ok,) = address(ethA).call.value(10)("invalid calldata");
-//         assertTrue(!ok);
-//     }
-//     function test_cage_no_access() public {
-//         collateralA.deny(address(this));
-//         assertTrue(!try_cage(address(collateralA)));
-//         ethA.deny(address(this));
-//         assertTrue(!try_cage(address(ethA)));
-//         coinA.deny(address(this));
-//         assertTrue(!try_cage(address(coinA)));
-//     }
-// }
-//
-// contract FlipLike {
-//     struct Bid {
-//         uint256 bid;
-//         uint256 lot;
-//         address guy;  // high bidder
-//         uint48  tic;  // expiry time
-//         uint48  end;
-//         address cdp;
-//         address gal;
-//         uint256 tab;
-//     }
-//     function bids(uint) public view returns (
-//         uint256 bid,
-//         uint256 lot,
-//         address guy,
-//         uint48  tic,
-//         uint48  end,
-//         address usr,
-//         address gal,
-//         uint256 tab
-//     );
-// }
-//
-// contract BiteTest is DSTest {
-//     Hevm hevm;
-//
-//     TestCDPEngine cdpEngine;
-//     TestAccountingEngine vow;
-//     LiquidationEngine     cat;
-//     DSToken gold;
-//     TaxCollector     taxCollector;
-//
-//     CollateralJoin collateralA;
-//
-//     CollateralAuctionHouse flip;
-//     DebtAuctionHouse flop;
-//     SurplusAuctionHouseTwo flap;
-//
-//     DSToken gov;
-//
-//     address me;
-//
-//     function try_modifyCDPCollateralization(bytes32 collateralType, int lockedCollateral, int generatedDebt) public returns (bool ok) {
-//         string memory sig = "modifyCDPCollateralization(bytes32,address,address,address,int256,int256)";
-//         address self = address(this);
-//         (ok,) = address(cdpEngine).call(abi.encodeWithSignature(sig, collateralType, self, self, self, lockedCollateral, generatedDebt));
-//     }
-//
-//     function try_bite(bytes32 collateralType, address cdp) public returns (bool ok) {
-//         string memory sig = "bite(bytes32,address)";
-//         (ok,) = address(cat).call(abi.encodeWithSignature(sig, collateralType, cdp));
-//     }
-//
-//     function ray(uint wad) internal pure returns (uint) {
-//         return wad * 10 ** 9;
-//     }
-//     function rad(uint wad) internal pure returns (uint) {
-//         return wad * 10 ** 27;
-//     }
-//
-//     function tokenCollateral(bytes32 collateralType, address cdp) internal view returns (uint) {
-//         return cdpEngine.tokenCollateral(collateralType, cdp);
-//     }
-//     function lockedCollateral(bytes32 collateralType, address cdp) internal view returns (uint) {
-//         (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.cdps(collateralType, cdp); generatedDebt_;
-//         return lockedCollateral_;
-//     }
-//     function generatedDebt(bytes32 collateralType, address cdp) internal view returns (uint) {
-//         (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.cdps(collateralType, cdp); lockedCollateral_;
-//         return generatedDebt_;
-//     }
-//
-//     function setUp() public {
-//         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
-//         hevm.warp(604411200);
-//
-//         gov = new DSToken('GOV');
-//         gov.mint(100 ether);
-//
-//         cdpEngine = new TestCDPEngine();
-//         cdpEngine = cdpEngine;
-//
-//         flap = new SurplusAuctionHouseTwo(address(cdpEngine));
-//         //TODO: add gov and bond to surplusAuctionHouse
-//         flop = new DebtAuctionHouse(address(cdpEngine), address(gov));
-//
-//         vow = new TestAccountingEngine(address(cdpEngine), address(flap), address(flop));
-//         flap.addAuthorization(address(vow));
-//         flop.addAuthorization(address(vow));
-//         cdpEngine.addAuthorization(address(vow));
-//
-//         taxCollector = new TaxCollector(address(cdpEngine));
-//         taxCollector.initializeCollateralType("gold");
-//         taxCollector.modifyParameters("vow", address(vow));
-//         cdpEngine.addAuthorization(address(taxCollector));
-//
-//         cat = new LiquidationEngine(address(cdpEngine));
-//         cat.modifyParameters("vow", address(vow));
-//         cdpEngine.addAuthorization(address(cat));
-//         vow.addAuthorization(address(cat));
-//
-//         gold = new DSToken("GEM");
-//         gold.mint(1000 ether);
-//
-//         cdpEngine.initializeCollateralType("gold");
-//         collateralA = new CollateralJoin(address(cdpEngine), "gold", address(gold));
-//         cdpEngine.addAuthorization(address(collateralA));
-//         gold.approve(address(collateralA));
-//         collateralA.join(address(this), 1000 ether);
-//
-//         cdpEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
-//         cdpEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
-//         cdpEngine.modifyParameters("globalDebtCeiling",         rad(1000 ether));
-//         flip = new CollateralAuctionHouse(address(cdpEngine), "gold");
-//         flip.modifyParameters("oracleRelayer", address(new OracleRelayer(address(cdpEngine))));
-//         flip.modifyParameters("orcl", address(new Feed(bytes32(uint256(1)), true)));
-//         flip.addAuthorization(address(cat));
-//         cat.modifyParameters("gold", "flip", address(flip));
-//         cat.modifyParameters("gold", "chop", ray(1 ether));
-//
-//         cdpEngine.addAuthorization(address(flip));
-//         cdpEngine.addAuthorization(address(flap));
-//         cdpEngine.addAuthorization(address(flop));
-//
-//         cdpEngine.approveCDPModification(address(flip));
-//         cdpEngine.approveCDPModification(address(flop));
-//         gold.approve(address(cdpEngine));
-//         gov.approve(address(flap));
-//
-//         me = address(this);
-//     }
-//
-//     function test_bite_under_lump() public {
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(10 ether));
-//         cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
-//         // tag=4, mat=2
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
-//         cdpEngine.modifyParameters("gold", 'risk', ray(2 ether));  // now unsafe
-//
-//         cat.modifyParameters("gold", "lump", 50 ether);
-//         cat.modifyParameters("gold", "chop", ray(1.1 ether));
-//
-//         uint auction = cat.bite("gold", address(this));
-//         // the full CDP is liquidated
-//         assertEq(lockedCollateral("gold", address(this)), 0);
-//         assertEq(generatedDebt("gold", address(this)), 0);
-//         // all debt goes to the vow
-//         assertEq(vow.totalDeficit(), rad(100 ether));
-//         // auction is for all collateral
-//         (, uint lot,,,,,, uint tab) = FlipLike(address(flip)).bids(auction);
-//         assertEq(lot,        40 ether);
-//         assertEq(tab,   rad(110 ether));
-//     }
-//     function test_bite_over_lump() public {
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
-//         cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
-//         // tag=4, mat=2
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
-//         cdpEngine.modifyParameters("gold", 'risk', ray(2 ether));  // now unsafe
-//
-//         cat.modifyParameters("gold", "chop", ray(1.1 ether));
-//         cat.modifyParameters("gold", "lump", 30 ether);
-//
-//         uint auction = cat.bite("gold", address(this));
-//         // the CDP is partially liquidated
-//         assertEq(lockedCollateral("gold", address(this)), 10 ether);
-//         assertEq(generatedDebt("gold", address(this)), 25 ether);
-//         // a fraction of the debt goes to the vow
-//         assertEq(vow.totalDeficit(), rad(75 ether));
-//         // auction is for a fraction of the collateral
-//         (, uint lot,,,,,, uint tab) = FlipLike(address(flip)).bids(auction);
-//         assertEq(lot,       30 ether);
-//         assertEq(tab,   rad(82.5 ether));
-//     }
-//
-//     function test_bite_safetyPrice_when_risk() public {
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
-//         cdpEngine.modifyParameters("gold", 'risk', ray(10 ether));
-//
-//         cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
-//
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(2 ether));
-//         cdpEngine.modifyParameters("gold", 'risk', ray(4 ether));
-//
-//         cat.modifyParameters("gold", "chop", ray(1.1 ether));
-//         cat.modifyParameters("gold", "lump", 30 ether);
-//
-//         assertTrue(!try_bite("gold", address(this)));
-//
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
-//         cdpEngine.modifyParameters("gold", 'risk', ray(2 ether));
-//
-//         assertTrue(try_bite("gold", address(this)));
-//     }
-//
-//     function test_happy_bite() public {
-//         // safetyPrice = tag / (par . mat)
-//         // tag=5, mat=2
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
-//         cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
-//
-//         // tag=4, mat=2
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
-//         cdpEngine.modifyParameters("gold", 'risk', ray(2 ether));  // now unsafe
-//
-//         assertEq(lockedCollateral("gold", address(this)),  40 ether);
-//         assertEq(generatedDebt("gold", address(this)), 100 ether);
-//         assertEq(vow.preAuctionDebt(), 0 ether);
-//         assertEq(tokenCollateral("gold", address(this)), 960 ether);
-//
-//         cat.modifyParameters("gold", "lump", 100 ether);  // => bite everything
-//         uint auction = cat.bite("gold", address(this));
-//         assertEq(lockedCollateral("gold", address(this)), 0);
-//         assertEq(generatedDebt("gold", address(this)), 0);
-//         assertEq(vow.debtBalance(now),   rad(100 ether));
-//         assertEq(tokenCollateral("gold", address(this)), 960 ether);
-//
-//         assertEq(cdpEngine.balanceOf(address(vow)),    0 ether);
-//         flip.tend(auction, 40 ether,   rad(1 ether));
-//         flip.tend(auction, 40 ether, rad(100 ether));
-//
-//         assertEq(cdpEngine.balanceOf(address(this)),   0 ether);
-//         assertEq(tokenCollateral("gold", address(this)),   960 ether);
-//         cdpEngine.mint(address(this), 100 ether);  // magic up some dai for bidding
-//         flip.dent(auction, 38 ether,  rad(100 ether));
-//         assertEq(cdpEngine.balanceOf(address(this)), 100 ether);
-//         assertEq(tokenCollateral("gold", address(this)),   962 ether);
-//         assertEq(tokenCollateral("gold", address(this)),   962 ether);
-//         assertEq(vow.debtBalance(now),     rad(100 ether));
-//
-//         hevm.warp(now + 4 hours);
-//         flip.deal(auction);
-//         assertEq(cdpEngine.balanceOf(address(vow)),  100 ether);
-//     }
-//
-//     function test_floppy_bite() public {
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
-//         cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
-//         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
-//         cdpEngine.modifyParameters("gold", 'risk', ray(2 ether));  // now unsafe
-//
-//         cat.modifyParameters("gold", "lump", 100 ether);  // => bite everything
-//         assertEq(vow.debtBalance(now), rad(  0 ether));
-//         cat.bite("gold", address(this));
-//         assertEq(vow.debtBalance(now), rad(100 ether));
-//
-//         assertEq(vow.totalQueuedDebt(), rad(100 ether));
-//         vow.popDebtFromQueue(now);
-//         assertEq(vow.totalQueuedDebt(), rad(  0 ether));
-//         assertEq(vow.preAuctionDebt(), rad(100 ether));
-//         assertEq(vow.totalSurplus(), rad(  0 ether));
-//         assertEq(vow.totalOnAuctionDebt(), rad(  0 ether));
-//
-//         vow.modifyParameters("sump", rad(10 ether));
-//         vow.modifyParameters("dump", 2000 ether);
-//         uint f1 = vow.flop();
-//         assertEq(vow.preAuctionDebt(),  rad(90 ether));
-//         assertEq(vow.totalSurplus(),  rad( 0 ether));
-//         assertEq(vow.totalOnAuctionDebt(),  rad(10 ether));
-//         flop.dent(f1, 1000 ether, rad(10 ether));
-//         assertEq(vow.preAuctionDebt(),  rad(90 ether));
-//         assertEq(vow.totalSurplus(),  rad( 0 ether));
-//         assertEq(vow.totalOnAuctionDebt(),  rad( 0 ether));
-//
-//         assertEq(gov.balanceOf(address(this)),  100 ether);
-//         hevm.warp(now + 4 hours);
-//         gov.setOwner(address(flop));
-//         flop.deal(f1);
-//         assertEq(gov.balanceOf(address(this)), 1100 ether);
-//     }
-// }
-//
-// contract FoldTest is DSTest {
-//     CDPEngine cdpEngine;
-//
-//     function ray(uint wad) internal pure returns (uint) {
-//         return wad * 10 ** 9;
-//     }
-//     function rad(uint wad) internal pure returns (uint) {
-//         return wad * 10 ** 27;
-//     }
-//     function tab(bytes32 collateralType, address cdp) internal view returns (uint) {
-//         (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.cdps(collateralType, cdp); lockedCollateral_;
-//         (uint Art_, uint rate, uint safetyPrice, uint line, uint debtFloor, uint risk) = cdpEngine.collateralTypes(collateralType);
-//         Art_; safetyPrice; line; debtFloor;
-//         return generatedDebt_ * rate;
-//     }
-//     function jam(bytes32 collateralType, address cdp) internal view returns (uint) {
-//         (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.urns(collateralType, cdp); generatedDebt_;
-//         return lockedCollateral_;
-//     }
-//
-//     function setUp() public {
-//         cdpEngine = new CDPEngine();
-//         cdpEngine.initializeCollateralType("gold");
-//         cdpEngine.modifyParameters("globalDebtCeiling", rad(100 ether));
-//         cdpEngine.modifyParameters("gold", "debtCeiling", rad(100 ether));
-//     }
-//     function draw(bytes32 collateralType, uint coin) internal {
-//         cdpEngine.modifyParameters("globalDebtCeiling", rad(coin));
-//         cdpEngine.modifyParameters(collateralType, "debtCeiling", rad(coin));
-//         cdpEngine.modifyParameters(collateralType, "safetyPrice", 10 ** 27 * 10000 ether);
-//         address self = address(this);
-//         cdpEngine.modifyCollateralBalance(collateralType, self,  10 ** 27 * 1 ether);
-//         cdpEngine.modifyCDPCollateralization(collateralType, self, self, self, 1 ether, int(coin));
-//     }
-//     function test_fold() public {
-//         address self = address(this);
-//         address ali  = address(bytes20("ali"));
-//         draw("gold", 1 ether);
-//
-//         assertEq(tab("gold", self), rad(1.00 ether));
-//         cdpEngine.fold("gold", ali,   int(ray(0.05 ether)));
-//         assertEq(tab("gold", self), rad(1.05 ether));
-//         assertEq(cdpEngine.coinBalance(ali),      rad(0.05 ether));
-//     }
-// }
+contract JoinTest is DSTest {
+    TestCDPEngine cdpEngine;
+    DSToken collateral;
+    CollateralJoin collateralA;
+    ETHJoin ethA;
+    CoinJoin coinA;
+    DSToken coin;
+    address me;
+
+    uint constant WAD = 10 ** 18;
+
+    function setUp() public {
+        cdpEngine = new TestCDPEngine();
+        cdpEngine.initializeCollateralType("ETH");
+
+        collateral  = new DSToken("Gem");
+        collateralA = new CollateralJoin(address(cdpEngine), "collateral", address(collateral));
+        cdpEngine.addAuthorization(address(collateralA));
+
+        ethA = new ETHJoin(address(cdpEngine), "ETH");
+        cdpEngine.addAuthorization(address(ethA));
+
+        coin  = new DSToken("Coin");
+        coinA = new CoinJoin(address(cdpEngine), address(coin));
+        cdpEngine.addAuthorization(address(coinA));
+        coin.setOwner(address(coinA));
+
+        me = address(this);
+    }
+    function draw(bytes32 collateralType, int wad, int coin_) internal {
+        address self = address(this);
+        cdpEngine.modifyCollateralBalance(collateralType, self, wad);
+        cdpEngine.modifyCDPCollateralization(collateralType, self, self, self, wad, coin_);
+    }
+    function try_disable_contract(address a) public payable returns (bool ok) {
+        string memory sig = "disableContract()";
+        (ok,) = a.call(abi.encodeWithSignature(sig));
+    }
+    function try_join_tokenCollateral(address usr, uint wad) public returns (bool ok) {
+        string memory sig = "join(address,uint256)";
+        (ok,) = address(collateralA).call(abi.encodeWithSignature(sig, usr, wad));
+    }
+    function try_join_eth(address usr) public payable returns (bool ok) {
+        string memory sig = "join(address)";
+        (ok,) = address(ethA).call.value(msg.value)(abi.encodeWithSignature(sig, usr));
+    }
+    function try_exit_coin(address usr, uint wad) public returns (bool ok) {
+        string memory sig = "exit(address,uint256)";
+        (ok,) = address(coinA).call(abi.encodeWithSignature(sig, usr, wad));
+    }
+
+    function () external payable {}
+    function test_collateral_join() public {
+        collateral.mint(20 ether);
+        collateral.approve(address(collateralA), 20 ether);
+        assertTrue( try_join_tokenCollateral(address(this), 10 ether));
+        assertEq(cdpEngine.tokenCollateral("collateral", me), 10 ether);
+        assertTrue( try_disable_contract(address(collateralA)));
+        assertTrue(!try_join_tokenCollateral(address(this), 10 ether));
+        assertEq(cdpEngine.tokenCollateral("collateral", me), 10 ether);
+    }
+    function test_eth_join() public {
+        assertTrue( this.try_join_eth.value(10 ether)(address(this)));
+        assertEq(cdpEngine.tokenCollateral("ETH", me), 10 ether);
+        assertTrue( try_disable_contract(address(ethA)));
+        assertTrue(!this.try_join_eth.value(10 ether)(address(this)));
+        assertEq(cdpEngine.tokenCollateral("ETH", me), 10 ether);
+    }
+    function test_eth_exit() public {
+        address payable cdp = address(this);
+        ethA.join.value(50 ether)(cdp);
+        ethA.exit(cdp, 10 ether);
+        assertEq(cdpEngine.tokenCollateral("ETH", me), 40 ether);
+    }
+    function rad(uint wad) internal pure returns (uint) {
+        return wad * 10 ** 27;
+    }
+    function test_coin_exit() public {
+        address cdp = address(this);
+        cdpEngine.mint(address(this), 100 ether);
+        cdpEngine.approveCDPModification(address(coinA));
+        assertTrue( try_exit_coin(cdp, 40 ether));
+        assertEq(coin.balanceOf(address(this)), 40 ether);
+        assertEq(cdpEngine.coinBalance(me), rad(60 ether));
+        assertTrue( try_disable_contract(address(coinA)));
+        assertTrue(!try_exit_coin(cdp, 40 ether));
+        assertEq(coin.balanceOf(address(this)), 40 ether);
+        assertEq(cdpEngine.coinBalance(me), rad(60 ether));
+    }
+    function test_coin_exit_join() public {
+        address cdp = address(this);
+        cdpEngine.mint(address(this), 100 ether);
+        cdpEngine.approveCDPModification(address(coinA));
+        coinA.exit(cdp, 60 ether);
+        coin.approve(address(coinA), uint(-1));
+        coinA.join(cdp, 30 ether);
+        assertEq(coin.balanceOf(address(this)), 30 ether);
+        assertEq(cdpEngine.coinBalance(me), rad(70 ether));
+    }
+    function test_fallback_reverts() public {
+        (bool ok,) = address(ethA).call("invalid calldata");
+        assertTrue(!ok);
+    }
+    function test_nonzero_fallback_reverts() public {
+        (bool ok,) = address(ethA).call.value(10)("invalid calldata");
+        assertTrue(!ok);
+    }
+    function test_disable_contract_no_access() public {
+        collateralA.removeAuthorization(address(this));
+        assertTrue(!try_disable_contract(address(collateralA)));
+        ethA.removeAuthorization(address(this));
+        assertTrue(!try_disable_contract(address(ethA)));
+        coinA.removeAuthorization(address(this));
+        assertTrue(!try_disable_contract(address(coinA)));
+    }
+}
+
+contract CollateralAuctionHouseLike {
+    struct Bid {
+        uint256 bidAmount;
+        uint256 amountToSell;
+        address highBidder;
+        uint48  bidExpiry;
+        uint48  auctionDeadline;
+        address cdpAuctioned;
+        address auctionIncomeRecipient;
+        uint256 amountToRaise;
+    }
+    function bids(uint) public view returns (
+        uint256 bidAmount,
+        uint256 amountToSell,
+        address highBidder,
+        uint48  bidExpiry,
+        uint48  auctionDeadline,
+        address cdpAuctioned,
+        address auctionIncomeRecipient,
+        uint256 amountToRaise
+    );
+}
+
+contract LiquidationTest is DSTest {
+    Hevm hevm;
+
+    TestCDPEngine cdpEngine;
+    TestAccountingEngine accountingEngine;
+    LiquidationEngine liquidationEngine;
+    DSToken gold;
+    TaxCollector taxCollector;
+
+    CollateralJoin collateralA;
+
+    CollateralAuctionHouse collateralAuctionHouse;
+    DebtAuctionHouse debtAuctionHouse;
+    SurplusAuctionHouseTwo surplusAuctionHouse;
+
+    DSToken protocolToken;
+
+    address me;
+
+    function try_modifyCDPCollateralization(
+      bytes32 collateralType, int lockedCollateral, int generatedDebt
+    ) public returns (bool ok) {
+        string memory sig = "modifyCDPCollateralization(bytes32,address,address,address,int256,int256)";
+        address self = address(this);
+        (ok,) = address(cdpEngine).call(
+          abi.encodeWithSignature(sig, collateralType, self, self, self, lockedCollateral, generatedDebt)
+        );
+    }
+
+    function try_liquidate(bytes32 collateralType, address cdp) public returns (bool ok) {
+        string memory sig = "liquidateCDP(bytes32,address)";
+        (ok,) = address(liquidationEngine).call(abi.encodeWithSignature(sig, collateralType, cdp));
+    }
+
+    function ray(uint wad) internal pure returns (uint) {
+        return wad * 10 ** 9;
+    }
+    function rad(uint wad) internal pure returns (uint) {
+        return wad * 10 ** 27;
+    }
+
+    function tokenCollateral(bytes32 collateralType, address cdp) internal view returns (uint) {
+        return cdpEngine.tokenCollateral(collateralType, cdp);
+    }
+    function lockedCollateral(bytes32 collateralType, address cdp) internal view returns (uint) {
+        (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.cdps(collateralType, cdp); generatedDebt_;
+        return lockedCollateral_;
+    }
+    function generatedDebt(bytes32 collateralType, address cdp) internal view returns (uint) {
+        (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.cdps(collateralType, cdp); lockedCollateral_;
+        return generatedDebt_;
+    }
+
+    function setUp() public {
+        hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
+        hevm.warp(604411200);
+
+        protocolToken = new DSToken('GOV');
+        protocolToken.mint(100 ether);
+
+        cdpEngine = new TestCDPEngine();
+        cdpEngine = cdpEngine;
+
+        surplusAuctionHouse = new SurplusAuctionHouseTwo(address(cdpEngine));
+        debtAuctionHouse = new DebtAuctionHouse(address(cdpEngine), address(protocolToken));
+
+        accountingEngine = new TestAccountingEngine(
+          address(cdpEngine), address(surplusAuctionHouse), address(debtAuctionHouse)
+        );
+        surplusAuctionHouse.addAuthorization(address(accountingEngine));
+        debtAuctionHouse.addAuthorization(address(accountingEngine));
+        cdpEngine.addAuthorization(address(accountingEngine));
+
+        taxCollector = new TaxCollector(address(cdpEngine));
+        taxCollector.initializeCollateralType("gold");
+        taxCollector.modifyParameters("accountingEngine", address(accountingEngine));
+        cdpEngine.addAuthorization(address(taxCollector));
+
+        liquidationEngine = new LiquidationEngine(address(cdpEngine));
+        liquidationEngine.modifyParameters("accountingEngine", address(accountingEngine));
+        cdpEngine.addAuthorization(address(liquidationEngine));
+        accountingEngine.addAuthorization(address(liquidationEngine));
+
+        gold = new DSToken("GEM");
+        gold.mint(1000 ether);
+
+        cdpEngine.initializeCollateralType("gold");
+        collateralA = new CollateralJoin(address(cdpEngine), "gold", address(gold));
+        cdpEngine.addAuthorization(address(collateralA));
+        gold.approve(address(collateralA));
+        collateralA.join(address(this), 1000 ether);
+
+        cdpEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
+        cdpEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
+        cdpEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
+        collateralAuctionHouse = new CollateralAuctionHouse(address(cdpEngine), "gold");
+        collateralAuctionHouse.modifyParameters("oracleRelayer", address(new OracleRelayer(address(cdpEngine))));
+        collateralAuctionHouse.modifyParameters("orcl", address(new Feed(uint256(1), true)));
+        collateralAuctionHouse.addAuthorization(address(liquidationEngine));
+        liquidationEngine.modifyParameters("gold", "collateralAuctionHouse", address(collateralAuctionHouse));
+        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1 ether));
+
+        cdpEngine.addAuthorization(address(collateralAuctionHouse));
+        cdpEngine.addAuthorization(address(surplusAuctionHouse));
+        cdpEngine.addAuthorization(address(debtAuctionHouse));
+
+        cdpEngine.approveCDPModification(address(collateralAuctionHouse));
+        cdpEngine.approveCDPModification(address(debtAuctionHouse));
+        gold.approve(address(cdpEngine));
+        protocolToken.approve(address(surplusAuctionHouse));
+
+        me = address(this);
+    }
+
+    function test_bite_under_collateral_to_sell_threshold() public {
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(10 ether));
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
+        // tag=4, mat=2
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
+        cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
+
+        liquidationEngine.modifyParameters("gold", "collateralToSell", 50 ether);
+        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
+
+        uint auction = liquidationEngine.liquidateCDP("gold", address(this));
+        // the full CDP is liquidated
+        assertEq(lockedCollateral("gold", address(this)), 0);
+        assertEq(generatedDebt("gold", address(this)), 0);
+        // all debt goes to the accounting engine
+        assertEq(accountingEngine.totalDeficit(), rad(100 ether));
+        // auction is for all collateral
+        (, uint lot,,,,,, uint tab) = CollateralAuctionHouseLike(address(collateralAuctionHouse)).bids(auction);
+        assertEq(lot,        40 ether);
+        assertEq(tab,   rad(110 ether));
+    }
+    function test_bite_over_collateral_to_sell_threshold() public {
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
+        // tag=4, mat=2
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
+        cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
+
+        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
+        liquidationEngine.modifyParameters("gold", "collateralToSell", 30 ether);
+
+        uint auction = liquidationEngine.liquidateCDP("gold", address(this));
+        // the CDP is partially liquidated
+        assertEq(lockedCollateral("gold", address(this)), 10 ether);
+        assertEq(generatedDebt("gold", address(this)), 25 ether);
+        // a fraction of the debt goes to the accounting engine
+        assertEq(accountingEngine.totalDeficit(), rad(75 ether));
+        // auction is for a fraction of the collateral
+        (, uint lot,,,,,, uint tab) = CollateralAuctionHouseLike(address(collateralAuctionHouse)).bids(auction);
+        assertEq(lot,       30 ether);
+        assertEq(tab,   rad(82.5 ether));
+    }
+
+    function test_bite_safetyPrice_when_liquidation_price_set() public {
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
+        cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(10 ether));
+
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
+
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(2 ether));
+        cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(4 ether));
+
+        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
+        liquidationEngine.modifyParameters("gold", "collateralToSell", 30 ether);
+
+        assertTrue(!try_liquidate("gold", address(this)));
+
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
+        cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));
+
+        assertTrue(try_liquidate("gold", address(this)));
+    }
+
+    function test_happy_liquidateCDP() public {
+        // safetyPrice = tag / (par . mat)
+        // tag=5, mat=2
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
+
+        // tag=4, mat=2
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
+        cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
+
+        assertEq(lockedCollateral("gold", address(this)),  40 ether);
+        assertEq(generatedDebt("gold", address(this)), 100 ether);
+        assertEq(accountingEngine.preAuctionDebt(), 0 ether);
+        assertEq(tokenCollateral("gold", address(this)), 960 ether);
+
+        liquidationEngine.modifyParameters("gold", "collateralToSell", 100 ether);  // => bite everything
+        uint auction = liquidationEngine.liquidateCDP("gold", address(this));
+        assertEq(lockedCollateral("gold", address(this)), 0);
+        assertEq(generatedDebt("gold", address(this)), 0);
+        assertEq(accountingEngine.debtQueue(now), rad(100 ether));
+        assertEq(tokenCollateral("gold", address(this)), 960 ether);
+
+        assertEq(cdpEngine.coinBalance(address(accountingEngine)), 0 ether);
+        collateralAuctionHouse.increaseBidSize(auction, 40 ether, rad(1 ether));
+        collateralAuctionHouse.increaseBidSize(auction, 40 ether, rad(100 ether));
+
+        assertEq(cdpEngine.coinBalance(address(this)), 0 ether);
+        assertEq(tokenCollateral("gold", address(this)), 960 ether);
+        cdpEngine.mint(address(this), 100 ether);  // magically mint some coins for bidding
+        collateralAuctionHouse.decreaseSoldAmount(auction, 38 ether,  rad(100 ether));
+        assertEq(cdpEngine.balanceOf(address(this)), 100 ether);
+        assertEq(tokenCollateral("gold", address(this)), 962 ether);
+        assertEq(tokenCollateral("gold", address(this)), 962 ether);
+        assertEq(accountingEngine.debtQueue(now), rad(100 ether));
+
+        hevm.warp(now + 4 hours);
+        collateralAuctionHouse.settleAuction(auction);
+        assertEq(cdpEngine.balanceOf(address(accountingEngine)),  100 ether);
+    }
+
+    function test_debt_auctioned_liquidateCDP() public {
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
+        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
+        cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
+
+        liquidationEngine.modifyParameters("gold", "collateralToSell", 100 ether);  // => bite everything
+        assertEq(accountingEngine.debtQueue(now), rad(  0 ether));
+        liquidationEngine.liquidateCDP("gold", address(this));
+        assertEq(accountingEngine.debtQueue(now), rad(100 ether));
+
+        assertEq(accountingEngine.totalQueuedDebt(), rad(100 ether));
+        accountingEngine.popDebtFromQueue(now);
+        assertEq(accountingEngine.totalQueuedDebt(), rad(  0 ether));
+        assertEq(accountingEngine.preAuctionDebt(), rad(100 ether));
+        assertEq(accountingEngine.totalSurplus(), rad(  0 ether));
+        assertEq(accountingEngine.totalOnAuctionDebt(), rad(  0 ether));
+
+        accountingEngine.modifyParameters("debtAuctionBidSize", rad(10 ether));
+        accountingEngine.modifyParameters("initialDebtAuctionAmount", 2000 ether);
+        uint f1 = accountingEngine.auctionDebt();
+        assertEq(accountingEngine.preAuctionDebt(), rad(90 ether));
+        assertEq(accountingEngine.totalSurplus(),  rad( 0 ether));
+        assertEq(accountingEngine.totalOnAuctionDebt(),  rad(10 ether));
+        debtAuctionHouse.decreaseSoldAmount(f1, 1000 ether, rad(10 ether));
+        assertEq(accountingEngine.preAuctionDebt(), rad(90 ether));
+        assertEq(accountingEngine.totalSurplus(), rad( 0 ether));
+        assertEq(accountingEngine.totalOnAuctionDebt(), rad( 0 ether));
+
+        assertEq(protocolToken.balanceOf(address(this)),  100 ether);
+        hevm.warp(now + 4 hours);
+        protocolToken.setOwner(address(debtAuctionHouse));
+        debtAuctionHouse.settleAuction(f1);
+        assertEq(protocolToken.balanceOf(address(this)), 1100 ether);
+    }
+}
+
+contract AccumulateRatesTest is DSTest {
+    CDPEngine cdpEngine;
+
+    function ray(uint wad) internal pure returns (uint) {
+        return wad * 10 ** 9;
+    }
+    function rad(uint wad) internal pure returns (uint) {
+        return wad * 10 ** 27;
+    }
+    function totalAdjustedDebt(bytes32 collateralType, address cdp) internal view returns (uint) {
+        (, uint generatedDebt_) =
+          cdpEngine.cdps(collateralType, cdp);
+        (, uint accumulatedRates_, , , , ) =
+          cdpEngine.collateralTypes(collateralType);
+        return generatedDebt_ * accumulatedRates_;
+    }
+
+    function setUp() public {
+        cdpEngine = new CDPEngine();
+        cdpEngine.initializeCollateralType("gold");
+        cdpEngine.modifyParameters("globalDebtCeiling", rad(100 ether));
+        cdpEngine.modifyParameters("gold", "debtCeiling", rad(100 ether));
+    }
+    function generateDebt(bytes32 collateralType, uint coin) internal {
+        cdpEngine.modifyParameters("globalDebtCeiling", rad(coin));
+        cdpEngine.modifyParameters(collateralType, "debtCeiling", rad(coin));
+        cdpEngine.modifyParameters(collateralType, "safetyPrice", 10 ** 27 * 10000 ether);
+        address self = address(this);
+        cdpEngine.modifyCollateralBalance(collateralType, self,  10 ** 27 * 1 ether);
+        cdpEngine.modifyCDPCollateralization(collateralType, self, self, self, 1 ether, int(coin));
+    }
+    function test_accumulate_rates() public {
+        address self = address(this);
+        address ali  = address(bytes20("ali"));
+        generateDebt("gold", 1 ether);
+
+        assertEq(totalAdjustedDebt("gold", self), rad(1.00 ether));
+        cdpEngine.updateAccumulatedRate("gold", ali, int(ray(0.05 ether)));
+        assertEq(totalAdjustedDebt("gold", self), rad(1.05 ether));
+        assertEq(cdpEngine.coinBalance(ali), rad(0.05 ether));
+    }
+}
