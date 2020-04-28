@@ -520,16 +520,16 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
     function baseAnnualRate(uint256 x) internal pure returns (uint256 z) {
         return RAY + delta(x, RAY);
     }
-    function updateTrendDeviationType(int deviationType_) internal {
-        trendDeviationType = (deviationType_ == 0) ? deviationType_ : -int(deviationType_);
+    function updateTrendDeviationType(int newTrendDeviationType) internal {
+        trendDeviationType = (trendDeviationType == 0) ? newTrendDeviationType : -trendDeviationType;
     }
-    function oppositeLatestDeviation(int latestDeviationType_) internal {
-        latestDeviationType = (latestDeviationType == 0) ? latestDeviationType_ : -int(latestDeviationType);
+    function updateLatestDeviationType(int newLatestDeviationType) internal {
+        latestDeviationType = (latestDeviationType == 0) ? newLatestDeviationType : -latestDeviationType;
     }
     function oppositeDeviationForce(uint x, uint y) internal view returns (int z) {
-        uint deviation_  = delta(x, y);
-        int oppositeDeviationSign_ = oppositeDeviationSign(x, y);
-        return mul(-int(oppositeDeviationSign_), deviation_);
+        uint deltaDeviation = delta(x, y);
+        int oppositeDeviationSign = oppositeDeviationSign(x, y);
+        return mul(-oppositeDeviationSign, deltaDeviation);
     }
     // Update accumulators and deviation history
     function updateAccumulatorsAndHistory(int oppositeDeviationForce_) internal {
@@ -557,7 +557,7 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
     function calculatePIDRate(
       uint higherPrice,
       uint lowerPrice,
-      int deviationType_,
+      int trendDeviationType_,
       int latestDeviationType_
     ) public view returns (int P, int I, int D, uint pid) {
         P   = mul(mul(latestDeviationType_, sub(higherPrice, lowerPrice)), pidSettings.proportionalSensitivity) / int(RAY);
@@ -570,16 +570,16 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
           other side (they already overshoot)
         ***/
         if (either(oldAccumulator < 0 && rawAccumulator > 0, rawAccumulator < 0 && oldAccumulator > 0)) {
-          deltaPID = -int(deltaPID);
+          deltaPID = -deltaPID;
         }
 
-        // If deltaPID is smaller than -higherPrice or -lowerPrice, make it zero for this update
-        deltaPID = (both(deltaPID < 0, both(deviationType_ > 0, deltaPID < -int(lowerPrice)))) ?  0 : deltaPID;
-        deltaPID = (both(deltaPID < 0, both(deviationType_ < 0, deltaPID < -int(higherPrice)))) ? 0 : deltaPID;
+        // To avoid underflow, if deltaPID is smaller than -higherPrice or -lowerPrice, make it zero (only for this update)
+        deltaPID = (both(deltaPID < 0, both(trendDeviationType_ > 0, deltaPID < int(-lowerPrice)))) ?  0 : deltaPID;
+        deltaPID = (both(deltaPID < 0, both(trendDeviationType_ < 0, deltaPID < int(-higherPrice)))) ? 0 : deltaPID;
 
-        uint adjustedPIDRate = (deviationType_ > 0) ? add(lowerPrice, deltaPID) : add(higherPrice, deltaPID);
+        uint adjustedPIDRate = (trendDeviationType_ > 0) ? add(lowerPrice, deltaPID) : add(higherPrice, deltaPID);
 
-        pid = (deviationType_ > 0) ?
+        pid = (trendDeviationType_ > 0) ?
           mul(adjustedPIDRate, RAY) / higherPrice : mul(higherPrice, RAY) / adjustedPIDRate;
     }
     function mixCalculatedAndDefaultRates(uint perSecondRedemptionRate_, int deviationType_)
@@ -594,16 +594,16 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
     }
     function calculateRedemptionRate(
       uint currentMarketPrice_,
-      uint redemptionPrice,
-      int deviationType_,
+      uint redemptionPrice_,
+      int trendDeviationType_,
       int latestDeviationType_
     ) public view returns (uint256) {
         (, , , uint calculatedPIDRate_) = (latestDeviationType_ == 1) ?
-          calculatePIDRate(redemptionPrice, currentMarketPrice_, deviationType_, latestDeviationType_) :
-          calculatePIDRate(currentMarketPrice_, redemptionPrice, deviationType_, latestDeviationType_);
+          calculatePIDRate(redemptionPrice_, currentMarketPrice_, trendDeviationType_, latestDeviationType_) :
+          calculatePIDRate(currentMarketPrice_, redemptionPrice_, trendDeviationType_, latestDeviationType_);
 
         uint perSecondRedemptionRate_ = perSecondRedemptionRate(baseAnnualRate(calculatedPIDRate_));
-        perSecondRedemptionRate_      = mixCalculatedAndDefaultRates(perSecondRedemptionRate_, deviationType_);
+        perSecondRedemptionRate_      = mixCalculatedAndDefaultRates(perSecondRedemptionRate_, trendDeviationType_);
 
         return perSecondRedemptionRate_;
     }
@@ -634,24 +634,28 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
           // Initialize new per-second target rate
           uint perSecondRedemptionRate_;
           // Compute the deviation of the integral accumulator from the redemption price
-          int deviation_ = (integralAccumulator == 0) ? 0 : integralAccumulator / int(integralLength);
+          int deltaDeviation = (integralAccumulator == 0) ? 0 : integralAccumulator / int(integralLength);
           // Compute the opposite of the current integral accumulator sign
-          int deviationType_ = (deviation_ < 0) ? int(1) : int(-1);
+          int trendDeviationType_ = (deltaDeviation < 0) ? int(1) : int(-1);
           // Compute the opposite sign of the current market price deviation
           int latestDeviationType_ = oppositeDeviationSign(ray(uint(priceFeedValue)), redemptionPrice);
           // If the deviation is exceeding 'noiseBarrier'
-          if (either(deviation_ >= int(noiseBarrier), deviation_ <= -int(noiseBarrier))) {
+          if (either(deltaDeviation >= int(noiseBarrier), deltaDeviation <= -int(noiseBarrier))) {
             /**
               If the current deviation is different than the latest one,
               update the latest one
             **/
-            if (deviationType_ != trendDeviationType) updateTrendDeviationType(deviationType_);
-            if (latestDeviationType_ != latestDeviationType) oppositeLatestDeviation(latestDeviationType_);
+            if (trendDeviationType_ != trendDeviationType) {
+              updateTrendDeviationType(trendDeviationType_);
+            }
+            if (latestDeviationType_ != latestDeviationType) {
+              updateLatestDeviationType(latestDeviationType_);
+            }
             // Compute the new per-second rate
             perSecondRedemptionRate_ = calculateRedemptionRate(
               ray(uint(priceFeedValue)),
               redemptionPrice,
-              deviationType_,
+              trendDeviationType_,
               latestDeviationType_
             );
             oracleRelayer.modifyParameters("redemptionRate", perSecondRedemptionRate_);
@@ -664,7 +668,7 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
             );
           } else {
             // Restart deviation types
-            deviationType_ = 0;
+            trendDeviationType  = 0;
             latestDeviationType = 0;
             // Set default rate
             oracleRelayer.modifyParameters("redemptionRate", defaultRedemptionRate);

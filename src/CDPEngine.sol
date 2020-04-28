@@ -59,9 +59,9 @@ contract CDPEngine {
     mapping (address => uint)                      public coinBalance;      // [rad]
     mapping (address => uint)                      public debtBalance;      // [rad]
 
-    uint256  public globalDebt;          // [rad]
-    uint256  public globalUnbackedDebt;  // [rad]
-    uint256  public globalDebtCeiling;   // [rad]
+    uint256  public globalDebt;          // rad
+    uint256  public globalUnbackedDebt;  // rad
+    uint256  public globalDebtCeiling;   // rad
     uint256  public contractEnabled;
 
     // --- Logs ---
