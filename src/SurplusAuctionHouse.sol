@@ -48,8 +48,12 @@ contract DexLike {
 contract SurplusAuctionHouseOne is Logging {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+      authorizedAccounts[account] = 1;
+    }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+      authorizedAccounts[account] = 0;
+    }
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "SurplusAuctionHouseOne/account-not-authorized");
         _;
@@ -78,9 +82,9 @@ contract SurplusAuctionHouseOne is Logging {
 
     // --- Events ---
     event StartAuction(
-      uint256 id,
-      uint256 amountToSell,
-      uint256 initialBid
+        uint256 id,
+        uint256 amountToSell,
+        uint256 initialBid
     );
 
     // --- Init ---
@@ -195,9 +199,9 @@ contract SurplusAuctionHouseTwo is Logging {
 
     // --- Events ---
     event StartAuction(
-      uint256 id,
-      uint256 amountToSell,
-      uint256 initialBid
+        uint256 id,
+        uint256 amountToSell,
+        uint256 initialBid
     );
 
     // --- Init ---

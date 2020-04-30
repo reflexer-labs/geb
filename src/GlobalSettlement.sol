@@ -161,8 +161,12 @@ contract OracleRelayerLike {
 contract GlobalSettlement is Logging {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+      authorizedAccounts[account] = 1;
+    }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+      authorizedAccounts[account] = 0;
+    }
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "GlobalSettlement/account-not-authorized");
         _;

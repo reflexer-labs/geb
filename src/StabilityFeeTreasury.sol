@@ -70,10 +70,10 @@ contract StabilityFeeTreasury is Logging {
     uint256 public contractEnabled;
 
     constructor(
-      address cdpEngine_,
-      address accountingEngine_,
-      address coinJoin_,
-      uint surplusTransferDelay_
+        address cdpEngine_,
+        address accountingEngine_,
+        address coinJoin_,
+        uint surplusTransferDelay_
     ) public {
         require(address(CoinJoinLike(coinJoin_).systemCoin()) != address(0), "StabilityFeeTreasury/null-system-coin");
         authorizedAccounts[msg.sender] = 1;

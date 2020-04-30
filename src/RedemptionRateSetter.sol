@@ -58,8 +58,12 @@ contract OracleRelayerLike {
 contract RedemptionRateSetterOne is Logging, ExponentialMath {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+      authorizedAccounts[account] = 1;
+    }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+      authorizedAccounts[account] = 0;
+    }
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "RedemptionRateSetterOne/account-not-authorized");
         _;
@@ -67,10 +71,10 @@ contract RedemptionRateSetterOne is Logging, ExponentialMath {
 
     // --- Events ---
     event UpdateRedemptionRate(
-      uint marketPrice,
-      uint redemptionRate,
-      uint proportionalSensitivity,
-      uint integralSensitivity
+        uint marketPrice,
+        uint redemptionRate,
+        uint proportionalSensitivity,
+        uint integralSensitivity
     );
 
     // --- Structs ---
@@ -131,11 +135,15 @@ contract RedemptionRateSetterOne is Logging, ExponentialMath {
           piSettings.proportionalSensitivity = val;
         }
         else if (parameter == "redemptionRateUpperBound") {
-          if (redemptionRateLowerBound != MAX) require(val >= redemptionRateLowerBound, "RedemptionRateSetterOne/small-upper-bound");
+          if (redemptionRateLowerBound != MAX) {
+            require(val >= redemptionRateLowerBound, "RedemptionRateSetterOne/small-upper-bound");
+          }
           redemptionRateUpperBound = val;
         }
         else if (parameter == "redemptionRateLowerBound") {
-          if (redemptionRateUpperBound != MAX) require(val <= redemptionRateUpperBound, "RedemptionRateSetterOne/big-lower-bound");
+          if (redemptionRateUpperBound != MAX) {
+            require(val <= redemptionRateUpperBound, "RedemptionRateSetterOne/big-lower-bound");
+          }
           redemptionRateLowerBound = val;
         }
         else revert("RedemptionRateSetterOne/modify-unrecognized-param");
@@ -341,15 +349,15 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
 
     // --- Events ---
     event UpdateRedemptionRate(
-      uint marketPrice,
-      uint redemptionRate,
-      uint proportionalSensitivity,
-      uint integralSensitivity
+        uint marketPrice,
+        uint redemptionRate,
+        uint proportionalSensitivity,
+        uint integralSensitivity
     );
     event AccumulateDeviation(
-      int256 oldAccumulator,
-      int256 integralAccumulator,
-      int256 rawAccumulator
+        int256 oldAccumulator,
+        int256 integralAccumulator,
+        int256 rawAccumulator
     );
 
     // --- Structs ---
@@ -391,10 +399,10 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
     OracleRelayerLike public oracleRelayer;
 
     constructor(
-      address oracleRelayer_,
-      uint256 oldLength_,
-      uint256 integralLength_,
-      uint256 rawLength_
+        address oracleRelayer_,
+        uint256 oldLength_,
+        uint256 integralLength_,
+        uint256 rawLength_
     ) public {
         require(integralLength_ == oldLength_ + rawLength_, "RedemptionRateSetterTwo/improper-accumulator-lengths");
         require(integralLength_ > 0, "RedemptionRateSetterTwo/null-integral-accumulator-length");
@@ -555,10 +563,10 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
     }
     // Calculate yearly rate according to PID settings
     function calculatePIDRate(
-      uint higherPrice,
-      uint lowerPrice,
-      int trendDeviationType_,
-      int latestDeviationType_
+        uint higherPrice,
+        uint lowerPrice,
+        int trendDeviationType_,
+        int latestDeviationType_
     ) public view returns (int P, int I, int D, uint pid) {
         P   = mul(mul(latestDeviationType_, sub(higherPrice, lowerPrice)), pidSettings.proportionalSensitivity) / int(RAY);
         I   = mul(int(-1), int(mul(integralAccumulator, pidSettings.integralSensitivity) / int(RAY)));
@@ -593,10 +601,10 @@ contract RedemptionRateSetterTwo is Logging, ExponentialMath {
         }
     }
     function calculateRedemptionRate(
-      uint currentMarketPrice_,
-      uint redemptionPrice_,
-      int trendDeviationType_,
-      int latestDeviationType_
+        uint currentMarketPrice_,
+        uint redemptionPrice_,
+        int trendDeviationType_,
+        int latestDeviationType_
     ) public view returns (uint256) {
         (, , , uint calculatedPIDRate_) = (latestDeviationType_ == 1) ?
           calculatePIDRate(redemptionPrice_, currentMarketPrice_, trendDeviationType_, latestDeviationType_) :

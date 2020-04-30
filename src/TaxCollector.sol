@@ -153,7 +153,11 @@ contract TaxCollector is Logging {
         collateralType_.updateTime   = now;
         collateralList.push(collateralType);
     }
-    function modifyParameters(bytes32 collateralType, bytes32 parameter, uint data) external emitLog isAuthorized {
+    function modifyParameters(
+        bytes32 collateralType,
+        bytes32 parameter,
+        uint data
+    ) external emitLog isAuthorized {
         require(now == collateralTypes[collateralType].updateTime, "TaxCollector/update-time-not-now");
         if (parameter == "stabilityFee") collateralTypes[collateralType].stabilityFee = data;
         else revert("TaxCollector/modify-unrecognized-param");
@@ -168,7 +172,11 @@ contract TaxCollector is Logging {
         if (parameter == "accountingEngine") accountingEngine = data;
         else revert("TaxCollector/modify-unrecognized-param");
     }
-    function modifyParameters(bytes32 collateralType, uint256 position, uint256 val) external emitLog isAuthorized {
+    function modifyParameters(
+        bytes32 collateralType,
+        uint256 position,
+        uint256 val
+    ) external emitLog isAuthorized {
         if (both(bucketList.isNode(position), buckets[collateralType][position].taxPercentage > 0)) {
             buckets[collateralType][position].canTakeBackTax = val;
         }
@@ -181,7 +189,8 @@ contract TaxCollector is Logging {
       address bucketAccount
     ) external emitLog isAuthorized {
         (!bucketList.isNode(position)) ?
-          createBucket(collateralType, stabilityFee, bucketAccount) : fixBucket(collateralType, position, stabilityFee);
+          createBucket(collateralType, stabilityFee, bucketAccount) :
+          fixBucket(collateralType, position, stabilityFee);
     }
 
     // --- Bucket Utils ---
@@ -207,6 +216,7 @@ contract TaxCollector is Logging {
             bucketTaxCut[collateralType],
             buckets[collateralType][position].taxPercentage
           );
+          
           if (bucketRevenueSources[bucketAccounts[position]] == 1) {
             if (position == latestBucket) {
               (, uint256 prevBucket) = bucketList.prev(latestBucket);

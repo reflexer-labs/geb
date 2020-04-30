@@ -73,12 +73,12 @@ contract CollateralAuctionHouse is Logging {
 
     // --- Events ---
     event StartAuction(
-      uint256 id,
-      uint256 amountToSell,
-      uint256 initialBid,
-      uint256 amountToRaise,
-      address indexed cdpAuctioned,
-      address indexed auctionIncomeRecipient
+        uint256 id,
+        uint256 amountToSell,
+        uint256 initialBid,
+        uint256 amountToRaise,
+        address indexed cdpAuctioned,
+        address indexed auctionIncomeRecipient
     );
 
     // --- Init ---
@@ -120,11 +120,11 @@ contract CollateralAuctionHouse is Logging {
 
     // --- Auction ---
     function startAuction(
-      address cdpAuctioned,
-      address auctionIncomeRecipient,
-      uint amountToRaise,
-      uint amountToSell,
-      uint initialBid
+        address cdpAuctioned,
+        address auctionIncomeRecipient,
+        uint amountToRaise,
+        uint amountToSell,
+        uint initialBid
     ) public isAuthorized returns (uint id)
     {
         require(auctionsStarted < uint(-1), "CollateralAuctionHouse/overflow");

@@ -160,7 +160,10 @@ contract AccountingEngine is Logging {
           add(add(cdpEngine.debtBalance(address(this)), surplusAuctionAmountSold), surplusBuffer),
           "AccountingEngine/insufficient-surplus"
         );
-        require(sub(sub(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt) == 0, "AccountingEngine/debt-not-zero");
+        require(
+          sub(sub(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt) == 0,
+          "AccountingEngine/debt-not-zero"
+        );
         lastSurplusAuctionTime = now;
         id = surplusAuctionHouse.startAuction(surplusAuctionAmountSold, 0);
     }

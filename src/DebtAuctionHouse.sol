@@ -38,8 +38,12 @@ contract AccountingEngineLike {
 contract DebtAuctionHouse is Logging {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+      authorizedAccounts[account] = 1;
+    }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+      authorizedAccounts[account] = 0;
+    }
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "DebtAuctionHouse/account-not-authorized");
         _;
@@ -106,9 +110,9 @@ contract DebtAuctionHouse is Logging {
 
     // --- Auction ---
     function startAuction(
-      address incomeReceiver,
-      uint amountToSell,
-      uint initialBid
+        address incomeReceiver,
+        uint amountToSell,
+        uint initialBid
     ) external isAuthorized returns (uint id) {
         require(contractEnabled == 1, "DebtAuctionHouse/contract-not-enabled");
         require(auctionsStarted < uint(-1), "DebtAuctionHouse/overflow");
