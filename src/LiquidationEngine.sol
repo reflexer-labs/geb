@@ -22,7 +22,7 @@ import "./Logging.sol";
 
 contract CollateralAuctionHouseLike {
     function startAuction(
-      address cdp,
+      address forgoneCollateralReceiver,
       address initialBidder,
       uint amountToRaise,
       uint collateralToSell,
@@ -203,7 +203,7 @@ contract LiquidationEngine is Logging {
           accountingEngine.pushDebtToQueue(mul(cdpDebt, accumulatedRates));
 
           auctionId = CollateralAuctionHouseLike(collateralTypes[collateralType].collateralAuctionHouse).startAuction(
-            { cdp: cdp
+            { forgoneCollateralReceiver: cdp
             , initialBidder: address(accountingEngine)
             , amountToRaise: rmul(mul(cdpDebt, accumulatedRates), collateralTypes[collateralType].liquidationPenalty)
             , collateralToSell: collateralToSell

@@ -69,7 +69,7 @@ contract CollateralAuctionHouseLike {
         address highBidder,
         uint48  bidExpiry,
         uint48  auctionDeadline,
-        address cdpAuctioned,
+        address forgoneCollateralReceiver,
         address auctionIncomeRecipient,
         uint256 amountToRaise
     );
@@ -279,7 +279,7 @@ contract GlobalSettlement is Logging {
         (address auctionHouse_,,) = liquidationEngine.collateralTypes(collateralType);
         CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
         (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
-        (uint bidAmount, uint collateralToSell,,,, address cdpAuctioned,, uint amountToRaise) = collateralAuctionHouse.bids(auctionId);
+        (uint bidAmount, uint collateralToSell,,,, address forgoneCollateralReceiver,, uint amountToRaise) = collateralAuctionHouse.bids(auctionId);
 
         cdpEngine.createUnbackedDebt(address(accountingEngine), address(accountingEngine),  amountToRaise);
         cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), bidAmount);
@@ -289,7 +289,7 @@ contract GlobalSettlement is Logging {
         uint debt_ = amountToRaise / accumulatedRates;
         collateralTotalDebt[collateralType] = add(collateralTotalDebt[collateralType], debt_);
         require(int(collateralToSell) >= 0 && int(debt_) >= 0, "GlobalSettlement/overflow");
-        cdpEngine.confiscateCDPCollateralAndDebt(collateralType, cdpAuctioned, address(this), address(accountingEngine), int(collateralToSell), int(debt_));
+        cdpEngine.confiscateCDPCollateralAndDebt(collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int(collateralToSell), int(debt_));
     }
 
     function processRiskyCDP(bytes32 collateralType, address cdp) external emitLog {

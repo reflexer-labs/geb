@@ -93,7 +93,7 @@ contract CoinSavingsAccountTest is DSTest {
         assertEq(wad(cdpEngine.debtBalance(accountingEngine)), 15.5 ether);
         assertEq(wad(cdpEngine.coinBalance(coinSavingsAccountB)), 115.5 ether);
         assertEq(coinSavingsAccount.totalSavings(), 100   ether);
-        assertEq(coinSavingsAccount.accumulatedRate() / 10 ** 9, 1.155 ether);
+        assertEq(coinSavingsAccount.accumulatedRates() / 10 ** 9, 1.155 ether);
     }
     function test_update_rate_multi_inBlock() public {
         coinSavingsAccount.updateAccumulatedRate();
@@ -125,7 +125,7 @@ contract CoinSavingsAccountTest is DSTest {
         assertEq(wad(cdpEngine.coinBalance(self)), 110.25 ether);
         assertEq(coinSavingsAccount.totalSavings(), 0);
     }
-    function test_fresh_accumulatedRate() public {
+    function test_fresh_accumulatedRates() public {
         uint rho = coinSavingsAccount.latestUpdateTime();
         assertEq(rho, now);
         hevm.warp(now + 1 days);
@@ -137,7 +137,7 @@ contract CoinSavingsAccountTest is DSTest {
         // if we withdraw in the same transaction we should not earn interest
         assertEq(wad(cdpEngine.coinBalance(self)), 100 ether);
     }
-    function testFail_stale_accumulatedRate() public {
+    function testFail_stale_accumulatedRates() public {
         coinSavingsAccount.modifyParameters("savingsRate", uint(1000000564701133626865910626));  // 5% / day
         coinSavingsAccount.updateAccumulatedRate();
         hevm.warp(now + 1 days);

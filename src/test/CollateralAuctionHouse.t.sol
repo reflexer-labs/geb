@@ -142,7 +142,7 @@ contract CollateralAuctionHouseTest is DSTest {
     function test_startAuction() public {
         collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                             , amountToRaise: 50 ether
-                                            , cdpAuctioned: cdpAuctioned
+                                            , forgoneCollateralReceiver: cdpAuctioned
                                             , auctionIncomeRecipient: auctionIncomeRecipient
                                             , initialBid: 0
                                             });
@@ -154,7 +154,7 @@ contract CollateralAuctionHouseTest is DSTest {
     function test_increase_bid_decrease_sold_same_bidder() public {
        uint id = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                      , amountToRaise: 200 ether
-                                                     , cdpAuctioned: cdpAuctioned
+                                                     , forgoneCollateralReceiver: cdpAuctioned
                                                      , auctionIncomeRecipient: auctionIncomeRecipient
                                                      , initialBid: 0
                                                      });
@@ -169,7 +169,7 @@ contract CollateralAuctionHouseTest is DSTest {
     function test_increase_bid() public {
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                       , amountToRaise: 50 ether
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -196,7 +196,7 @@ contract CollateralAuctionHouseTest is DSTest {
     function test_increase_bid_size_later() public {
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                       , amountToRaise: 50 ether
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -214,7 +214,7 @@ contract CollateralAuctionHouseTest is DSTest {
         feed.set_val(bytes32(uint256(200 ether)));
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
                                                       , amountToRaise: 150 * 10**45
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -226,7 +226,7 @@ contract CollateralAuctionHouseTest is DSTest {
         feed.set_val(bytes32(uint256(200 ether)));
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
                                                       , amountToRaise: 150 * 10**45
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -239,7 +239,7 @@ contract CollateralAuctionHouseTest is DSTest {
         feed.set_val(bytes32(uint256(200 ether)));
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
                                                       , amountToRaise: 75 * 10**45
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -252,7 +252,7 @@ contract CollateralAuctionHouseTest is DSTest {
         feed.set_val(bytes32(uint256(200 ether)));
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
                                                       , amountToRaise: 75 * 10**45
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -261,7 +261,7 @@ contract CollateralAuctionHouseTest is DSTest {
     function test_decrease_sold() public {
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                       , amountToRaise: 50 ether
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -277,7 +277,7 @@ contract CollateralAuctionHouseTest is DSTest {
     function test_beg() public {
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                       , amountToRaise: 50 ether
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -298,7 +298,7 @@ contract CollateralAuctionHouseTest is DSTest {
     function test_settle_auction() public {
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                       , amountToRaise: 50 ether
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -311,7 +311,7 @@ contract CollateralAuctionHouseTest is DSTest {
 
         uint ie = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                       , amountToRaise: 50 ether
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -327,7 +327,7 @@ contract CollateralAuctionHouseTest is DSTest {
         // start an auction
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                       , amountToRaise: 50 ether
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -346,7 +346,7 @@ contract CollateralAuctionHouseTest is DSTest {
         // be refundable to the creator. Rather, it restarts indefinitely.
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                       , amountToRaise: 50 ether
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -359,7 +359,7 @@ contract CollateralAuctionHouseTest is DSTest {
     function test_terminate_prematurely_increase_bid() public {
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                       , amountToRaise: 50 ether
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });
@@ -380,7 +380,7 @@ contract CollateralAuctionHouseTest is DSTest {
     function test_terminate_prematurely_decrease_sold() public {
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                       , amountToRaise: 50 ether
-                                                      , cdpAuctioned: cdpAuctioned
+                                                      , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
                                                       , initialBid: 0
                                                       });

@@ -56,6 +56,12 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
         uint proportionalSensitivity,
         uint integralSensitivity
     );
+    event ReturnRatesBackToDefault(
+        uint stabilityFee,
+        uint savingsRate,
+        uint returnToDefaultRate,
+        uint returnToDefaultDeadline
+    );
 
     // --- Structs ---
     struct PI {
@@ -73,14 +79,17 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
 
     int256       public latestDeviationType;
 
-    uint256      public latestMarketPrice;            // [ray]
+    uint256      public latestMarketPrice;             // [ray]
     uint256      public lastUpdateTime;
-    uint256      public accruedTimeSinceDeviated;
+    uint256      public accruedTimeSincePriceDeviated;
 
     uint32       public defaultRateChangeTimeframe;
-    uint256      public noiseBarrier;                 // [ray]
-    uint256      public returnToNormalTimeframe;
-    uint256      public defaultReturnToNormalTime;
+    uint256      public noiseBarrier;                  // [ray]
+
+    uint256      public returnToDefaultTimeframe;
+    uint256      public returnToDefaultRate;
+    uint256      public returnToDefaultDeadline;
+    uint256      public returnToDefaultUpdateTime;
 
     uint256      public rateSpread;
 
@@ -88,18 +97,17 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
 
     PI           public piSettings;
     MarketRates  public defaultRates;
-    MarketRates  public returnToNormalRates;
     RateBounds   public stabilityFeeBounds;
     RateBounds   public savingsRateBounds;
 
     OracleLike             public orcl;
     OracleRelayerLike      public oracleRelayer;
-    CoinSavingsAccountLike public coinSavingsAccountLike;
+    CoinSavingsAccountLike public coinSavingsAccount;
     TaxCollectorLike       public taxCollector;
 
     constructor(
       address oracleRelayer_,
-      address coinSavingsAccountLike_,
+      address coinSavingsAccount_,
       address taxCollector_
     ) public {
         authorizedAccounts[msg.sender] = 1;
@@ -108,13 +116,14 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
         defaultRateChangeTimeframe = uint32(SPY);
         lastUpdateTime = now;
         oracleRelayer = OracleRelayerLike(oracleRelayer_);
-        coinSavingsAccountLike = CoinSavingsAccountLike(coinSavingsAccountLike_);
+        coinSavingsAccount = CoinSavingsAccountLike(coinSavingsAccount_);
         taxCollector = TaxCollectorLike(taxCollector_);
         piSettings = PI(RAY, 0);
+        returnToDefaultRate = RAY;
+        returnToDefaultDeadline = now;
         stabilityFeeBounds = RateBounds(MAX, MAX);
         savingsRateBounds  = RateBounds(MAX, MAX);
         defaultRates = MarketRates(RAY, RAY);
-        returnToNormalRates = MarketRates(RAY, RAY);
         contractEnabled = 1;
     }
 
@@ -124,14 +133,14 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
         if (parameter == "orcl") orcl = OracleLike(addr);
         else if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(addr);
         else if (parameter == "taxCollector") taxCollector = TaxCollectorLike(addr);
-        else if (parameter == "coinSavingsAccountLike") coinSavingsAccountLike = CoinSavingsAccountLike(addr);
+        else if (parameter == "coinSavingsAccount") coinSavingsAccount = CoinSavingsAccountLike(addr);
         else revert("MoneyMarketSetterOne/modify-unrecognized-param");
     }
     function modifyParameters(bytes32 parameter, uint256 val) external emitLog isAuthorized {
         require(contractEnabled == 1, "MoneyMarketSetterOne/contract-not-enabled");
         if (parameter == "noiseBarrier") noiseBarrier = val;
         else if (parameter == "rateSpread") rateSpread = val;
-        else if (parameter == "defaultReturnToNormalTime") defaultReturnToNormalTime = val;
+        else if (parameter == "returnToDefaultTimeframe") returnToDefaultTimeframe = val;
         else if (parameter == "defaultRateChangeTimeframe") defaultRateChangeTimeframe = uint32(val);
         else if (parameter == "stabilityFee") {
           require(val >= defaultRates.savingsRate, "MoneyMarketSetterOne/small-stability-fee");
@@ -214,7 +223,7 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
         z = x / y;
         require(z <= x);
     }
-    function delt(uint x, uint y) internal pure returns (uint z) {
+    function delta(uint x, uint y) internal pure returns (uint z) {
         z = (x >= y) ? x - y : y - x;
     }
     function rmul(uint x, uint y) internal pure returns (uint z) {
@@ -243,13 +252,13 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
             }
         }
     }
-    function perIntervalRate(uint x, uint32 wide) internal view returns (uint z) {
+    function perIntervalRate(uint x, uint32 timeframe) internal view returns (uint z) {
         /**
           Use the Exp formulas to compute the per-second rate.
           After the initial computation we need to divide by 2^precision.
         **/
-        (uint raw, uint heed) = pow(x, RAY, 1, wide);
-        z = div((raw * RAY), (2 ** heed));
+        (uint rawResult, uint precision) = pow(x, RAY, 1, timeframe);
+        z = div((rawResult * RAY), (2 ** precision));
     }
 
     // --- Utils ---
@@ -266,13 +275,13 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
         z = (x >= y) ? int(-1) : int(1);
     }
     function baseAnnualRate(uint256 x) internal pure returns (uint256 z) {
-        return RAY + delt(x, RAY);
+        return RAY + delta(x, RAY);
     }
     function baseAnnualRateWithSpread(uint256 x) internal view returns (uint256 z) {
-        return RAY + div(mul(delt(x, RAY), RAY), rateSpread);
+        return RAY + div(mul(delta(x, RAY), RAY), rateSpread);
     }
-    function accrueDeviatedSeconds(uint x) internal {
-        accruedTimeSinceDeviated = add(accruedTimeSinceDeviated, x);
+    function accruePriceDeviatedSeconds(uint x) internal {
+        accruedTimeSincePriceDeviated = add(accruedTimeSincePriceDeviated, x);
     }
     function oppositeDeviationSign(int newDeviationType) internal {
         latestDeviationType = (latestDeviationType == 0) ? newDeviationType : -latestDeviationType;
@@ -286,7 +295,7 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
     function calculatePIRate(uint x, uint y) internal view returns (uint z) {
         z = add(
           add(div(mul(sub(mul(x, RAY) / y, RAY), piSettings.proportionalSensitivity), RAY), RAY),
-          mul(piSettings.integralSensitivity, accruedTimeSinceDeviated)
+          mul(piSettings.integralSensitivity, accruedTimeSincePriceDeviated)
         );
     }
     function mixCalculatedAndDefaultRates(
@@ -295,7 +304,7 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
         int deviationType_
     ) internal view returns (uint x, uint y) {
         x = add(taxCollector.globalStabilityFee(), mul(deviationType_, sub(stabilityFee_, RAY)));
-        y = add(coinSavingsAccountLike.savingsRate(), mul(deviationType_, sub(savingsRate_, RAY)));
+        y = add(coinSavingsAccount.savingsRate(), mul(deviationType_, sub(savingsRate_, RAY)));
     }
     function calculateRedemptionRate(
         uint currentMarketPrice_,
@@ -355,15 +364,17 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
         // If the OSM has a value
         if (hasValidValue) {
           // Compute the deviation and whether it's negative/positive
-          uint deviation = delt(ray(uint(priceFeedValue)), redemptionPrice);
+          uint deviation = delta(ray(uint(priceFeedValue)), redemptionPrice);
           int newDeviationType = oppositeDeviationSign(ray(uint(priceFeedValue)), redemptionPrice);
           // If the deviation is at least 'noiseBarrier'
           if (deviation >= noiseBarrier) {
-            // Restart returnToNormalTimeframe
-            returnToNormalTimeframe = 0;
+            // Reset return to default params
+            returnToDefaultRate = RAY;
+            returnToDefaultDeadline = now;
+            returnToDefaultUpdateTime = now;
             // Accrue seconds passed since market price deviation has been on one side
             (newDeviationType == latestDeviationType) ?
-              accrueDeviatedSeconds(timeSinceLastUpdate) : oppositeDeviationSign(newDeviationType);
+              accruePriceDeviatedSeconds(timeSinceLastUpdate) : oppositeDeviationSign(newDeviationType);
             // Compute the new per-second rate
             (stabilityFee_, savingsRate_) = calculateRedemptionRate(
               ray(uint(priceFeedValue)),
@@ -381,26 +392,22 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
               piSettings.integralSensitivity
             );
           } else {
+            // Set return to default params
+            if (latestDeviationType != 0) {
+              setReturnToDefaultParams();
+            }
             // Restart latest deviation type
             latestDeviationType = 0;
-            // Set returnToNormalTimeframe
-            returnToNormalTimeframe =
-              (accruedTimeSinceDeviated >= defaultReturnToNormalTime) ?
-              defaultReturnToNormalTime : accruedTimeSinceDeviated;
-            returnToNormalTimeframe =
-              (defaultReturnToNormalTime == 0) ?
-              accruedTimeSinceDeviated : returnToNormalTimeframe;
-            // Restart accruedTimeSinceDeviated
-            accruedTimeSinceDeviated = 0;
-            // TEMPORARY: set default rates right away
-            setNewRates(defaultRates.stabilityFee, defaultRates.savingsRate);
+            // Restart accruedTimeSincePriceDeviated
+            accruedTimeSincePriceDeviated = 0;
+            // Update current rates
+            (stabilityFee_, savingsRate_) = returnRatesBackToDefault();
             // Emit event
-            emit UpdateRates(
-              ray(uint(priceFeedValue)),
-              defaultRates.stabilityFee,
-              defaultRates.savingsRate,
-              piSettings.proportionalSensitivity,
-              piSettings.integralSensitivity
+            emit ReturnRatesBackToDefault(
+              stabilityFee_,
+              savingsRate_,
+              returnToDefaultRate,
+              returnToDefaultDeadline
             );
           }
           // Make sure you store the latest price as a ray
@@ -409,11 +416,54 @@ contract MoneyMarketSetterOne is Logging, ExponentialMath {
           lastUpdateTime = era();
         }
     }
+    function setReturnToDefaultParams() internal {
+        if (returnToDefaultTimeframe == 0) return;
+        returnToDefaultRate = customPerSecondRate(
+          taxCollector.globalStabilityFee(),
+          defaultRates.stabilityFee,
+          uint32(returnToDefaultTimeframe)
+        );
+        returnToDefaultDeadline = add(now, returnToDefaultTimeframe);
+        returnToDefaultUpdateTime = now;
+    }
+    function returnRatesBackToDefault() internal returns (uint, uint){
+        if (
+          either(
+            either(returnToDefaultDeadline <= now, returnToDefaultRate == RAY),
+            either(
+              taxCollector.globalStabilityFee() != defaultRates.stabilityFee,
+              coinSavingsAccount.savingsRate() != defaultRates.savingsRate
+            )
+          )
+        ) {
+          returnToDefaultRate = RAY;
+          returnToDefaultUpdateTime = now;
+          setNewRates(defaultRates.stabilityFee, defaultRates.savingsRate);
+          return (defaultRates.stabilityFee, defaultRates.savingsRate);
+        }
+        if (now <= returnToDefaultUpdateTime) {
+          return (taxCollector.globalStabilityFee(), coinSavingsAccount.savingsRate());
+        }
+        int rateType              = (returnToDefaultRate < RAY) ? int(-1) : int(1);
+        uint globalStabilityFee   = taxCollector.globalStabilityFee();
+        uint savingsRate          = coinSavingsAccount.savingsRate();
+        uint newStabilityFee      = rmul(
+          rpow(returnToDefaultRate, sub(now, returnToDefaultUpdateTime), RAY),
+          globalStabilityFee
+        );
+        uint newSavingsRate       = add(
+          savingsRate,
+          mul(rateType, div(mul(delta(newStabilityFee, globalStabilityFee), RAY), rateSpread))
+        );
+        returnToDefaultUpdateTime = now;
+        setNewRates(newStabilityFee, newSavingsRate);
+        return (newStabilityFee, newSavingsRate);
+    }
     function setNewRates(uint stabilityFee_, uint savingsRate_) internal {
         taxCollector.taxAll();
         taxCollector.modifyParameters("globalStabilityFee", stabilityFee_);
 
-        coinSavingsAccountLike.updateAccumulatedRate();
-        coinSavingsAccountLike.modifyParameters("savingsRate", savingsRate_);
+        coinSavingsAccount.updateAccumulatedRate();
+        coinSavingsAccount.modifyParameters("savingsRate", savingsRate_);
     }
 }

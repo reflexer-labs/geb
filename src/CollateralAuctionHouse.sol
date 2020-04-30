@@ -51,7 +51,7 @@ contract CollateralAuctionHouse is Logging {
         address highBidder;
         uint48  bidExpiry;
         uint48  auctionDeadline;
-        address cdpAuctioned;
+        address forgoneCollateralReceiver;
         address auctionIncomeRecipient;
         uint256 amountToRaise;
     }
@@ -77,7 +77,7 @@ contract CollateralAuctionHouse is Logging {
         uint256 amountToSell,
         uint256 initialBid,
         uint256 amountToRaise,
-        address indexed cdpAuctioned,
+        address indexed forgoneCollateralReceiver,
         address indexed auctionIncomeRecipient
     );
 
@@ -120,7 +120,7 @@ contract CollateralAuctionHouse is Logging {
 
     // --- Auction ---
     function startAuction(
-        address cdpAuctioned,
+        address forgoneCollateralReceiver,
         address auctionIncomeRecipient,
         uint amountToRaise,
         uint amountToSell,
@@ -134,13 +134,13 @@ contract CollateralAuctionHouse is Logging {
         bids[id].amountToSell = amountToSell;
         bids[id].highBidder = msg.sender;
         bids[id].auctionDeadline = add(uint48(now), totalAuctionLength);
-        bids[id].cdpAuctioned = cdpAuctioned;
+        bids[id].forgoneCollateralReceiver = forgoneCollateralReceiver;
         bids[id].auctionIncomeRecipient = auctionIncomeRecipient;
         bids[id].amountToRaise = amountToRaise;
 
         cdpEngine.transferCollateral(collateralType, msg.sender, address(this), amountToSell);
 
-        emit StartAuction(id, amountToSell, initialBid, amountToRaise, cdpAuctioned, auctionIncomeRecipient);
+        emit StartAuction(id, amountToSell, initialBid, amountToRaise, forgoneCollateralReceiver, auctionIncomeRecipient);
     }
     function restartAuction(uint id) external emitLog {
         require(bids[id].auctionDeadline < now, "CollateralAuctionHouse/not-finished");
@@ -192,7 +192,7 @@ contract CollateralAuctionHouse is Logging {
         cdpEngine.transferCollateral(
           collateralType,
           address(this),
-          bids[id].cdpAuctioned,
+          bids[id].forgoneCollateralReceiver,
           bids[id].amountToSell - amountToBuy
         );
 
