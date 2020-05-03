@@ -381,9 +381,10 @@ contract GlobalSettlementTest is DSTest {
         gold.oracleSecurityModule.updateCollateralPrice(bytes32(5 * WAD));
         globalSettlement.shutdownSystem();
         globalSettlement.freezeCollateralType("gold");
-        globalSettlement.processRiskyCDP("gold", cdp1);
+        globalSettlement.processCDP("gold", cdp1);
 
         // local checks:
+        assertEq(globalSettlement.finalCoinPerCollateralPrice("gold"), ray(0.2 ether));
         assertEq(generatedDebt("gold", cdp1), 0);
         assertEq(lockedCollateral("gold", cdp1), 7 ether);
         assertEq(cdpEngine.debtBalance(address(accountingEngine)), rad(15 ether));
@@ -449,8 +450,8 @@ contract GlobalSettlementTest is DSTest {
         gold.oracleSecurityModule.updateCollateralPrice(bytes32(2 * WAD));
         globalSettlement.shutdownSystem();
         globalSettlement.freezeCollateralType("gold");
-        globalSettlement.processRiskyCDP("gold", cdp1);  // over-collateralised
-        globalSettlement.processRiskyCDP("gold", cdp2);  // under-collateralised
+        globalSettlement.processCDP("gold", cdp1);  // over-collateralised
+        globalSettlement.processCDP("gold", cdp2);  // under-collateralised
 
         // local checks
         assertEq(generatedDebt("gold", cdp1), 0);
@@ -544,7 +545,7 @@ contract GlobalSettlementTest is DSTest {
         assertEq(coinBalance(address(this)), 1 ether);       // bid refunded
         cdpEngine.transferInternalCoins(address(this), cdp1, rad(1 ether)); // return 1 coin to ali
 
-        globalSettlement.processRiskyCDP("gold", cdp1);
+        globalSettlement.processCDP("gold", cdp1);
 
         // local checks:
         assertEq(generatedDebt("gold", cdp1), 0);
@@ -611,7 +612,7 @@ contract GlobalSettlementTest is DSTest {
         gold.oracleSecurityModule.updateCollateralPrice(bytes32(5 * WAD));
         globalSettlement.shutdownSystem();
         globalSettlement.freezeCollateralType("gold");
-        globalSettlement.processRiskyCDP("gold", cdp1);
+        globalSettlement.processCDP("gold", cdp1);
 
         // local checks:
         assertEq(generatedDebt("gold", cdp1), 0);
@@ -683,8 +684,8 @@ contract GlobalSettlementTest is DSTest {
         gold.oracleSecurityModule.updateCollateralPrice(bytes32(2 * WAD));
         globalSettlement.shutdownSystem();
         globalSettlement.freezeCollateralType("gold");
-        globalSettlement.processRiskyCDP("gold", cdp1);  // over-collateralised
-        globalSettlement.processRiskyCDP("gold", cdp2);  // under-collateralised
+        globalSettlement.processCDP("gold", cdp1);  // over-collateralised
+        globalSettlement.processCDP("gold", cdp2);  // under-collateralised
 
         // local checks
         assertEq(generatedDebt("gold", cdp1), 0);
@@ -776,8 +777,8 @@ contract GlobalSettlementTest is DSTest {
         globalSettlement.shutdownSystem();
         globalSettlement.freezeCollateralType("gold");
         globalSettlement.freezeCollateralType("coal");
-        globalSettlement.processRiskyCDP("gold", cdp1);  // over-collateralised
-        globalSettlement.processRiskyCDP("coal", cdp2);  // under-collateralised
+        globalSettlement.processCDP("gold", cdp1);  // over-collateralised
+        globalSettlement.processCDP("coal", cdp2);  // under-collateralised
 
         hevm.warp(now + 1 hours);
         globalSettlement.calculateFinalCollateralPrice();

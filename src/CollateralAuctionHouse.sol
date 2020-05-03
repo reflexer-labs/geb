@@ -37,8 +37,19 @@ contract OracleLike {
 contract CollateralAuctionHouse is Logging {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
+    /**
+     * @notice Add auth to an account
+     * @param account Account to add auth to
+     */
     function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    /**
+     * @notice Remove auth from an account
+     * @param account Account to remove auth from
+     */
     function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    /**
+    * @notice Checks whether msg.sender can call an authed function
+    **/
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "CollateralAuctionHouse/account-not-authorized");
         _;
@@ -46,30 +57,46 @@ contract CollateralAuctionHouse is Logging {
 
     // --- Data ---
     struct Bid {
+        // Bid size (how many coins are offered per collateral sold)
         uint256 bidAmount;
+        // How much collateral is sold in an auction
         uint256 amountToSell;
+        // Who the high bidder is
         address highBidder;
+        // When the latest bid expires and the auction can be settled
         uint48  bidExpiry;
+        // Hard deadline for the auction after which no more bids can be places
         uint48  auctionDeadline;
+        // Who (which CDP) receives leftover collateral that is not sold in the auction; usually the liquidated CDP
         address forgoneCollateralReceiver;
+        // Who receives the coins raised from the auction; usually the accounting engine
         address auctionIncomeRecipient;
+        // Total/max amount of coins to raise
         uint256 amountToRaise;
     }
 
+    // Bid data for each separate auction
     mapping (uint => Bid) public bids;
 
+    // CDP database
     CDPEngineLike public cdpEngine;
+    // Collateral type name
     bytes32       public collateralType;
 
     uint256  constant ONE = 1.00E18;
+    // Minimum bid increase compared to the last bid in order to take the new one in consideration
     uint256  public   bidIncrease = 1.05E18;
+    // How long the first phase of the auction lasts after a new bid is submitted
     uint48   public   bidDuration = 3 hours;
+    // Total length of the auction
     uint48   public   totalAuctionLength = 2 days;
+    // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
+    // Minimum mandatory size of the first bid compared to collateral price coming from the oracle
+    uint256  public bidToMarketPriceRatio; // [ray]
 
     OracleRelayerLike public oracleRelayer;
-    OracleLike        public orcl;                  // medianizer / whatever the OSM reads from
-    uint256           public bidToMarketPriceRatio; // [ray]
+    OracleLike        public orcl;
 
     // --- Events ---
     event StartAuction(
@@ -105,6 +132,11 @@ contract CollateralAuctionHouse is Logging {
     }
 
     // --- Admin ---
+    /**
+     * @notice Modify auction parameters
+     * @param parameter The name of the parameter modified
+     * @param data New value for the parameter
+     */
     function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
         if (parameter == "bidIncrease") bidIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
@@ -112,6 +144,11 @@ contract CollateralAuctionHouse is Logging {
         else if (parameter == "bidToMarketPriceRatio") bidToMarketPriceRatio = data;
         else revert("CollateralAuctionHouse/modify-unrecognized-param");
     }
+    /**
+     * @notice Modify oracle related integrations
+     * @param parameter The name of the oracle contract modified
+     * @param data New address for the oracle contract
+     */
     function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
         if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
         else if (parameter == "orcl") orcl = OracleLike(data);
@@ -119,6 +156,14 @@ contract CollateralAuctionHouse is Logging {
     }
 
     // --- Auction ---
+    /**
+     * @notice Start a new collateral auction
+     * @param forgoneCollateralReceiver Who receives leftover collateral that is not auctioned
+     * @param auctionIncomeRecipient Who receives the amount raised in the auction
+     * @param amountToRaise Total amount of coins to raise
+     * @param amountToSell Total amount of collateral available to sell
+     * @param initialBid Initial bid size (usually zero in this implementation)
+     */
     function startAuction(
         address forgoneCollateralReceiver,
         address auctionIncomeRecipient,
@@ -142,11 +187,21 @@ contract CollateralAuctionHouse is Logging {
 
         emit StartAuction(id, amountToSell, initialBid, amountToRaise, forgoneCollateralReceiver, auctionIncomeRecipient);
     }
+    /**
+     * @notice Restart an auction if no bids were submitted for it
+     * @param id ID of the auction to restart
+     */
     function restartAuction(uint id) external emitLog {
         require(bids[id].auctionDeadline < now, "CollateralAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "CollateralAuctionHouse/bid-already-placed");
         bids[id].auctionDeadline = add(uint48(now), totalAuctionLength);
     }
+    /**
+     * @notice First auction phase: submit a higher bid for the same amount of collateral
+     * @param id ID of the auction you want to submit the bid for
+     * @param amountToBuy Amount of collateral to buy (must be equal to the amount sold in this implementation)
+     * @param bid New bid submitted
+     */
     function increaseBidSize(uint id, uint amountToBuy, uint bid) external emitLog {
         require(bids[id].highBidder != address(0), "CollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "CollateralAuctionHouse/bid-already-expired");
@@ -175,6 +230,13 @@ contract CollateralAuctionHouse is Logging {
         bids[id].bidAmount = bid;
         bids[id].bidExpiry = add(uint48(now), bidDuration);
     }
+    /**
+     * @notice Second auction phase: decrease the collateral amount you're willing to receive in
+     *         exchange for providing the same amount of coins as the winning bid
+     * @param id ID of the auction for which you want to submit a new amount of collateral to buy
+     * @param amountToBuy Amount of collateral to buy (must be smaller than the previous proposed amount)
+     * @param bid New bid submitted; must be equal to the winning bid in this implementation
+     */
     function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) external emitLog {
         require(bids[id].highBidder != address(0), "CollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "CollateralAuctionHouse/bid-already-expired");
@@ -199,12 +261,20 @@ contract CollateralAuctionHouse is Logging {
         bids[id].amountToSell = amountToBuy;
         bids[id].bidExpiry    = add(uint48(now), bidDuration);
     }
+    /**
+     * @notice Settle/finish an auction
+     * @param id ID of the auction to settle
+     */
     function settleAuction(uint id) external emitLog {
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "CollateralAuctionHouse/not-finished");
         cdpEngine.transferCollateral(collateralType, address(this), bids[id].highBidder, bids[id].amountToSell);
         delete bids[id];
     }
-
+    /**
+     * @notice Terminate an auction prematurely (if it's still in the first phase).
+     *         Usually called by Global Settlement
+     * @param id ID of the auction to terminate
+     */
     function terminateAuctionPrematurely(uint id) external emitLog isAuthorized {
         require(bids[id].highBidder != address(0), "CollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidAmount < bids[id].amountToRaise, "CollateralAuctionHouse/already-decreasing-sold-amount");

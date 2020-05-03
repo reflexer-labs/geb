@@ -64,7 +64,7 @@ contract DebtAuctionHouse is Logging {
     TokenLike public protocolToken;
 
     uint256  constant ONE = 1.00E18;
-    uint256  public   bidIncrease = 1.05E18;
+    uint256  public   bidDecrease = 1.05E18;
     uint256  public   amountSoldIncrease = 1.50E18;
     uint48   public   bidDuration = 3 hours;
     uint48   public   totalAuctionLength = 2 days;
@@ -101,7 +101,7 @@ contract DebtAuctionHouse is Logging {
 
     // --- Admin ---
     function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
-        if (parameter == "bidIncrease") bidIncrease = data;
+        if (parameter == "bidDecrease") bidDecrease = data;
         else if (parameter == "amountSoldIncrease") amountSoldIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
@@ -139,11 +139,11 @@ contract DebtAuctionHouse is Logging {
 
         require(bid == bids[id].bidAmount, "DebtAuctionHouse/not-matching-bid");
         require(amountToBuy <  bids[id].amountToSell, "DebtAuctionHouse/amount-bought-not-lower");
-        require(mul(bidIncrease, amountToBuy) <= mul(bids[id].amountToSell, ONE), "DebtAuctionHouse/insufficient-decrease");
+        require(mul(bidDecrease, amountToBuy) <= mul(bids[id].amountToSell, ONE), "DebtAuctionHouse/insufficient-decrease");
 
         cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bid);
 
-        // on first dent, clear as much totalOnAuctionDebt as possible
+        // on first bid submitted, clear as much totalOnAuctionDebt as possible
         if (bids[id].bidExpiry == 0) {
             uint totalOnAuctionDebt = AccountingEngineLike(bids[id].highBidder).totalOnAuctionDebt();
             AccountingEngineLike(bids[id].highBidder).cancelAuctionedDebtWithSurplus(min(bid, totalOnAuctionDebt));
