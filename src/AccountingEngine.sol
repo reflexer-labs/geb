@@ -21,14 +21,13 @@ import "./Logging.sol";
 
 contract DebtAuctionHouseLike {
     function startAuction(address incomeReceiver, uint amountToSell, uint initialBid) external returns (uint);
+    function protocolToken() external view returns (address);
     function disableContract() external;
-    function contractEnabled() external returns (uint);
 }
 
 contract SurplusAuctionHouseLike {
     function startAuction(uint, uint) external returns (uint);
     function disableContract() external;
-    function contractEnabled() external returns (uint);
 }
 
 contract CDPEngineLike {
@@ -75,6 +74,8 @@ contract AccountingEngine is Logging {
       auctions (it prints protocol tokens in exchange for coins that will settle the debt)
     **/
     DebtAuctionHouseLike    public debtAuctionHouse;
+    // Contract that auctions extra surplus after settlement is triggered
+    address                 public settlementSurplusAuctioner;
 
     /**
       Debt blocks that need to be covered by auctions. There is a delay to pop debt from
@@ -82,24 +83,30 @@ contract AccountingEngine is Logging {
       that print protocol tokens
     **/
     mapping (uint256 => uint256) public debtQueue;
+    /**
+      Which debt auctions are currently being bid on
+    **/
+    mapping (uint256 => uint256) public activeDebtAuctions;
     // Total debt in the queue (that the system tries to cover with collateral auctions)
     uint256 public totalQueuedDebt;      // [rad]
     // Total debt being auctioned in DebtAuctionHouse (printing protocol tokens for coins that will settle the debt)
     uint256 public totalOnAuctionDebt;   // [rad]
 
+    // Accumulator for all debt auctions currently not settled
+    uint256 public activeDebtAuctionsAccumulator;
     // When the last surplus auction was triggered; enforces a delay in case we use DEX surplus auctions
     uint256 public lastSurplusAuctionTime;
     // Delay between surplus auctions
     uint256 public surplusAuctionDelay;
     // Delay after which debt can be popped from debtQueue
     uint256 public popDebtDelay;
-    // Amount of debt that will be sold in one debt auction
+    // Amount of protocol tokens to be minted post-auction
     uint256 public initialDebtAuctionAmount;  // [wad]
-    // Initial bid (coins/protocol token) that needs to be submitted in order to participate in debt auctions
+    // Amount of debt sold in one debt auction (initial coin bid for initialDebtAuctionAmount protocol tokens)
     uint256 public debtAuctionBidSize;        // [rad]
 
     // Amount of surplus stability fees sold in one surplus auction
-    uint256 public surplusAuctionAmountSold;  // [rad]
+    uint256 public surplusAuctionAmountToSell;  // [rad]
     // Amount of stability fees that need to accrue in this contract before any surplus auction can start
     uint256 public surplusBuffer;             // [rad]
 
@@ -107,12 +114,18 @@ contract AccountingEngine is Logging {
     uint256 public contractEnabled;
 
     // --- Init ---
-    constructor(address cdpEngine_, address surplusAuctionHouse_, address debtAuctionHouse_) public {
+    constructor(
+      address cdpEngine_,
+      address surplusAuctionHouse_,
+      address debtAuctionHouse_,
+      address settlementSurplusAuctioner_
+    ) public {
         authorizedAccounts[msg.sender] = 1;
         cdpEngine = CDPEngineLike(cdpEngine_);
         surplusAuctionHouse = SurplusAuctionHouseLike(surplusAuctionHouse_);
         debtAuctionHouse = DebtAuctionHouseLike(debtAuctionHouse_);
         cdpEngine.approveCDPModification(surplusAuctionHouse_);
+        settlementSurplusAuctioner = settlementSurplusAuctioner_;
         lastSurplusAuctionTime = now;
         contractEnabled = 1;
     }
@@ -138,14 +151,14 @@ contract AccountingEngine is Logging {
         if (parameter == "surplusAuctionDelay") surplusAuctionDelay = data;
         else if (parameter == "popDebtDelay") popDebtDelay = data;
         else if (parameter == "surplusAuctionDelay") surplusAuctionDelay = data;
-        else if (parameter == "surplusAuctionAmountSold") surplusAuctionAmountSold = data;
+        else if (parameter == "surplusAuctionAmountToSell") surplusAuctionAmountToSell = data;
         else if (parameter == "debtAuctionBidSize") debtAuctionBidSize = data;
         else if (parameter == "initialDebtAuctionAmount") initialDebtAuctionAmount = data;
         else if (parameter == "surplusBuffer") surplusBuffer = data;
         else revert("AccountingEngine/modify-unrecognized-param");
     }
     /**
-     * @notice Modify addresses of collateral auction houses
+     * @notice Modify dependency addresses
      * @param parameter The name of the auction type we want to change the address for
      * @param data New address for the auction
      */
@@ -156,6 +169,7 @@ contract AccountingEngine is Logging {
             cdpEngine.approveCDPModification(data);
         }
         else if (parameter == "debtAuctionHouse") debtAuctionHouse = DebtAuctionHouseLike(data);
+        else if (parameter == "settlementSurplusAuctioner") settlementSurplusAuctioner = data;
         else revert("AccountingEngine/modify-unrecognized-param");
     }
 
@@ -212,8 +226,22 @@ contract AccountingEngine is Logging {
     function auctionDebt() external emitLog returns (uint id) {
         require(debtAuctionBidSize <= sub(sub(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt), "AccountingEngine/insufficient-debt");
         require(cdpEngine.coinBalance(address(this)) == 0, "AccountingEngine/surplus-not-zero");
+        require(debtAuctionHouse.protocolToken() != address(0), "AccountingEngine/protocol-token-not-set");
         totalOnAuctionDebt = add(totalOnAuctionDebt, debtAuctionBidSize);
         id = debtAuctionHouse.startAuction(address(this), initialDebtAuctionAmount, debtAuctionBidSize);
+        activeDebtAuctionsAccumulator = add(activeDebtAuctionsAccumulator, id);
+        activeDebtAuctions[id] = 1;
+    }
+    /**
+      @notice Indicate that a debt auction has settled
+      @dev The msg.sender must be the debtAuctionHouse
+      @param id The id of the debt auction to mark as settled
+    **/
+    function settleDebtAuction(uint id) external emitLog {
+        require(activeDebtAuctions[id] == 1, "AccountingEngine/debt-auction-not-active");
+        require(msg.sender == address(debtAuctionHouse), "AccountingEngine/invalid-msg-sender");
+        activeDebtAuctions[id] = 0;
+        activeDebtAuctionsAccumulator = sub(activeDebtAuctionsAccumulator, id);
     }
     // Surplus auction
     /**
@@ -228,7 +256,7 @@ contract AccountingEngine is Logging {
         );
         require(
           cdpEngine.coinBalance(address(this)) >=
-          add(add(cdpEngine.debtBalance(address(this)), surplusAuctionAmountSold), surplusBuffer),
+          add(add(cdpEngine.debtBalance(address(this)), surplusAuctionAmountToSell), surplusBuffer),
           "AccountingEngine/insufficient-surplus"
         );
         require(
@@ -236,21 +264,26 @@ contract AccountingEngine is Logging {
           "AccountingEngine/debt-not-zero"
         );
         lastSurplusAuctionTime = now;
-        id = surplusAuctionHouse.startAuction(surplusAuctionAmountSold, 0);
+        id = surplusAuctionHouse.startAuction(surplusAuctionAmountToSell, 0);
     }
 
     /**
      * @notice Disable this contract (normally called by Global Settlement)
      * @dev When we disable, the contract tries to settle as much debt as possible (if there's any) with
-            any surplus that's left in the system
+            any surplus that's left in the system. After erasing debt, if there's any surplus left,
+            it will be transferred to a separate contract in order to be auctioned
     **/
     function disableContract() external emitLog isAuthorized {
         require(contractEnabled == 1, "AccountingEngine/contract-not-enabled");
+
         contractEnabled = 0;
         totalQueuedDebt = 0;
         totalOnAuctionDebt = 0;
+
         surplusAuctionHouse.disableContract();
         debtAuctionHouse.disableContract();
+
         cdpEngine.settleDebt(min(cdpEngine.coinBalance(address(this)), cdpEngine.debtBalance(address(this))));
+        cdpEngine.transferInternalCoins(address(this), settlementSurplusAuctioner, cdpEngine.coinBalance(address(this)));
     }
 }

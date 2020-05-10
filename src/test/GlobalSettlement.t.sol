@@ -286,6 +286,7 @@ contract GlobalSettlementTest is DSTest {
         cdpEngine.addAuthorization(address(accountingEngine));
         surplusAuctionHouseTwo.addAuthorization(address(accountingEngine));
         debtAuctionHouse.addAuthorization(address(accountingEngine));
+        debtAuctionHouse.modifyParameters("accountingEngine", address(accountingEngine));
 
         liquidationEngine = new LiquidationEngine(address(cdpEngine));
         liquidationEngine.modifyParameters("accountingEngine", address(accountingEngine));
@@ -400,7 +401,7 @@ contract GlobalSettlementTest is DSTest {
         ali.exit(gold.collateralA, address(this), 7 ether);
 
         hevm.warp(now + 1 hours);
-        globalSettlement.calculateFinalCollateralPrice();
+        globalSettlement.setOutstandingCoinSupply();
         globalSettlement.calculateCashPrice("gold");
         assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
 
@@ -471,7 +472,7 @@ contract GlobalSettlementTest is DSTest {
         ali.exit(gold.collateralA, address(this), 2.5 ether);
 
         hevm.warp(now + 1 hours);
-        globalSettlement.calculateFinalCollateralPrice();
+        globalSettlement.setOutstandingCoinSupply();
         globalSettlement.calculateCashPrice("gold");
         assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
 
@@ -508,7 +509,7 @@ contract GlobalSettlementTest is DSTest {
         assertEq(tokenCollateral("gold", cdp2), rmul(fix, 3 ether));
         bob.exit(gold.collateralA, address(this), uint(rmul(fix, 3 ether)));
 
-        // some dust recoinns in the GlobalSettlement because of rounding:
+        // some dust remains in GlobalSettlement because of rounding:
         assertEq(tokenCollateral("gold", address(globalSettlement)), 1);
         assertEq(balanceOf("gold", address(gold.collateralA)), 1);
     }
@@ -565,7 +566,7 @@ contract GlobalSettlementTest is DSTest {
         ali.exit(gold.collateralA, address(this), 7 ether);
 
         hevm.warp(now + 1 hours);
-        globalSettlement.calculateFinalCollateralPrice();
+        globalSettlement.setOutstandingCoinSupply();
         globalSettlement.calculateCashPrice("gold");
         assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
 
@@ -630,7 +631,7 @@ contract GlobalSettlementTest is DSTest {
         ali.exit(gold.collateralA, address(this), 7 ether);
 
         hevm.warp(now + 1 hours);
-        globalSettlement.calculateFinalCollateralPrice();
+        globalSettlement.setOutstandingCoinSupply();
         globalSettlement.calculateCashPrice("gold");
         assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
 
@@ -654,10 +655,176 @@ contract GlobalSettlementTest is DSTest {
         assertEq(balanceOf("gold", address(gold.collateralA)), 0);
     }
 
+    function test_shutdown_overcollateralized_surplus_smaller_redemption() public {
+        CollateralType memory gold = init_collateral("gold");
+
+        Usr ali = new Usr(cdpEngine, globalSettlement);
+        Usr bob = new Usr(cdpEngine, globalSettlement);
+        Usr charlie = new Usr(cdpEngine, globalSettlement);
+
+        // make a CDP:
+        address cdp1 = address(ali);
+        gold.collateralA.join(cdp1, 10 ether);
+        ali.modifyCDPCollateralization("gold", cdp1, cdp1, cdp1, 10 ether, 15 ether);
+
+        // create surplus and also transfer to charlie
+        ali.transferInternalCoins(address(ali), address(accountingEngine), rad(2 ether));
+        ali.transferInternalCoins(address(ali), address(charlie), rad(2 ether));
+
+        // global checks:
+        assertEq(cdpEngine.globalDebt(), rad(15 ether));
+        assertEq(cdpEngine.globalUnbackedDebt(), 0);
+
+        // collateral price is 5
+        gold.oracleSecurityModule.updateCollateralPrice(bytes32(5 * WAD));
+        // redemption price is 0.5
+        oracleRelayer.modifyParameters("redemptionPrice", ray(0.5 ether));
+
+        globalSettlement.shutdownSystem();
+        globalSettlement.freezeCollateralType("gold");
+        globalSettlement.processCDP("gold", cdp1);
+
+        // local checks:
+        assertEq(globalSettlement.finalCoinPerCollateralPrice("gold"), ray(0.1 ether));
+        assertEq(generatedDebt("gold", cdp1), 0);
+        assertEq(lockedCollateral("gold", cdp1), 8.5 ether);
+        assertEq(cdpEngine.debtBalance(address(accountingEngine)), rad(15 ether));
+
+        // global checks:
+        assertEq(cdpEngine.globalDebt(), rad(15 ether));
+        assertEq(cdpEngine.globalUnbackedDebt(), rad(15 ether));
+
+        // CDP closing
+        ali.freeCollateral("gold");
+        assertEq(lockedCollateral("gold", cdp1), 0);
+        assertEq(tokenCollateral("gold", cdp1), 8.5 ether);
+        ali.exit(gold.collateralA, address(this), 8.5 ether);
+
+        hevm.warp(now + 1 hours);
+        accountingEngine.settleDebt(cdpEngine.coinBalance(address(accountingEngine)));
+        assertEq(globalSettlement.outstandingCoinSupply(), 0);
+        globalSettlement.setOutstandingCoinSupply();
+        globalSettlement.calculateCashPrice("gold");
+        assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
+        assertEq(cdpEngine.tokenCollateral("gold", address(globalSettlement)), 1.5 ether);
+
+        // coin redemption
+        assertEq(tokenCollateral("gold", address(ali)), 0);
+        assertEq(tokenCollateral("gold", address(charlie)), 0);
+
+        ali.approveCDPModification(address(globalSettlement));
+        assertEq(cdpEngine.coinBalance(address(ali)), rad(11 ether));
+        ali.prepareCoinsForRedeeming(11 ether);
+
+        charlie.approveCDPModification(address(globalSettlement));
+        assertEq(cdpEngine.coinBalance(address(charlie)), rad(2 ether));
+        charlie.prepareCoinsForRedeeming(2 ether);
+
+        ali.redeemCollateral("gold", 11 ether);
+        charlie.redeemCollateral("gold", 2 ether);
+
+        assertEq(cdpEngine.globalDebt(), rad(13 ether));
+        assertEq(cdpEngine.globalUnbackedDebt(), rad(13 ether));
+
+        // local checks:
+        assertEq(coinBalance(cdp1), 0);
+        assertEq(tokenCollateral("gold", cdp1), 1269230769230769230);
+        ali.exit(gold.collateralA, address(this), 1269230769230769230);
+
+        assertEq(tokenCollateral("gold", address(charlie)), 230769230769230769);
+        charlie.exit(gold.collateralA, address(this), 230769230769230769);
+
+        assertEq(tokenCollateral("gold", address(globalSettlement)), 1);
+        assertEq(balanceOf("gold", address(gold.collateralA)), 1);
+    }
+
+    function test_shutdown_overcollateralized_surplus_bigger_redemption() public {
+        CollateralType memory gold = init_collateral("gold");
+
+        Usr ali = new Usr(cdpEngine, globalSettlement);
+        Usr bob = new Usr(cdpEngine, globalSettlement);
+        Usr charlie = new Usr(cdpEngine, globalSettlement);
+
+        // make a CDP:
+        address cdp1 = address(ali);
+        gold.collateralA.join(cdp1, 10 ether);
+        ali.modifyCDPCollateralization("gold", cdp1, cdp1, cdp1, 10 ether, 15 ether);
+
+        // create surplus and also transfer to charlie
+        ali.transferInternalCoins(address(ali), address(accountingEngine), rad(2 ether));
+        ali.transferInternalCoins(address(ali), address(charlie), rad(2 ether));
+
+        // global checks:
+        assertEq(cdpEngine.globalDebt(), rad(15 ether));
+        assertEq(cdpEngine.globalUnbackedDebt(), 0);
+
+        // collateral price is 5
+        gold.oracleSecurityModule.updateCollateralPrice(bytes32(5 * WAD));
+        // redemption price is 0.5
+        oracleRelayer.modifyParameters("redemptionPrice", ray(2 ether));
+
+        globalSettlement.shutdownSystem();
+        globalSettlement.freezeCollateralType("gold");
+        globalSettlement.processCDP("gold", cdp1);
+
+        // local checks:
+        assertEq(globalSettlement.finalCoinPerCollateralPrice("gold"), ray(0.4 ether));
+        assertEq(generatedDebt("gold", cdp1), 0);
+        assertEq(lockedCollateral("gold", cdp1), 4 ether);
+        assertEq(cdpEngine.debtBalance(address(accountingEngine)), rad(15 ether));
+
+        // global checks:
+        assertEq(cdpEngine.globalDebt(), rad(15 ether));
+        assertEq(cdpEngine.globalUnbackedDebt(), rad(15 ether));
+
+        // CDP closing
+        ali.freeCollateral("gold");
+        assertEq(lockedCollateral("gold", cdp1), 0);
+        assertEq(tokenCollateral("gold", cdp1), 4 ether);
+        ali.exit(gold.collateralA, address(this), 4 ether);
+
+        hevm.warp(now + 1 hours);
+        accountingEngine.settleDebt(cdpEngine.coinBalance(address(accountingEngine)));
+        assertEq(globalSettlement.outstandingCoinSupply(), 0);
+        globalSettlement.setOutstandingCoinSupply();
+        globalSettlement.calculateCashPrice("gold");
+        assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
+        assertEq(cdpEngine.tokenCollateral("gold", address(globalSettlement)), 6 ether);
+
+        // coin redemption
+        assertEq(tokenCollateral("gold", address(ali)), 0);
+        assertEq(tokenCollateral("gold", address(charlie)), 0);
+
+        ali.approveCDPModification(address(globalSettlement));
+        assertEq(cdpEngine.coinBalance(address(ali)), rad(11 ether));
+        ali.prepareCoinsForRedeeming(11 ether);
+
+        charlie.approveCDPModification(address(globalSettlement));
+        assertEq(cdpEngine.coinBalance(address(charlie)), rad(2 ether));
+        charlie.prepareCoinsForRedeeming(2 ether);
+
+        ali.redeemCollateral("gold", 11 ether);
+        charlie.redeemCollateral("gold", 2 ether);
+
+        assertEq(cdpEngine.globalDebt(), rad(13 ether));
+        assertEq(cdpEngine.globalUnbackedDebt(), rad(13 ether));
+
+        // local checks:
+        assertEq(coinBalance(cdp1), 0);
+        assertEq(tokenCollateral("gold", cdp1), 5076923076923076923);
+        ali.exit(gold.collateralA, address(this), 5076923076923076923);
+
+        assertEq(tokenCollateral("gold", address(charlie)), 923076923076923076);
+        charlie.exit(gold.collateralA, address(this), 923076923076923076);
+
+        assertEq(tokenCollateral("gold", address(globalSettlement)), 1);
+        assertEq(balanceOf("gold", address(gold.collateralA)), 1);
+    }
+
     // -- Scenario where there is one over-collateralised CDP
     // -- and one under-collateralised CDP and there is a
     // -- surplus in the AccountingEngine
-    function test_shutdown_undercollateralised_surplus() public {
+    function test_shutdown_over_and_under_collateralised_surplus() public {
         CollateralType memory gold = init_collateral("gold");
 
         Usr ali = new Usr(cdpEngine, globalSettlement);
@@ -670,6 +837,7 @@ contract GlobalSettlementTest is DSTest {
 
         // alive gives one coin to the accountingEngine, creating surplus
         ali.transferInternalCoins(address(ali), address(accountingEngine), rad(1 ether));
+        assertEq(cdpEngine.coinBalance(address(accountingEngine)), rad(1 ether));
 
         // make a second CDP:
         address cdp2 = address(bob);
@@ -707,7 +875,7 @@ contract GlobalSettlementTest is DSTest {
         hevm.warp(now + 1 hours);
         // balance the accountingEngine
         accountingEngine.settleDebt(rad(1 ether));
-        globalSettlement.calculateFinalCollateralPrice();
+        globalSettlement.setOutstandingCoinSupply();
         globalSettlement.calculateCashPrice("gold");
         assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
 
@@ -781,7 +949,7 @@ contract GlobalSettlementTest is DSTest {
         globalSettlement.processCDP("coal", cdp2);  // under-collateralised
 
         hevm.warp(now + 1 hours);
-        globalSettlement.calculateFinalCollateralPrice();
+        globalSettlement.setOutstandingCoinSupply();
         globalSettlement.calculateCashPrice("gold");
         globalSettlement.calculateCashPrice("coal");
 

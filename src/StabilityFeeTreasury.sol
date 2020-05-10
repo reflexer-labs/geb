@@ -135,11 +135,11 @@ contract StabilityFeeTreasury is Logging {
         else revert("StabilityFeeTreasury/modify-unrecognized-param");
     }
     function disableContract() external emitLog isAuthorized {
+        contractEnabled = 0;
         if (systemCoin.balanceOf(address(this)) > 0) {
           coinJoin.join(address(this), systemCoin.balanceOf(address(this)));
         }
         cdpEngine.transferInternalCoins(address(this), accountingEngine, cdpEngine.coinBalance(address(this)));
-        contractEnabled = 0;
     }
 
     // --- Utils ---
