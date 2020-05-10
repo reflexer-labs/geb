@@ -61,7 +61,7 @@ contract SettlementSurplusAuctioner is Logging {
 
     AccountingEngineLike    public accountingEngine;
     SurplusAuctionHouseLike public surplusAuctionHouse;
-    CDPEngine               public cdpEngine;
+    CDPEngineLike           public cdpEngine;
 
     uint256 public contractEnabled;
     uint256 public lastSurplusAuctionTime;

@@ -31,6 +31,7 @@ import {RedemptionRateSetterOne, RedemptionRateSetterTwo} from '../RedemptionRat
 import {CollateralAuctionHouse} from '../CollateralAuctionHouse.sol';
 import {SurplusAuctionHouseOne, SurplusAuctionHouseTwo} from '../SurplusAuctionHouse.sol';
 import {DebtAuctionHouse} from '../DebtAuctionHouse.sol';
+import {SettlementSurplusAuctioner} from "../SettlementSurplusAuctioner.sol";
 import {CollateralJoin, CoinJoin} from '../BasicTokenAdapters.sol';
 import {GlobalSettlement}  from '../GlobalSettlement.sol';
 import {OracleRelayer} from '../OracleRelayer.sol';
@@ -144,6 +145,7 @@ contract GlobalSettlementTest is DSTest {
     OracleRelayer oracleRelayer;
     CoinSavingsAccount coinSavingsAccount;
     StabilityFeeTreasury stabilityFeeTreasury;
+    SettlementSurplusAuctioner settlementSurplusAuctioner;
     RedemptionRateSetterOne rateSetterOne;
     RedemptionRateSetterTwo rateSetterTwo;
 
@@ -262,14 +264,18 @@ contract GlobalSettlementTest is DSTest {
         dex = new DexLike(1 ether);
         systemCoinA = new CoinJoin(address(cdpEngine), address(systemCoin));
 
-        surplusAuctionHouseTwo = new SurplusAuctionHouseTwo(address(cdpEngine));
+        surplusAuctionHouseOne = new SurplusAuctionHouseOne(address(cdpEngine), address(protocolToken));
+
+        surplusAuctionHouseTwo = new SurplusAuctionHouseTwo(address(cdpEngine), address(protocolToken));
         surplusAuctionHouseTwo.modifyParameters("systemCoin", address(systemCoin));
-        surplusAuctionHouseTwo.modifyParameters("protocolToken", address(protocolToken));
         surplusAuctionHouseTwo.modifyParameters("dex", address(dex));
         surplusAuctionHouseTwo.modifyParameters("coinJoin", address(systemCoinA));
         surplusAuctionHouseTwo.modifyParameters("leftoverReceiver", address(this));
 
+        cdpEngine.approveCDPModification(address(surplusAuctionHouseOne));
         cdpEngine.approveCDPModification(address(surplusAuctionHouseTwo));
+
+        protocolToken.approve(address(surplusAuctionHouseOne));
         protocolToken.approve(address(surplusAuctionHouseTwo));
 
         debtAuctionHouse = new DebtAuctionHouse(address(cdpEngine), address(protocolToken));
@@ -282,9 +288,17 @@ contract GlobalSettlementTest is DSTest {
         protocolToken.push(address(dex), 200 ether);
         protocolToken.setOwner(address(debtAuctionHouse));
 
-        accountingEngine = new AccountingEngine(address(cdpEngine), address(surplusAuctionHouseTwo), address(debtAuctionHouse));
+        accountingEngine = new AccountingEngine(address(cdpEngine), address(surplusAuctionHouseOne), address(debtAuctionHouse));
+        settlementSurplusAuctioner = new SettlementSurplusAuctioner(address(accountingEngine));
+        surplusAuctionHouseOne.addAuthorization(address(settlementSurplusAuctioner));
+        surplusAuctionHouseTwo.addAuthorization(address(settlementSurplusAuctioner));
+
+        accountingEngine.modifyParameters("settlementSurplusAuctioner", address(settlementSurplusAuctioner));
         cdpEngine.addAuthorization(address(accountingEngine));
+
+        surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
         surplusAuctionHouseTwo.addAuthorization(address(accountingEngine));
+
         debtAuctionHouse.addAuthorization(address(accountingEngine));
         debtAuctionHouse.modifyParameters("accountingEngine", address(accountingEngine));
 
@@ -316,6 +330,7 @@ contract GlobalSettlementTest is DSTest {
         coinSavingsAccount.addAuthorization(address(globalSettlement));
         liquidationEngine.addAuthorization(address(globalSettlement));
         stabilityFeeTreasury.addAuthorization(address(globalSettlement));
+        surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
         surplusAuctionHouseTwo.addAuthorization(address(accountingEngine));
         debtAuctionHouse.addAuthorization(address(accountingEngine));
     }
@@ -723,19 +738,21 @@ contract GlobalSettlementTest is DSTest {
         ali.redeemCollateral("gold", 11 ether);
         charlie.redeemCollateral("gold", 2 ether);
 
-        assertEq(cdpEngine.globalDebt(), rad(13 ether));
-        assertEq(cdpEngine.globalUnbackedDebt(), rad(13 ether));
+        assertEq(cdpEngine.globalDebt(), rad(15 ether));
+        assertEq(cdpEngine.globalUnbackedDebt(), rad(15 ether));
 
         // local checks:
         assertEq(coinBalance(cdp1), 0);
-        assertEq(tokenCollateral("gold", cdp1), 1269230769230769230);
-        ali.exit(gold.collateralA, address(this), 1269230769230769230);
+        assertEq(tokenCollateral("gold", cdp1), 1100000000000000000);
+        ali.exit(gold.collateralA, address(this), tokenCollateral("gold", cdp1));
 
-        assertEq(tokenCollateral("gold", address(charlie)), 230769230769230769);
-        charlie.exit(gold.collateralA, address(this), 230769230769230769);
+        assertEq(tokenCollateral("gold", address(charlie)), 200000000000000000);
+        charlie.exit(gold.collateralA, address(this), tokenCollateral("gold", address(charlie)));
 
-        assertEq(tokenCollateral("gold", address(globalSettlement)), 1);
-        assertEq(balanceOf("gold", address(gold.collateralA)), 1);
+        assertEq(tokenCollateral("gold", address(globalSettlement)), 0.2 ether);
+        assertEq(balanceOf("gold", address(gold.collateralA)), 0.2 ether);
+
+        assertEq(coinBalance(address(settlementSurplusAuctioner)), 2 ether);
     }
 
     function test_shutdown_overcollateralized_surplus_bigger_redemption() public {
@@ -806,19 +823,21 @@ contract GlobalSettlementTest is DSTest {
         ali.redeemCollateral("gold", 11 ether);
         charlie.redeemCollateral("gold", 2 ether);
 
-        assertEq(cdpEngine.globalDebt(), rad(13 ether));
-        assertEq(cdpEngine.globalUnbackedDebt(), rad(13 ether));
+        assertEq(cdpEngine.globalDebt(), rad(15 ether));
+        assertEq(cdpEngine.globalUnbackedDebt(), rad(15 ether));
 
         // local checks:
         assertEq(coinBalance(cdp1), 0);
-        assertEq(tokenCollateral("gold", cdp1), 5076923076923076923);
-        ali.exit(gold.collateralA, address(this), 5076923076923076923);
+        assertEq(tokenCollateral("gold", cdp1), 4400000000000000000);
+        ali.exit(gold.collateralA, address(this), tokenCollateral("gold", cdp1));
 
-        assertEq(tokenCollateral("gold", address(charlie)), 923076923076923076);
-        charlie.exit(gold.collateralA, address(this), 923076923076923076);
+        assertEq(tokenCollateral("gold", address(charlie)), 800000000000000000);
+        charlie.exit(gold.collateralA, address(this), tokenCollateral("gold", address(charlie)));
 
-        assertEq(tokenCollateral("gold", address(globalSettlement)), 1);
-        assertEq(balanceOf("gold", address(gold.collateralA)), 1);
+        assertEq(tokenCollateral("gold", address(globalSettlement)), 0.8 ether);
+        assertEq(balanceOf("gold", address(gold.collateralA)), 0.8 ether);
+
+        assertEq(coinBalance(address(settlementSurplusAuctioner)), 2 ether);
     }
 
     // -- Scenario where there is one over-collateralised CDP
@@ -874,19 +893,19 @@ contract GlobalSettlementTest is DSTest {
 
         hevm.warp(now + 1 hours);
         // balance the accountingEngine
-        accountingEngine.settleDebt(rad(1 ether));
+        // accountingEngine.settleDebt(rad(1 ether));
         globalSettlement.setOutstandingCoinSupply();
         globalSettlement.calculateCashPrice("gold");
         assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
 
         // first coin redemption
         ali.approveCDPModification(address(globalSettlement));
-        ali.prepareCoinsForRedeeming(14 ether);
+        ali.prepareCoinsForRedeeming(coinBalance(address(ali)));
         accountingEngine.settleDebt(rad(14 ether));
 
         // global checks:
-        assertEq(cdpEngine.globalDebt(), rad(3 ether));
-        assertEq(cdpEngine.globalUnbackedDebt(), rad(3 ether));
+        assertEq(cdpEngine.globalDebt(), rad(4 ether));
+        assertEq(cdpEngine.globalUnbackedDebt(), rad(4 ether));
 
         ali.redeemCollateral("gold", 14 ether);
 
@@ -902,8 +921,8 @@ contract GlobalSettlementTest is DSTest {
         accountingEngine.settleDebt(rad(3 ether));
 
         // global checks:
-        assertEq(cdpEngine.globalDebt(), 0);
-        assertEq(cdpEngine.globalUnbackedDebt(), 0);
+        assertEq(cdpEngine.globalDebt(), rad(1 ether));
+        assertEq(cdpEngine.globalUnbackedDebt(), rad(1 ether));
 
         bob.redeemCollateral("gold", 3 ether);
 
@@ -913,8 +932,10 @@ contract GlobalSettlementTest is DSTest {
         bob.exit(gold.collateralA, address(this), uint(rmul(fix, 3 ether)));
 
         // nothing left in the GlobalSettlement
-        assertEq(tokenCollateral("gold", address(globalSettlement)), 0);
-        assertEq(balanceOf("gold", address(gold.collateralA)), 0);
+        assertEq(tokenCollateral("gold", address(globalSettlement)), 472222222222222223);
+        assertEq(balanceOf("gold", address(gold.collateralA)), 472222222222222223);
+
+        assertEq(coinBalance(address(settlementSurplusAuctioner)), 1 ether);
     }
 
     // -- Scenario where there is one over-collateralised and one

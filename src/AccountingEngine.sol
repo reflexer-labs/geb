@@ -23,17 +23,20 @@ contract DebtAuctionHouseLike {
     function startAuction(address incomeReceiver, uint amountToSell, uint initialBid) external returns (uint);
     function protocolToken() external view returns (address);
     function disableContract() external;
+    function contractEnabled() external view returns (uint);
 }
 
 contract SurplusAuctionHouseLike {
     function startAuction(uint, uint) external returns (uint);
     function disableContract() external;
+    function contractEnabled() external view returns (uint);
 }
 
 contract CDPEngineLike {
     function coinBalance(address) external view returns (uint);
     function debtBalance(address) external view returns (uint);
     function settleDebt(uint256) external;
+    function transferInternalCoins(address,address,uint256) external;
     function approveCDPModification(address) external;
     function denyCDPModification(address) external;
 }
@@ -117,15 +120,13 @@ contract AccountingEngine is Logging {
     constructor(
       address cdpEngine_,
       address surplusAuctionHouse_,
-      address debtAuctionHouse_,
-      address settlementSurplusAuctioner_
+      address debtAuctionHouse_
     ) public {
         authorizedAccounts[msg.sender] = 1;
         cdpEngine = CDPEngineLike(cdpEngine_);
         surplusAuctionHouse = SurplusAuctionHouseLike(surplusAuctionHouse_);
         debtAuctionHouse = DebtAuctionHouseLike(debtAuctionHouse_);
         cdpEngine.approveCDPModification(surplusAuctionHouse_);
-        settlementSurplusAuctioner = settlementSurplusAuctioner_;
         lastSurplusAuctionTime = now;
         contractEnabled = 1;
     }

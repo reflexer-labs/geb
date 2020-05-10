@@ -613,7 +613,7 @@ contract LiquidationTest is DSTest {
         cdpEngine = new TestCDPEngine();
         cdpEngine = cdpEngine;
 
-        surplusAuctionHouse = new SurplusAuctionHouseTwo(address(cdpEngine));
+        surplusAuctionHouse = new SurplusAuctionHouseTwo(address(cdpEngine), address(protocolToken));
         debtAuctionHouse = new DebtAuctionHouse(address(cdpEngine), address(protocolToken));
 
         accountingEngine = new TestAccountingEngine(
