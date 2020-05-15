@@ -22,7 +22,7 @@ contract CDPEngineLike {
 }
 
 contract OracleLike {
-    function getPriceWithValidity() external returns (bytes32, bool);
+    function getPriceWithValidity() external view returns (bytes32, bool);
 }
 
 contract OracleRelayer is Logging {
