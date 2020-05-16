@@ -1,6 +1,6 @@
 # GEB
 
-This repository contains the core smart contract code for Generalized Ethereum Bonds. While we intend to use GEB when we discuss about core architecture, the actual instrument issued by the protocol is called a reflex bond.
+This repository contains the core smart contract code for Generalized Ethereum Bonds. While we intend to use the "GEB" terminology when we discuss about core architecture, the actual instrument issued by the protocol is called a reflex bond.
 
 # What is a Reflex Bond?
 
