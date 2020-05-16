@@ -22,7 +22,7 @@ import "./Logging.sol";
 
 contract CollateralAuctionHouseLike {
     function startAuction(
-      address cdp,
+      address forgoneCollateralReceiver,
       address initialBidder,
       uint amountToRaise,
       uint collateralToSell,
@@ -130,12 +130,20 @@ contract LiquidationEngine is Logging {
         if (parameter == "accountingEngine") accountingEngine = AccountingEngineLike(data);
         else revert("LiquidationEngine/modify-unrecognized-param");
     }
-    function modifyParameters(bytes32 collateralType, bytes32 parameter, uint data) external emitLog isAuthorized {
+    function modifyParameters(
+        bytes32 collateralType,
+        bytes32 parameter,
+        uint data
+    ) external emitLog isAuthorized {
         if (parameter == "liquidationPenalty") collateralTypes[collateralType].liquidationPenalty = data;
         else if (parameter == "collateralToSell") collateralTypes[collateralType].collateralToSell = data;
         else revert("LiquidationEngine/modify-unrecognized-param");
     }
-    function modifyParameters(bytes32 collateralType, bytes32 parameter, address data) external emitLog isAuthorized {
+    function modifyParameters(
+        bytes32 collateralType,
+        bytes32 parameter,
+        address data
+    ) external emitLog isAuthorized {
         if (parameter == "collateralAuctionHouse") {
             cdpEngine.denyCDPModification(collateralTypes[collateralType].collateralAuctionHouse);
             collateralTypes[collateralType].collateralAuctionHouse = data;
@@ -148,7 +156,11 @@ contract LiquidationEngine is Logging {
     }
 
     // --- CDP Liquidation ---
-    function protectCDP(bytes32 collateralType, address cdp, address saviour) external emitLog {
+    function protectCDP(
+        bytes32 collateralType,
+        address cdp,
+        address saviour
+    ) external emitLog {
         require(cdpEngine.canModifyCDP(cdp, msg.sender), "LiquidationEngine/cannot-modify-this-cdp");
         require(saviour == address(0) || cdpSaviours[saviour] == 1, "LiquidationEngine/saviour-not-authorized");
         chosenCDPSaviour[collateralType][cdp] = saviour;
@@ -161,7 +173,10 @@ contract LiquidationEngine is Logging {
         (uint cdpCollateral, uint cdpDebt) = cdpEngine.cdps(collateralType, cdp);
 
         require(contractEnabled == 1, "LiquidationEngine/contract-not-enabled");
-        require(both(liquidationPrice > 0, mul(cdpCollateral, liquidationPrice) < mul(cdpDebt, accumulatedRates)), "LiquidationEngine/cdp-not-unsafe");
+        require(both(
+          liquidationPrice > 0,
+          mul(cdpCollateral, liquidationPrice) < mul(cdpDebt, accumulatedRates)
+        ), "LiquidationEngine/cdp-not-unsafe");
 
         //TODO: try/catch the cdp saviour call
         if (chosenCDPSaviour[collateralType][cdp] != address(0) &&
@@ -188,7 +203,7 @@ contract LiquidationEngine is Logging {
           accountingEngine.pushDebtToQueue(mul(cdpDebt, accumulatedRates));
 
           auctionId = CollateralAuctionHouseLike(collateralTypes[collateralType].collateralAuctionHouse).startAuction(
-            { cdp: cdp
+            { forgoneCollateralReceiver: cdp
             , initialBidder: address(accountingEngine)
             , amountToRaise: rmul(mul(cdpDebt, accumulatedRates), collateralTypes[collateralType].liquidationPenalty)
             , collateralToSell: collateralToSell

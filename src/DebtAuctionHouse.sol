@@ -27,6 +27,7 @@ contract TokenLike {
     function mint(address,uint) external;
 }
 contract AccountingEngineLike {
+    function settleDebtAuction(uint id) external;
     function totalOnAuctionDebt() public returns (uint);
     function cancelAuctionedDebtWithSurplus(uint) external;
 }
@@ -38,8 +39,12 @@ contract AccountingEngineLike {
 contract DebtAuctionHouse is Logging {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+      authorizedAccounts[account] = 1;
+    }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+      authorizedAccounts[account] = 0;
+    }
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "DebtAuctionHouse/account-not-authorized");
         _;
@@ -58,15 +63,15 @@ contract DebtAuctionHouse is Logging {
 
     CDPEngineLike public cdpEngine;
     TokenLike public protocolToken;
+    AccountingEngineLike public accountingEngine;
 
     uint256  constant ONE = 1.00E18;
-    uint256  public   bidIncrease = 1.05E18;
+    uint256  public   bidDecrease = 1.05E18;
     uint256  public   amountSoldIncrease = 1.50E18;
     uint48   public   bidDuration = 3 hours;
     uint48   public   totalAuctionLength = 2 days;
     uint256  public   auctionsStarted = 0;
     uint256  public   contractEnabled;
-    address  public   accountingEngine;  // not used until shutdown
 
     // --- Events ---
     event StartAuction(
@@ -97,18 +102,24 @@ contract DebtAuctionHouse is Logging {
 
     // --- Admin ---
     function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
-        if (parameter == "bidIncrease") bidIncrease = data;
+        if (parameter == "bidDecrease") bidDecrease = data;
         else if (parameter == "amountSoldIncrease") amountSoldIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
         else revert("DebtAuctionHouse/modify-unrecognized-param");
     }
+    function modifyParameters(bytes32 parameter, address addr) external emitLog isAuthorized {
+        require(contractEnabled == 1, "DebtAuctionHouse/contract-not-enabled");
+        if (parameter == "protocolToken") protocolToken = TokenLike(addr);
+        else if (parameter == "accountingEngine") accountingEngine = AccountingEngineLike(addr);
+        else revert("DebtAuctionHouse/modify-unrecognized-param");
+    }
 
     // --- Auction ---
     function startAuction(
-      address incomeReceiver,
-      uint amountToSell,
-      uint initialBid
+        address incomeReceiver,
+        uint amountToSell,
+        uint initialBid
     ) external isAuthorized returns (uint id) {
         require(contractEnabled == 1, "DebtAuctionHouse/contract-not-enabled");
         require(auctionsStarted < uint(-1), "DebtAuctionHouse/overflow");
@@ -135,11 +146,11 @@ contract DebtAuctionHouse is Logging {
 
         require(bid == bids[id].bidAmount, "DebtAuctionHouse/not-matching-bid");
         require(amountToBuy <  bids[id].amountToSell, "DebtAuctionHouse/amount-bought-not-lower");
-        require(mul(bidIncrease, amountToBuy) <= mul(bids[id].amountToSell, ONE), "DebtAuctionHouse/insufficient-decrease");
+        require(mul(bidDecrease, amountToBuy) <= mul(bids[id].amountToSell, ONE), "DebtAuctionHouse/insufficient-decrease");
 
         cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bid);
 
-        // on first dent, clear as much totalOnAuctionDebt as possible
+        // on first bid submitted, clear as much totalOnAuctionDebt as possible
         if (bids[id].bidExpiry == 0) {
             uint totalOnAuctionDebt = AccountingEngineLike(bids[id].highBidder).totalOnAuctionDebt();
             AccountingEngineLike(bids[id].highBidder).cancelAuctionedDebtWithSurplus(min(bid, totalOnAuctionDebt));
@@ -153,18 +164,20 @@ contract DebtAuctionHouse is Logging {
         require(contractEnabled == 1, "DebtAuctionHouse/not-live");
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "DebtAuctionHouse/not-finished");
         protocolToken.mint(bids[id].highBidder, bids[id].amountToSell);
+        accountingEngine.settleDebtAuction(id);
         delete bids[id];
     }
 
     // --- Shutdown ---
     function disableContract() external emitLog isAuthorized {
         contractEnabled = 0;
-        accountingEngine = msg.sender;
+        // Removed line where we set the accounting engine
     }
     function terminateAuctionPrematurely(uint id) external emitLog {
         require(contractEnabled == 0, "DebtAuctionHouse/contract-still-enabled");
         require(bids[id].highBidder != address(0), "DebtAuctionHouse/high-bidder-not-set");
-        cdpEngine.createUnbackedDebt(accountingEngine, bids[id].highBidder, bids[id].bidAmount);
+        cdpEngine.createUnbackedDebt(address(accountingEngine), bids[id].highBidder, bids[id].bidAmount);
+        accountingEngine.settleDebtAuction(id);
         delete bids[id];
     }
 }

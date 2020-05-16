@@ -204,7 +204,11 @@ contract CDPEngine {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 collateralType, bytes32 parameter, uint data) external emitLog isAuthorized {
+    function modifyParameters(
+        bytes32 collateralType,
+        bytes32 parameter,
+        uint data
+    ) external emitLog isAuthorized {
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
         if (parameter == "safetyPrice") collateralTypes[collateralType].safetyPrice = data;
         else if (parameter == "liquidationPrice") collateralTypes[collateralType].liquidationPrice = data;
@@ -226,7 +230,11 @@ contract CDPEngine {
      * @param account Account that gets credited/debited
      * @param wad Amount of collateral (expressed as a number with 18 decimals)
      */
-    function modifyCollateralBalance(bytes32 collateralType, address account, int256 wad) external emitLog isAuthorized {
+    function modifyCollateralBalance(
+        bytes32 collateralType,
+        address account,
+        int256 wad
+    ) external emitLog isAuthorized {
         tokenCollateral[collateralType][account] = add(tokenCollateral[collateralType][account], wad);
     }
     /**
@@ -236,7 +244,12 @@ contract CDPEngine {
      * @param dst Collateral destination
      * @param wad Amount of collateral transferred (expressed as a number with 18 decimals)
      */
-    function transferCollateral(bytes32 collateralType, address src, address dst, uint256 wad) external emitLog {
+    function transferCollateral(
+        bytes32 collateralType,
+        address src,
+        address dst,
+        uint256 wad
+    ) external emitLog {
         require(canModifyCDP(src, msg.sender), "CDPEngine/not-allowed");
         tokenCollateral[collateralType][src] = sub(tokenCollateral[collateralType][src], wad);
         tokenCollateral[collateralType][dst] = add(tokenCollateral[collateralType][dst], wad);
@@ -271,12 +284,12 @@ contract CDPEngine {
      * @param deltaDebt Amount of debt to generate/repay
      */
     function modifyCDPCollateralization(
-      bytes32 collateralType,
-      address cdp,
-      address collateralSource,
-      address debtDestination,
-      int deltaCollateral,
-      int deltaDebt
+        bytes32 collateralType,
+        address cdp,
+        address collateralSource,
+        address debtDestination,
+        int deltaCollateral,
+        int deltaDebt
     ) external emitLog {
         // system is live
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
@@ -342,11 +355,11 @@ contract CDPEngine {
      * @param reward Amount of collateralType to give to the keeper
      */
     function saveCDP(
-      address liquidator,
-      bytes32 collateralType,
-      address cdp,
-      uint collateralToAdd,
-      uint reward
+        address liquidator,
+        bytes32 collateralType,
+        address cdp,
+        uint collateralToAdd,
+        uint reward
     ) external emitLog isAuthorized {
         require(contractEnabled == 0, "CDPEngine/contract-not-enabled");
         require(liquidator == address(0), "CDPEngine/null-liquidator");
@@ -367,11 +380,11 @@ contract CDPEngine {
      * @param deltaDebt Amount of debt to take/add into src and give/take from dst
      */
     function transferCDPCollateralAndDebt(
-      bytes32 collateralType,
-      address src,
-      address dst,
-      int deltaCollateral,
-      int deltaDebt
+        bytes32 collateralType,
+        address src,
+        address dst,
+        int deltaCollateral,
+        int deltaDebt
     ) external emitLog {
         CDP storage srcCDP = cdps[collateralType][src];
         CDP storage dstCDP = cdps[collateralType][dst];
@@ -409,12 +422,12 @@ contract CDPEngine {
      * @param deltaDebt Amount of collateral taken/added into the CDP
      */
     function confiscateCDPCollateralAndDebt(
-      bytes32 collateralType,
-      address cdp,
-      address collateralCounterparty,
-      address debtCounterparty,
-      int deltaCollateral,
-      int deltaDebt
+        bytes32 collateralType,
+        address cdp,
+        address collateralCounterparty,
+        address debtCounterparty,
+        int deltaCollateral,
+        int deltaDebt
     ) external emitLog isAuthorized {
         CDP storage cdp_ = cdps[collateralType][cdp];
         CollateralType storage collateralType_ = collateralTypes[collateralType];
@@ -458,9 +471,9 @@ contract CDPEngine {
      * @param rad Amount of debt to create (expressed as a number with 45 decimals)
      */
     function createUnbackedDebt(
-      address debtDestination,
-      address coinDestination,
-      uint rad
+        address debtDestination,
+        address coinDestination,
+        uint rad
     ) external emitLog isAuthorized {
         debtBalance[debtDestination]  = add(debtBalance[debtDestination], rad);
         coinBalance[coinDestination]  = add(coinBalance[coinDestination], rad);
@@ -477,9 +490,9 @@ contract CDPEngine {
      * @param rateMultiplier Multiplier applied to the debtAmount in order to calculate the surplus
      */
     function updateAccumulatedRate(
-      bytes32 collateralType,
-      address surplusDst,
-      int rateMultiplier
+        bytes32 collateralType,
+        address surplusDst,
+        int rateMultiplier
     ) external emitLog isAuthorized {
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
         CollateralType storage collateralType_ = collateralTypes[collateralType];

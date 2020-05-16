@@ -57,9 +57,9 @@ contract Coin is Logging {
     bytes32 public constant PERMIT_TYPEHASH = 0xea2aa0a1be11a07ed86d755c93467f4f82362b452371d1ba94d1715123511acb;
 
     constructor(
-      string memory name_,
-      string memory symbol_,
-      uint256 chainId_
+        string memory name_,
+        string memory symbol_,
+        uint256 chainId_
       ) public {
         authorizedAccounts[msg.sender] = 1;
         name     = name_;
@@ -123,8 +123,16 @@ contract Coin is Logging {
     }
 
     // --- Approve by signature ---
-    function permit(address holder, address spender, uint256 nonce, uint256 expiry,
-                    bool allowed, uint8 v, bytes32 r, bytes32 s) external
+    function permit(
+        address holder,
+        address spender,
+        uint256 nonce,
+        uint256 expiry,
+        bool allowed,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external
     {
         bytes32 digest =
             keccak256(abi.encodePacked(

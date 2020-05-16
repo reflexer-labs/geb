@@ -7,6 +7,7 @@ import {SurplusAuctionHouseOne as SAH_ONE} from "./SurplusAuctionHouse.t.sol";
 import {SurplusAuctionHouseTwo as SAH_TWO} from './SurplusAuctionHouse.t.sol';
 import {TestCDPEngine as CDPEngine} from './CDPEngine.t.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
+import {SettlementSurplusAuctioner} from "../SettlementSurplusAuctioner.sol";
 import {CoinJoin} from '../BasicTokenAdapters.sol';
 
 contract Hevm {
@@ -39,6 +40,7 @@ contract AccountingEngineDexFlapperTest is DSTest {
     DAH debtAuctionHouse;
     SAH_TWO surplusAuctionHouseTwo;
     DexLike dex;
+    SettlementSurplusAuctioner settlementSurplusAuctioner;
 
     DSToken protocolToken;
     DSToken systemCoin;
@@ -61,9 +63,8 @@ contract AccountingEngineDexFlapperTest is DSTest {
 
         debtAuctionHouse = new DAH(address(cdpEngine), address(protocolToken));
 
-        surplusAuctionHouseTwo = new SAH_TWO(address(cdpEngine));
+        surplusAuctionHouseTwo = new SAH_TWO(address(cdpEngine), address(protocolToken));
         surplusAuctionHouseTwo.modifyParameters("systemCoin", address(systemCoin));
-        surplusAuctionHouseTwo.modifyParameters("protocolToken", address(protocolToken));
         surplusAuctionHouseTwo.modifyParameters("dex", address(dex));
         surplusAuctionHouseTwo.modifyParameters("coinJoin", address(systemCoinA));
         surplusAuctionHouseTwo.modifyParameters("leftoverReceiver", address(this));
@@ -77,7 +78,11 @@ contract AccountingEngineDexFlapperTest is DSTest {
         surplusAuctionHouseTwo.addAuthorization(address(accountingEngine));
         debtAuctionHouse.addAuthorization(address(accountingEngine));
 
-        accountingEngine.modifyParameters("surplusAuctionAmountSold", rad(100 ether));
+        settlementSurplusAuctioner = new SettlementSurplusAuctioner(address(accountingEngine));
+        accountingEngine.modifyParameters("settlementSurplusAuctioner", address(settlementSurplusAuctioner));
+        surplusAuctionHouseTwo.addAuthorization(address(settlementSurplusAuctioner));
+
+        accountingEngine.modifyParameters("surplusAuctionAmountToSell", rad(100 ether));
         accountingEngine.modifyParameters("debtAuctionBidSize", rad(100 ether));
         accountingEngine.modifyParameters("initialDebtAuctionAmount", 200 ether);
 
@@ -150,7 +155,7 @@ contract AccountingEngineDexFlapperTest is DSTest {
     }
 
     function test_change_auction_houses() public {
-        SAH_TWO newSurplusAuctionHouse = new SAH_TWO(address(cdpEngine));
+        SAH_TWO newSurplusAuctionHouse = new SAH_TWO(address(cdpEngine), address(protocolToken));
         DAH newDAH = new DAH(address(cdpEngine), address(protocolToken));
 
         newSurplusAuctionHouse.addAuthorization(address(accountingEngine));
@@ -221,14 +226,14 @@ contract AccountingEngineDexFlapperTest is DSTest {
     }
 
     function test_no_surplus_auction_pending_debt() public {
-        accountingEngine.modifyParameters("surplusAuctionAmountSold", uint256(0 ether));
+        accountingEngine.modifyParameters("surplusAuctionAmountToSell", uint256(0 ether));
         popDebtFromQueue(100 ether);
 
         cdpEngine.mint(address(accountingEngine), 50 ether);
         assertTrue(!can_auction_surplus() );
     }
     function test_no_surplus_auction_nonzero_woe() public {
-        accountingEngine.modifyParameters("surplusAuctionAmountSold", uint256(0 ether));
+        accountingEngine.modifyParameters("surplusAuctionAmountToSell", uint256(0 ether));
         popDebtFromQueue(100 ether);
         cdpEngine.mint(address(accountingEngine), 50 ether);
         assertTrue(!can_auction_surplus() );
@@ -305,7 +310,7 @@ contract AccountingEngineAuctionFlapperTest is DSTest {
         surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
         debtAuctionHouse.addAuthorization(address(accountingEngine));
 
-        accountingEngine.modifyParameters("surplusAuctionAmountSold", rad(100 ether));
+        accountingEngine.modifyParameters("surplusAuctionAmountToSell", rad(100 ether));
         accountingEngine.modifyParameters("debtAuctionBidSize", rad(100 ether));
         accountingEngine.modifyParameters("initialDebtAuctionAmount", 200 ether);
 
@@ -424,14 +429,14 @@ contract AccountingEngineAuctionFlapperTest is DSTest {
     }
 
     function test_no_surplus_auction_pending_debt() public {
-        accountingEngine.modifyParameters("surplusAuctionAmountSold", uint256(0 ether));
+        accountingEngine.modifyParameters("surplusAuctionAmountToSell", uint256(0 ether));
         popDebtFromQueue(100 ether);
 
         cdpEngine.mint(address(accountingEngine), 50 ether);
         assertTrue(!can_auctionSurplus() );
     }
     function test_no_surplus_auction_nonzero_bad_debt() public {
-        accountingEngine.modifyParameters("surplusAuctionAmountSold", uint256(0 ether));
+        accountingEngine.modifyParameters("surplusAuctionAmountToSell", uint256(0 ether));
         popDebtFromQueue(100 ether);
         cdpEngine.mint(address(accountingEngine), 50 ether);
         assertTrue(!can_auctionSurplus() );

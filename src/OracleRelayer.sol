@@ -22,7 +22,7 @@ contract CDPEngineLike {
 }
 
 contract OracleLike {
-    function getPriceWithValidity() external returns (bytes32, bool);
+    function getPriceWithValidity() external view returns (bytes32, bool);
 }
 
 contract OracleRelayer is Logging {
@@ -111,7 +111,11 @@ contract OracleRelayer is Logging {
     }
 
     // --- Administration ---
-    function modifyParameters(bytes32 collateralType, bytes32 parameter, address addr) external emitLog isAuthorized {
+    function modifyParameters(
+        bytes32 collateralType,
+        bytes32 parameter,
+        address addr
+    ) external emitLog isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         if (parameter == "orcl") collateralTypes[collateralType].orcl = OracleLike(addr);
         else revert("OracleRelayer/modify-unrecognized-param");
@@ -126,7 +130,11 @@ contract OracleRelayer is Logging {
         }
         else revert("OracleRelayer/modify-unrecognized-param");
     }
-    function modifyParameters(bytes32 collateralType, bytes32 parameter, uint data) external emitLog isAuthorized {
+    function modifyParameters(
+        bytes32 collateralType,
+        bytes32 parameter,
+        uint data
+    ) external emitLog isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         if (parameter == "safetyCRatio") {
           require(data <= collateralTypes[collateralType].liquidationCRatio, "OracleRelayer/mat-lower-than-tam");
@@ -142,7 +150,10 @@ contract OracleRelayer is Logging {
     // --- Redemption Price Update ---
     function updateRedemptionPrice() public emitLog returns (uint) {
         // Update redemption price
-        _redemptionPrice = rmul(rpow(redemptionRate, sub(now, redemptionPriceUpdateTime), RAY), _redemptionPrice);
+        _redemptionPrice = rmul(
+          rpow(redemptionRate, sub(now, redemptionPriceUpdateTime), RAY),
+          _redemptionPrice
+        );
         redemptionPriceUpdateTime = now;
         // Return updated redemption price
         return _redemptionPrice;
@@ -154,10 +165,12 @@ contract OracleRelayer is Logging {
 
     // --- Update value ---
     function updateCollateralPrice(bytes32 collateralType) external {
-        (bytes32 priceFeedValue, bool hasValidValue) = collateralTypes[collateralType].orcl.getPriceWithValidity();
+        (bytes32 priceFeedValue, bool hasValidValue) =
+          collateralTypes[collateralType].orcl.getPriceWithValidity();
         uint redemptionPrice_ = redemptionPrice();
         uint256 safetyPrice_ = hasValidValue ? rdiv(rdiv(mul(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].safetyCRatio) : 0;
         uint256 liquidationPrice_ = (hasValidValue && collateralTypes[collateralType].liquidationCRatio > 0) ? rdiv(rdiv(mul(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].liquidationCRatio) : 0;
+
         cdpEngine.modifyParameters(collateralType, "safetyPrice", safetyPrice_);
         cdpEngine.modifyParameters(collateralType, "liquidationPrice", liquidationPrice_);
         emit UpdateCollateralPrice(collateralType, priceFeedValue, safetyPrice_, liquidationPrice_);

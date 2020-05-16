@@ -70,10 +70,10 @@ contract StabilityFeeTreasury is Logging {
     uint256 public contractEnabled;
 
     constructor(
-      address cdpEngine_,
-      address accountingEngine_,
-      address coinJoin_,
-      uint surplusTransferDelay_
+        address cdpEngine_,
+        address accountingEngine_,
+        address coinJoin_,
+        uint surplusTransferDelay_
     ) public {
         require(address(CoinJoinLike(coinJoin_).systemCoin()) != address(0), "StabilityFeeTreasury/null-system-coin");
         authorizedAccounts[msg.sender] = 1;
@@ -135,11 +135,11 @@ contract StabilityFeeTreasury is Logging {
         else revert("StabilityFeeTreasury/modify-unrecognized-param");
     }
     function disableContract() external emitLog isAuthorized {
+        contractEnabled = 0;
         if (systemCoin.balanceOf(address(this)) > 0) {
           coinJoin.join(address(this), systemCoin.balanceOf(address(this)));
         }
         cdpEngine.transferInternalCoins(address(this), accountingEngine, cdpEngine.coinBalance(address(this)));
-        contractEnabled = 0;
     }
 
     // --- Utils ---

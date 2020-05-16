@@ -190,9 +190,8 @@ contract SurplusAuctionHouseTwoTest is DSTest {
         systemCoin.mint(address(this), 50 ether);
         systemCoin.setOwner(address(systemCoinJoin));
 
-        surplusAuctionHouse = new SurplusAuctionHouseTwo(address(cdpEngine));
+        surplusAuctionHouse = new SurplusAuctionHouseTwo(address(cdpEngine), address(protocolToken));
         surplusAuctionHouse.modifyParameters("systemCoin", address(systemCoin));
-        surplusAuctionHouse.modifyParameters("protocolToken", address(protocolToken));
         surplusAuctionHouse.modifyParameters("dex", address(dex));
         surplusAuctionHouse.modifyParameters("coinJoin", address(systemCoinJoin));
         surplusAuctionHouse.modifyParameters("leftoverReceiver", address(this));
