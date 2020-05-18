@@ -34,7 +34,7 @@ contract Feed {
         priceFeedValue = bytes32(initPrice);
         hasValidValue = initHas;
     }
-    function getPriceWithValidity() external returns (bytes32, bool) {
+    function getResultWithValidity() external returns (bytes32, bool) {
         return (priceFeedValue, hasValidValue);
     }
 }

@@ -92,7 +92,7 @@ contract Feed {
     function set_has(bool newHas) external {
         hasValidValue = newHas;
     }
-    function getPriceWithValidity() external returns (bytes32, bool) {
+    function getResultWithValidity() external returns (bytes32, bool) {
         return (priceFeedValue, hasValidValue);
     }
 }

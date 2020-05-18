@@ -48,12 +48,12 @@ contract DSThing is DSAuth, DSNote, DSMath {
 contract DummyOSM is DSThing {
     bool    validPrice;
     bytes32 price;
-    function getPriceWithValidity() public view returns (bytes32, bool) {
+    function getResultWithValidity() public view returns (bytes32, bool) {
         return (price,validPrice);
     }
     function getPrice() public view returns (bytes32) {
         bytes32 price_; bool validPrice_;
-        (price_, validPrice_) = getPriceWithValidity();
+        (price_, validPrice_) = getResultWithValidity();
         require(validPrice_, "not-valid");
         return price_;
     }
@@ -138,7 +138,7 @@ contract Feed {
         price = initPrice;
         validPrice = initValid;
     }
-    function getPriceWithValidity() public view returns (bytes32, bool) {
+    function getResultWithValidity() public view returns (bytes32, bool) {
         return (price,validPrice);
     }
 }

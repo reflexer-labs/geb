@@ -32,7 +32,7 @@ contract Feed {
         price = bytes32(price_);
         lastUpdateTime = now;
     }
-    function getPriceWithValidity() external view returns (bytes32, bool) {
+    function getResultWithValidity() external view returns (bytes32, bool) {
         return (price, validPrice);
     }
 }
