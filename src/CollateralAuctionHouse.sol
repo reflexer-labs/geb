@@ -27,7 +27,7 @@ contract OracleRelayerLike {
     function redemptionPrice() public returns (uint256);
 }
 contract OracleLike {
-    function getPriceWithValidity() external returns (bytes32, bool);
+    function getResultWithValidity() external returns (bytes32, bool);
 }
 
 /*
@@ -214,7 +214,7 @@ contract CollateralAuctionHouse is Logging {
 
         // check for first bid only
         if (bids[id].bidAmount == 0) {
-            (bytes32 priceFeedValue, bool hasValidValue) = orcl.getPriceWithValidity();
+            (bytes32 priceFeedValue, bool hasValidValue) = orcl.getResultWithValidity();
             if (hasValidValue) {
                 uint256 redemptionPrice = oracleRelayer.redemptionPrice();
                 require(bid >= mul(wmul(rdiv(uint256(priceFeedValue), redemptionPrice), amountToBuy), bidToMarketPriceRatio), "CollateralAuctionHouse/first-bid-too-low");

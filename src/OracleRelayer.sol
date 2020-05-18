@@ -22,7 +22,7 @@ contract CDPEngineLike {
 }
 
 contract OracleLike {
-    function getPriceWithValidity() external view returns (bytes32, bool);
+    function getResultWithValidity() external view returns (bytes32, bool);
 }
 
 contract OracleRelayer is Logging {
@@ -166,7 +166,7 @@ contract OracleRelayer is Logging {
     // --- Update value ---
     function updateCollateralPrice(bytes32 collateralType) external {
         (bytes32 priceFeedValue, bool hasValidValue) =
-          collateralTypes[collateralType].orcl.getPriceWithValidity();
+          collateralTypes[collateralType].orcl.getResultWithValidity();
         uint redemptionPrice_ = redemptionPrice();
         uint256 safetyPrice_ = hasValidValue ? rdiv(rdiv(mul(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].safetyCRatio) : 0;
         uint256 liquidationPrice_ = (hasValidValue && collateralTypes[collateralType].liquidationCRatio > 0) ? rdiv(rdiv(mul(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].liquidationCRatio) : 0;
