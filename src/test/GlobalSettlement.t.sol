@@ -51,7 +51,7 @@ contract DummyOSM is DSThing {
     function getResultWithValidity() public view returns (bytes32, bool) {
         return (price,validPrice);
     }
-    function getPrice() public view returns (bytes32) {
+    function read() public view returns (bytes32) {
         bytes32 price_; bool validPrice_;
         (price_, validPrice_) = getResultWithValidity();
         require(validPrice_, "not-valid");
