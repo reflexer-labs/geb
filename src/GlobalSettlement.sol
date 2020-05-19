@@ -76,7 +76,7 @@ contract CollateralAuctionHouseLike {
     function terminateAuctionPrematurely(uint auctionId) external;
 }
 contract OracleLike {
-    function getPrice() external view returns (bytes32);
+    function read() external view returns (bytes32);
 }
 contract OracleRelayerLike {
     function redemptionPrice() external view returns (uint256);
@@ -271,7 +271,7 @@ contract GlobalSettlement is Logging {
         (collateralTotalDebt[collateralType],,,,,) = cdpEngine.collateralTypes(collateralType);
         (OracleLike orcl,) = oracleRelayer.collateralTypes(collateralType);
         // redemptionPrice is a ray, orcl returns a wad
-        finalCoinPerCollateralPrice[collateralType] = wdiv(oracleRelayer.redemptionPrice(), uint(orcl.getPrice()));
+        finalCoinPerCollateralPrice[collateralType] = wdiv(oracleRelayer.redemptionPrice(), uint(orcl.read()));
     }
     function fastTrackAuction(bytes32 collateralType, uint256 auctionId) external emitLog {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
