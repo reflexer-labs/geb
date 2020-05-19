@@ -136,6 +136,90 @@ contract Usr {
     }
 }
 
+contract SaveCDPTest is DSTest {
+    TestCDPEngine cdpEngine;
+    DSToken gold;
+
+    CollateralJoin collateralA;
+    address me;
+
+    Usr bob;
+
+    uint constant RAY = 10 ** 27;
+
+    function try_saveCDP(
+      bytes32 collateralType,
+      address cdp,
+      address liquidator,
+      uint collateralToAdd,
+      uint reward
+    ) public returns (bool ok) {
+      string memory sig = "saveCDP(bytes32,address,address,uint256,uint256)";
+      address self = address(this);
+      (ok,) = address(cdpEngine).call(abi.encodeWithSignature(sig, collateralType, cdp, liquidator, collateralToAdd, reward));
+    }
+
+    function ray(uint wad) internal pure returns (uint) {
+        return wad * 10 ** 9;
+    }
+    function rad(uint wad) internal pure returns (uint) {
+        return wad * 10 ** 27;
+    }
+
+    function setUp() public {
+        cdpEngine = new TestCDPEngine();
+
+        gold = new DSToken("GEM");
+        gold.mint(1000 ether);
+
+        cdpEngine.initializeCollateralType("gold");
+        collateralA = new CollateralJoin(address(cdpEngine), "gold", address(gold));
+
+        cdpEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
+        cdpEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
+        cdpEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
+
+        gold.approve(address(collateralA));
+        gold.approve(address(cdpEngine));
+
+        cdpEngine.addAuthorization(address(cdpEngine));
+        cdpEngine.addAuthorization(address(collateralA));
+
+        collateralA.join(address(this), 500 ether);
+
+        bob = new Usr(cdpEngine);
+
+        me = address(this);
+    }
+
+    function testFail_inexistent_collateral() public {
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 1 ether, 0);
+        cdpEngine.saveCDP("silver", me, address(bob), 1 ether, 0.1 ether);
+    }
+    function testFail_contract_disabled() public {
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 6 ether, 0);
+        cdpEngine.disableContract();
+        cdpEngine.saveCDP("gold", me, address(bob), 1 ether, 0.1 ether);
+    }
+    function testFail_save_cdp_without_adapter_collateral() public {
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 6 ether, 0);
+        cdpEngine.saveCDP("gold", me, address(bob), 1 ether, 1000 ether);
+        (uint lockedCollateral, ) = cdpEngine.cdps("gold", me);
+        assertEq(cdpEngine.tokenCollateral("gold", address(bob)), 1000 ether);
+        assertEq(lockedCollateral, 7 ether);
+        bob.exit(address(collateralA), address(bob), 1000 ether);
+    }
+    function test_successfuly_save_cdp() public {
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 6 ether, 0);
+        cdpEngine.saveCDP("gold", me, address(bob), 1 ether, 0.1 ether);
+        (uint lockedCollateral, ) = cdpEngine.cdps("gold", me);
+        assertEq(cdpEngine.tokenCollateral("gold", address(bob)), 0.1 ether);
+        assertEq(lockedCollateral, 7 ether);
+        bob.exit(address(collateralA), address(bob), 0.1 ether);
+        assertEq(gold.balanceOf(address(bob)), 0.1 ether);
+    }
+}
+
 contract ModifyCDPCollateralizationTest is DSTest {
     TestCDPEngine cdpEngine;
     DSToken gold;
@@ -143,10 +227,7 @@ contract ModifyCDPCollateralizationTest is DSTest {
     TaxCollector taxCollector;
 
     CollateralJoin collateralA;
-    CollateralJoin collateralB;
     address me;
-
-    Usr keeper;
 
     uint constant RAY = 10 ** 27;
 
@@ -172,44 +253,25 @@ contract ModifyCDPCollateralizationTest is DSTest {
         gold = new DSToken("GEM");
         gold.mint(1000 ether);
 
-        stable = new DSToken("STA");
-        stable.mint(1000 ether);
-
         cdpEngine.initializeCollateralType("gold");
-        cdpEngine.initializeCollateralType("stable");
 
         collateralA = new CollateralJoin(address(cdpEngine), "gold", address(gold));
-        collateralB = new CollateralJoin(address(cdpEngine), "stable", address(stable));
 
         cdpEngine.modifyParameters("gold", "safetyPrice",    ray(1 ether));
         cdpEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
-        cdpEngine.modifyParameters("stable", "safetyPrice",    ray(0.11 ether));
-        cdpEngine.modifyParameters("stable", "debtCeiling", rad(1000 ether));
         cdpEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
 
         taxCollector = new TaxCollector(address(cdpEngine));
         taxCollector.initializeCollateralType("gold");
-        taxCollector.initializeCollateralType("stable");
         cdpEngine.addAuthorization(address(taxCollector));
 
         gold.approve(address(collateralA));
         gold.approve(address(cdpEngine));
 
-        stable.approve(address(collateralB));
-        stable.approve(address(cdpEngine));
-
         cdpEngine.addAuthorization(address(cdpEngine));
         cdpEngine.addAuthorization(address(collateralA));
-        cdpEngine.addAuthorization(address(collateralB));
 
         collateralA.join(address(this), 1000 ether);
-
-        keeper = new Usr(cdpEngine);
-
-        stable.transfer(address(keeper), 100 ether);
-
-        keeper.approve(address(stable), address(collateralB), 2**255);
-        keeper.join(address(collateralB), address(keeper), 100 ether);
 
         me = address(this);
     }
@@ -231,8 +293,6 @@ contract ModifyCDPCollateralizationTest is DSTest {
     function test_setup() public {
         assertEq(gold.balanceOf(address(collateralA)), 1000 ether);
         assertEq(tokenCollateral("gold", address(this)), 1000 ether);
-        assertEq(stable.balanceOf(address(keeper)), 0);
-        assertEq(stable.balanceOf(address(collateralB)), 100 ether);
     }
     function test_join() public {
         address cdp = address(this);
