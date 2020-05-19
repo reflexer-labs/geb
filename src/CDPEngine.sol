@@ -347,23 +347,23 @@ contract CDPEngine {
     // --- CDP Insurance ---
     /**
      * @notice Add more collateral in a CDP and reward the keeper who initially wanted to liquidate the CDP
-     * @param liquidator Actor who called LiquidationEngine.liquidateCDP and then the CDPSaviour
-       triggered this function
      * @param collateralType Type of collateral to add to the CDP and reward the keeper with
      * @param cdp Target CDP
+     * @param liquidator Actor who called LiquidationEngine.liquidateCDP and then the CDPSaviour
+       triggered this function
      * @param collateralToAdd Amount of collateral to add in the CDP
      * @param reward Amount of collateralType to give to the keeper
      */
     function saveCDP(
-        address liquidator,
         bytes32 collateralType,
         address cdp,
+        address liquidator,
         uint collateralToAdd,
         uint reward
     ) external emitLog isAuthorized {
-        require(contractEnabled == 0, "CDPEngine/contract-not-enabled");
-        require(liquidator == address(0), "CDPEngine/null-liquidator");
-        require(cdps[collateralType][cdp].lockedCollateral == 0, "CDPEngine/no-predeposited-collateral");
+        require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
+        require(liquidator != address(0), "CDPEngine/null-liquidator");
+        require(collateralTypes[collateralType].accumulatedRates > 0, "CDPEngine/inexistent-collateral-type");
         cdps[collateralType][cdp].lockedCollateral =
           add(cdps[collateralType][cdp].lockedCollateral, collateralToAdd);
         tokenCollateral[collateralType][liquidator] =
