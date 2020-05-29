@@ -20,7 +20,7 @@ CDP users can generate GEB until they hit the *safeCRatio* but they will only ge
 
 ## Redemption Rate
 
-The redemption rate is a variable inside Oracle Relayer (previously Spot/ter) that acts similarly to an interest rate which is applied to the redemption price (previously par). As describe in our first [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf), the redemption rate is the main driving force that changes the incentives of CDP participants.
+The redemption rate is a variable inside Oracle Relayer (previously Spot/ter) that acts similarly to an interest rate which is applied to the redemption price (previously par). As described in our first [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf), the redemption rate is the main driving force that changes the incentives of CDP participants.
 
 ## Stability Fee Treasury
 
