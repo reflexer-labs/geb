@@ -24,10 +24,16 @@ The redemption rate is a variable inside Oracle Relayer (previously Spot/ter) th
 
 ## Stability Fee Treasury
 
-
+The [treasury](https://github.com/reflexer-labs/geb/blob/master/src/StabilityFeeTreasury.sol) is in charge with paying for oracle calls, paying collateral onboarding teams (in some GEB versions) and providing funds for on-chain market making. It can be set up to transfer some of its funds into the AccountingEngine (previously Vow) in case the predicted costs for maintaining the system in the next *P* seconds are lower than the currently available surplus.
 
 ## Settlement Surplus Auctioner
 
+This contract auctions all the remaining surplus after GlobalSettlement (previously End) shuts down the system and the AccountingEngine settles as much debt as possible.
+
+We are looking at alternative ways to drain the extra surplus without giving CDP users, GEB or protocol token holders any advantage when the system settles.
+
 ## Debt Auction Bid Target
+
+
 
 ## Variable Names You Can Actually Understand :astonished:
