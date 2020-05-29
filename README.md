@@ -90,3 +90,31 @@ The following tables show the before and after variable names
 | rely | addAuthorization |                
 | deny | removeAuthorization |            
 | auth | isAuthorized |
+| vat | cdpEngine |
+| flapper | surplusAuctionHouse |
+| flopper | debtAuctionHouse |
+| NaN | settlementSurplusAuctioner (NEW) |
+| sin | debtQueue |
+| NaN | activeDebtAuctions |
+| Sin | totalQueuedDebt |
+| Ash | totalOnAuctionDebt |
+| NaN | activeDebtAuctionsAccumulator |
+| NaN | lastSurplusAuctionTime |
+| NaN | surplusAuctionDelay |
+| wait | popDebtDelay |
+| dump | initialDebtAuctionAmount |
+| sump | debtAuctionBidSize |
+| NaN | debtAuctionBidTarget |
+| bump | surplusAuctionAmountToSell |
+| hump | surplusBuffer |
+| live | contractEnabled |
+| file | modifyParameters |
+| fess | pushDebtToQueue |
+| flog | popDebtFromQueue |
+| heal | settleDebt |
+| kiss | cancelAuctionedDebtWithSurplus |
+| flop | auctionDebt |
+| NaN | settleDebtAuction (NEW) |
+| NaN | settleDebtAuction (NEW) |
+| flap | auctionSurplus |
+| cage | disableContract |
