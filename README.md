@@ -4,17 +4,23 @@ This repository contains the core smart contract code for Generalized Ethereum B
 
 # What is a Reflex Bond?
 
-A reflex-bond is an asset that mirrors the price movements of its collateral in a dampened way (and with). The _future_ redemption price of a reflex bond depends on the market price deviation from its _current_ redemption. For more details, check the [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf).
+A reflex-bond is an asset that mirrors the price movements of its collateral in a dampened way (and with lags between the underlying changing its value and the reflex bond system reacting to that). The _future_ redemption price of a reflex bond depends on the market price deviation from its _current_ redemption. For more details, check the [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf).
 
-# Differences Compared to MCD
+# Differences Compared to Multi Collateral Dai (MCD)
 
 ## Insurance for CDPs
 
-GEB creators can allow 
+GEB creators can allow CDP users to specify "trigger" contracts that protect them against liquidation. A trigger is called when a keeper calls the *liquidateCDP* function (previously *bite*) from LiquidationEngine (previously Cat). The trigger can, for example, sell a short position and add the proceeds to a CDP, thus saving it from the CollateralAuctionHouse (previously Flip/per).
 
-## Two CDP Ratio Thresholds 
+Trigger integrations need to be thoroughly audited because there is the risk that too little collateral is locked in a CollateralJoin adapter (previously GemJoin) and too much is added in the CDPEngine (previously Vat). A bug like this would allow a CDP user to generate GEB that is not covered by enough (or any) collateral.
+
+## Two CDP Ratio Thresholds
+
+CDP users can generate GEB until they hit the *safeCRatio* but they will only get liquidated when the CDP's ratio goes under *liquidationCRatio*. liquidationCRatio must be smaller or equal to safeCRatio.
 
 ## Redemption Rate
+
+
 
 ## Stability Fee Treasury
 
