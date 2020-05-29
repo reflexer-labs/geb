@@ -4,7 +4,7 @@ This repository contains the core smart contract code for Generalized Ethereum B
 
 # What is a Reflex Bond?
 
-A reflex-bond is a low volatility proxy for the underlying collateral that supports its value. The _future_ redemption price of a reflex bond depends on the market price deviation from its _current_ redemption.
+A reflex-bond is an asset that mirrors the price movements of its collateral in a dampened way (and with). The _future_ redemption price of a reflex bond depends on the market price deviation from its _current_ redemption. For more details, check the [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf).
 
 # Differences Compared to MCD
 
