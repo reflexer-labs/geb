@@ -40,13 +40,13 @@ Governance can set a variable called *debtAuctionBidTarget* which can be used to
 
 The following tables show the before and after variable names
 
-| Vat | CDPEngine |
-| --- | --- |
-| wards | authorizedAccounts |
-| rely | addAuthorization |
-| deny | removeAuthorization |
-| auth | isAuthorized |
-| can | cdpRights |
+| Vat | CDPEngine |                                     | Vow | AccountingEngine |
+| --- | --- |                                           | --- | --- |
+| wards | authorizedAccounts |                          | wards | authorizedAccounts |                        
+| rely | addAuthorization |                             | rely | addAuthorization |
+| deny | removeAuthorization |                          | deny | removeAuthorization |
+| auth | isAuthorized |                                 | auth | isAuthorized |
+| can | cdpRights |                                     
 | hope | approveCDPModification |
 | nope | denyCDPModification |
 | wish | canModifyCDP |
