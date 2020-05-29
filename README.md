@@ -154,3 +154,14 @@ The following tables show the before and after variable names
 | tab | amountToRaise |
 | bid | initialBid |
 | Bite | Liquidate |
+
+| Dai | Coin |
+| --- | --- |
+| wards | authorizedAccounts |                                  
+| rely | addAuthorization |                
+| deny | removeAuthorization |            
+| auth | isAuthorized |
+
+| Lib | Logging |
+| --- | --- |
+| note | emitLog |
