@@ -50,3 +50,23 @@ The following tables show the before and after variable names
 | hope | approveCDPModification |
 | nope | denyCDPModification |
 | wish | canModifyCDP |
+| Ilk | CollateralType |
+| Ilk.Art | CollateralType.debtAmount |
+| Ilk.rate | CollateralType.accumulatedRates |
+| Ilk.spot | CollateralType.safetyPrice |
+| Ilk.line | CollateralType.debtCeiling |
+| Ilk.dust | CollateralType.debtFloor |
+| NaN | CollateralType.liquidationPrice (NEW) |
+| Urn | CDP |
+| Urn.ink | CDP.lockedCollateral |
+| Urn.art | CDP.generatedDebt |
+| ilks | collateralTypes |
+| urns | cdps |
+| gem | tokenCollateral |
+| dai | coinBalance |
+| sin | debtBalance |
+| debt | globalDebt |
+| vice | globalUnbackedDebt |
+| Line | globalDebtCeiling |
+| live | contractEnabled |
+| note | emitLog |
