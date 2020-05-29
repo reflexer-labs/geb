@@ -98,9 +98,9 @@ The following tables show the before and after variable names
 | NaN | activeDebtAuctions |
 | Sin | totalQueuedDebt |
 | Ash | totalOnAuctionDebt |
-| NaN | activeDebtAuctionsAccumulator |
-| NaN | lastSurplusAuctionTime |
-| NaN | surplusAuctionDelay |
+| NaN | activeDebtAuctionsAccumulator (NEW) |
+| NaN | lastSurplusAuctionTime (NEW) |
+| NaN | surplusAuctionDelay (NEW) |
 | wait | popDebtDelay |
 | dump | initialDebtAuctionAmount |
 | sump | debtAuctionBidSize |
@@ -117,3 +117,40 @@ The following tables show the before and after variable names
 | NaN | settleDebtAuction (NEW) |
 | flap | auctionSurplus |
 | cage | disableContract |
+
+| Cat | LiquidationEngine |
+| --- | --- |
+| wards | authorizedAccounts |                                  
+| rely | addAuthorization |                
+| deny | removeAuthorization |            
+| auth | isAuthorized |
+| NaN | cdpSaviours (NEW) |
+| NaN | connectCDPSaviour (NEW) |
+| NaN | disconnectCDPSaviour (NEW) |
+| Ilk | CollateralType |
+| Ilk.flip | CollateralType.collateralAuctionHouse |
+| Ilk.chop | CollateralType.liquidationPenalty |
+| Ilk.lump | CollateralType.collateralToSell |
+| ilks | collateralTypes |
+| NaN | chosenCDPSaviour (NEW) |
+| NaN | mutex (NEW) |
+| live | contractEnabled |
+| vat | cdpEngine |
+| vow | accountingEngine |
+| file | modifyParameters |
+| file | modifyParameters |
+| flip | collateralAuctionHouse |
+| cage | disableContract |
+| NaN | protectCDP (NEW) |
+| bite | liquidateCDP |
+| urn | cdp |
+| rate | accumulatedRates |
+| ink | cdpCollateral |
+| art | cdpDebt |
+| lot | collateralToSell |
+| grab | confiscateCDPCollateralAndDebt |
+| fess | pushDebtToQueue |
+| gal | initialBidder |
+| tab | amountToRaise |
+| bid | initialBid |
+| Bite | Liquidate |
