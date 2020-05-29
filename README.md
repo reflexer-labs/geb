@@ -115,6 +115,5 @@ The following tables show the before and after variable names
 | kiss | cancelAuctionedDebtWithSurplus |
 | flop | auctionDebt |
 | NaN | settleDebtAuction (NEW) |
-| NaN | settleDebtAuction (NEW) |
 | flap | auctionSurplus |
 | cage | disableContract |
