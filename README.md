@@ -70,3 +70,16 @@ The following tables show the before and after variable names
 | Line | globalDebtCeiling |
 | live | contractEnabled |
 | note | emitLog |
+| init | initializeCollateralType |
+| file | modifyParameters |
+| cage | disableContract |
+| slip | modifyCollateralBalance |
+| flux | transferCollateral |
+| move | transferInternalCoins |
+| frob | modifyCDPCollateralization |
+| NaN | saveCDP (NEW) |
+| fork | transferCDPCollateralAndDebt |
+| grab | confiscateCDPCollateralAndDebt |
+| heal | settleDebt |
+| suck | createUnbackedDebt |
+| fold | updateAccumulatedRate |
