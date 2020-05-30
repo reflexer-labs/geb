@@ -210,7 +210,7 @@ contract SaveCDPTest is DSTest {
         bob.exit(address(collateralA), address(bob), 1000 ether);
     }
     function test_successfuly_save_cdp() public {
-        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 6 ether, 0);
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 6 ether, 3 ether);
         cdpEngine.saveCDP("gold", me, address(bob), 1 ether, 0.1 ether);
         (uint lockedCollateral, ) = cdpEngine.cdps("gold", me);
         assertEq(cdpEngine.tokenCollateral("gold", address(bob)), 0.1 ether);

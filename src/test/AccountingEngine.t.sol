@@ -40,7 +40,6 @@ contract AccountingEngineDexFlapperTest is DSTest {
     DAH debtAuctionHouse;
     SAH_TWO surplusAuctionHouseTwo;
     DexLike dex;
-    SettlementSurplusAuctioner settlementSurplusAuctioner;
 
     DSToken protocolToken;
     DSToken systemCoin;
@@ -77,10 +76,6 @@ contract AccountingEngineDexFlapperTest is DSTest {
         );
         surplusAuctionHouseTwo.addAuthorization(address(accountingEngine));
         debtAuctionHouse.addAuthorization(address(accountingEngine));
-
-        settlementSurplusAuctioner = new SettlementSurplusAuctioner(address(accountingEngine));
-        accountingEngine.modifyParameters("settlementSurplusAuctioner", address(settlementSurplusAuctioner));
-        surplusAuctionHouseTwo.addAuthorization(address(settlementSurplusAuctioner));
 
         accountingEngine.modifyParameters("surplusAuctionAmountToSell", rad(100 ether));
         accountingEngine.modifyParameters("debtAuctionBidSize", rad(100 ether));
@@ -292,6 +287,7 @@ contract AccountingEngineAuctionFlapperTest is DSTest {
     AccountingEngine  accountingEngine;
     DAH debtAuctionHouse;
     SAH_ONE surplusAuctionHouseOne;
+    SettlementSurplusAuctioner settlementSurplusAuctioner;
     Gem  protocolToken;
 
     function setUp() public {
@@ -308,6 +304,11 @@ contract AccountingEngineAuctionFlapperTest is DSTest {
           address(cdpEngine), address(surplusAuctionHouseOne), address(debtAuctionHouse)
         );
         surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
+
+        settlementSurplusAuctioner = new SettlementSurplusAuctioner(address(accountingEngine));
+        accountingEngine.modifyParameters("settlementSurplusAuctioner", address(settlementSurplusAuctioner));
+        surplusAuctionHouseOne.addAuthorization(address(settlementSurplusAuctioner));
+
         debtAuctionHouse.addAuthorization(address(accountingEngine));
 
         accountingEngine.modifyParameters("surplusAuctionAmountToSell", rad(100 ether));
@@ -426,6 +427,13 @@ contract AccountingEngineAuctionFlapperTest is DSTest {
     function test_surplus_auction_one() public {
         cdpEngine.mint(address(accountingEngine), 100 ether);
         assertTrue( can_auctionSurplus() );
+    }
+
+    function test_settlement_auction_surplus() public {
+        cdpEngine.mint(address(settlementSurplusAuctioner), 100 ether);
+        accountingEngine.disableContract();
+        uint id = settlementSurplusAuctioner.auctionSurplus();
+        assertEq(id, 1);
     }
 
     function test_no_surplus_auction_pending_debt() public {

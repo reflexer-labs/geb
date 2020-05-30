@@ -44,10 +44,19 @@ contract Guy {
     }
 }
 
+contract GlobalSettlement {
+    uint public contractEnabled = 0;
+
+    function toggle() external {
+        contractEnabled = (contractEnabled == 1) ? 0 : 1;
+    }
+}
+
 contract SurplusAuctionHouseOneTest is DSTest {
     Hevm hevm;
 
     SurplusAuctionHouseOne surplusAuctionHouse;
+    GlobalSettlement globalSettlement;
     CDPEngine cdpEngine;
     DSToken protocolToken;
 
@@ -62,6 +71,8 @@ contract SurplusAuctionHouseOneTest is DSTest {
         protocolToken = new DSToken('');
 
         surplusAuctionHouse = new SurplusAuctionHouseOne(address(cdpEngine), address(protocolToken));
+        globalSettlement = new GlobalSettlement();
+        surplusAuctionHouse.modifyParameters("globalSettlement", address(globalSettlement));
 
         ali = address(new Guy(surplusAuctionHouse));
         bob = address(new Guy(surplusAuctionHouse));
@@ -138,6 +149,28 @@ contract SurplusAuctionHouseOneTest is DSTest {
         assertTrue( Guy(ali).try_restartAuction(id));
         // check biddable
         assertTrue( Guy(ali).try_increaseBidSize(id, 100 ether, 1 ether));
+    }
+    function testFail_terminate_prematurely() public {
+        uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
+        // amount to buy taken from creator
+        assertEq(cdpEngine.coinBalance(address(this)), 900 ether);
+
+        Guy(ali).increaseBidSize(id, 100 ether, 1 ether);
+        // Shutdown
+        surplusAuctionHouse.disableContract();
+        surplusAuctionHouse.terminateAuctionPrematurely(id);
+    }
+    function test_terminate_prematurely() public {
+        uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
+        // amount to buy taken from creator
+        assertEq(cdpEngine.coinBalance(address(this)), 900 ether);
+
+        Guy(ali).increaseBidSize(id, 100 ether, 1 ether);
+        // Shutdown
+        surplusAuctionHouse.disableContract();
+        // Allow termination
+        globalSettlement.toggle();
+        surplusAuctionHouse.terminateAuctionPrematurely(id);
     }
 }
 
