@@ -255,6 +255,12 @@ contract TaxCollector is Logging {
     }
 
     // --- Bucket Utils ---
+    /**
+     * @notice Create a new bucket
+     * @param collateralType Collateral type that will give SF to the bucket
+     * @param taxPercentage Percentage of SF offered to the bucket
+     * @param bucketAccount Bucket address
+     */
     function createBucket(bytes32 collateralType, uint256 taxPercentage, address bucketAccount) internal {
         require(bucketAccount != address(0), "TaxCollector/null-account");
         require(bucketAccount != accountingEngine, "TaxCollector/accounting-engine-cannot-be-bucket");
@@ -271,6 +277,12 @@ contract TaxCollector is Logging {
         bucketRevenueSources[bucketAccount]                 = ONE;
         bucketList.push(latestBucket, false);
     }
+    /**
+     * @notice Update a bucket's data (add a new SF source or modify % of SF taken from a collateral type)
+     * @param collateralType Collateral type that will give SF to the bucket
+     * @param position Bucket's position in the bucket list
+     * @param taxPercentage Percentage of SF offered to the bucket
+     */
     function fixBucket(bytes32 collateralType, uint256 position, uint256 taxPercentage) internal {
         if (taxPercentage == 0) {
           bucketTaxCut[collateralType] = sub(
@@ -310,6 +322,9 @@ contract TaxCollector is Logging {
     }
 
     // --- Tax Collection Utils ---
+    /**
+     * @notice Check if all collateral types are up to date with taxation
+     */
     function collectedAllTax() public view returns (bool ko) {
         for (uint i = 0; i < collateralList.length; i++) {
           if (now > collateralTypes[collateralList[i]].updateTime) {
@@ -318,6 +333,9 @@ contract TaxCollector is Logging {
           }
         }
     }
+    /**
+     * @notice Check how much SF will be distributed (from all collateral types) during the next taxation
+     */
     function nextTaxationOutcome() public view returns (bool ok, int rad) {
         int  accountingEngineCoinBalance_ = -int(cdpEngine.coinBalance(accountingEngine));
         int  deltaRate;
@@ -335,6 +353,9 @@ contract TaxCollector is Logging {
           ok = true;
         }
     }
+    /**
+     * @notice Get the average taxation rate across all collateral types
+     */
     function averageTaxationRate(uint globalStabilityFee_) public view returns (uint256 z) {
         if (collateralList.length == 0) return globalStabilityFee_;
         for (uint i = 0; i < collateralList.length; i++) {
@@ -344,14 +365,24 @@ contract TaxCollector is Logging {
     }
 
     // --- Gifts Utils ---
+    /**
+     * @notice Get the bucket list length
+     */
     function bucketListLength() public view returns (uint) {
         return bucketList.range();
     }
+    /**
+     * @notice Check if a bucket is at a certain position in the list
+     */
     function isBucket(uint256 _bucket) public view returns (bool) {
         return bucketList.isNode(_bucket);
     }
 
     // --- Tax (Stability Fee) Collection ---
+    /**
+     * @notice Get how much SF will be distributed after taxing a specific collateral type
+     * @param collateralType Collateral type to compute the taxation outcome for
+     */
     function taxationOutcome(bytes32 collateralType) public view returns (uint, int) {
         (, uint lastAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
         uint newlyAccumulatedRate =
@@ -369,11 +400,18 @@ contract TaxCollector is Logging {
           lastAccumulatedRate);
         return (newlyAccumulatedRate, diff(newlyAccumulatedRate, lastAccumulatedRate));
     }
+    /**
+     * @notice Collect tax from all collateral types
+     */
     function taxAll() external emitLog {
         for (uint i = 0; i < collateralList.length; i++) {
             taxSingle(collateralList[i]);
         }
     }
+    /**
+     * @notice Collect tax from a single collateral type
+     * @param collateralType Collateral type to tax
+     */
     function taxSingle(bytes32 collateralType) public emitLog returns (uint) {
         uint latestAccumulatedRate;
         if (now <= collateralTypes[collateralType].updateTime) {
@@ -387,18 +425,37 @@ contract TaxCollector is Logging {
         emit Taxed(collateralType, latestAccumulatedRate, deltaRate);
         return latestAccumulatedRate;
     }
+    /**
+     * @notice Distribute SF to tax buckets and to the AccountingEngine
+     * @param collateralType Collateral type to distribute SF for
+     * @param deltaRate Difference between the last and the latest accumulate rates for the collateralType
+     */
     function splitTaxIncome(bytes32 collateralType, int deltaRate) internal {
+        // Check how much debt has been generated for collateralType
         (uint debtAmount, ) = cdpEngine.collateralTypes(collateralType);
+        // Start looping from the latest bucket
         uint256 currentBucket = latestBucket;
         int256  currentTaxCut;
         int256  coinBalance;
+        // While we still haven't gone through the entire bucket list
         while (currentBucket > 0) {
+          // If the current bucket should receive SF from collateralType
           if (buckets[collateralType][currentBucket].taxPercentage > 0) {
+            // Check how many coins the bucket has and negate the value
             coinBalance    = -int(cdpEngine.coinBalance(bucketAccounts[currentBucket]));
+            // Compute the % out of deltaRate that should be allocated to the current bucket
             currentTaxCut  = mul(int(buckets[collateralType][currentBucket].taxPercentage), deltaRate) / int(HUNDRED);
+            /**
+                If SF is negative and the bucket doesn't have enough coins to absorb the loss,
+                compute a new tax cut that can be absorbed
+            **/
             currentTaxCut  = (
               both(mul(debtAmount, currentTaxCut) < 0, coinBalance > mul(debtAmount, currentTaxCut))
             ) ? coinBalance / int(debtAmount) : currentTaxCut;
+            /**
+              If the bucket's tax cut is not null and if the bucket accepts negative SF
+              (in case currentTaxCut is negative), offer/subtract SF from the bucket
+            **/
             if (
               both(
                 currentTaxCut != 0,
@@ -412,8 +469,10 @@ contract TaxCollector is Logging {
               emit UpdatedAccumulatedRate(collateralType, bucketAccounts[currentBucket], currentTaxCut);
             }
           }
+          // Continue looping
           (, currentBucket) = bucketList.prev(currentBucket);
         }
+        // Repeat the exact process for AccountingEngine but do not check if it accepts negative rates
         coinBalance = -int(cdpEngine.coinBalance(accountingEngine));
         currentTaxCut  = mul(sub(HUNDRED, bucketTaxCut[collateralType]), deltaRate) / int(HUNDRED);
         currentTaxCut  = (
