@@ -22,6 +22,10 @@ CDP users can generate GEB until they hit the *safeCRatio* but they will only ge
 
 The redemption rate is a variable inside Oracle Relayer (previously Spot/ter) that acts similarly to an interest rate which is applied to the redemption price (previously par). As described in our first [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf), the redemption rate is the main driving force that changes the incentives of system participants.
 
+## Multi Stability Fee Receivers
+
+The TaxCollector (previously Jug) can now be set up to accrue stability fees in multiple places at once. A receiver is called a "bucket" or "taxBucket". TaxCollector is guaranteed to always offer some stability fees to the AccountingEngine.
+
 ## Stability Fee Treasury
 
 The [treasury](https://github.com/reflexer-labs/geb/blob/master/src/StabilityFeeTreasury.sol) is in charge with paying for oracle calls, paying collateral onboarding teams (in some GEB versions) and providing funds for on-chain market making. It can be set up to transfer some of its funds into the AccountingEngine (previously Vow) in case the predicted costs for maintaining the system in the next *P* seconds are lower than the currently available treasury surplus.
