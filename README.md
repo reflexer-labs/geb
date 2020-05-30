@@ -155,6 +155,27 @@ The following tables show the before and after variable names
 | bid | initialBid |
 | Bite | Liquidate |
 
+| Spot/ter | OracleRelayer |
+| --- | --- |
+| wards | authorizedAccounts |                                  
+| rely | addAuthorization |                
+| deny | removeAuthorization |            
+| auth | isAuthorized |
+| Ilk | CollateralType |
+| Ilk.pip | CollateralType.orcl |
+| Ilk.mat | CollateralType.safetyCRatio |
+| NaN | CollateralType.liquidationCRatio (NEW) |
+| ilks | collateralTypes |
+| vat | cdpEngine |
+| par | redemptionPrice |
+| NaN | redemptionPriceUpdateTime (NEW) |
+| live | contractEnabled |
+| Poke | UpdateCollateralPrice |
+| file | modifyParameters |
+| NaN | updateRedemptionPrice (NEW) |
+| poke | updateCollateralPrice |
+| cage | disableContract |
+
 | Dai | Coin |
 | --- | --- |
 | wards | authorizedAccounts |                                  
