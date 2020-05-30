@@ -122,6 +122,34 @@ The following tables show the before and after variable names
 | flap | auctionSurplus |
 | cage | disableContract |
 
+| Flap/per | SurplusAuctionHouse |
+| --- | --- |
+| wards | authorizedAccounts |                                  
+| rely | addAuthorization |                
+| deny | removeAuthorization |            
+| auth | isAuthorized |
+| Bid | Bid |
+| Bid.bid | Bid.bidAmount |
+| Bid.lot | Bid.amountToSell |
+| Bid.guy | Bid.highBidder |
+| Bid.tic | Bid.bidExpiry |
+| Bid.end | Bid.auctionDeadline |
+| bids | bids |
+| vat | cdpEngine |
+| gem | protocolToken |
+| beg | bidIncrease |
+| ttl | bidDuration |
+| tau | totalAuctionLength |
+| kicks | auctionsStarted |
+| live | contractEnabled |
+| file | modifyParameters |
+| kick | startAuction |
+| tick | restartAuction |
+| tend | increaseBidSize |
+| deal | settleAuction |
+| cage | disableContract |
+| yank | terminateAuctionPrematurely |
+
 | Cat | LiquidationEngine |
 | --- | --- |
 | wards | authorizedAccounts |                                  
