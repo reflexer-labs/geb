@@ -4,7 +4,7 @@ This repository contains the core smart contract code for Generalized Ethereum B
 
 # What is a Reflex Bond?
 
-A reflex-bond is an asset that mirrors the price movements of its collateral in a dampened way (and with lags between the underlying changing its value and the reflex bond system reacting to that). The _future_ redemption price of a reflex bond depends on the market price deviation from its _current_ redemption. For more details, check the [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf).
+A reflex bond is an asset that mirrors the price movements of its collateral in a dampened way (and with lags between the underlying changing its value and the reflex bond system reacting to that). The _future_ redemption price of a reflex bond depends on the market price deviation from its _current_ redemption. For more details, check the [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf).
 
 # Differences Compared to Multi Collateral Dai (MCD)
 
@@ -217,6 +217,26 @@ The following tables show the before and after variable names of all core MCD co
 | dent | decreaseSoldAmount |
 | deal | settleAuction |
 | yank | terminateAuctionPrematurely |
+
+| Join | BasicTokenAdapters |
+| --- | --- |
+| wards | authorizedAccounts |                                  
+| rely | addAuthorization |                
+| deny | removeAuthorization |            
+| auth | isAuthorized |
+| GemLike | CollateralLike |
+| GemJoin | CollateralJoin |
+| vat | cdpEngine |
+| ilk | collateralType |
+| gem | collateral |
+| dec | decimals |
+| live | contractEnabled |
+| cage | disableContract |
+| join | join |
+| exit | exit |
+| ETHJoin | ETHJoin |
+| DaiJoin | CoinJoin |
+| dai | systemCoin |
 
 | Cat | LiquidationEngine |
 | --- | --- |
