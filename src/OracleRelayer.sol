@@ -28,8 +28,19 @@ contract OracleLike {
 contract OracleRelayer is Logging {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
+    /**
+     * @notice Add auth to an account
+     * @param account Account to add auth to
+     */
     function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    /**
+     * @notice Remove auth from an account
+     * @param account Account to remove auth from
+     */
     function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    /**
+    * @notice Checks whether msg.sender can call an authed function
+    **/
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "OracleRelayer/account-not-authorized");
         _;
@@ -37,19 +48,27 @@ contract OracleRelayer is Logging {
 
     // --- Data ---
     struct CollateralType {
+        // Usually an oracle security module that enforces delays to fresh price feeds
         OracleLike orcl;
+        // CRatio used to compute the 'safePrice' - the price used when opening a CDP
         uint256 safetyCRatio;
+        // CRatio used to compute the 'liquidationPrice' - the price used when liquidating CDPs
         uint256 liquidationCRatio;
     }
 
+    // Data about each collateral type
     mapping (bytes32 => CollateralType) public collateralTypes;
 
     CDPEngineLike public cdpEngine;
+    // The force that changes the system users' incentives by changing the redemption price
     uint256 public redemptionRate;
+    // Last time when the redemption price was changed
     uint256 public redemptionPriceUpdateTime;
+    // Whether this contract is enabled
     uint256 public contractEnabled;
 
-    uint256 internal _redemptionPrice; // virtual redemption price
+    // Virtual redemption price (not the most updated value)
+    uint256 internal _redemptionPrice;
 
     // --- Events ---
     event UpdateCollateralPrice(
@@ -111,6 +130,12 @@ contract OracleRelayer is Logging {
     }
 
     // --- Administration ---
+    /**
+     * @notice Modify oracle price feed addresses
+     * @param collateralType Collateral who's oracle we change
+     * @param parameter Name of the parameter
+     * @param addr New oracle address
+     */
     function modifyParameters(
         bytes32 collateralType,
         bytes32 parameter,
@@ -120,6 +145,11 @@ contract OracleRelayer is Logging {
         if (parameter == "orcl") collateralTypes[collateralType].orcl = OracleLike(addr);
         else revert("OracleRelayer/modify-unrecognized-param");
     }
+    /**
+     * @notice Modify redemption related parameters
+     * @param parameter Name of the parameter
+     * @param data New param value
+     */
     function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         require(data > 0, "OracleRelayer/null-data");
@@ -130,6 +160,12 @@ contract OracleRelayer is Logging {
         }
         else revert("OracleRelayer/modify-unrecognized-param");
     }
+    /**
+     * @notice Modify CRatio related parameters
+     * @param collateralType Collateral who's parameters we change
+     * @param parameter Name of the parameter
+     * @param data New param value
+     */
     function modifyParameters(
         bytes32 collateralType,
         bytes32 parameter,
@@ -148,7 +184,10 @@ contract OracleRelayer is Logging {
     }
 
     // --- Redemption Price Update ---
-    function updateRedemptionPrice() public emitLog returns (uint) {
+    /**
+     * @notice Update the redemption price according to the current redemption rate
+     */
+    function updateRedemptionPrice() internal returns (uint) {
         // Update redemption price
         _redemptionPrice = rmul(
           rpow(redemptionRate, sub(now, redemptionPriceUpdateTime), RAY),
@@ -158,12 +197,19 @@ contract OracleRelayer is Logging {
         // Return updated redemption price
         return _redemptionPrice;
     }
+    /**
+     * @notice Fetch the latest redemption price by first updating it
+     */
     function redemptionPrice() public returns (uint) {
         if (now > redemptionPriceUpdateTime) return updateRedemptionPrice();
         return _redemptionPrice;
     }
 
     // --- Update value ---
+    /**
+     * @notice Update the collateral price inside the system (inside CDPEngine)
+     * @param collateralType The collateral we want to update prices for
+     */
     function updateCollateralPrice(bytes32 collateralType) external {
         (bytes32 priceFeedValue, bool hasValidValue) =
           collateralTypes[collateralType].orcl.getResultWithValidity();
@@ -176,18 +222,31 @@ contract OracleRelayer is Logging {
         emit UpdateCollateralPrice(collateralType, priceFeedValue, safetyPrice_, liquidationPrice_);
     }
 
+    /**
+     * @notice Disable this contract (normally called by GlobalSettlement)
+     */
     function disableContract() external emitLog isAuthorized {
         contractEnabled = 0;
     }
 
+    /**
+     * @notice Fetch the safety CRatio of a specific collateral type
+     * @param collateralType The collateral price we want the safety CRatio for
+     */
     function safetyCRatio(bytes32 collateralType) public view returns (uint256) {
         return collateralTypes[collateralType].safetyCRatio;
     }
-
+    /**
+     * @notice Fetch the liquidation CRatio of a specific collateral type
+     * @param collateralType The collateral price we want the liquidation CRatio for
+     */
     function liquidationCRatio(bytes32 collateralType) public view returns (uint256) {
         return collateralTypes[collateralType].liquidationCRatio;
     }
-
+    /**
+     * @notice Fetch the oracle price feed of a specific collateral type
+     * @param collateralType The collateral price we want the oracle price feed for
+     */
     function orcl(bytes32 collateralType) public view returns (address) {
         return address(collateralTypes[collateralType].orcl);
     }

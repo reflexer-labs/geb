@@ -30,8 +30,19 @@ contract TaxCollector is Logging {
 
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
+    /**
+     * @notice Add auth to an account
+     * @param account Account to add auth to
+     */
     function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    /**
+     * @notice Remove auth from an account
+     * @param account Account to remove auth from
+     */
     function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    /**
+    * @notice Checks whether msg.sender can call an authed function
+    **/
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "TaxCollector/account-not-authorized");
         _;
@@ -43,28 +54,44 @@ contract TaxCollector is Logging {
 
     // --- Data ---
     struct CollateralType {
+        // Per second borrow rate for this specific collateral type
         uint256 stabilityFee;
+        // When SF was last collected for this collateral type
         uint256 updateTime;
     }
+    // SF receiver (not AccountingEngine)
     struct TaxBucket {
+        // Whether this bucket can accept a negative rate (taking SF from it)
         uint256 canTakeBackTax;
+        // Percentage of SF allocated to this bucket
         uint256 taxPercentage;
     }
 
+    // Data about each collateral type
     mapping (bytes32 => CollateralType)                public collateralTypes;
+    // Percentage of each collateral's SF that goes to other addresses apart from AccountingEngine
     mapping (bytes32 => uint)                          public bucketTaxCut;
+    // Whether an address is already used for a bucket
     mapping (address => uint256)                       public usedBucket;
+    // Address associated for each bucket index
     mapping (uint256 => address)                       public bucketAccounts;
+    // How many collateral types send SF to a specific bucket
     mapping (address => uint256)                       public bucketRevenueSources;
+    // Bucket data
     mapping (bytes32 => mapping(uint256 => TaxBucket)) public buckets;
 
     address    public accountingEngine;
+    // Base stability fee charged by all collateral types
     uint256    public globalStabilityFee;
     uint256    public bucketNonce;
+    // How many buckets a collateral type can have
     uint256    public maxBuckets;
+    // Latest bucket that still has at least one revenue source
     uint256    public latestBucket;
 
+    // All collateral types
     bytes32[]        public   collateralList;
+    // Linked list with bucket data
     LinkedList.List  internal bucketList;
 
     CDPEngineLike public cdpEngine;
@@ -146,6 +173,10 @@ contract TaxCollector is Logging {
     }
 
     // --- Administration ---
+    /**
+     * @notice Initialize a brand new collateral type
+     * @param collateralType Collateral type name (e.g ETH-A, TBTC-B)
+     */
     function initializeCollateralType(bytes32 collateralType) external emitLog isAuthorized {
         CollateralType storage collateralType_ = collateralTypes[collateralType];
         require(collateralType_.stabilityFee == 0, "TaxCollector/collateral-type-already-init");
@@ -153,6 +184,12 @@ contract TaxCollector is Logging {
         collateralType_.updateTime   = now;
         collateralList.push(collateralType);
     }
+    /**
+     * @notice Modify collateral specific uint params
+     * @param collateralType Collateral type who's parameter is modified
+     * @param parameter The name of the parameter modified
+     * @param data New value for the parameter
+     */
     function modifyParameters(
         bytes32 collateralType,
         bytes32 parameter,
@@ -162,16 +199,32 @@ contract TaxCollector is Logging {
         if (parameter == "stabilityFee") collateralTypes[collateralType].stabilityFee = data;
         else revert("TaxCollector/modify-unrecognized-param");
     }
+    /**
+     * @notice Modify general uint params
+     * @param parameter The name of the parameter modified
+     * @param data New value for the parameter
+     */
     function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
         if (parameter == "globalStabilityFee") globalStabilityFee = data;
         else if (parameter == "maxBuckets") maxBuckets = data;
         else revert("TaxCollector/modify-unrecognized-param");
     }
+    /**
+     * @notice Modify general uint params
+     * @param parameter The name of the parameter modified
+     * @param data New value for the parameter
+     */
     function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
         require(data != address(0), "TaxCollector/null-data");
         if (parameter == "accountingEngine") accountingEngine = data;
         else revert("TaxCollector/modify-unrecognized-param");
     }
+    /**
+     * @notice Set whether a bucket can incur negative fees
+     * @param collateralType Collateral type giving fees to the bucket
+     * @param position Bucket position in the bucket list
+     * @param val Value that specifies whether a bucket can incur negative rates
+     */
     function modifyParameters(
         bytes32 collateralType,
         uint256 position,
@@ -182,15 +235,23 @@ contract TaxCollector is Logging {
         }
         else revert("TaxCollector/unknown-bucket");
     }
+    /**
+     * @notice Create or modify a bucket's data
+     * @param collateralType Collateral type that will give SF to the bucket
+     * @param position Bucket position in the bucket list. Used to determine whether a new bucket is
+              created or an existing one is edited
+     * @param taxPercentage Percentage of SF offered to the bucket
+     * @param bucketAccount Bucket address
+     */
     function modifyParameters(
       bytes32 collateralType,
       uint256 position,
-      uint256 stabilityFee,
+      uint256 taxPercentage,
       address bucketAccount
     ) external emitLog isAuthorized {
         (!bucketList.isNode(position)) ?
-          createBucket(collateralType, stabilityFee, bucketAccount) :
-          fixBucket(collateralType, position, stabilityFee);
+          createBucket(collateralType, taxPercentage, bucketAccount) :
+          fixBucket(collateralType, position, taxPercentage);
     }
 
     // --- Bucket Utils ---
@@ -216,7 +277,7 @@ contract TaxCollector is Logging {
             bucketTaxCut[collateralType],
             buckets[collateralType][position].taxPercentage
           );
-          
+
           if (bucketRevenueSources[bucketAccounts[position]] == 1) {
             if (position == latestBucket) {
               (, uint256 prevBucket) = bucketList.prev(latestBucket);

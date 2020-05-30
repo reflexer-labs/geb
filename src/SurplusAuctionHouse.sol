@@ -26,6 +26,9 @@ contract CDPEngineLike {
     function approveCDPModification(address) external;
     function denyCDPModification(address) external;
 }
+contract GlobalSettlementLike {
+    function contractEnabled() public view returns (uint);
+}
 contract CoinJoinLike {
     function join(address, uint) external;
     function exit(address, uint) external;
@@ -70,8 +73,9 @@ contract SurplusAuctionHouseOne is Logging {
 
     mapping (uint => Bid) public bids;
 
-    CDPEngineLike public cdpEngine;
-    TokenLike     public protocolToken;
+    CDPEngineLike        public cdpEngine;
+    TokenLike            public protocolToken;
+    GlobalSettlementLike public globalSettlement;
 
     uint256  constant ONE = 1.00E18;
     uint256  public   bidIncrease = 1.05E18;
@@ -108,6 +112,10 @@ contract SurplusAuctionHouseOne is Logging {
         if (parameter == "bidIncrease") bidIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
+        else revert("SurplusAuctionHouseOne/modify-unrecognized-param");
+    }
+    function modifyParameters(bytes32 parameter, address addr) external emitLog isAuthorized {
+        if (parameter == "globalSettlement") globalSettlement = GlobalSettlementLike(addr);
         else revert("SurplusAuctionHouseOne/modify-unrecognized-param");
     }
 
@@ -157,6 +165,13 @@ contract SurplusAuctionHouseOne is Logging {
 
     function disableContract() external emitLog isAuthorized {
         contractEnabled = 0;
+    }
+    function terminateAuctionPrematurely(uint id) external emitLog {
+        require(contractEnabled == 0, "SurplusAuctionHouseOne/still-live");
+        require(bids[id].highBidder != address(0), "SurplusAuctionHouseOne/high-bidder-not-set");
+        require(globalSettlement.contractEnabled() == 1, "SurplusAuctionHouseOne/settlement-not-live");
+        protocolToken.move(address(this), bids[id].highBidder, bids[id].bidAmount);
+        delete bids[id];
     }
 }
 

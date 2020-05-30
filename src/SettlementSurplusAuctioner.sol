@@ -100,7 +100,7 @@ contract SettlementSurplusAuctioner is Logging {
         require(accountingEngine.contractEnabled() == 0, "SettlementSurplusAuctioner/accounting-engine-still-enabled");
         require(
           now >= add(lastSurplusAuctionTime, accountingEngine.surplusAuctionDelay()),
-          "AccountingEngine/surplus-auction-delay-not-passed"
+          "SettlementSurplusAuctioner/surplus-auction-delay-not-passed"
         );
         lastSurplusAuctionTime = now;
         uint defaultAmountToSell = accountingEngine.surplusAuctionAmountToSell();

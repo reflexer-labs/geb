@@ -364,6 +364,15 @@ contract CDPEngine {
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
         require(liquidator != address(0), "CDPEngine/null-liquidator");
         require(collateralTypes[collateralType].accumulatedRates > 0, "CDPEngine/inexistent-collateral-type");
+
+        CDP memory cdp_ = cdps[collateralType][cdp];
+        CollateralType memory collateralType_ = collateralTypes[collateralType];
+        require(
+          mul(cdp_.lockedCollateral, collateralType_.liquidationPrice) <
+          mul(cdp_.generatedDebt, collateralType_.accumulatedRates),
+          "CDPEngine/not-underwater"
+        );
+
         cdps[collateralType][cdp].lockedCollateral =
           add(cdps[collateralType][cdp].lockedCollateral, collateralToAdd);
         tokenCollateral[collateralType][liquidator] =
