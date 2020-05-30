@@ -218,6 +218,24 @@ The following tables show the before and after variable names
 | NaN | taxationOutcome (NEW) |
 | drip | taxAll / taxSingle |
 
+| Pot | CoinSavingsAccount |
+| --- | --- |
+| wards | authorizedAccounts |                                  
+| rely | addAuthorization |                
+| deny | removeAuthorization |            
+| auth | isAuthorized |
+| pie | savings |
+| Pie | totalSavings |
+| dsr | savingsRate |
+| chi | accumulatedRates |
+| vat | cdpEngine |
+| file | modifyParameters |
+| cage | disableContract |
+| drip | updateAccumulatedRate |
+| NaN | nextAccumulatedRate (NEW) |
+| join | deposit |
+| exit | withdraw |
+
 | End | GlobalSettlement |
 | --- | --- |
 | wards | authorizedAccounts |                                  
