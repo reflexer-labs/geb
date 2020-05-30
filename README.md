@@ -36,6 +36,10 @@ This contract auctions all the remaining surplus after GlobalSettlement (previou
 
 We are looking at alternative ways to drain the extra surplus without giving CDP users, GEB or protocol token holders any advantage when the system settles.
 
+## Debt Auction Monitoring
+
+AccountingEngine (previously Vow) has a mapping and an accumulator that keep track of active debt auctions. These additions are useful for creating a Restricted Migration Module (see the [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf)) that makes sure it cannot withdraw the ability of a system to print tokens while debt auctions are still ongoing.
+
 ## Debt Auction Bid Target
 
 Governance can set a variable called *debtAuctionBidTarget* which can be used to autonomously determine how much debt is auctioned in a debt auction and also the initial proposed protocol token bid.
