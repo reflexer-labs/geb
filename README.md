@@ -42,7 +42,7 @@ Governance can set a variable called *debtAuctionBidTarget* which can be used to
 
 ## Variable Names You Can Actually Understand :astonished:
 
-The following tables show the before and after variable names
+The following tables show the before and after variable names of all core MCD contracts (excluding the new ones we added)
 
 | Vat | CDPEngine |                                     
 | --- | --- |                                  
@@ -134,6 +134,7 @@ The following tables show the before and after variable names
 | Bid.guy | Bid.highBidder |
 | Bid.tic | Bid.bidExpiry |
 | Bid.end | Bid.auctionDeadline |
+| Kick | StartAuction |
 | bids | bids |
 | vat | cdpEngine |
 | gem | protocolToken |
@@ -146,6 +147,37 @@ The following tables show the before and after variable names
 | kick | startAuction |
 | tick | restartAuction |
 | tend | increaseBidSize |
+| deal | settleAuction |
+| cage | disableContract |
+| yank | terminateAuctionPrematurely |
+
+| Flop/per | DebtAuctionHouse |
+| --- | --- |
+| wards | authorizedAccounts |                                  
+| rely | addAuthorization |                
+| deny | removeAuthorization |            
+| auth | isAuthorized |
+| Bid | Bid |
+| Bid.bid | Bid.bidAmount |
+| Bid.lot | Bid.amountToSell |
+| Bid.guy | Bid.highBidder |
+| Bid.tic | Bid.bidExpiry |
+| Bid.end | Bid.auctionDeadline |
+| Kick | StartAuction |
+| bids | bids |
+| vat | cdpEngine |
+| vow | accountingEngine |
+| gem | protocolToken |
+| beg | bidIncrease |
+| pad | amountSoldIncrease |
+| ttl | bidDuration |
+| tau | totalAuctionLength |
+| kicks | auctionsStarted |
+| live | contractEnabled |
+| file | modifyParameters |
+| kick | startAuction |
+| tick | restartAuction |
+| dent | decreaseSoldAmount |
 | deal | settleAuction |
 | cage | disableContract |
 | yank | terminateAuctionPrematurely |
