@@ -176,6 +176,44 @@ The following tables show the before and after variable names
 | poke | updateCollateralPrice |
 | cage | disableContract |
 
+| Jug | TaxCollector |
+| --- | --- |
+| wards | authorizedAccounts |                                  
+| rely | addAuthorization |                
+| deny | removeAuthorization |            
+| auth | isAuthorized |
+| Ilk | CollateralType |
+| Ilk.duty | CollateralType.stabilityFee |
+| Ilk.rho | CollateralType.updateTime |
+| NaN | TaxBucket (NEW) |
+| NaN | TaxBucket.canTakeBackTax (NEW) |
+| NaN | TaxBucket.taxPercentage (NEW) |
+| ilks | collateralTypes |
+| NaN | bucketTaxCut (NEW) |
+| NaN | usedBucket (NEW) |
+| NaN | bucketAccounts (NEW) |
+| NaN | bucketRevenueSources (NEW) |
+| NaN | buckets (NEW) |
+| vat | cdpEngine |
+| vow | accountingEngine |
+| base | globalStabilityFee |
+| NaN | bucketNonce (NEW) |
+| NaN | maxBuckets (NEW) |
+| NaN | latestBucket (NEW) |
+| NaN | collateralList (NEW) |
+| NaN | bucketList (NEW) |
+| init | initializeCollateralType |
+| file | modifyParameters |
+| NaN | createBucket (NEW) |
+| NaN | fixBucket (NEW) |
+| NaN | collectedAllTax (NEW) |
+| NaN | nextTaxationOutcome (NEW) |
+| NaN | averageTaxationRate (NEW) |
+| NaN | bucketListLength (NEW) |
+| NaN | isBucket (NEW) |
+| NaN | taxationOutcome (NEW) |
+| drip | taxAll / taxSingle |
+
 | End | GlobalSettlement |
 | --- | --- |
 | wards | authorizedAccounts |                                  
