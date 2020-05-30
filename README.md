@@ -176,6 +176,41 @@ The following tables show the before and after variable names
 | poke | updateCollateralPrice |
 | cage | disableContract |
 
+| End | GlobalSettlement |
+| --- | --- |
+| wards | authorizedAccounts |                                  
+| rely | addAuthorization |                
+| deny | removeAuthorization |            
+| auth | isAuthorized |
+| vat | cdpEngine |
+| cat | liquidationEngine |
+| vow | accountingEngine |
+| spot | oracleRelayer |
+| pot | coinSavingsAccount |
+| NaN | rateSetter (NEW) |
+| NaN | stabilityFeeTreasury (NEW) |
+| live | contractEnabled |
+| when | shutdownTime |
+| wait | shutdownCooldown |
+| debt | outstandingCoinSupply |
+| tag | finalCoinPerCollateralPrice |
+| gap | collateralShortfall |
+| Art | collateralTotalDebt |
+| fix | collateralCashPrice |
+| bag | coinBag |
+| out | coinsUsedToRedeem |
+| file | modifyParameters |
+| cage | shutdownSystem / freezeCollateralType |
+| skip | fastTrackAuction |
+| skim | processCDP |
+| urn | cdp |
+| owe | amountOwed |
+| free | freeCollateral |
+| thaw | setOutstandingCoinSupply |
+| flow | calculateCashPrice |
+| pack | prepareCoinsForRedeeming |
+| cash | redeemCollateral |
+
 | Dai | Coin |
 | --- | --- |
 | wards | authorizedAccounts |                                  
