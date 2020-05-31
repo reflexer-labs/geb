@@ -107,8 +107,6 @@ contract AccountingEngine is Logging {
     uint256 public initialDebtAuctionAmount;  // [wad]
     // Amount of debt sold in one debt auction (initial coin bid for initialDebtAuctionAmount protocol tokens)
     uint256 public debtAuctionBidSize;        // [rad]
-    // Total value sold in a debt auction (denominated in same asset as the system coin)
-    uint256 public debtAuctionBidTarget;      // [rad]
 
     // Amount of surplus stability fees sold in one surplus auction
     uint256 public surplusAuctionAmountToSell;  // [rad]
@@ -157,7 +155,6 @@ contract AccountingEngine is Logging {
         else if (parameter == "surplusAuctionAmountToSell") surplusAuctionAmountToSell = data;
         else if (parameter == "debtAuctionBidSize") debtAuctionBidSize = data;
         else if (parameter == "initialDebtAuctionAmount") initialDebtAuctionAmount = data;
-        else if (parameter == "debtAuctionBidTarget") debtAuctionBidTarget = data;
         else if (parameter == "surplusBuffer") surplusBuffer = data;
         else revert("AccountingEngine/modify-unrecognized-param");
     }
