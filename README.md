@@ -40,10 +40,6 @@ We are looking at alternative ways to drain the extra surplus without giving CDP
 
 AccountingEngine (previously Vow) has a mapping and an accumulator that keep track of active debt auctions. These additions are useful for creating a Restricted Migration Module (see the [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf)) that makes sure it cannot withdraw the ability of a system to print tokens while debt auctions are still ongoing.
 
-## Debt Auction Bid Target
-
-Governance can set a variable called *debtAuctionBidTarget* which can be used to autonomously determine how much debt is auctioned in a debt auction and also the initial proposed protocol token bid.
-
 ## Variable Names You Can Actually Understand :astonished:
 
 The following tables show the before and after variable names of all core MCD contracts (excluding the new ones we added)
