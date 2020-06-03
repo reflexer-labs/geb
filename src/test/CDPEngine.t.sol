@@ -196,6 +196,14 @@ contract SaveCDPTest is DSTest {
         cdpEngine.modifyCDPCollateralization("gold", me, me, me, 1 ether, 0);
         cdpEngine.saveCDP("silver", me, address(bob), 1 ether, 0.1 ether);
     }
+    function testFail_null_reward() public {
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 1 ether, 0);
+        cdpEngine.saveCDP("silver", me, address(bob), 1 ether, 0);
+    }
+    function testFail_null_collateral_amount() public {
+        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 1 ether, 0);
+        cdpEngine.saveCDP("silver", me, address(bob), 0, 1 ether);
+    }
     function testFail_contract_disabled() public {
         cdpEngine.modifyCDPCollateralization("gold", me, me, me, 6 ether, 0);
         cdpEngine.disableContract();

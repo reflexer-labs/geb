@@ -364,6 +364,7 @@ contract CDPEngine {
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
         require(liquidator != address(0), "CDPEngine/null-liquidator");
         require(collateralTypes[collateralType].accumulatedRates > 0, "CDPEngine/inexistent-collateral-type");
+        require(both(collateralToAdd > 0, reward > 0), "CDPEngine/null-collateral-or-reward");
 
         CDP memory cdp_ = cdps[collateralType][cdp];
         CollateralType memory collateralType_ = collateralTypes[collateralType];
