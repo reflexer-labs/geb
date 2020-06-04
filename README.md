@@ -108,7 +108,6 @@ The following tables show the before and after variable names of all core MCD co
 | wait | popDebtDelay |
 | dump | initialDebtAuctionAmount |
 | sump | debtAuctionBidSize |
-| NaN | debtAuctionBidTarget |
 | bump | surplusAuctionAmountToSell |
 | hump | surplusBuffer |
 | live | contractEnabled |
