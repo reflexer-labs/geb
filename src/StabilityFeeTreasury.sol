@@ -229,7 +229,7 @@ contract StabilityFeeTreasury is Logging {
           both(cdpEngine.coinBalance(address(this)) > minimumFundsRequired_,
           cdpEngine.coinBalance(address(this)) > minimumFundsRequired)
         ) {
-          // Check that we still keep min SF in treasury
+          // Make sure that we still keep min SF in treasury
           uint fundsToTransfer =
             (sub(cdpEngine.coinBalance(address(this)), sub(cdpEngine.coinBalance(address(this)), minimumFundsRequired_)) < minimumFundsRequired) ?
             sub(cdpEngine.coinBalance(address(this)), minimumFundsRequired) :

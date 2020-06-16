@@ -78,7 +78,7 @@ contract AccountingEngine is Logging {
     **/
     DebtAuctionHouseLike    public debtAuctionHouse;
     // Contract that auctions extra surplus after settlement is triggered
-    address                 public settlementSurplusAuctioner;
+    address                 public settlementSurplusAuctioneer;
 
     /**
       Debt blocks that need to be covered by auctions. There is a delay to pop debt from
@@ -104,14 +104,19 @@ contract AccountingEngine is Logging {
     // Delay after which debt can be popped from debtQueue
     uint256 public popDebtDelay;
     // Amount of protocol tokens to be minted post-auction
-    uint256 public initialDebtAuctionAmount;  // [wad]
-    // Amount of debt sold in one debt auction (initial coin bid for initialDebtAuctionAmount protocol tokens)
+    uint256 public initialDebtAuctionMintedTokens;  // [wad]
+    // Amount of debt sold in one debt auction (initial coin bid for initialDebtAuctionMintedTokens protocol tokens)
     uint256 public debtAuctionBidSize;        // [rad]
 
     // Amount of surplus stability fees sold in one surplus auction
     uint256 public surplusAuctionAmountToSell;  // [rad]
     // Amount of stability fees that need to accrue in this contract before any surplus auction can start
-    uint256 public surplusBuffer;             // [rad]
+    uint256 public surplusBuffer;               // [rad]
+
+    // Time to wait (post settlement) until any remaining surpluscan be transferred to the settlement auctioneer
+    uint256 public disableCooldown;
+    // When the contract was disabled
+    uint256 public disableTimestamp;
 
     // Whether this contract is enabled or not
     uint256 public contractEnabled;
@@ -154,8 +159,9 @@ contract AccountingEngine is Logging {
         else if (parameter == "surplusAuctionDelay") surplusAuctionDelay = data;
         else if (parameter == "surplusAuctionAmountToSell") surplusAuctionAmountToSell = data;
         else if (parameter == "debtAuctionBidSize") debtAuctionBidSize = data;
-        else if (parameter == "initialDebtAuctionAmount") initialDebtAuctionAmount = data;
+        else if (parameter == "initialDebtAuctionMintedTokens") initialDebtAuctionMintedTokens = data;
         else if (parameter == "surplusBuffer") surplusBuffer = data;
+        else if (parameter == "disableCooldown") disableCooldown = data;
         else revert("AccountingEngine/modify-unrecognized-param");
     }
     /**
@@ -170,7 +176,7 @@ contract AccountingEngine is Logging {
             cdpEngine.approveCDPModification(data);
         }
         else if (parameter == "debtAuctionHouse") debtAuctionHouse = DebtAuctionHouseLike(data);
-        else if (parameter == "settlementSurplusAuctioner") settlementSurplusAuctioner = data;
+        else if (parameter == "settlementSurplusAuctioneer") settlementSurplusAuctioneer = data;
         else revert("AccountingEngine/modify-unrecognized-param");
     }
 
@@ -229,8 +235,8 @@ contract AccountingEngine is Logging {
         require(cdpEngine.coinBalance(address(this)) == 0, "AccountingEngine/surplus-not-zero");
         require(debtAuctionHouse.protocolToken() != address(0), "AccountingEngine/protocol-token-not-set");
         totalOnAuctionDebt = add(totalOnAuctionDebt, debtAuctionBidSize);
-        id = debtAuctionHouse.startAuction(address(this), initialDebtAuctionAmount, debtAuctionBidSize);
-        activeDebtAuctionsAccumulator = add(activeDebtAuctionsAccumulator, id);
+        id = debtAuctionHouse.startAuction(address(this), initialDebtAuctionMintedTokens, debtAuctionBidSize);
+        activeDebtAuctionsAccumulator = add(activeDebtAuctionsAccumulator, 1);
         activeDebtAuctions[id] = 1;
     }
     /**
@@ -242,7 +248,7 @@ contract AccountingEngine is Logging {
         require(activeDebtAuctions[id] == 1, "AccountingEngine/debt-auction-not-active");
         require(msg.sender == address(debtAuctionHouse), "AccountingEngine/invalid-msg-sender");
         activeDebtAuctions[id] = 0;
-        activeDebtAuctionsAccumulator = sub(activeDebtAuctionsAccumulator, id);
+        activeDebtAuctionsAccumulator = sub(activeDebtAuctionsAccumulator, 1);
     }
     // Surplus auction
     /**
@@ -271,8 +277,9 @@ contract AccountingEngine is Logging {
     /**
      * @notice Disable this contract (normally called by Global Settlement)
      * @dev When we disable, the contract tries to settle as much debt as possible (if there's any) with
-            any surplus that's left in the system. After erasing debt, if there's any surplus left,
-            it will be transferred to a separate contract in order to be auctioned
+            any surplus that's left in the system. After erasing debt, the contract will either transfer any
+            remaining surplus right away (if disableCooldown == 0) or will only record the timestamp when
+            it was disabled
     **/
     function disableContract() external emitLog isAuthorized {
         require(contractEnabled == 1, "AccountingEngine/contract-not-enabled");
@@ -281,10 +288,23 @@ contract AccountingEngine is Logging {
         totalQueuedDebt = 0;
         totalOnAuctionDebt = 0;
 
+        disableTimestamp = now;
+
         surplusAuctionHouse.disableContract();
         debtAuctionHouse.disableContract();
 
         cdpEngine.settleDebt(min(cdpEngine.coinBalance(address(this)), cdpEngine.debtBalance(address(this))));
-        cdpEngine.transferInternalCoins(address(this), settlementSurplusAuctioner, cdpEngine.coinBalance(address(this)));
+        if (disableCooldown == 0) {
+          cdpEngine.transferInternalCoins(address(this), settlementSurplusAuctioneer, cdpEngine.coinBalance(address(this)));
+        }
+    }
+    /**
+     * @notice Transfer any remaining surplus after the disable cooldown has passed
+     * @dev Transfer any remaining surplus after disableCooldown seconds have passed since disabling the contract
+    **/
+    function transferSurplusPostSettlement() external emitLog isAuthorized {
+        require(contractEnabled == 0, "AccountingEngine/still-enabled");
+        require(add(disableTimestamp, disableCooldown) <= now, "AccountingEngine/cooldown-not-passed");
+        cdpEngine.transferInternalCoins(address(this), settlementSurplusAuctioneer, cdpEngine.coinBalance(address(this)));
     }
 }

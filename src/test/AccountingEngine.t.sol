@@ -7,7 +7,7 @@ import {SurplusAuctionHouseOne as SAH_ONE} from "./SurplusAuctionHouse.t.sol";
 import {SurplusAuctionHouseTwo as SAH_TWO} from './SurplusAuctionHouse.t.sol';
 import {TestCDPEngine as CDPEngine} from './CDPEngine.t.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
-import {SettlementSurplusAuctioner} from "../SettlementSurplusAuctioner.sol";
+import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
 import {CoinJoin} from '../BasicTokenAdapters.sol';
 
 contract Hevm {
@@ -79,7 +79,7 @@ contract AccountingEngineDexFlapperTest is DSTest {
 
         accountingEngine.modifyParameters("surplusAuctionAmountToSell", rad(100 ether));
         accountingEngine.modifyParameters("debtAuctionBidSize", rad(100 ether));
-        accountingEngine.modifyParameters("initialDebtAuctionAmount", 200 ether);
+        accountingEngine.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
 
         cdpEngine.approveCDPModification(address(debtAuctionHouse));
         cdpEngine.addAuthorization(address(accountingEngine));
@@ -287,7 +287,7 @@ contract AccountingEngineAuctionFlapperTest is DSTest {
     AccountingEngine  accountingEngine;
     DAH debtAuctionHouse;
     SAH_ONE surplusAuctionHouseOne;
-    SettlementSurplusAuctioner settlementSurplusAuctioner;
+    SettlementSurplusAuctioneer settlementSurplusAuctioneer;
     Gem  protocolToken;
 
     function setUp() public {
@@ -305,15 +305,15 @@ contract AccountingEngineAuctionFlapperTest is DSTest {
         );
         surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
 
-        settlementSurplusAuctioner = new SettlementSurplusAuctioner(address(accountingEngine));
-        accountingEngine.modifyParameters("settlementSurplusAuctioner", address(settlementSurplusAuctioner));
-        surplusAuctionHouseOne.addAuthorization(address(settlementSurplusAuctioner));
+        settlementSurplusAuctioneer = new SettlementSurplusAuctioneer(address(accountingEngine));
+        accountingEngine.modifyParameters("settlementSurplusAuctioneer", address(settlementSurplusAuctioneer));
+        surplusAuctionHouseOne.addAuthorization(address(settlementSurplusAuctioneer));
 
         debtAuctionHouse.addAuthorization(address(accountingEngine));
 
         accountingEngine.modifyParameters("surplusAuctionAmountToSell", rad(100 ether));
         accountingEngine.modifyParameters("debtAuctionBidSize", rad(100 ether));
-        accountingEngine.modifyParameters("initialDebtAuctionAmount", 200 ether);
+        accountingEngine.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
 
         cdpEngine.approveCDPModification(address(debtAuctionHouse));
     }
@@ -430,9 +430,9 @@ contract AccountingEngineAuctionFlapperTest is DSTest {
     }
 
     function test_settlement_auction_surplus() public {
-        cdpEngine.mint(address(settlementSurplusAuctioner), 100 ether);
+        cdpEngine.mint(address(settlementSurplusAuctioneer), 100 ether);
         accountingEngine.disableContract();
-        uint id = settlementSurplusAuctioner.auctionSurplus();
+        uint id = settlementSurplusAuctioneer.auctionSurplus();
         assertEq(id, 1);
     }
 
