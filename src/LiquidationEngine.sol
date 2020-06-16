@@ -109,7 +109,7 @@ contract LiquidationEngine is Logging {
       uint256 collateralAmount,
       uint256 debtAmount,
       uint256 amountToRaise,
-      address collateralAuctioner,
+      address collateralAuctioneer,
       uint256 auctionId
     );
     event SaveCDP(

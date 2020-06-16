@@ -30,7 +30,7 @@ import {StabilityFeeTreasury}  from '../StabilityFeeTreasury.sol';
 import {CollateralAuctionHouse} from '../CollateralAuctionHouse.sol';
 import {SurplusAuctionHouseOne, SurplusAuctionHouseTwo} from '../SurplusAuctionHouse.sol';
 import {DebtAuctionHouse} from '../DebtAuctionHouse.sol';
-import {SettlementSurplusAuctioner} from "../SettlementSurplusAuctioner.sol";
+import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
 import {CollateralJoin, CoinJoin} from '../BasicTokenAdapters.sol';
 import {GlobalSettlement}  from '../GlobalSettlement.sol';
 import {OracleRelayer} from '../OracleRelayer.sol';
@@ -153,7 +153,7 @@ contract GlobalSettlementTest is DSTest {
     OracleRelayer oracleRelayer;
     CoinSavingsAccount coinSavingsAccount;
     StabilityFeeTreasury stabilityFeeTreasury;
-    SettlementSurplusAuctioner settlementSurplusAuctioner;
+    SettlementSurplusAuctioneer settlementSurplusAuctioneer;
     MockRateSetter rateSetter;
 
     DexLike dex;
@@ -296,11 +296,11 @@ contract GlobalSettlementTest is DSTest {
         protocolToken.setOwner(address(debtAuctionHouse));
 
         accountingEngine = new AccountingEngine(address(cdpEngine), address(surplusAuctionHouseOne), address(debtAuctionHouse));
-        settlementSurplusAuctioner = new SettlementSurplusAuctioner(address(accountingEngine));
-        surplusAuctionHouseOne.addAuthorization(address(settlementSurplusAuctioner));
-        surplusAuctionHouseTwo.addAuthorization(address(settlementSurplusAuctioner));
+        settlementSurplusAuctioneer = new SettlementSurplusAuctioneer(address(accountingEngine));
+        surplusAuctionHouseOne.addAuthorization(address(settlementSurplusAuctioneer));
+        surplusAuctionHouseTwo.addAuthorization(address(settlementSurplusAuctioneer));
 
-        accountingEngine.modifyParameters("settlementSurplusAuctioner", address(settlementSurplusAuctioner));
+        accountingEngine.modifyParameters("settlementSurplusAuctioneer", address(settlementSurplusAuctioneer));
         cdpEngine.addAuthorization(address(accountingEngine));
 
         surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
@@ -759,7 +759,7 @@ contract GlobalSettlementTest is DSTest {
         assertEq(tokenCollateral("gold", address(globalSettlement)), 0.2 ether);
         assertEq(balanceOf("gold", address(gold.collateralA)), 0.2 ether);
 
-        assertEq(coinBalance(address(settlementSurplusAuctioner)), 2 ether);
+        assertEq(coinBalance(address(settlementSurplusAuctioneer)), 2 ether);
     }
 
     function test_shutdown_overcollateralized_surplus_bigger_redemption() public {
@@ -844,7 +844,7 @@ contract GlobalSettlementTest is DSTest {
         assertEq(tokenCollateral("gold", address(globalSettlement)), 0.8 ether);
         assertEq(balanceOf("gold", address(gold.collateralA)), 0.8 ether);
 
-        assertEq(coinBalance(address(settlementSurplusAuctioner)), 2 ether);
+        assertEq(coinBalance(address(settlementSurplusAuctioneer)), 2 ether);
     }
 
     // -- Scenario where there is one over-collateralised CDP
@@ -942,7 +942,7 @@ contract GlobalSettlementTest is DSTest {
         assertEq(tokenCollateral("gold", address(globalSettlement)), 472222222222222223);
         assertEq(balanceOf("gold", address(gold.collateralA)), 472222222222222223);
 
-        assertEq(coinBalance(address(settlementSurplusAuctioner)), 1 ether);
+        assertEq(coinBalance(address(settlementSurplusAuctioneer)), 1 ether);
     }
 
     // -- Scenario where there is one over-collateralised and one

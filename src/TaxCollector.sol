@@ -441,7 +441,7 @@ contract TaxCollector is Logging {
         while (currentBucket > 0) {
           // If the current bucket should receive SF from collateralType
           if (buckets[collateralType][currentBucket].taxPercentage > 0) {
-            // Check how many coins the bucket has and negate the value
+            // Check how many coins are in the bucket and negate the value
             coinBalance    = -int(cdpEngine.coinBalance(bucketAccounts[currentBucket]));
             // Compute the % out of deltaRate that should be allocated to the current bucket
             currentTaxCut  = mul(int(buckets[collateralType][currentBucket].taxPercentage), deltaRate) / int(HUNDRED);

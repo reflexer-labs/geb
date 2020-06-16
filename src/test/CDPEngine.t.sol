@@ -856,7 +856,7 @@ contract LiquidationTest is DSTest {
         assertEq(accountingEngine.totalOnAuctionDebt(), rad(  0 ether));
 
         accountingEngine.modifyParameters("debtAuctionBidSize", rad(10 ether));
-        accountingEngine.modifyParameters("initialDebtAuctionAmount", 2000 ether);
+        accountingEngine.modifyParameters("initialDebtAuctionMintedTokens", 2000 ether);
         uint f1 = accountingEngine.auctionDebt();
         assertEq(accountingEngine.activeDebtAuctions(f1), f1);
         assertEq(accountingEngine.activeDebtAuctionsAccumulator(), f1);

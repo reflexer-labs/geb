@@ -195,7 +195,7 @@ contract SurplusAuctionHouseTwo is Logging {
     TokenLike     public protocolToken;
     DexLike       public dex;
     address       public leftoverReceiver;
-    address       public settlementSurplusAuctioner;
+    address       public settlementSurplusAuctioneer;
 
     address[]     public swapPath;
 
@@ -260,8 +260,8 @@ contract SurplusAuctionHouseTwo is Logging {
           cdpEngine.approveCDPModification(addr);
           coinJoin = CoinJoinLike(addr);
         }
-        else if (parameter == "settlementSurplusAuctioner") {
-          settlementSurplusAuctioner = addr;
+        else if (parameter == "settlementSurplusAuctioneer") {
+          settlementSurplusAuctioneer = addr;
         }
         else if (parameter == "dex") dex = DexLike(addr);
         else if (parameter == "leftoverReceiver") leftoverReceiver = addr;
@@ -272,7 +272,7 @@ contract SurplusAuctionHouseTwo is Logging {
         leftoverReceiver = msg.sender;
         joinCoinsInSystem();
         cdpEngine.transferInternalCoins(address(this), leftoverReceiver, cdpEngine.coinBalance(address(this)));
-        leftoverReceiver = settlementSurplusAuctioner;
+        leftoverReceiver = settlementSurplusAuctioneer;
     }
 
     // --- Utils ---
