@@ -38,7 +38,7 @@ We are looking at alternative ways to drain the extra surplus without giving CDP
 
 ## Debt Auction Monitoring
 
-AccountingEngine (previously Vow) has a mapping and an accumulator that keep track of active debt auctions. These additions are useful for creating a Restricted Migration Module (see the [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf)) that makes sure it cannot withdraw the ability of a system to print tokens while debt auctions are still ongoing.
+AccountingEngine (previously Vow) has an accumulator that keep track of active debt auctions. This addition is useful for creating a Restricted Migration Module (see the [whitepaper](https://github.com/reflexer-labs/whitepapers/blob/master/rai.pdf)) and it makes sure that the migration module cannot withdraw the ability of a system to print tokens while debt auctions are still ongoing.
 
 ## Variable Names You Can Actually Understand :astonished:
 
