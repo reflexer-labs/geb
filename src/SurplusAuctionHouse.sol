@@ -229,7 +229,8 @@ contract SurplusAuctionHouseTwo is Logging {
     }
 
     // --- Auction ---
-    function startAuction(uint amountToSell, uint initialBid) external isAuthorized returns (uint id) {
+    function startAuction(uint amountToSell, uint initialBid) external //isAuthorized
+    returns (uint id) {
         require(auctionsStarted < uint(-1), "SurplusAuctionHouseTwo/overflow");
         id = ++auctionsStarted;
 

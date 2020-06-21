@@ -287,7 +287,7 @@ contract GlobalSettlementTest is DSTest {
         protocolToken.setOwner(address(debtAuctionHouse));
 
         accountingEngine = new AccountingEngine(address(cdpEngine), address(surplusAuctionHouseOne), address(debtAuctionHouse));
-        settlementSurplusAuctioneer = new SettlementSurplusAuctioneer(address(accountingEngine));
+        settlementSurplusAuctioneer = new SettlementSurplusAuctioneer(address(accountingEngine), address(0));
         surplusAuctionHouseOne.addAuthorization(address(settlementSurplusAuctioneer));
 
         accountingEngine.modifyParameters("settlementSurplusAuctioneer", address(settlementSurplusAuctioneer));

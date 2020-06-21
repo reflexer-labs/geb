@@ -42,7 +42,6 @@ contract SettlementSurplusAuctioneer is Logging {
      * @param account Account to add auth to
      */
     function addAuthorization(address account) external emitLog isAuthorized {
-        require(contractEnabled == 1, "SettlementSurplusAuctioneer/contract-not-enabled");
         authorizedAccounts[account] = 1;
     }
     /**
@@ -64,16 +63,14 @@ contract SettlementSurplusAuctioneer is Logging {
     SurplusAuctionHouseLike public surplusAuctionHouse;
     CDPEngineLike           public cdpEngine;
 
-    uint256 public contractEnabled;
     uint256 public lastSurplusAuctionTime;
 
-    constructor(address accountingEngine_) public {
+    constructor(address accountingEngine_, address surplusAuctionHouse_) public {
         authorizedAccounts[msg.sender] = 1;
         accountingEngine = AccountingEngineLike(accountingEngine_);
-        surplusAuctionHouse = SurplusAuctionHouseLike(address(accountingEngine.surplusAuctionHouse()));
+        surplusAuctionHouse = SurplusAuctionHouseLike(surplusAuctionHouse_);
         cdpEngine = CDPEngineLike(address(accountingEngine.cdpEngine()));
         cdpEngine.approveCDPModification(address(surplusAuctionHouse));
-        contractEnabled = 1;
     }
 
     // --- Math ---
@@ -83,17 +80,14 @@ contract SettlementSurplusAuctioneer is Logging {
 
     // --- Administration ---
     function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
-        require(contractEnabled == 1, "SettlementSurplusAuctioneer/contract-not-enabled");
         if (parameter == "accountingEngine") {
           cdpEngine.denyCDPModification(address(surplusAuctionHouse));
           accountingEngine = AccountingEngineLike(data);
-          surplusAuctionHouse = SurplusAuctionHouseLike(address(accountingEngine.surplusAuctionHouse()));
           cdpEngine.approveCDPModification(address(surplusAuctionHouse));
+        } else if (parameter == "surplusAuctionHouse") {
+          surplusAuctionHouse = SurplusAuctionHouseLike(data);
         }
         else revert("SettlementSurplusAuctioneer/modify-unrecognized-param");
-    }
-    function disableContract() external emitLog isAuthorized {
-        contractEnabled = 0;
     }
 
     // --- Core Logic ---
@@ -107,7 +101,7 @@ contract SettlementSurplusAuctioneer is Logging {
         uint amountToSell = (cdpEngine.coinBalance(address(this)) < accountingEngine.surplusAuctionAmountToSell()) ?
           cdpEngine.coinBalance(address(this)) : accountingEngine.surplusAuctionAmountToSell();
         if (amountToSell > 0) {
-            id = surplusAuctionHouse.startAuction(amountToSell, 0);
+          id = surplusAuctionHouse.startAuction(amountToSell, 0);
         }
     }
 }

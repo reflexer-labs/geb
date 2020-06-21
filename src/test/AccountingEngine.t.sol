@@ -4,6 +4,7 @@ import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
 import {DebtAuctionHouse as DAH} from './DebtAuctionHouse.t.sol';
 import {SurplusAuctionHouseOne as SAH_ONE} from "./SurplusAuctionHouse.t.sol";
+import {SurplusAuctionHouseTwo as SAH_TWO} from "./SurplusAuctionHouse.t.sol";
 import {TestCDPEngine as CDPEngine} from './CDPEngine.t.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
 import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
@@ -27,6 +28,7 @@ contract AccountingEngineTest is DSTest {
     AccountingEngine  accountingEngine;
     DAH debtAuctionHouse;
     SAH_ONE surplusAuctionHouseOne;
+    SAH_TWO surplusAuctionHouseTwo;
     SettlementSurplusAuctioneer settlementSurplusAuctioneer;
     Gem  protocolToken;
 
@@ -44,10 +46,6 @@ contract AccountingEngineTest is DSTest {
           address(cdpEngine), address(surplusAuctionHouseOne), address(debtAuctionHouse)
         );
         surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
-
-        settlementSurplusAuctioneer = new SettlementSurplusAuctioneer(address(accountingEngine));
-        accountingEngine.modifyParameters("settlementSurplusAuctioneer", address(settlementSurplusAuctioneer));
-        surplusAuctionHouseOne.addAuthorization(address(settlementSurplusAuctioneer));
 
         debtAuctionHouse.addAuthorization(address(accountingEngine));
 
@@ -170,6 +168,12 @@ contract AccountingEngineTest is DSTest {
     }
 
     function test_settlement_auction_surplus() public {
+        // Post settlement auction house setup
+        surplusAuctionHouseTwo = new SAH_TWO(address(cdpEngine), address(protocolToken));
+        // Auctioneer setup
+        settlementSurplusAuctioneer = new SettlementSurplusAuctioneer(address(accountingEngine), address(surplusAuctionHouseTwo));
+        surplusAuctionHouseTwo.addAuthorization(address(settlementSurplusAuctioneer));
+
         cdpEngine.mint(address(settlementSurplusAuctioneer), 100 ether);
         accountingEngine.disableContract();
         uint id = settlementSurplusAuctioneer.auctionSurplus();

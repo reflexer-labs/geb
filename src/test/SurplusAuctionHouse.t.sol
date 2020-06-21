@@ -186,8 +186,6 @@ contract SurplusAuctionHouseOneTest is DSTest {
         assertEq(cdpEngine.coinBalance(address(this)), 900 ether);
 
         GuySurplusAuctionOne(ali).increaseBidSize(id, 100 ether, 1 ether);
-        // Shutdown
-        surplusAuctionHouse.disableContract();
         surplusAuctionHouse.terminateAuctionPrematurely(id);
     }
     function test_terminate_prematurely() public {
