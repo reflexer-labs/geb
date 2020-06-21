@@ -73,7 +73,7 @@ contract OracleRelayer is Logging {
     // --- Events ---
     event UpdateCollateralPrice(
       bytes32 collateralType,
-      bytes32 priceFeed,
+      bytes32 priceFeedValue,
       uint256 safetyPrice,
       uint256 liquidationPrice
     );
@@ -208,7 +208,7 @@ contract OracleRelayer is Logging {
     // --- Update value ---
     /**
      * @notice Update the collateral price inside the system (inside CDPEngine)
-     * @param collateralType The collateral we want to update prices for
+     * @param collateralType The collateral we want to update prices (safety and liquidation prices) for
      */
     function updateCollateralPrice(bytes32 collateralType) external {
         (bytes32 priceFeedValue, bool hasValidValue) =

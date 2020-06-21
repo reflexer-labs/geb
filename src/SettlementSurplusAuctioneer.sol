@@ -104,12 +104,10 @@ contract SettlementSurplusAuctioneer is Logging {
           "SettlementSurplusAuctioneer/surplus-auction-delay-not-passed"
         );
         lastSurplusAuctionTime = now;
-        uint defaultAmountToSell = accountingEngine.surplusAuctionAmountToSell();
-        uint finalAmountToSell =
-          (cdpEngine.coinBalance(address(this)) < defaultAmountToSell) ?
-          cdpEngine.coinBalance(address(this)) : defaultAmountToSell;
-        if (finalAmountToSell > 0) {
-            id = surplusAuctionHouse.startAuction(finalAmountToSell, 0);
+        uint amountToSell = (cdpEngine.coinBalance(address(this)) < accountingEngine.surplusAuctionAmountToSell()) ?
+          cdpEngine.coinBalance(address(this)) : accountingEngine.surplusAuctionAmountToSell();
+        if (amountToSell > 0) {
+            id = surplusAuctionHouse.startAuction(amountToSell, 0);
         }
     }
 }

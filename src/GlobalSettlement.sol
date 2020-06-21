@@ -281,7 +281,7 @@ contract GlobalSettlement is Logging {
         (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
         (uint bidAmount, uint collateralToSell,,,, address forgoneCollateralReceiver,, uint amountToRaise) = collateralAuctionHouse.bids(auctionId);
 
-        cdpEngine.createUnbackedDebt(address(accountingEngine), address(accountingEngine),  amountToRaise);
+        cdpEngine.createUnbackedDebt(address(accountingEngine), address(accountingEngine), amountToRaise);
         cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), bidAmount);
         cdpEngine.approveCDPModification(address(collateralAuctionHouse));
         collateralAuctionHouse.terminateAuctionPrematurely(auctionId);

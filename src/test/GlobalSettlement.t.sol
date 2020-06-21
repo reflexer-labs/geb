@@ -28,7 +28,7 @@ import {AccountingEngine} from '../AccountingEngine.sol';
 import {CoinSavingsAccount} from '../CoinSavingsAccount.sol';
 import {StabilityFeeTreasury}  from '../StabilityFeeTreasury.sol';
 import {CollateralAuctionHouse} from '../CollateralAuctionHouse.sol';
-import {SurplusAuctionHouseOne, SurplusAuctionHouseTwo} from '../SurplusAuctionHouse.sol';
+import {SurplusAuctionHouseOne} from '../SurplusAuctionHouse.sol';
 import {DebtAuctionHouse} from '../DebtAuctionHouse.sol';
 import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
 import {CollateralJoin, CoinJoin} from '../BasicTokenAdapters.sol';
@@ -171,7 +171,6 @@ contract GlobalSettlementTest is DSTest {
     mapping (bytes32 => CollateralType) collateralTypes;
 
     SurplusAuctionHouseOne surplusAuctionHouseOne;
-    SurplusAuctionHouseTwo surplusAuctionHouseTwo;
     DebtAuctionHouse debtAuctionHouse;
 
     uint constant WAD = 10 ** 18;
@@ -273,17 +272,9 @@ contract GlobalSettlementTest is DSTest {
 
         surplusAuctionHouseOne = new SurplusAuctionHouseOne(address(cdpEngine), address(protocolToken));
 
-        surplusAuctionHouseTwo = new SurplusAuctionHouseTwo(address(cdpEngine), address(protocolToken));
-        surplusAuctionHouseTwo.modifyParameters("systemCoin", address(systemCoin));
-        surplusAuctionHouseTwo.modifyParameters("dex", address(dex));
-        surplusAuctionHouseTwo.modifyParameters("coinJoin", address(systemCoinA));
-        surplusAuctionHouseTwo.modifyParameters("leftoverReceiver", address(this));
-
         cdpEngine.approveCDPModification(address(surplusAuctionHouseOne));
-        cdpEngine.approveCDPModification(address(surplusAuctionHouseTwo));
 
         protocolToken.approve(address(surplusAuctionHouseOne));
-        protocolToken.approve(address(surplusAuctionHouseTwo));
 
         debtAuctionHouse = new DebtAuctionHouse(address(cdpEngine), address(protocolToken));
 
@@ -298,13 +289,11 @@ contract GlobalSettlementTest is DSTest {
         accountingEngine = new AccountingEngine(address(cdpEngine), address(surplusAuctionHouseOne), address(debtAuctionHouse));
         settlementSurplusAuctioneer = new SettlementSurplusAuctioneer(address(accountingEngine));
         surplusAuctionHouseOne.addAuthorization(address(settlementSurplusAuctioneer));
-        surplusAuctionHouseTwo.addAuthorization(address(settlementSurplusAuctioneer));
 
         accountingEngine.modifyParameters("settlementSurplusAuctioneer", address(settlementSurplusAuctioneer));
         cdpEngine.addAuthorization(address(accountingEngine));
 
         surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
-        surplusAuctionHouseTwo.addAuthorization(address(accountingEngine));
 
         debtAuctionHouse.addAuthorization(address(accountingEngine));
         debtAuctionHouse.modifyParameters("accountingEngine", address(accountingEngine));
@@ -338,7 +327,6 @@ contract GlobalSettlementTest is DSTest {
         liquidationEngine.addAuthorization(address(globalSettlement));
         stabilityFeeTreasury.addAuthorization(address(globalSettlement));
         surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
-        surplusAuctionHouseTwo.addAuthorization(address(accountingEngine));
         debtAuctionHouse.addAuthorization(address(accountingEngine));
     }
     function test_shutdown_basic() public {
