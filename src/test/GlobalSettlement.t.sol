@@ -309,7 +309,7 @@ contract GlobalSettlementTest is DSTest {
         cdpEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
         cdpEngine.addAuthorization(address(oracleRelayer));
 
-        stabilityFeeTreasury = new StabilityFeeTreasury(address(cdpEngine), address(accountingEngine), address(systemCoinA), 10 minutes);
+        stabilityFeeTreasury = new StabilityFeeTreasury(address(cdpEngine), address(accountingEngine), address(systemCoinA));
 
         rateSetter = new MockRateSetter();
 
