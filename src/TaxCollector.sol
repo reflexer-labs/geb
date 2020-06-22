@@ -11,7 +11,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.15;
+pragma solidity ^0.5.12;
 
 import "./Logging.sol";
 import "./LinkedList.sol";
@@ -60,39 +60,40 @@ contract TaxCollector is Logging {
         uint256 updateTime;
     }
     // SF receiver (not AccountingEngine)
-    struct TaxBucket {
-        // Whether this bucket can accept a negative rate (taking SF from it)
+    struct TaxReceiver {
+        // Whether this receiver can accept a negative rate (taking SF from it)
         uint256 canTakeBackTax;
-        // Percentage of SF allocated to this bucket
+        // Percentage of SF allocated to this receiver
         uint256 taxPercentage;
     }
 
     // Data about each collateral type
-    mapping (bytes32 => CollateralType)                public collateralTypes;
+    mapping (bytes32 => CollateralType)                  public collateralTypes;
     // Percentage of each collateral's SF that goes to other addresses apart from AccountingEngine
-    mapping (bytes32 => uint)                          public bucketTaxCut;
-    // Whether an address is already used for a bucket
-    mapping (address => uint256)                       public usedBucket;
-    // Address associated for each bucket index
-    mapping (uint256 => address)                       public bucketAccounts;
-    // How many collateral types send SF to a specific bucket
-    mapping (address => uint256)                       public bucketRevenueSources;
-    // Bucket data
-    mapping (bytes32 => mapping(uint256 => TaxBucket)) public buckets;
+    mapping (bytes32 => uint)                            public receiverAllotedTax;
+    // Whether an address is already used for a tax receiver
+    mapping (address => uint256)                         public usedTaxReceiver;
+    // Address associated to each tax receiver index
+    mapping (uint256 => address)                         public taxReceiverAccounts;
+    // How many collateral types send SF to a specific tax receiver
+    mapping (address => uint256)                         public taxReceiverRevenueSources;
+    // Tax receiver data
+    mapping (bytes32 => mapping(uint256 => TaxReceiver)) public taxReceivers;
 
     address    public accountingEngine;
     // Base stability fee charged by all collateral types
     uint256    public globalStabilityFee;
-    uint256    public bucketNonce;
-    // How many buckets a collateral type can have
-    uint256    public maxBuckets;
-    // Latest bucket that still has at least one revenue source
-    uint256    public latestBucket;
+    // Total amount of secondary tax receivers ever added
+    uint256    public taxReceiverNonce;
+    // How many tax receivers a collateral type can have
+    uint256    public maxSecondaryReceivers;
+    // Latest tax receiver that still has at least one revenue source
+    uint256    public latestTaxReceiver;
 
     // All collateral types
     bytes32[]        public   collateralList;
-    // Linked list with bucket data
-    LinkedList.List  internal bucketList;
+    // Linked list with tax receiver data
+    LinkedList.List  internal taxReceiverList;
 
     CDPEngineLike public cdpEngine;
 
@@ -206,7 +207,7 @@ contract TaxCollector is Logging {
      */
     function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
         if (parameter == "globalStabilityFee") globalStabilityFee = data;
-        else if (parameter == "maxBuckets") maxBuckets = data;
+        else if (parameter == "maxSecondaryReceivers") maxSecondaryReceivers = data;
         else revert("TaxCollector/modify-unrecognized-param");
     }
     /**
@@ -220,104 +221,104 @@ contract TaxCollector is Logging {
         else revert("TaxCollector/modify-unrecognized-param");
     }
     /**
-     * @notice Set whether a bucket can incur negative fees
-     * @param collateralType Collateral type giving fees to the bucket
-     * @param position Bucket position in the bucket list
-     * @param val Value that specifies whether a bucket can incur negative rates
+     * @notice Set whether a tax receiver can incur negative fees
+     * @param collateralType Collateral type giving fees to the tax receiver
+     * @param position Receiver position in the list
+     * @param val Value that specifies whether a tax receiver can incur negative rates
      */
     function modifyParameters(
         bytes32 collateralType,
         uint256 position,
         uint256 val
     ) external emitLog isAuthorized {
-        if (both(bucketList.isNode(position), buckets[collateralType][position].taxPercentage > 0)) {
-            buckets[collateralType][position].canTakeBackTax = val;
+        if (both(taxReceiverList.isNode(position), taxReceivers[collateralType][position].taxPercentage > 0)) {
+            taxReceivers[collateralType][position].canTakeBackTax = val;
         }
-        else revert("TaxCollector/unknown-bucket");
+        else revert("TaxCollector/unknown-tax-receiver");
     }
     /**
-     * @notice Create or modify a bucket's data
-     * @param collateralType Collateral type that will give SF to the bucket
-     * @param position Bucket position in the bucket list. Used to determine whether a new bucket is
+     * @notice Create or modify a tax receiver's data
+     * @param collateralType Collateral type that will give SF to the tax receiver
+     * @param position Receiver position in the list. Used to determine whether a new tax receiver is
               created or an existing one is edited
-     * @param taxPercentage Percentage of SF offered to the bucket
-     * @param bucketAccount Bucket address
+     * @param taxPercentage Percentage of SF offered to the tax receiver
+     * @param receiverAccount Receiver address
      */
     function modifyParameters(
       bytes32 collateralType,
       uint256 position,
       uint256 taxPercentage,
-      address bucketAccount
+      address receiverAccount
     ) external emitLog isAuthorized {
-        (!bucketList.isNode(position)) ?
-          createBucket(collateralType, taxPercentage, bucketAccount) :
-          fixBucket(collateralType, position, taxPercentage);
+        (!taxReceiverList.isNode(position)) ?
+          createTaxReceiver(collateralType, taxPercentage, receiverAccount) :
+          modifyTaxReceiver(collateralType, position, taxPercentage);
     }
 
-    // --- Bucket Utils ---
+    // --- Tax Receiver Utils ---
     /**
-     * @notice Create a new bucket
-     * @param collateralType Collateral type that will give SF to the bucket
-     * @param taxPercentage Percentage of SF offered to the bucket
-     * @param bucketAccount Bucket address
+     * @notice Create a new tax receiver
+     * @param collateralType Collateral type that will give SF to the tax receiver
+     * @param taxPercentage Percentage of SF offered to the tax receiver
+     * @param receiverAccount Tax receiver address
      */
-    function createBucket(bytes32 collateralType, uint256 taxPercentage, address bucketAccount) internal {
-        require(bucketAccount != address(0), "TaxCollector/null-account");
-        require(bucketAccount != accountingEngine, "TaxCollector/accounting-engine-cannot-be-bucket");
+    function createTaxReceiver(bytes32 collateralType, uint256 taxPercentage, address receiverAccount) internal {
+        require(receiverAccount != address(0), "TaxCollector/null-account");
+        require(receiverAccount != accountingEngine, "TaxCollector/accounting-engine-cannot-be-secondary-tax-receiver");
         require(taxPercentage > 0, "TaxCollector/null-sf");
-        require(usedBucket[bucketAccount] == 0, "TaxCollector/account-already-used");
-        require(add(bucketListLength(), ONE) <= maxBuckets, "TaxCollector/exceeds-max-buckets");
-        require(add(bucketTaxCut[collateralType], taxPercentage) < HUNDRED, "TaxCollector/tax-cut-exceeds-hundred");
-        bucketNonce                                         = add(bucketNonce, 1);
-        latestBucket                                        = bucketNonce;
-        usedBucket[bucketAccount]                           = ONE;
-        bucketTaxCut[collateralType]                        = add(bucketTaxCut[collateralType], taxPercentage);
-        buckets[collateralType][latestBucket].taxPercentage = taxPercentage;
-        bucketAccounts[latestBucket]                        = bucketAccount;
-        bucketRevenueSources[bucketAccount]                 = ONE;
-        bucketList.push(latestBucket, false);
+        require(usedTaxReceiver[receiverAccount] == 0, "TaxCollector/account-already-used");
+        require(add(taxReceiverListLength(), ONE) <= maxSecondaryReceivers, "TaxCollector/exceeds-max-receiver-limit");
+        require(add(receiverAllotedTax[collateralType], taxPercentage) < HUNDRED, "TaxCollector/tax-cut-exceeds-hundred");
+        taxReceiverNonce                                                      = add(taxReceiverNonce, 1);
+        latestTaxReceiver                                                     = taxReceiverNonce;
+        usedTaxReceiver[receiverAccount]                                      = ONE;
+        receiverAllotedTax[collateralType]                                    = add(receiverAllotedTax[collateralType], taxPercentage);
+        taxReceivers[collateralType][latestTaxReceiver].taxPercentage = taxPercentage;
+        taxReceiverAccounts[latestTaxReceiver]                                = receiverAccount;
+        taxReceiverRevenueSources[receiverAccount]                            = ONE;
+        taxReceiverList.push(latestTaxReceiver, false);
     }
     /**
-     * @notice Update a bucket's data (add a new SF source or modify % of SF taken from a collateral type)
-     * @param collateralType Collateral type that will give SF to the bucket
-     * @param position Bucket's position in the bucket list
-     * @param taxPercentage Percentage of SF offered to the bucket
+     * @notice Update a tax receiver's data (add a new SF source or modify % of SF taken from a collateral type)
+     * @param collateralType Collateral type that will give SF to the tax receiver
+     * @param position Receiver's position in the tax receiver list
+     * @param taxPercentage Percentage of SF offered to the tax receiver
      */
-    function fixBucket(bytes32 collateralType, uint256 position, uint256 taxPercentage) internal {
+    function modifyTaxReceiver(bytes32 collateralType, uint256 position, uint256 taxPercentage) internal {
         if (taxPercentage == 0) {
-          bucketTaxCut[collateralType] = sub(
-            bucketTaxCut[collateralType],
-            buckets[collateralType][position].taxPercentage
+          receiverAllotedTax[collateralType] = sub(
+            receiverAllotedTax[collateralType],
+            taxReceivers[collateralType][position].taxPercentage
           );
 
-          if (bucketRevenueSources[bucketAccounts[position]] == 1) {
-            if (position == latestBucket) {
-              (, uint256 prevBucket) = bucketList.prev(latestBucket);
-              latestBucket = prevBucket;
+          if (taxReceiverRevenueSources[taxReceiverAccounts[position]] == 1) {
+            if (position == latestTaxReceiver) {
+              (, uint256 prevReceiver) = taxReceiverList.prev(latestTaxReceiver);
+              latestTaxReceiver = prevReceiver;
             }
-            bucketList.del(position);
-            delete(usedBucket[bucketAccounts[position]]);
-            delete(buckets[collateralType][position]);
-            delete(bucketRevenueSources[bucketAccounts[position]]);
-            delete(bucketAccounts[position]);
-          } else if (buckets[collateralType][position].taxPercentage > 0) {
-            bucketRevenueSources[bucketAccounts[position]] = sub(bucketRevenueSources[bucketAccounts[position]], 1);
-            delete(buckets[collateralType][position]);
+            taxReceiverList.del(position);
+            delete(usedTaxReceiver[taxReceiverAccounts[position]]);
+            delete(taxReceivers[collateralType][position]);
+            delete(taxReceiverRevenueSources[taxReceiverAccounts[position]]);
+            delete(taxReceiverAccounts[position]);
+          } else if (taxReceivers[collateralType][position].taxPercentage > 0) {
+            taxReceiverRevenueSources[taxReceiverAccounts[position]] = sub(taxReceiverRevenueSources[taxReceiverAccounts[position]], 1);
+            delete(taxReceivers[collateralType][position]);
           }
         } else {
-          uint256 bucketTaxCut_ = add(
-            sub(bucketTaxCut[collateralType], buckets[collateralType][position].taxPercentage),
+          uint256 receiverAllotedTax_ = add(
+            sub(receiverAllotedTax[collateralType], taxReceivers[collateralType][position].taxPercentage),
             taxPercentage
           );
-          require(bucketTaxCut_ < HUNDRED, "TaxCollector/tax-cut-too-big");
-          if (buckets[collateralType][position].taxPercentage == 0) {
-            bucketRevenueSources[bucketAccounts[position]] = add(
-              bucketRevenueSources[bucketAccounts[position]],
+          require(receiverAllotedTax_ < HUNDRED, "TaxCollector/tax-cut-too-big");
+          if (taxReceivers[collateralType][position].taxPercentage == 0) {
+            taxReceiverRevenueSources[taxReceiverAccounts[position]] = add(
+              taxReceiverRevenueSources[taxReceiverAccounts[position]],
               1
             );
           }
-          bucketTaxCut[collateralType]                    = bucketTaxCut_;
-          buckets[collateralType][position].taxPercentage = taxPercentage;
+          receiverAllotedTax[collateralType]                    = receiverAllotedTax_;
+          taxReceivers[collateralType][position].taxPercentage = taxPercentage;
         }
     }
 
@@ -366,16 +367,16 @@ contract TaxCollector is Logging {
 
     // --- Gifts Utils ---
     /**
-     * @notice Get the bucket list length
+     * @notice Get the tax receiver list length
      */
-    function bucketListLength() public view returns (uint) {
-        return bucketList.range();
+    function taxReceiverListLength() public view returns (uint) {
+        return taxReceiverList.range();
     }
     /**
-     * @notice Check if a bucket is at a certain position in the list
+     * @notice Check if a tax receiver is at a certain position in the list
      */
-    function isBucket(uint256 _bucket) public view returns (bool) {
-        return bucketList.isNode(_bucket);
+    function isTaxReceiver(uint256 _receiver) public view returns (bool) {
+        return taxReceiverList.isNode(_receiver);
     }
 
     // --- Tax (Stability Fee) Collection ---
@@ -426,61 +427,74 @@ contract TaxCollector is Logging {
         return latestAccumulatedRate;
     }
     /**
-     * @notice Distribute SF to tax buckets and to the AccountingEngine
+     * @notice Distribute SF to tax receivers and to the AccountingEngine
      * @param collateralType Collateral type to distribute SF for
      * @param deltaRate Difference between the last and the latest accumulate rates for the collateralType
      */
     function splitTaxIncome(bytes32 collateralType, int deltaRate) internal {
         // Check how much debt has been generated for collateralType
         (uint debtAmount, ) = cdpEngine.collateralTypes(collateralType);
-        // Start looping from the latest bucket
-        uint256 currentBucket = latestBucket;
-        int256  currentTaxCut;
-        int256  coinBalance;
-        // While we still haven't gone through the entire bucket list
-        while (currentBucket > 0) {
-          // If the current bucket should receive SF from collateralType
-          if (buckets[collateralType][currentBucket].taxPercentage > 0) {
-            // Check how many coins are in the bucket and negate the value
-            coinBalance    = -int(cdpEngine.coinBalance(bucketAccounts[currentBucket]));
-            // Compute the % out of deltaRate that should be allocated to the current bucket
-            currentTaxCut  = mul(int(buckets[collateralType][currentBucket].taxPercentage), deltaRate) / int(HUNDRED);
-            /**
-                If SF is negative and the bucket doesn't have enough coins to absorb the loss,
-                compute a new tax cut that can be absorbed
-            **/
-            currentTaxCut  = (
-              both(mul(debtAmount, currentTaxCut) < 0, coinBalance > mul(debtAmount, currentTaxCut))
-            ) ? coinBalance / int(debtAmount) : currentTaxCut;
-            /**
-              If the bucket's tax cut is not null and if the bucket accepts negative SF
-              (in case currentTaxCut is negative), offer/subtract SF from the bucket
-            **/
-            if (
-              both(
-                currentTaxCut != 0,
-                either(
-                  deltaRate >= 0,
-                  both(currentTaxCut < 0, buckets[collateralType][currentBucket].canTakeBackTax > 0)
-                )
-              )
-            ) {
-              cdpEngine.updateAccumulatedRate(collateralType, bucketAccounts[currentBucket], currentTaxCut);
-              emit UpdatedAccumulatedRate(collateralType, bucketAccounts[currentBucket], currentTaxCut);
-            }
+        // Start looping from the latest tax receiver
+        uint256 currentTaxReceiver = latestTaxReceiver;
+        // While we still haven't gone through the entire tax receiver list
+        while (currentTaxReceiver > 0) {
+          // If the current tax receiver should receive SF from collateralType
+          if (taxReceivers[collateralType][currentTaxReceiver].taxPercentage > 0) {
+            distributeSecondaryTaxReceiverIncome(collateralType, currentTaxReceiver, debtAmount, deltaRate);
           }
           // Continue looping
-          (, currentBucket) = bucketList.prev(currentBucket);
+          (, currentTaxReceiver) = taxReceiverList.prev(currentTaxReceiver);
         }
         // Repeat the exact process for AccountingEngine but do not check if it accepts negative rates
-        coinBalance = -int(cdpEngine.coinBalance(accountingEngine));
-        currentTaxCut  = mul(sub(HUNDRED, bucketTaxCut[collateralType]), deltaRate) / int(HUNDRED);
+        distributeAccountingEngineIncome(collateralType, debtAmount, deltaRate);
+    }
+    function distributeAccountingEngineIncome(
+        bytes32 collateralType,
+        uint256 debtAmount,
+        int256 deltaRate
+    ) internal {
+        int256 coinBalance   = -int(cdpEngine.coinBalance(accountingEngine));
+        int256 currentTaxCut = mul(sub(HUNDRED, receiverAllotedTax[collateralType]), deltaRate) / int(HUNDRED);
         currentTaxCut  = (
           both(mul(debtAmount, currentTaxCut) < 0, coinBalance > mul(debtAmount, currentTaxCut))
         ) ? coinBalance / int(debtAmount) : currentTaxCut;
         if (currentTaxCut != 0) {
           cdpEngine.updateAccumulatedRate(collateralType, accountingEngine, currentTaxCut);
           emit UpdatedAccumulatedRate(collateralType, accountingEngine, currentTaxCut);
+        }
+    }
+    function distributeSecondaryTaxReceiverIncome(
+        bytes32 collateralType,
+        uint256 receiver,
+        uint256 debtAmount,
+        int256 deltaRate
+    ) internal {
+        // Check how many coins the receiver has and negate the value
+        int256 coinBalance   = -int(cdpEngine.coinBalance(taxReceiverAccounts[receiver]));
+        // Compute the % out of deltaRate that should be allocated to the current tax receiver
+        int256 currentTaxCut = mul(int(taxReceivers[collateralType][receiver].taxPercentage), deltaRate) / int(HUNDRED);
+        /**
+            If SF is negative and the tax receiver doesn't have enough coins to absorb the loss,
+            compute a new tax cut that can be absorbed
+        **/
+        currentTaxCut  = (
+          both(mul(debtAmount, currentTaxCut) < 0, coinBalance > mul(debtAmount, currentTaxCut))
+        ) ? coinBalance / int(debtAmount) : currentTaxCut;
+        /**
+          If the tax receiver's tax cut is not null and if the receiver accepts negative SF
+          (in case currentTaxCut is negative), offer/subtract SF from them
+        **/
+        if (
+          both(
+            currentTaxCut != 0,
+            either(
+              deltaRate >= 0,
+              both(currentTaxCut < 0, taxReceivers[collateralType][receiver].canTakeBackTax > 0)
+            )
+          )
+        ) {
+          cdpEngine.updateAccumulatedRate(collateralType, taxReceiverAccounts[receiver], currentTaxCut);
+          emit UpdatedAccumulatedRate(collateralType, taxReceiverAccounts[receiver], currentTaxCut);
         }
     }
 }

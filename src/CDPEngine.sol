@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.15;
+pragma solidity ^0.5.12;
 
 contract CDPEngine {
     // --- Auth ---
@@ -120,8 +120,6 @@ contract CDPEngine {
     modifier emitLog {
         _;
         assembly {
-            //
-            //
             let mark := msize                         // end of memory ensures zero
             mstore(0x40, add(mark, 288))              // update free memory pointer
             mstore(mark, 0x20)                        // bytes type data offset
@@ -342,42 +340,6 @@ contract CDPEngine {
 
         cdps[collateralType][cdp] = cdp_;
         collateralTypes[collateralType] = collateralType_;
-    }
-
-    // --- CDP Insurance ---
-    /**
-     * @notice Add more collateral in a CDP and reward the keeper who initially wanted to liquidate the CDP
-     * @param collateralType Type of collateral to add to the CDP and reward the keeper with
-     * @param cdp Target CDP
-     * @param liquidator Actor who called LiquidationEngine.liquidateCDP and then the CDPSaviour
-       triggered this function
-     * @param collateralToAdd Amount of collateral to add in the CDP
-     * @param reward Amount of collateralType to give to the keeper
-     */
-    function saveCDP(
-        bytes32 collateralType,
-        address cdp,
-        address liquidator,
-        uint collateralToAdd,
-        uint reward
-    ) external emitLog isAuthorized {
-        require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
-        require(liquidator != address(0), "CDPEngine/null-liquidator");
-        require(collateralTypes[collateralType].accumulatedRates > 0, "CDPEngine/inexistent-collateral-type");
-        require(both(collateralToAdd > 0, reward > 0), "CDPEngine/null-collateral-or-reward");
-
-        CDP memory cdp_ = cdps[collateralType][cdp];
-        CollateralType memory collateralType_ = collateralTypes[collateralType];
-        require(
-          mul(cdp_.lockedCollateral, collateralType_.liquidationPrice) <
-          mul(cdp_.generatedDebt, collateralType_.accumulatedRates),
-          "CDPEngine/not-underwater"
-        );
-
-        cdps[collateralType][cdp].lockedCollateral =
-          add(cdps[collateralType][cdp].lockedCollateral, collateralToAdd);
-        tokenCollateral[collateralType][liquidator] =
-          add(tokenCollateral[collateralType][liquidator], reward);
     }
 
     // --- CDP Fungibility ---

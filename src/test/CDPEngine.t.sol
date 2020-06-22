@@ -1,4 +1,4 @@
-pragma solidity ^0.5.15;
+pragma solidity ^0.5.12;
 pragma experimental ABIEncoderV2;
 
 import "ds-test/test.sol";
@@ -133,98 +133,6 @@ contract Usr {
     }
     function approveCDPModification(address usr) public {
         cdpEngine.approveCDPModification(usr);
-    }
-}
-
-contract SaveCDPTest is DSTest {
-    TestCDPEngine cdpEngine;
-    DSToken gold;
-
-    CollateralJoin collateralA;
-    address me;
-
-    Usr bob;
-
-    uint constant RAY = 10 ** 27;
-
-    function try_saveCDP(
-      bytes32 collateralType,
-      address cdp,
-      address liquidator,
-      uint collateralToAdd,
-      uint reward
-    ) public returns (bool ok) {
-      string memory sig = "saveCDP(bytes32,address,address,uint256,uint256)";
-      address self = address(this);
-      (ok,) = address(cdpEngine).call(abi.encodeWithSignature(sig, collateralType, cdp, liquidator, collateralToAdd, reward));
-    }
-
-    function ray(uint wad) internal pure returns (uint) {
-        return wad * 10 ** 9;
-    }
-    function rad(uint wad) internal pure returns (uint) {
-        return wad * 10 ** 27;
-    }
-
-    function setUp() public {
-        cdpEngine = new TestCDPEngine();
-
-        gold = new DSToken("GEM");
-        gold.mint(1000 ether);
-
-        cdpEngine.initializeCollateralType("gold");
-        collateralA = new CollateralJoin(address(cdpEngine), "gold", address(gold));
-
-        cdpEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
-        cdpEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
-        cdpEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
-
-        gold.approve(address(collateralA));
-        gold.approve(address(cdpEngine));
-
-        cdpEngine.addAuthorization(address(cdpEngine));
-        cdpEngine.addAuthorization(address(collateralA));
-
-        collateralA.join(address(this), 500 ether);
-
-        bob = new Usr(cdpEngine);
-
-        me = address(this);
-    }
-
-    function testFail_inexistent_collateral() public {
-        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 1 ether, 0);
-        cdpEngine.saveCDP("silver", me, address(bob), 1 ether, 0.1 ether);
-    }
-    function testFail_null_reward() public {
-        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 1 ether, 0);
-        cdpEngine.saveCDP("silver", me, address(bob), 1 ether, 0);
-    }
-    function testFail_null_collateral_amount() public {
-        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 1 ether, 0);
-        cdpEngine.saveCDP("silver", me, address(bob), 0, 1 ether);
-    }
-    function testFail_contract_disabled() public {
-        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 6 ether, 0);
-        cdpEngine.disableContract();
-        cdpEngine.saveCDP("gold", me, address(bob), 1 ether, 0.1 ether);
-    }
-    function testFail_save_cdp_without_adapter_collateral() public {
-        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 6 ether, 0);
-        cdpEngine.saveCDP("gold", me, address(bob), 1 ether, 1000 ether);
-        (uint lockedCollateral, ) = cdpEngine.cdps("gold", me);
-        assertEq(cdpEngine.tokenCollateral("gold", address(bob)), 1000 ether);
-        assertEq(lockedCollateral, 7 ether);
-        bob.exit(address(collateralA), address(bob), 1000 ether);
-    }
-    function test_successfuly_save_cdp() public {
-        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 6 ether, 3 ether);
-        cdpEngine.saveCDP("gold", me, address(bob), 1 ether, 0.1 ether);
-        (uint lockedCollateral, ) = cdpEngine.cdps("gold", me);
-        assertEq(cdpEngine.tokenCollateral("gold", address(bob)), 0.1 ether);
-        assertEq(lockedCollateral, 7 ether);
-        bob.exit(address(collateralA), address(bob), 0.1 ether);
-        assertEq(gold.balanceOf(address(bob)), 0.1 ether);
     }
 }
 

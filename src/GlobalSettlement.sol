@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.15;
+pragma solidity ^0.5.12;
 
 import "./Logging.sol";
 
@@ -281,7 +281,7 @@ contract GlobalSettlement is Logging {
         (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
         (uint bidAmount, uint collateralToSell,,,, address forgoneCollateralReceiver,, uint amountToRaise) = collateralAuctionHouse.bids(auctionId);
 
-        cdpEngine.createUnbackedDebt(address(accountingEngine), address(accountingEngine),  amountToRaise);
+        cdpEngine.createUnbackedDebt(address(accountingEngine), address(accountingEngine), amountToRaise);
         cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), bidAmount);
         cdpEngine.approveCDPModification(address(collateralAuctionHouse));
         collateralAuctionHouse.terminateAuctionPrematurely(auctionId);

@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.15;
+pragma solidity ^0.5.12;
 
 import "./Logging.sol";
 
@@ -30,7 +30,7 @@ contract CollateralAuctionHouseLike {
     ) public returns (uint);
 }
 contract CDPSaviourLike {
-    function saveCDP(address,bytes32,address) external returns (bool,uint256);
+    function saveCDP(address,bytes32,address) external returns (bool,uint256,uint256);
 }
 contract CDPEngineLike {
     function collateralTypes(bytes32) external view returns (
@@ -230,7 +230,7 @@ contract LiquidationEngine is Logging {
         //TODO: try/catch the cdp saviour call
         if (chosenCDPSaviour[collateralType][cdp] != address(0) &&
             cdpSaviours[chosenCDPSaviour[collateralType][cdp]] == 1) {
-          (bool ok, uint collateralAdded) =
+          (bool ok, uint collateralAdded, ) =
             CDPSaviourLike(chosenCDPSaviour[collateralType][cdp]).saveCDP(msg.sender, collateralType, cdp);
           if (both(ok, collateralAdded > 0)) {
             emit SaveCDP(collateralType, cdp, collateralAdded);
