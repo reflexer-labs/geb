@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "ds-test/test.sol";
 
@@ -25,8 +25,8 @@ import {CDPEngine} from '../CDPEngine.sol';
 import {StabilityFeeTreasury} from '../StabilityFeeTreasury.sol';
 import {CoinJoin} from '../BasicTokenAdapters.sol';
 
-contract Hevm {
-    function warp(uint256) public;
+abstract contract Hevm {
+    function warp(uint256) virtual public;
 }
 
 contract Usr {

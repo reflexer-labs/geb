@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 contract CDPEngine {
     // --- Auth ---
@@ -120,7 +120,7 @@ contract CDPEngine {
     modifier emitLog {
         _;
         assembly {
-            let mark := msize                         // end of memory ensures zero
+            let mark := msize()                         // end of memory ensures zero
             mstore(0x40, add(mark, 288))              // update free memory pointer
             mstore(mark, 0x20)                        // bytes type data offset
             mstore(add(mark, 0x20), 224)              // bytes size (padded)
@@ -141,38 +141,38 @@ contract CDPEngine {
     }
 
     // --- Math ---
-    function add(uint x, int y) internal pure returns (uint z) {
+    function addition(uint x, int y) internal pure returns (uint z) {
         z = x + uint(y);
         require(y >= 0 || z <= x);
         require(y <= 0 || z >= x);
     }
-    function add(int x, int y) internal pure returns (int z) {
+    function addition(int x, int y) internal pure returns (int z) {
         z = x + y;
         require(y >= 0 || z <= x);
         require(y <= 0 || z >= x);
     }
-    function sub(uint x, int y) internal pure returns (uint z) {
+    function subtract(uint x, int y) internal pure returns (uint z) {
         z = x - uint(y);
         require(y <= 0 || z <= x);
         require(y >= 0 || z >= x);
     }
-    function sub(int x, int y) internal pure returns (int z) {
+    function subtract(int x, int y) internal pure returns (int z) {
         z = x - y;
         require(y <= 0 || z <= x);
         require(y >= 0 || z >= x);
     }
-    function mul(uint x, int y) internal pure returns (int z) {
+    function multiply(uint x, int y) internal pure returns (int z) {
         z = int(x) * y;
         require(int(x) >= 0);
         require(y == 0 || z / y == int(x));
     }
-    function add(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint x, uint y) internal pure returns (uint z) {
         require((z = x + y) >= x);
     }
-    function sub(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint x, uint y) internal pure returns (uint z) {
         require((z = x - y) <= x);
     }
-    function mul(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
 
@@ -233,7 +233,7 @@ contract CDPEngine {
         address account,
         int256 wad
     ) external emitLog isAuthorized {
-        tokenCollateral[collateralType][account] = add(tokenCollateral[collateralType][account], wad);
+        tokenCollateral[collateralType][account] = addition(tokenCollateral[collateralType][account], wad);
     }
     /**
      * @notice Transfer collateral between accounts
@@ -249,8 +249,8 @@ contract CDPEngine {
         uint256 wad
     ) external emitLog {
         require(canModifyCDP(src, msg.sender), "CDPEngine/not-allowed");
-        tokenCollateral[collateralType][src] = sub(tokenCollateral[collateralType][src], wad);
-        tokenCollateral[collateralType][dst] = add(tokenCollateral[collateralType][dst], wad);
+        tokenCollateral[collateralType][src] = subtract(tokenCollateral[collateralType][src], wad);
+        tokenCollateral[collateralType][dst] = addition(tokenCollateral[collateralType][dst], wad);
     }
     /**
      * @notice Transfer internal coins (does not affect external balances from Coin.sol)
@@ -260,8 +260,8 @@ contract CDPEngine {
      */
     function transferInternalCoins(address src, address dst, uint256 rad) external emitLog {
         require(canModifyCDP(src, msg.sender), "CDPEngine/not-allowed");
-        coinBalance[src] = sub(coinBalance[src], rad);
-        coinBalance[dst] = add(coinBalance[dst], rad);
+        coinBalance[src] = subtract(coinBalance[src], rad);
+        coinBalance[dst] = addition(coinBalance[dst], rad);
     }
 
     function either(bool x, bool y) internal pure returns (bool z) {
@@ -297,19 +297,19 @@ contract CDPEngine {
         // ilk has been initialised
         require(collateralType_.accumulatedRates != 0, "CDPEngine/collateral-type-not-initialized");
 
-        cdp_.lockedCollateral      = add(cdp_.lockedCollateral, deltaCollateral);
-        cdp_.generatedDebt         = add(cdp_.generatedDebt, deltaDebt);
-        collateralType_.debtAmount = add(collateralType_.debtAmount, deltaDebt);
+        cdp_.lockedCollateral      = addition(cdp_.lockedCollateral, deltaCollateral);
+        cdp_.generatedDebt         = addition(cdp_.generatedDebt, deltaDebt);
+        collateralType_.debtAmount = addition(collateralType_.debtAmount, deltaDebt);
 
-        int deltaAdjustedDebt = mul(collateralType_.accumulatedRates, deltaDebt);
-        uint totalDebtIssued  = mul(collateralType_.accumulatedRates, cdp_.generatedDebt);
-        globalDebt            = add(globalDebt, deltaAdjustedDebt);
+        int deltaAdjustedDebt = multiply(collateralType_.accumulatedRates, deltaDebt);
+        uint totalDebtIssued  = multiply(collateralType_.accumulatedRates, cdp_.generatedDebt);
+        globalDebt            = addition(globalDebt, deltaAdjustedDebt);
 
         // either debt has decreased, or debt ceilings are not exceeded
         require(
           either(
             deltaDebt <= 0,
-            both(mul(collateralType_.debtAmount, collateralType_.accumulatedRates) <= collateralType_.debtCeiling,
+            both(multiply(collateralType_.debtAmount, collateralType_.accumulatedRates) <= collateralType_.debtCeiling,
               globalDebt <= globalDebtCeiling)
             ),
           "CDPEngine/ceiling-exceeded"
@@ -318,7 +318,7 @@ contract CDPEngine {
         require(
           either(
             both(deltaDebt <= 0, deltaCollateral >= 0),
-            totalDebtIssued <= mul(cdp_.lockedCollateral, collateralType_.safetyPrice)
+            totalDebtIssued <= multiply(cdp_.lockedCollateral, collateralType_.safetyPrice)
           ),
           "CDPEngine/not-safe"
         );
@@ -334,9 +334,9 @@ contract CDPEngine {
         require(either(cdp_.generatedDebt == 0, totalDebtIssued >= collateralType_.debtFloor), "CDPEngine/dust");
 
         tokenCollateral[collateralType][collateralSource] =
-          sub(tokenCollateral[collateralType][collateralSource], deltaCollateral);
+          subtract(tokenCollateral[collateralType][collateralSource], deltaCollateral);
 
-        coinBalance[debtDestination] = add(coinBalance[debtDestination], deltaAdjustedDebt);
+        coinBalance[debtDestination] = addition(coinBalance[debtDestination], deltaAdjustedDebt);
 
         cdps[collateralType][cdp] = cdp_;
         collateralTypes[collateralType] = collateralType_;
@@ -362,20 +362,20 @@ contract CDPEngine {
         CDP storage dstCDP = cdps[collateralType][dst];
         CollateralType storage collateralType_ = collateralTypes[collateralType];
 
-        srcCDP.lockedCollateral = sub(srcCDP.lockedCollateral, deltaCollateral);
-        srcCDP.generatedDebt    = sub(srcCDP.generatedDebt, deltaDebt);
-        dstCDP.lockedCollateral = add(dstCDP.lockedCollateral, deltaCollateral);
-        dstCDP.generatedDebt    = add(dstCDP.generatedDebt, deltaDebt);
+        srcCDP.lockedCollateral = subtract(srcCDP.lockedCollateral, deltaCollateral);
+        srcCDP.generatedDebt    = subtract(srcCDP.generatedDebt, deltaDebt);
+        dstCDP.lockedCollateral = addition(dstCDP.lockedCollateral, deltaCollateral);
+        dstCDP.generatedDebt    = addition(dstCDP.generatedDebt, deltaDebt);
 
-        uint srcTotalDebtIssued = mul(srcCDP.generatedDebt, collateralType_.accumulatedRates);
-        uint dstTotalDebtIssued = mul(dstCDP.generatedDebt, collateralType_.accumulatedRates);
+        uint srcTotalDebtIssued = multiply(srcCDP.generatedDebt, collateralType_.accumulatedRates);
+        uint dstTotalDebtIssued = multiply(dstCDP.generatedDebt, collateralType_.accumulatedRates);
 
         // both sides consent
         require(both(canModifyCDP(src, msg.sender), canModifyCDP(dst, msg.sender)), "CDPEngine/not-allowed");
 
         // both sides safe
-        require(srcTotalDebtIssued <= mul(srcCDP.lockedCollateral, collateralType_.safetyPrice), "CDPEngine/not-safe-src");
-        require(dstTotalDebtIssued <= mul(dstCDP.lockedCollateral, collateralType_.safetyPrice), "CDPEngine/not-safe-dst");
+        require(srcTotalDebtIssued <= multiply(srcCDP.lockedCollateral, collateralType_.safetyPrice), "CDPEngine/not-safe-src");
+        require(dstTotalDebtIssued <= multiply(dstCDP.lockedCollateral, collateralType_.safetyPrice), "CDPEngine/not-safe-dst");
 
         // both sides non-dusty
         require(either(srcTotalDebtIssued >= collateralType_.debtFloor, srcCDP.generatedDebt == 0), "CDPEngine/dust-src");
@@ -404,21 +404,21 @@ contract CDPEngine {
         CDP storage cdp_ = cdps[collateralType][cdp];
         CollateralType storage collateralType_ = collateralTypes[collateralType];
 
-        cdp_.lockedCollateral = add(cdp_.lockedCollateral, deltaCollateral);
-        cdp_.generatedDebt = add(cdp_.generatedDebt, deltaDebt);
-        collateralType_.debtAmount = add(collateralType_.debtAmount, deltaDebt);
+        cdp_.lockedCollateral = addition(cdp_.lockedCollateral, deltaCollateral);
+        cdp_.generatedDebt = addition(cdp_.generatedDebt, deltaDebt);
+        collateralType_.debtAmount = addition(collateralType_.debtAmount, deltaDebt);
 
-        int deltaTotalIssuedDebt = mul(collateralType_.accumulatedRates, deltaDebt);
+        int deltaTotalIssuedDebt = multiply(collateralType_.accumulatedRates, deltaDebt);
 
-        tokenCollateral[collateralType][collateralCounterparty] = sub(
+        tokenCollateral[collateralType][collateralCounterparty] = subtract(
           tokenCollateral[collateralType][collateralCounterparty],
           deltaCollateral
         );
-        debtBalance[debtCounterparty] = sub(
+        debtBalance[debtCounterparty] = subtract(
           debtBalance[debtCounterparty],
           deltaTotalIssuedDebt
         );
-        globalUnbackedDebt = sub(
+        globalUnbackedDebt = subtract(
           globalUnbackedDebt,
           deltaTotalIssuedDebt
         );
@@ -431,10 +431,10 @@ contract CDPEngine {
      */
     function settleDebt(uint rad) external emitLog {
         address account       = msg.sender;
-        debtBalance[account]  = sub(debtBalance[account], rad);
-        coinBalance[account]  = sub(coinBalance[account], rad);
-        globalUnbackedDebt    = sub(globalUnbackedDebt, rad);
-        globalDebt            = sub(globalDebt, rad);
+        debtBalance[account]  = subtract(debtBalance[account], rad);
+        coinBalance[account]  = subtract(coinBalance[account], rad);
+        globalUnbackedDebt    = subtract(globalUnbackedDebt, rad);
+        globalDebt            = subtract(globalDebt, rad);
     }
     /**
      * @notice Usually called by CoinSavingsAccount in order to create unbacked debt
@@ -447,10 +447,10 @@ contract CDPEngine {
         address coinDestination,
         uint rad
     ) external emitLog isAuthorized {
-        debtBalance[debtDestination]  = add(debtBalance[debtDestination], rad);
-        coinBalance[coinDestination]  = add(coinBalance[coinDestination], rad);
-        globalUnbackedDebt            = add(globalUnbackedDebt, rad);
-        globalDebt                    = add(globalDebt, rad);
+        debtBalance[debtDestination]  = addition(debtBalance[debtDestination], rad);
+        coinBalance[coinDestination]  = addition(coinBalance[coinDestination], rad);
+        globalUnbackedDebt            = addition(globalUnbackedDebt, rad);
+        globalDebt                    = addition(globalDebt, rad);
     }
 
     // --- Rates ---
@@ -468,9 +468,9 @@ contract CDPEngine {
     ) external emitLog isAuthorized {
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
         CollateralType storage collateralType_ = collateralTypes[collateralType];
-        collateralType_.accumulatedRates       = add(collateralType_.accumulatedRates, rateMultiplier);
-        int deltaSurplus                       = mul(collateralType_.debtAmount, rateMultiplier);
-        coinBalance[surplusDst]                = add(coinBalance[surplusDst], deltaSurplus);
-        globalDebt                             = add(globalDebt, deltaSurplus);
+        collateralType_.accumulatedRates       = addition(collateralType_.accumulatedRates, rateMultiplier);
+        int deltaSurplus                       = multiply(collateralType_.debtAmount, rateMultiplier);
+        coinBalance[surplusDst]                = addition(coinBalance[surplusDst], deltaSurplus);
+        globalDebt                             = addition(globalDebt, deltaSurplus);
     }
 }

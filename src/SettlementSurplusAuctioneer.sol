@@ -16,22 +16,24 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+pragma solidity ^0.6.7;
+
 import "./Logging.sol";
 
-contract AccountingEngineLike {
-    function surplusAuctionDelay() external view returns (uint);
-    function surplusAuctionAmountToSell() external view returns (uint);
-    function surplusAuctionHouse() external view returns (address);
-    function cdpEngine() external view returns (address);
-    function contractEnabled() external view returns (uint);
+abstract contract AccountingEngineLike {
+    function surplusAuctionDelay() virtual public view returns (uint);
+    function surplusAuctionAmountToSell() virtual public view returns (uint);
+    function surplusAuctionHouse() virtual public view returns (address);
+    function cdpEngine() virtual public view returns (address);
+    function contractEnabled() virtual public view returns (uint);
 }
-contract CDPEngineLike {
-    function coinBalance(address) external view returns (uint);
-    function approveCDPModification(address) external;
-    function denyCDPModification(address) external;
+abstract contract CDPEngineLike {
+    function coinBalance(address) virtual public view returns (uint);
+    function approveCDPModification(address) virtual external;
+    function denyCDPModification(address) virtual external;
 }
-contract SurplusAuctionHouseLike {
-    function startAuction(uint, uint) external returns (uint);
+abstract contract SurplusAuctionHouseLike {
+    function startAuction(uint, uint) virtual public returns (uint);
 }
 
 contract SettlementSurplusAuctioneer is Logging {

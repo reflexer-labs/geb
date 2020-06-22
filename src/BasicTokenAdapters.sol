@@ -15,24 +15,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "./Logging.sol";
 
-contract CollateralLike {
-    function decimals() public view returns (uint);
-    function transfer(address,uint) external returns (bool);
-    function transferFrom(address,address,uint) external returns (bool);
+abstract contract CollateralLike {
+    function decimals() virtual public view returns (uint);
+    function transfer(address,uint) virtual public returns (bool);
+    function transferFrom(address,address,uint) virtual public returns (bool);
 }
 
-contract DSTokenLike {
-    function mint(address,uint) external;
-    function burn(address,uint) external;
+abstract contract DSTokenLike {
+    function mint(address,uint) virtual external;
+    function burn(address,uint) virtual external;
 }
 
-contract CDPEngineLike {
-    function modifyCollateralBalance(bytes32,address,int) external;
-    function transferInternalCoins(address,address,uint) external;
+abstract contract CDPEngineLike {
+    function modifyCollateralBalance(bytes32,address,int) virtual external;
+    function transferInternalCoins(address,address,uint) virtual external;
 }
 
 /*

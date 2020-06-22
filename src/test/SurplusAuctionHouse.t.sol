@@ -1,4 +1,4 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
@@ -7,8 +7,8 @@ import "../CDPEngine.sol";
 import {CoinJoin} from '../BasicTokenAdapters.sol';
 import {Coin} from "../Coin.sol";
 
-contract Hevm {
-    function warp(uint256) public;
+abstract contract Hevm {
+    function warp(uint256) virtual public;
 }
 
 contract GuySurplusAuctionOne {

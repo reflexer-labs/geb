@@ -7,7 +7,7 @@ with dappPkgs;
 
 let
   dapp' = dapp.override {
-    solc = solc-versions.solc_0_6.0;
+    solc = solc-versions.solc_0_6.7;
   };
 in mkShell {
   buildInputs = [ dapp' ];

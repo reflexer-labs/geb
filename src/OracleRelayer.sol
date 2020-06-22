@@ -13,16 +13,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "./Logging.sol";
 
-contract CDPEngineLike {
-    function modifyParameters(bytes32, bytes32, uint) external;
+abstract contract CDPEngineLike {
+    function modifyParameters(bytes32, bytes32, uint) virtual external;
 }
 
-contract OracleLike {
-    function getResultWithValidity() external view returns (bytes32, bool);
+abstract contract OracleLike {
+    function getResultWithValidity() virtual public view returns (bytes32, bool);
 }
 
 contract OracleRelayer is Logging {
@@ -91,21 +91,21 @@ contract OracleRelayer is Logging {
     // --- Math ---
     uint constant RAY = 10 ** 27;
 
-    function sub(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint x, uint y) internal pure returns (uint z) {
         z = x - y;
         require(z <= x);
     }
-    function mul(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
-    function rmul(uint x, uint y) internal pure returns (uint z) {
+    function rmultiply(uint x, uint y) internal pure returns (uint z) {
         // alsites rounds down
-        z = mul(x, y) / RAY;
+        z = multiply(x, y) / RAY;
     }
-    function rdiv(uint x, uint y) internal pure returns (uint z) {
-        z = mul(x, RAY) / y;
+    function rdivide(uint x, uint y) internal pure returns (uint z) {
+        z = multiply(x, RAY) / y;
     }
-    function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
+    function rpower(uint x, uint n, uint base) internal pure returns (uint z) {
         assembly {
             switch x case 0 {switch n case 0 {z := base} default {z := 0}}
             default {
@@ -189,8 +189,8 @@ contract OracleRelayer is Logging {
      */
     function updateRedemptionPrice() internal returns (uint) {
         // Update redemption price
-        _redemptionPrice = rmul(
-          rpow(redemptionRate, sub(now, redemptionPriceUpdateTime), RAY),
+        _redemptionPrice = rmultiply(
+          rpower(redemptionRate, subtract(now, redemptionPriceUpdateTime), RAY),
           _redemptionPrice
         );
         redemptionPriceUpdateTime = now;
@@ -214,8 +214,8 @@ contract OracleRelayer is Logging {
         (bytes32 priceFeedValue, bool hasValidValue) =
           collateralTypes[collateralType].orcl.getResultWithValidity();
         uint redemptionPrice_ = redemptionPrice();
-        uint256 safetyPrice_ = hasValidValue ? rdiv(rdiv(mul(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].safetyCRatio) : 0;
-        uint256 liquidationPrice_ = (hasValidValue && collateralTypes[collateralType].liquidationCRatio > 0) ? rdiv(rdiv(mul(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].liquidationCRatio) : 0;
+        uint256 safetyPrice_ = hasValidValue ? rdivide(rdivide(multiply(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].safetyCRatio) : 0;
+        uint256 liquidationPrice_ = (hasValidValue && collateralTypes[collateralType].liquidationCRatio > 0) ? rdivide(rdivide(multiply(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].liquidationCRatio) : 0;
 
         cdpEngine.modifyParameters(collateralType, "safetyPrice", safetyPrice_);
         cdpEngine.modifyParameters(collateralType, "liquidationPrice", liquidationPrice_);

@@ -16,13 +16,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "./Logging.sol";
 
-contract CDPEngineLike {
-    function coinBalance(address) external view returns (uint256);
-    function collateralTypes(bytes32) external view returns (
+abstract contract CDPEngineLike {
+    function coinBalance(address) virtual public view returns (uint256);
+    function collateralTypes(bytes32) virtual public view returns (
         uint256 debtAmount,        // wad
         uint256 accumulatedRates,  // ray
         uint256 safetyPrice,       // ray
@@ -30,40 +30,40 @@ contract CDPEngineLike {
         uint256 debtFloor,         // rad
         uint256 liquidationPrice   // ray
     );
-    function cdps(bytes32,address) external view returns (
+    function cdps(bytes32,address) virtual public view returns (
         uint256 lockedCollateral, // wad
         uint256 generatedDebt     // wad
     );
-    function globalDebt() external returns (uint256);
-    function transferInternalCoins(address src, address dst, uint256 rad) external;
-    function approveCDPModification(address) external;
-    function transferCollateral(bytes32 collateralType, address src, address dst, uint256 wad) external;
-    function confiscateCDPCollateralAndDebt(bytes32 collateralType, address cdp, address collateralSource, address debtDestination, int256 deltaCollateral, int256 deltaDebt) external;
-    function createUnbackedDebt(address debtDestination, address coinDestination, uint256 rad) external;
-    function disableContract() external;
+    function globalDebt() virtual public returns (uint256);
+    function transferInternalCoins(address src, address dst, uint256 rad) virtual external;
+    function approveCDPModification(address) virtual external;
+    function transferCollateral(bytes32 collateralType, address src, address dst, uint256 wad) virtual external;
+    function confiscateCDPCollateralAndDebt(bytes32 collateralType, address cdp, address collateralSource, address debtDestination, int256 deltaCollateral, int256 deltaDebt) virtual external;
+    function createUnbackedDebt(address debtDestination, address coinDestination, uint256 rad) virtual external;
+    function disableContract() virtual external;
 }
-contract LiquidationEngineLike {
-    function collateralTypes(bytes32) external returns (
+abstract contract LiquidationEngineLike {
+    function collateralTypes(bytes32) virtual public view returns (
         address collateralAuctionHouse,
         uint256 liquidationPenalty, // [ray]
         uint256 collateralToSel     // [wad]
     );
-    function disableContract() external;
+    function disableContract() virtual external;
 }
-contract StabilityFeeTreasuryLike {
-    function disableContract() external;
+abstract contract StabilityFeeTreasuryLike {
+    function disableContract() virtual external;
 }
-contract AccountingEngineLike {
-    function disableContract() external;
+abstract contract AccountingEngineLike {
+    function disableContract() virtual external;
 }
-contract CoinSavingsAccountLike {
-    function disableContract() external;
+abstract contract CoinSavingsAccountLike {
+    function disableContract() virtual external;
 }
-contract RateSetterLike {
-    function disableContract() external;
+abstract contract RateSetterLike {
+    function disableContract() virtual external;
 }
-contract CollateralAuctionHouseLike {
-    function bids(uint auctionId) external view returns (
+abstract contract CollateralAuctionHouseLike {
+    function bids(uint auctionId) virtual public view returns (
         uint256 bidAmount,
         uint256 collateralToSell,
         address highBidder,
@@ -73,18 +73,18 @@ contract CollateralAuctionHouseLike {
         address auctionIncomeRecipient,
         uint256 amountToRaise
     );
-    function terminateAuctionPrematurely(uint auctionId) external;
+    function terminateAuctionPrematurely(uint auctionId) virtual external;
 }
-contract OracleLike {
-    function read() external view returns (bytes32);
+abstract contract OracleLike {
+    function read() virtual public view returns (bytes32);
 }
-contract OracleRelayerLike {
-    function redemptionPrice() external view returns (uint256);
-    function collateralTypes(bytes32) external view returns (
+abstract contract OracleRelayerLike {
+    function redemptionPrice() virtual public view returns (uint256);
+    function collateralTypes(bytes32) virtual public view returns (
         OracleLike orcl,
         uint256 safetyCRatio
     );
-    function disableContract() external;
+    function disableContract() virtual external;
 }
 
 /*

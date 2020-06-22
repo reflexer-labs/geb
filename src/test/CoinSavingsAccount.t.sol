@@ -17,14 +17,14 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "ds-test/test.sol";
 import {CDPEngine} from '../CDPEngine.sol';
 import {CoinSavingsAccount} from '../CoinSavingsAccount.sol';
 
-contract Hevm {
-    function warp(uint256) public;
+abstract contract Hevm {
+    function warp(uint256) virtual public;
 }
 
 contract CoinSavingsAccountTest is DSTest {
