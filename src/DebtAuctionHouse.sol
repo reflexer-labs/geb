@@ -15,21 +15,21 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "./Logging.sol";
 
-contract CDPEngineLike {
-    function transferInternalCoins(address,address,uint) external;
-    function createUnbackedDebt(address,address,uint) external;
+abstract contract CDPEngineLike {
+    function transferInternalCoins(address,address,uint) virtual external;
+    function createUnbackedDebt(address,address,uint) virtual external;
 }
-contract TokenLike {
-    function mint(address,uint) external;
+abstract contract TokenLike {
+    function mint(address,uint) virtual external;
 }
-contract AccountingEngineLike {
-    function settleDebtAuction(uint id) external;
-    function totalOnAuctionDebt() public returns (uint);
-    function cancelAuctionedDebtWithSurplus(uint) external;
+abstract contract AccountingEngineLike {
+    function settleDebtAuction(uint id) virtual external;
+    function totalOnAuctionDebt() virtual public returns (uint);
+    function cancelAuctionedDebtWithSurplus(uint) virtual external;
 }
 
 /*

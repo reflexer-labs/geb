@@ -1,4 +1,4 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
@@ -10,8 +10,8 @@ import {AccountingEngine} from '../AccountingEngine.sol';
 import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
 import {CoinJoin} from '../BasicTokenAdapters.sol';
 
-contract Hevm {
-    function warp(uint256) public;
+abstract contract Hevm {
+    function warp(uint256) virtual public;
 }
 
 contract Gem {
@@ -67,7 +67,7 @@ contract AccountingEngineTest is DSTest {
     function try_call(address addr, bytes calldata data) external returns (bool) {
         bytes memory _data = data;
         assembly {
-            let ok := call(gas, addr, 0, add(_data, 0x20), mload(_data), 0, 0)
+            let ok := call(gas(), addr, 0, add(_data, 0x20), mload(_data), 0, 0)
             let free := mload(0x40)
             mstore(free, ok)
             mstore(0x40, add(free, 32))

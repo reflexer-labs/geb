@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "./Logging.sol";
 
@@ -32,9 +32,9 @@ import "./Logging.sol";
    - `updateAccumulatedRate`: perform rate collection
 */
 
-contract CDPEngineLike {
-    function transferInternalCoins(address,address,uint256) external;
-    function createUnbackedDebt(address,address,uint256) external;
+abstract contract CDPEngineLike {
+    function transferInternalCoins(address,address,uint256) virtual external;
+    function createUnbackedDebt(address,address,uint256) virtual external;
 }
 
 contract CoinSavingsAccount is Logging {
@@ -93,7 +93,7 @@ contract CoinSavingsAccount is Logging {
 
     // --- Math ---
     uint256 constant RAY = 10 ** 27;
-    function rpow(uint x, uint n, uint base) internal pure returns (uint z) {
+    function rpower(uint x, uint n, uint base) internal pure returns (uint z) {
         assembly {
             switch x case 0 {switch n case 0 {z := base} default {z := 0}}
             default {
@@ -117,19 +117,19 @@ contract CoinSavingsAccount is Logging {
         }
     }
 
-    function rmul(uint x, uint y) internal pure returns (uint z) {
-        z = mul(x, y) / RAY;
+    function rmultiply(uint x, uint y) internal pure returns (uint z) {
+        z = multiply(x, y) / RAY;
     }
 
-    function add(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint x, uint y) internal pure returns (uint z) {
         require((z = x + y) >= x);
     }
 
-    function sub(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint x, uint y) internal pure returns (uint z) {
         require((z = x - y) <= x);
     }
 
-    function mul(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
 
@@ -171,19 +171,19 @@ contract CoinSavingsAccount is Logging {
      */
     function updateAccumulatedRate() external emitLog returns (uint newAccumulatedRate) {
         if (now <= latestUpdateTime) return accumulatedRates;
-        newAccumulatedRate = rmul(rpow(savingsRate, sub(now, latestUpdateTime), RAY), accumulatedRates);
-        uint accumulatedRates_ = sub(newAccumulatedRate, accumulatedRates);
+        newAccumulatedRate = rmultiply(rpower(savingsRate, subtract(now, latestUpdateTime), RAY), accumulatedRates);
+        uint accumulatedRates_ = subtract(newAccumulatedRate, accumulatedRates);
         accumulatedRates = newAccumulatedRate;
         latestUpdateTime = now;
-        cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), mul(totalSavings, accumulatedRates_));
-        emit UpdateAccumulatedRate(newAccumulatedRate, mul(totalSavings, accumulatedRates_));
+        cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), multiply(totalSavings, accumulatedRates_));
+        emit UpdateAccumulatedRate(newAccumulatedRate, multiply(totalSavings, accumulatedRates_));
     }
     /**
      * @notice Get the next value of 'accumulatedRates' without actually updating the variable
      */
     function nextAccumulatedRate() external view returns (uint) {
         if (now <= latestUpdateTime) return accumulatedRates;
-        return rmul(rpow(savingsRate, sub(now, latestUpdateTime), RAY), accumulatedRates);
+        return rmultiply(rpower(savingsRate, subtract(now, latestUpdateTime), RAY), accumulatedRates);
     }
 
     // --- Savings Management ---
@@ -194,9 +194,9 @@ contract CoinSavingsAccount is Logging {
      */
     function deposit(uint wad) external emitLog {
         require(now == latestUpdateTime, "CoinSavingsAccount/accumulation-time-not-updated");
-        savings[msg.sender] = add(savings[msg.sender], wad);
-        totalSavings        = add(totalSavings, wad);
-        cdpEngine.transferInternalCoins(msg.sender, address(this), mul(accumulatedRates, wad));
+        savings[msg.sender] = addition(savings[msg.sender], wad);
+        totalSavings        = addition(totalSavings, wad);
+        cdpEngine.transferInternalCoins(msg.sender, address(this), multiply(accumulatedRates, wad));
     }
     /**
      * @notice Withdraw coins (alongside any interest accrued) from the savings account
@@ -204,8 +204,8 @@ contract CoinSavingsAccount is Logging {
               'accumulatedRates' (27 decimals) to result in a correct amount of internal coins transferred
      */
     function withdraw(uint wad) external emitLog {
-        savings[msg.sender] = sub(savings[msg.sender], wad);
-        totalSavings        = sub(totalSavings, wad);
-        cdpEngine.transferInternalCoins(address(this), msg.sender, mul(accumulatedRates, wad));
+        savings[msg.sender] = subtract(savings[msg.sender], wad);
+        totalSavings        = subtract(totalSavings, wad);
+        cdpEngine.transferInternalCoins(address(this), msg.sender, multiply(accumulatedRates, wad));
     }
 }

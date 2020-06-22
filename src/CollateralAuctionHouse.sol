@@ -15,19 +15,19 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "./Logging.sol";
 
-contract CDPEngineLike {
-    function transferInternalCoins(address,address,uint) external;
-    function transferCollateral(bytes32,address,address,uint) external;
+abstract contract CDPEngineLike {
+    function transferInternalCoins(address,address,uint) virtual external;
+    function transferCollateral(bytes32,address,address,uint) virtual external;
 }
-contract OracleRelayerLike {
-    function redemptionPrice() public returns (uint256);
+abstract contract OracleRelayerLike {
+    function redemptionPrice() virtual public returns (uint256);
 }
-contract OracleLike {
-    function getResultWithValidity() external returns (bytes32, bool);
+abstract contract OracleLike {
+    function getResultWithValidity() virtual public returns (bytes32, bool);
 }
 
 /*

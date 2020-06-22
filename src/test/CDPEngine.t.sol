@@ -1,4 +1,4 @@
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 pragma experimental ABIEncoderV2;
 
 import "ds-test/test.sol";
@@ -15,8 +15,8 @@ import {CollateralAuctionHouse} from './CollateralAuctionHouse.t.sol';
 import {DebtAuctionHouse} from './DebtAuctionHouse.t.sol';
 import {SurplusAuctionHouseTwo} from './SurplusAuctionHouse.t.sol';
 
-contract Hevm {
-    function warp(uint256) public;
+abstract contract Hevm {
+    function warp(uint256) virtual public;
 }
 
 contract Feed {
@@ -74,7 +74,7 @@ contract Usr {
     function try_call(address addr, bytes calldata data) external returns (bool) {
         bytes memory _data = data;
         assembly {
-            let ok := call(gas, addr, 0, add(_data, 0x20), mload(_data), 0, 0)
+            let ok := call(gas(), addr, 0, add(_data, 0x20), mload(_data), 0, 0)
             let free := mload(0x40)
             mstore(free, ok)
             mstore(0x40, add(free, 32))
@@ -430,14 +430,14 @@ contract JoinTest is DSTest {
     }
     function try_join_eth(address usr) public payable returns (bool ok) {
         string memory sig = "join(address)";
-        (ok,) = address(ethA).call.value(msg.value)(abi.encodeWithSignature(sig, usr));
+        (ok,) = address(ethA).call{value: msg.value}(abi.encodeWithSignature(sig, usr));
     }
     function try_exit_coin(address usr, uint wad) public returns (bool ok) {
         string memory sig = "exit(address,uint256)";
         (ok,) = address(coinA).call(abi.encodeWithSignature(sig, usr, wad));
     }
 
-    function () external payable {}
+    receive () external payable {}
     function test_collateral_join() public {
         collateral.mint(20 ether);
         collateral.approve(address(collateralA), 20 ether);
@@ -448,15 +448,15 @@ contract JoinTest is DSTest {
         assertEq(cdpEngine.tokenCollateral("collateral", me), 10 ether);
     }
     function test_eth_join() public {
-        assertTrue( this.try_join_eth.value(10 ether)(address(this)));
+        assertTrue( this.try_join_eth{value: 10 ether}(address(this)));
         assertEq(cdpEngine.tokenCollateral("ETH", me), 10 ether);
         assertTrue( try_disable_contract(address(ethA)));
-        assertTrue(!this.try_join_eth.value(10 ether)(address(this)));
+        assertTrue(!this.try_join_eth{value: 10 ether}(address(this)));
         assertEq(cdpEngine.tokenCollateral("ETH", me), 10 ether);
     }
     function test_eth_exit() public {
         address payable cdp = address(this);
-        ethA.join.value(50 ether)(cdp);
+        ethA.join{value: 50 ether}(cdp);
         ethA.exit(cdp, 10 ether);
         assertEq(cdpEngine.tokenCollateral("ETH", me), 40 ether);
     }
@@ -490,7 +490,7 @@ contract JoinTest is DSTest {
         assertTrue(!ok);
     }
     function test_nonzero_fallback_reverts() public {
-        (bool ok,) = address(ethA).call.value(10)("invalid calldata");
+        (bool ok,) = address(ethA).call{value: 10}("invalid calldata");
         assertTrue(!ok);
     }
     function test_disable_contract_no_access() public {
@@ -503,7 +503,7 @@ contract JoinTest is DSTest {
     }
 }
 
-contract CollateralAuctionHouseLike {
+abstract contract CollateralAuctionHouseLike {
     struct Bid {
         uint256 bidAmount;
         uint256 amountToSell;
@@ -514,7 +514,7 @@ contract CollateralAuctionHouseLike {
         address auctionIncomeRecipient;
         uint256 amountToRaise;
     }
-    function bids(uint) public view returns (
+    function bids(uint) virtual public view returns (
         uint256 bidAmount,
         uint256 amountToSell,
         address highBidder,
@@ -525,6 +525,8 @@ contract CollateralAuctionHouseLike {
         uint256 amountToRaise
     );
 }
+
+//TODO: test CDPSaviour behaviour when failing/succeeding
 
 contract LiquidationTest is DSTest {
     Hevm hevm;

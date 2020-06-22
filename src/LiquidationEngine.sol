@@ -16,24 +16,24 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "./Logging.sol";
 
-contract CollateralAuctionHouseLike {
+abstract contract CollateralAuctionHouseLike {
     function startAuction(
       address forgoneCollateralReceiver,
       address initialBidder,
       uint amountToRaise,
       uint collateralToSell,
       uint initialBid
-    ) public returns (uint);
+    ) virtual public returns (uint);
 }
-contract CDPSaviourLike {
-    function saveCDP(address,bytes32,address) external returns (bool,uint256,uint256);
+abstract contract CDPSaviourLike {
+    function saveCDP(address,bytes32,address) virtual public returns (bool,uint256,uint256);
 }
-contract CDPEngineLike {
-    function collateralTypes(bytes32) external view returns (
+abstract contract CDPEngineLike {
+    function collateralTypes(bytes32) virtual public view returns (
         uint256 debtAmount,        // wad
         uint256 accumulatedRates,  // ray
         uint256 safetyPrice,       // ray
@@ -41,17 +41,17 @@ contract CDPEngineLike {
         uint256 debtFloor,         // rad
         uint256 liquidationPrice   // ray
     );
-    function cdps(bytes32,address) external view returns (
+    function cdps(bytes32,address) virtual public view returns (
         uint256 lockedCollateral, // wad
         uint256 generatedDebt     // wad
     );
-    function confiscateCDPCollateralAndDebt(bytes32,address,address,address,int,int) external;
-    function canModifyCDP(address, address) external view returns (bool);
-    function approveCDPModification(address) external;
-    function denyCDPModification(address) external;
+    function confiscateCDPCollateralAndDebt(bytes32,address,address,address,int,int) virtual external;
+    function canModifyCDP(address, address) virtual public view returns (bool);
+    function approveCDPModification(address) virtual external;
+    function denyCDPModification(address) virtual external;
 }
-contract AccountingEngineLike {
-    function pushDebtToQueue(uint) external;
+abstract contract AccountingEngineLike {
+    function pushDebtToQueue(uint) virtual external;
 }
 
 contract LiquidationEngine is Logging {
@@ -128,13 +128,13 @@ contract LiquidationEngine is Logging {
     // --- Math ---
     uint constant RAY = 10 ** 27;
 
-    function mul(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
-    function rmul(uint x, uint y) internal pure returns (uint z) {
-        z = mul(x, y) / RAY;
+    function rmultiply(uint x, uint y) internal pure returns (uint z) {
+        z = multiply(x, y) / RAY;
     }
-    function min(uint x, uint y) internal pure returns (uint z) {
+    function minimum(uint x, uint y) internal pure returns (uint z) {
         if (x > y) { z = y; } else { z = x; }
     }
 
@@ -224,7 +224,7 @@ contract LiquidationEngine is Logging {
         require(contractEnabled == 1, "LiquidationEngine/contract-not-enabled");
         require(both(
           liquidationPrice > 0,
-          mul(cdpCollateral, liquidationPrice) < mul(cdpDebt, accumulatedRates)
+          multiply(cdpCollateral, liquidationPrice) < multiply(cdpDebt, accumulatedRates)
         ), "LiquidationEngine/cdp-not-unsafe");
 
         //TODO: try/catch the cdp saviour call
@@ -240,26 +240,26 @@ contract LiquidationEngine is Logging {
         (, accumulatedRates, , , , liquidationPrice) = cdpEngine.collateralTypes(collateralType);
         (cdpCollateral, cdpDebt) = cdpEngine.cdps(collateralType, cdp);
 
-        if (both(liquidationPrice > 0, mul(cdpCollateral, liquidationPrice) < mul(cdpDebt, accumulatedRates))) {
-          uint collateralToSell = min(cdpCollateral, collateralTypes[collateralType].collateralToSell);
-          cdpDebt               = min(cdpDebt, mul(collateralToSell, cdpDebt) / cdpCollateral);
+        if (both(liquidationPrice > 0, multiply(cdpCollateral, liquidationPrice) < multiply(cdpDebt, accumulatedRates))) {
+          uint collateralToSell = minimum(cdpCollateral, collateralTypes[collateralType].collateralToSell);
+          cdpDebt               = minimum(cdpDebt, multiply(collateralToSell, cdpDebt) / cdpCollateral);
 
           require(collateralToSell <= 2**255 && cdpDebt <= 2**255, "LiquidationEngine/overflow");
           cdpEngine.confiscateCDPCollateralAndDebt(
             collateralType, cdp, address(this), address(accountingEngine), -int(collateralToSell), -int(cdpDebt)
           );
 
-          accountingEngine.pushDebtToQueue(mul(cdpDebt, accumulatedRates));
+          accountingEngine.pushDebtToQueue(multiply(cdpDebt, accumulatedRates));
 
           auctionId = CollateralAuctionHouseLike(collateralTypes[collateralType].collateralAuctionHouse).startAuction(
             { forgoneCollateralReceiver: cdp
             , initialBidder: address(accountingEngine)
-            , amountToRaise: rmul(mul(cdpDebt, accumulatedRates), collateralTypes[collateralType].liquidationPenalty)
+            , amountToRaise: rmultiply(multiply(cdpDebt, accumulatedRates), collateralTypes[collateralType].liquidationPenalty)
             , collateralToSell: collateralToSell
             , initialBid: 0
            });
 
-          emit Liquidate(collateralType, cdp, collateralToSell, cdpDebt, mul(cdpDebt, accumulatedRates), collateralTypes[collateralType].collateralAuctionHouse, auctionId);
+          emit Liquidate(collateralType, cdp, collateralToSell, cdpDebt, multiply(cdpDebt, accumulatedRates), collateralTypes[collateralType].collateralAuctionHouse, auctionId);
         }
 
         mutex[collateralType][cdp] = 0;

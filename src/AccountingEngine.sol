@@ -15,30 +15,30 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "./Logging.sol";
 
-contract DebtAuctionHouseLike {
-    function startAuction(address incomeReceiver, uint amountToSell, uint initialBid) external returns (uint);
-    function protocolToken() external view returns (address);
-    function disableContract() external;
-    function contractEnabled() external view returns (uint);
+abstract contract DebtAuctionHouseLike {
+    function startAuction(address incomeReceiver, uint amountToSell, uint initialBid) virtual public returns (uint);
+    function protocolToken() virtual public view returns (address);
+    function disableContract() virtual external;
+    function contractEnabled() virtual public view returns (uint);
 }
 
-contract SurplusAuctionHouseLike {
-    function startAuction(uint, uint) external returns (uint);
-    function disableContract() external;
-    function contractEnabled() external view returns (uint);
+abstract contract SurplusAuctionHouseLike {
+    function startAuction(uint, uint) virtual public returns (uint);
+    function disableContract() virtual external;
+    function contractEnabled() virtual public view returns (uint);
 }
 
-contract CDPEngineLike {
-    function coinBalance(address) external view returns (uint);
-    function debtBalance(address) external view returns (uint);
-    function settleDebt(uint256) external;
-    function transferInternalCoins(address,address,uint256) external;
-    function approveCDPModification(address) external;
-    function denyCDPModification(address) external;
+abstract contract CDPEngineLike {
+    function coinBalance(address) virtual public view returns (uint);
+    function debtBalance(address) virtual public view returns (uint);
+    function settleDebt(uint256) virtual external;
+    function transferInternalCoins(address,address,uint256) virtual external;
+    function approveCDPModification(address) virtual external;
+    function denyCDPModification(address) virtual external;
 }
 
 contract AccountingEngine is Logging {

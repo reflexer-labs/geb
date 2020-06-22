@@ -11,18 +11,18 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.12;
+pragma solidity ^0.6.7;
 
 import "./Logging.sol";
 import "./LinkedList.sol";
 
-contract CDPEngineLike {
-    function collateralTypes(bytes32) external view returns (
+abstract contract CDPEngineLike {
+    function collateralTypes(bytes32) virtual public view returns (
         uint256 debtAmount,       // wad
         uint256 accumulatedRates  // ray
     );
-    function updateAccumulatedRate(bytes32,address,int) external;
-    function coinBalance(address) external view returns (uint);
+    function updateAccumulatedRate(bytes32,address,int) virtual external;
+    function coinBalance(address) virtual public view returns (uint);
 }
 
 contract TaxCollector is Logging {
@@ -131,19 +131,19 @@ contract TaxCollector is Logging {
     uint256 constant HUNDRED = 10 ** 29;
     uint256 constant ONE     = 1;
 
-    function add(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint x, uint y) internal pure returns (uint z) {
         z = x + y;
         require(z >= x);
     }
-    function add(int x, int y) internal pure returns (int z) {
+    function addition(int x, int y) internal pure returns (int z) {
         z = x + y;
         if (y <= 0) require(z <= x);
         if (y  > 0) require(z > x);
     }
-    function sub(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint x, uint y) internal pure returns (uint z) {
         require((z = x - y) <= x);
     }
-    function sub(int x, int y) internal pure returns (int z) {
+    function subtract(int x, int y) internal pure returns (int z) {
         z = x - y;
         require(y <= 0 || z <= x);
         require(y >= 0 || z >= x);
@@ -152,15 +152,15 @@ contract TaxCollector is Logging {
         z = int(x) - int(y);
         require(int(x) >= 0 && int(y) >= 0);
     }
-    function mul(uint x, int y) internal pure returns (int z) {
+    function multiply(uint x, int y) internal pure returns (int z) {
         z = int(x) * y;
         require(int(x) >= 0);
         require(y == 0 || z / y == int(x));
     }
-    function mul(int x, int y) internal pure returns (int z) {
+    function multiply(int x, int y) internal pure returns (int z) {
         require(y == 0 || (z = x * y) / y == x);
     }
-    function rmul(uint x, uint y) internal pure returns (uint z) {
+    function rmultiply(uint x, uint y) internal pure returns (uint z) {
         z = x * y;
         require(y == 0 || z / y == x);
         z = z / RAY;
@@ -267,12 +267,12 @@ contract TaxCollector is Logging {
         require(receiverAccount != accountingEngine, "TaxCollector/accounting-engine-cannot-be-secondary-tax-receiver");
         require(taxPercentage > 0, "TaxCollector/null-sf");
         require(usedTaxReceiver[receiverAccount] == 0, "TaxCollector/account-already-used");
-        require(add(taxReceiverListLength(), ONE) <= maxSecondaryReceivers, "TaxCollector/exceeds-max-receiver-limit");
-        require(add(receiverAllotedTax[collateralType], taxPercentage) < HUNDRED, "TaxCollector/tax-cut-exceeds-hundred");
-        taxReceiverNonce                                                      = add(taxReceiverNonce, 1);
+        require(addition(taxReceiverListLength(), ONE) <= maxSecondaryReceivers, "TaxCollector/exceeds-max-receiver-limit");
+        require(addition(receiverAllotedTax[collateralType], taxPercentage) < HUNDRED, "TaxCollector/tax-cut-exceeds-hundred");
+        taxReceiverNonce                                                      = addition(taxReceiverNonce, 1);
         latestTaxReceiver                                                     = taxReceiverNonce;
         usedTaxReceiver[receiverAccount]                                      = ONE;
-        receiverAllotedTax[collateralType]                                    = add(receiverAllotedTax[collateralType], taxPercentage);
+        receiverAllotedTax[collateralType]                                    = addition(receiverAllotedTax[collateralType], taxPercentage);
         taxReceivers[collateralType][latestTaxReceiver].taxPercentage = taxPercentage;
         taxReceiverAccounts[latestTaxReceiver]                                = receiverAccount;
         taxReceiverRevenueSources[receiverAccount]                            = ONE;
@@ -286,7 +286,7 @@ contract TaxCollector is Logging {
      */
     function modifyTaxReceiver(bytes32 collateralType, uint256 position, uint256 taxPercentage) internal {
         if (taxPercentage == 0) {
-          receiverAllotedTax[collateralType] = sub(
+          receiverAllotedTax[collateralType] = subtract(
             receiverAllotedTax[collateralType],
             taxReceivers[collateralType][position].taxPercentage
           );
@@ -302,17 +302,17 @@ contract TaxCollector is Logging {
             delete(taxReceiverRevenueSources[taxReceiverAccounts[position]]);
             delete(taxReceiverAccounts[position]);
           } else if (taxReceivers[collateralType][position].taxPercentage > 0) {
-            taxReceiverRevenueSources[taxReceiverAccounts[position]] = sub(taxReceiverRevenueSources[taxReceiverAccounts[position]], 1);
+            taxReceiverRevenueSources[taxReceiverAccounts[position]] = subtract(taxReceiverRevenueSources[taxReceiverAccounts[position]], 1);
             delete(taxReceivers[collateralType][position]);
           }
         } else {
-          uint256 receiverAllotedTax_ = add(
-            sub(receiverAllotedTax[collateralType], taxReceivers[collateralType][position].taxPercentage),
+          uint256 receiverAllotedTax_ = addition(
+            subtract(receiverAllotedTax[collateralType], taxReceivers[collateralType][position].taxPercentage),
             taxPercentage
           );
           require(receiverAllotedTax_ < HUNDRED, "TaxCollector/tax-cut-too-big");
           if (taxReceivers[collateralType][position].taxPercentage == 0) {
-            taxReceiverRevenueSources[taxReceiverAccounts[position]] = add(
+            taxReceiverRevenueSources[taxReceiverAccounts[position]] = addition(
               taxReceiverRevenueSources[taxReceiverAccounts[position]],
               1
             );
@@ -345,7 +345,7 @@ contract TaxCollector is Logging {
           if (now > collateralTypes[collateralList[i]].updateTime) {
             (debtAmount, ) = cdpEngine.collateralTypes(collateralList[i]);
             (, deltaRate) = taxationOutcome(collateralList[i]);
-            rad = add(rad, mul(debtAmount, deltaRate));
+            rad = addition(rad, multiply(debtAmount, deltaRate));
           }
         }
         if (rad < 0) {
@@ -360,7 +360,7 @@ contract TaxCollector is Logging {
     function averageTaxationRate(uint globalStabilityFee_) public view returns (uint256 z) {
         if (collateralList.length == 0) return globalStabilityFee_;
         for (uint i = 0; i < collateralList.length; i++) {
-          z = add(z, add(globalStabilityFee_, collateralTypes[collateralList[i]].stabilityFee));
+          z = addition(z, addition(globalStabilityFee_, collateralTypes[collateralList[i]].stabilityFee));
         }
         z = z / collateralList.length;
     }
@@ -387,13 +387,13 @@ contract TaxCollector is Logging {
     function taxationOutcome(bytes32 collateralType) public view returns (uint, int) {
         (, uint lastAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
         uint newlyAccumulatedRate =
-          rmul(
+          rmultiply(
             rpow(
-              add(
+              addition(
                 globalStabilityFee,
                 collateralTypes[collateralType].stabilityFee
               ),
-              sub(
+              subtract(
                 now,
                 collateralTypes[collateralType].updateTime
               ),
@@ -454,9 +454,9 @@ contract TaxCollector is Logging {
         int256 deltaRate
     ) internal {
         int256 coinBalance   = -int(cdpEngine.coinBalance(accountingEngine));
-        int256 currentTaxCut = mul(sub(HUNDRED, receiverAllotedTax[collateralType]), deltaRate) / int(HUNDRED);
+        int256 currentTaxCut = multiply(subtract(HUNDRED, receiverAllotedTax[collateralType]), deltaRate) / int(HUNDRED);
         currentTaxCut  = (
-          both(mul(debtAmount, currentTaxCut) < 0, coinBalance > mul(debtAmount, currentTaxCut))
+          both(multiply(debtAmount, currentTaxCut) < 0, coinBalance > multiply(debtAmount, currentTaxCut))
         ) ? coinBalance / int(debtAmount) : currentTaxCut;
         if (currentTaxCut != 0) {
           cdpEngine.updateAccumulatedRate(collateralType, accountingEngine, currentTaxCut);
@@ -472,13 +472,13 @@ contract TaxCollector is Logging {
         // Check how many coins the receiver has and negate the value
         int256 coinBalance   = -int(cdpEngine.coinBalance(taxReceiverAccounts[receiver]));
         // Compute the % out of deltaRate that should be allocated to the current tax receiver
-        int256 currentTaxCut = mul(int(taxReceivers[collateralType][receiver].taxPercentage), deltaRate) / int(HUNDRED);
+        int256 currentTaxCut = multiply(int(taxReceivers[collateralType][receiver].taxPercentage), deltaRate) / int(HUNDRED);
         /**
             If SF is negative and the tax receiver doesn't have enough coins to absorb the loss,
             compute a new tax cut that can be absorbed
         **/
         currentTaxCut  = (
-          both(mul(debtAmount, currentTaxCut) < 0, coinBalance > mul(debtAmount, currentTaxCut))
+          both(multiply(debtAmount, currentTaxCut) < 0, coinBalance > multiply(debtAmount, currentTaxCut))
         ) ? coinBalance / int(debtAmount) : currentTaxCut;
         /**
           If the tax receiver's tax cut is not null and if the receiver accepts negative SF
