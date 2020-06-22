@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.5.15;
+pragma solidity ^0.5.12;
 
 contract CDPEngine {
     // --- Auth ---
@@ -120,8 +120,6 @@ contract CDPEngine {
     modifier emitLog {
         _;
         assembly {
-            //
-            //
             let mark := msize                         // end of memory ensures zero
             mstore(0x40, add(mark, 288))              // update free memory pointer
             mstore(mark, 0x20)                        // bytes type data offset

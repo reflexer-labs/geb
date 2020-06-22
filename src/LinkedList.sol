@@ -1,4 +1,4 @@
-pragma solidity ^0.5.15;
+pragma solidity ^0.5.12;
 
 contract StructLike {
     function val(uint256 _id) public view returns (uint256);
