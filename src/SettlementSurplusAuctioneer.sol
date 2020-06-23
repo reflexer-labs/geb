@@ -1,6 +1,5 @@
 /// SettlementSurplusAuctioneer.sol
 
-// Copyright (C) 2018 Rain <rainbreak@riseup.net>
 // Copyright (C) 2020 Stefan C. Ionescu <stefanionescu@protonmail.com>
 
 // This program is free software: you can redistribute it and/or modify
@@ -76,7 +75,7 @@ contract SettlementSurplusAuctioneer is Logging {
     }
 
     // --- Math ---
-    function add(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint x, uint y) internal pure returns (uint z) {
         require((z = x + y) >= x);
     }
 
@@ -96,7 +95,7 @@ contract SettlementSurplusAuctioneer is Logging {
     function auctionSurplus() external emitLog returns (uint id) {
         require(accountingEngine.contractEnabled() == 0, "SettlementSurplusAuctioneer/accounting-engine-still-enabled");
         require(
-          now >= add(lastSurplusAuctionTime, accountingEngine.surplusAuctionDelay()),
+          now >= addition(lastSurplusAuctionTime, accountingEngine.surplusAuctionDelay()),
           "SettlementSurplusAuctioneer/surplus-auction-delay-not-passed"
         );
         lastSurplusAuctionTime = now;
