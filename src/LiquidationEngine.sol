@@ -117,6 +117,7 @@ contract LiquidationEngine is Logging {
       address indexed cdp,
       uint256 collateralAdded
     );
+    event FailedCDPSave(string failReason);
 
     // --- Init ---
     constructor(address cdpEngine_) public {
@@ -227,13 +228,15 @@ contract LiquidationEngine is Logging {
           multiply(cdpCollateral, liquidationPrice) < multiply(cdpDebt, accumulatedRates)
         ), "LiquidationEngine/cdp-not-unsafe");
 
-        //TODO: try/catch the cdp saviour call
         if (chosenCDPSaviour[collateralType][cdp] != address(0) &&
             cdpSaviours[chosenCDPSaviour[collateralType][cdp]] == 1) {
-          (bool ok, uint collateralAdded, ) =
-            CDPSaviourLike(chosenCDPSaviour[collateralType][cdp]).saveCDP(msg.sender, collateralType, cdp);
-          if (both(ok, collateralAdded > 0)) {
-            emit SaveCDP(collateralType, cdp, collateralAdded);
+          try CDPSaviourLike(chosenCDPSaviour[collateralType][cdp]).saveCDP(msg.sender, collateralType, cdp)
+            returns (bool ok, uint256 collateralAdded, uint256 liquidatorReward) {
+            if (both(ok, collateralAdded > 0)) {
+              emit SaveCDP(collateralType, cdp, collateralAdded);
+            }
+          } catch Error(string memory revertReason) {
+            emit FailedCDPSave(revertReason);
           }
         }
 
