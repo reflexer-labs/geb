@@ -13,7 +13,7 @@ import {OracleRelayer} from '../OracleRelayer.sol';
 
 import {CollateralAuctionHouse} from './CollateralAuctionHouse.t.sol';
 import {DebtAuctionHouse} from './DebtAuctionHouse.t.sol';
-import {SurplusAuctionHouseTwo} from './SurplusAuctionHouse.t.sol';
+import {PostSettlementSurplusAuctionHouse} from './SurplusAuctionHouse.t.sol';
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
@@ -541,7 +541,7 @@ contract LiquidationTest is DSTest {
 
     CollateralAuctionHouse collateralAuctionHouse;
     DebtAuctionHouse debtAuctionHouse;
-    SurplusAuctionHouseTwo surplusAuctionHouse;
+    PostSettlementSurplusAuctionHouse surplusAuctionHouse;
 
     DSToken protocolToken;
 
@@ -591,7 +591,7 @@ contract LiquidationTest is DSTest {
         cdpEngine = new TestCDPEngine();
         cdpEngine = cdpEngine;
 
-        surplusAuctionHouse = new SurplusAuctionHouseTwo(address(cdpEngine), address(protocolToken));
+        surplusAuctionHouse = new PostSettlementSurplusAuctionHouse(address(cdpEngine), address(protocolToken));
         debtAuctionHouse = new DebtAuctionHouse(address(cdpEngine), address(protocolToken));
 
         accountingEngine = new TestAccountingEngine(

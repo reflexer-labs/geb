@@ -2,7 +2,7 @@ pragma solidity ^0.6.7;
 
 import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
-import {SurplusAuctionHouseOne, SurplusAuctionHouseTwo} from "../SurplusAuctionHouse.sol";
+import {PreSettlementSurplusAuctionHouse, PostSettlementSurplusAuctionHouse} from "../SurplusAuctionHouse.sol";
 import "../CDPEngine.sol";
 import {CoinJoin} from '../BasicTokenAdapters.sol';
 import {Coin} from "../Coin.sol";
@@ -12,8 +12,8 @@ abstract contract Hevm {
 }
 
 contract GuySurplusAuctionOne {
-    SurplusAuctionHouseOne surplusAuctionHouse;
-    constructor(SurplusAuctionHouseOne surplusAuctionHouse_) public {
+    PreSettlementSurplusAuctionHouse surplusAuctionHouse;
+    constructor(PreSettlementSurplusAuctionHouse surplusAuctionHouse_) public {
         surplusAuctionHouse = surplusAuctionHouse_;
         CDPEngine(address(surplusAuctionHouse.cdpEngine())).approveCDPModification(address(surplusAuctionHouse));
         DSToken(address(surplusAuctionHouse.protocolToken())).approve(address(surplusAuctionHouse));
@@ -45,8 +45,8 @@ contract GuySurplusAuctionOne {
 }
 
 contract GuySurplusAuctionTwo {
-    SurplusAuctionHouseTwo surplusAuctionHouse;
-    constructor(SurplusAuctionHouseTwo surplusAuctionHouse_) public {
+    PostSettlementSurplusAuctionHouse surplusAuctionHouse;
+    constructor(PostSettlementSurplusAuctionHouse surplusAuctionHouse_) public {
         surplusAuctionHouse = surplusAuctionHouse_;
         CDPEngine(address(surplusAuctionHouse.cdpEngine())).approveCDPModification(address(surplusAuctionHouse));
         DSToken(address(surplusAuctionHouse.protocolToken())).approve(address(surplusAuctionHouse));
@@ -85,10 +85,10 @@ contract GlobalSettlement {
     }
 }
 
-contract SurplusAuctionHouseOneTest is DSTest {
+contract PreSettlementSurplusAuctionHouseTest is DSTest {
     Hevm hevm;
 
-    SurplusAuctionHouseOne surplusAuctionHouse;
+    PreSettlementSurplusAuctionHouse surplusAuctionHouse;
     CDPEngine cdpEngine;
     DSToken protocolToken;
 
@@ -102,7 +102,7 @@ contract SurplusAuctionHouseOneTest is DSTest {
         cdpEngine = new CDPEngine();
         protocolToken = new DSToken('');
 
-        surplusAuctionHouse = new SurplusAuctionHouseOne(address(cdpEngine), address(protocolToken));
+        surplusAuctionHouse = new PreSettlementSurplusAuctionHouse(address(cdpEngine), address(protocolToken));
 
         ali = address(new GuySurplusAuctionOne(surplusAuctionHouse));
         bob = address(new GuySurplusAuctionOne(surplusAuctionHouse));
@@ -200,10 +200,10 @@ contract SurplusAuctionHouseOneTest is DSTest {
     }
 }
 
-contract SurplusAuctionHouseTwoTest is DSTest {
+contract PostSettlementSurplusAuctionHouseTest is DSTest {
     Hevm hevm;
 
-    SurplusAuctionHouseTwo surplusAuctionHouse;
+    PostSettlementSurplusAuctionHouse surplusAuctionHouse;
     CDPEngine cdpEngine;
     DSToken protocolToken;
 
@@ -217,7 +217,7 @@ contract SurplusAuctionHouseTwoTest is DSTest {
         cdpEngine = new CDPEngine();
         protocolToken = new DSToken('');
 
-        surplusAuctionHouse = new SurplusAuctionHouseTwo(address(cdpEngine), address(protocolToken));
+        surplusAuctionHouse = new PostSettlementSurplusAuctionHouse(address(cdpEngine), address(protocolToken));
 
         ali = address(new GuySurplusAuctionTwo(surplusAuctionHouse));
         bob = address(new GuySurplusAuctionTwo(surplusAuctionHouse));

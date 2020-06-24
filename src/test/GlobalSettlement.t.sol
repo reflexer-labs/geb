@@ -28,7 +28,7 @@ import {AccountingEngine} from '../AccountingEngine.sol';
 import {CoinSavingsAccount} from '../CoinSavingsAccount.sol';
 import {StabilityFeeTreasury}  from '../StabilityFeeTreasury.sol';
 import {CollateralAuctionHouse} from '../CollateralAuctionHouse.sol';
-import {SurplusAuctionHouseOne} from '../SurplusAuctionHouse.sol';
+import {PreSettlementSurplusAuctionHouse} from '../SurplusAuctionHouse.sol';
 import {DebtAuctionHouse} from '../DebtAuctionHouse.sol';
 import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
 import {CollateralJoin, CoinJoin} from '../BasicTokenAdapters.sol';
@@ -170,7 +170,7 @@ contract GlobalSettlementTest is DSTest {
 
     mapping (bytes32 => CollateralType) collateralTypes;
 
-    SurplusAuctionHouseOne surplusAuctionHouseOne;
+    PreSettlementSurplusAuctionHouse surplusAuctionHouseOne;
     DebtAuctionHouse debtAuctionHouse;
 
     uint constant WAD = 10 ** 18;
@@ -270,7 +270,7 @@ contract GlobalSettlementTest is DSTest {
         dex = new DexLike(1 ether);
         systemCoinA = new CoinJoin(address(cdpEngine), address(systemCoin));
 
-        surplusAuctionHouseOne = new SurplusAuctionHouseOne(address(cdpEngine), address(protocolToken));
+        surplusAuctionHouseOne = new PreSettlementSurplusAuctionHouse(address(cdpEngine), address(protocolToken));
 
         cdpEngine.approveCDPModification(address(surplusAuctionHouseOne));
 
