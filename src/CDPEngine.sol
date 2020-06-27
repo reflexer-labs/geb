@@ -119,7 +119,7 @@ contract CDPEngine {
     modifier emitLog {
         _;
         assembly {
-            let mark := msize()                         // end of memory ensures zero
+            let mark := mload(0x40)                   // end of memory ensures zero
             mstore(0x40, add(mark, 288))              // update free memory pointer
             mstore(mark, 0x20)                        // bytes type data offset
             mstore(add(mark, 0x20), 224)              // bytes size (padded)
