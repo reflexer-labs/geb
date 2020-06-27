@@ -117,6 +117,8 @@ contract CDPEngine {
     * and four indexed topics: the selector and the first three args
     **/
     modifier emitLog {
+        //
+        //
         _;
         assembly {
             let mark := mload(0x40)                   // end of memory ensures zero
