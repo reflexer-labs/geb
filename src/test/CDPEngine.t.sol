@@ -116,10 +116,10 @@ contract Usr {
         DSToken(token).approve(target, wad);
     }
     function join(address adapter, address cdp, uint wad) external {
-        CollateralJoin(adapter).join(cdp, wad);
+        BasicCollateralJoin(adapter).join(cdp, wad);
     }
     function exit(address adapter, address cdp, uint wad) external {
-        CollateralJoin(adapter).exit(cdp, wad);
+        BasicCollateralJoin(adapter).exit(cdp, wad);
     }
     function modifyCDPCollateralization(
       bytes32 collateralType, address cdp, address collateralSrc, address debtDst, int deltaCollateral, int deltaDebt
@@ -142,7 +142,7 @@ contract ModifyCDPCollateralizationTest is DSTest {
     DSToken stable;
     TaxCollector taxCollector;
 
-    CollateralJoin collateralA;
+    BasicCollateralJoin collateralA;
     address me;
 
     uint constant RAY = 10 ** 27;
@@ -171,7 +171,7 @@ contract ModifyCDPCollateralizationTest is DSTest {
 
         cdpEngine.initializeCollateralType("gold");
 
-        collateralA = new CollateralJoin(address(cdpEngine), "gold", address(gold));
+        collateralA = new BasicCollateralJoin(address(cdpEngine), "gold", address(gold));
 
         cdpEngine.modifyParameters("gold", "safetyPrice",    ray(1 ether));
         cdpEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
@@ -389,7 +389,7 @@ contract ModifyCDPCollateralizationTest is DSTest {
 contract JoinTest is DSTest {
     TestCDPEngine cdpEngine;
     DSToken collateral;
-    CollateralJoin collateralA;
+    BasicCollateralJoin collateralA;
     ETHJoin ethA;
     CoinJoin coinA;
     DSToken coin;
@@ -402,7 +402,7 @@ contract JoinTest is DSTest {
         cdpEngine.initializeCollateralType("ETH");
 
         collateral  = new DSToken("Gem");
-        collateralA = new CollateralJoin(address(cdpEngine), "collateral", address(collateral));
+        collateralA = new BasicCollateralJoin(address(cdpEngine), "collateral", address(collateral));
         cdpEngine.addAuthorization(address(collateralA));
 
         ethA = new ETHJoin(address(cdpEngine), "ETH");
@@ -537,7 +537,7 @@ contract LiquidationTest is DSTest {
     DSToken gold;
     TaxCollector taxCollector;
 
-    CollateralJoin collateralA;
+    BasicCollateralJoin collateralA;
 
     CollateralAuctionHouse collateralAuctionHouse;
     DebtAuctionHouse debtAuctionHouse;
@@ -604,7 +604,7 @@ contract LiquidationTest is DSTest {
 
         taxCollector = new TaxCollector(address(cdpEngine));
         taxCollector.initializeCollateralType("gold");
-        taxCollector.modifyParameters("accountingEngine", address(accountingEngine));
+        taxCollector.modifyParameters("primaryTaxReceiver", address(accountingEngine));
         cdpEngine.addAuthorization(address(taxCollector));
 
         liquidationEngine = new LiquidationEngine(address(cdpEngine));
@@ -616,7 +616,7 @@ contract LiquidationTest is DSTest {
         gold.mint(1000 ether);
 
         cdpEngine.initializeCollateralType("gold");
-        collateralA = new CollateralJoin(address(cdpEngine), "gold", address(gold));
+        collateralA = new BasicCollateralJoin(address(cdpEngine), "gold", address(gold));
         cdpEngine.addAuthorization(address(collateralA));
         gold.approve(address(collateralA));
         collateralA.join(address(this), 1000 ether);

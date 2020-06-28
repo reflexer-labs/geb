@@ -49,8 +49,8 @@ contract TaxCollector is Logging {
     }
 
     // --- Events ---
-    event Taxed(bytes32 collateralType, uint latestAccumulatedRate, int deltaRate);
-    event UpdatedAccumulatedRate(bytes32 collateralType, address target, int taxCut);
+    event CollectTax(bytes32 collateralType, uint latestAccumulatedRate, int deltaRate);
+    event DistributeTax(bytes32 collateralType, address target, int taxCut);
 
     // --- Data ---
     struct CollateralType {
@@ -59,7 +59,7 @@ contract TaxCollector is Logging {
         // When SF was last collected for this collateral type
         uint256 updateTime;
     }
-    // SF receiver (not AccountingEngine)
+    // SF receiver
     struct TaxReceiver {
         // Whether this receiver can accept a negative rate (taking SF from it)
         uint256 canTakeBackTax;
@@ -69,31 +69,31 @@ contract TaxCollector is Logging {
 
     // Data about each collateral type
     mapping (bytes32 => CollateralType)                  public collateralTypes;
-    // Percentage of each collateral's SF that goes to other addresses apart from AccountingEngine
-    mapping (bytes32 => uint)                            public receiverAllotedTax;
+    // Percentage of each collateral's SF that goes to other addresses apart from the primary receiver
+    mapping (bytes32 => uint)                            public secondaryReceiverAllotedTax;
     // Whether an address is already used for a tax receiver
-    mapping (address => uint256)                         public usedTaxReceiver;
+    mapping (address => uint256)                         public usedSecondaryReceiver;
     // Address associated to each tax receiver index
-    mapping (uint256 => address)                         public taxReceiverAccounts;
+    mapping (uint256 => address)                         public secondaryReceiverAccounts;
     // How many collateral types send SF to a specific tax receiver
-    mapping (address => uint256)                         public taxReceiverRevenueSources;
+    mapping (address => uint256)                         public secondaryReceiverRevenueSources;
     // Tax receiver data
-    mapping (bytes32 => mapping(uint256 => TaxReceiver)) public taxReceivers;
+    mapping (bytes32 => mapping(uint256 => TaxReceiver)) public secondaryTaxReceivers;
 
-    address    public accountingEngine;
-    // Base stability fee charged by all collateral types
+    address    public primaryTaxReceiver;
+    // Base stability fee charged to all collateral types
     uint256    public globalStabilityFee;
-    // Total amount of secondary tax receivers ever added
-    uint256    public taxReceiverNonce;
-    // How many tax receivers a collateral type can have
+    // Number of secondary tax receivers ever added
+    uint256    public secondaryReceiverNonce;
+    // Max number of secondarytax receivers a collateral type can have
     uint256    public maxSecondaryReceivers;
-    // Latest tax receiver that still has at least one revenue source
-    uint256    public latestTaxReceiver;
+    // Latest secondary tax receiver that still has at least one revenue source
+    uint256    public latestSecondaryReceiver;
 
     // All collateral types
     bytes32[]        public   collateralList;
     // Linked list with tax receiver data
-    LinkedList.List  internal taxReceiverList;
+    LinkedList.List  internal secondaryReceiverList;
 
     CDPEngineLike public cdpEngine;
 
@@ -217,7 +217,7 @@ contract TaxCollector is Logging {
      */
     function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
         require(data != address(0), "TaxCollector/null-data");
-        if (parameter == "accountingEngine") accountingEngine = data;
+        if (parameter == "primaryTaxReceiver") primaryTaxReceiver = data;
         else revert("TaxCollector/modify-unrecognized-param");
     }
     /**
@@ -231,13 +231,13 @@ contract TaxCollector is Logging {
         uint256 position,
         uint256 val
     ) external emitLog isAuthorized {
-        if (both(taxReceiverList.isNode(position), taxReceivers[collateralType][position].taxPercentage > 0)) {
-            taxReceivers[collateralType][position].canTakeBackTax = val;
+        if (both(secondaryReceiverList.isNode(position), secondaryTaxReceivers[collateralType][position].taxPercentage > 0)) {
+            secondaryTaxReceivers[collateralType][position].canTakeBackTax = val;
         }
         else revert("TaxCollector/unknown-tax-receiver");
     }
     /**
-     * @notice Create or modify a tax receiver's data
+     * @notice Create or modify a secondary tax receiver's data
      * @param collateralType Collateral type that will give SF to the tax receiver
      * @param position Receiver position in the list. Used to determine whether a new tax receiver is
               created or an existing one is edited
@@ -250,75 +250,75 @@ contract TaxCollector is Logging {
       uint256 taxPercentage,
       address receiverAccount
     ) external emitLog isAuthorized {
-        (!taxReceiverList.isNode(position)) ?
-          createTaxReceiver(collateralType, taxPercentage, receiverAccount) :
-          modifyTaxReceiver(collateralType, position, taxPercentage);
+        (!secondaryReceiverList.isNode(position)) ?
+          addSecondaryReceiver(collateralType, taxPercentage, receiverAccount) :
+          modifySecondaryReceiver(collateralType, position, taxPercentage);
     }
 
     // --- Tax Receiver Utils ---
     /**
-     * @notice Create a new tax receiver
+     * @notice Add a new secondary tax receiver
      * @param collateralType Collateral type that will give SF to the tax receiver
      * @param taxPercentage Percentage of SF offered to the tax receiver
      * @param receiverAccount Tax receiver address
      */
-    function createTaxReceiver(bytes32 collateralType, uint256 taxPercentage, address receiverAccount) internal {
+    function addSecondaryReceiver(bytes32 collateralType, uint256 taxPercentage, address receiverAccount) internal {
         require(receiverAccount != address(0), "TaxCollector/null-account");
-        require(receiverAccount != accountingEngine, "TaxCollector/accounting-engine-cannot-be-secondary-tax-receiver");
+        require(receiverAccount != primaryTaxReceiver, "TaxCollector/primary-receiver-cannot-be-secondary");
         require(taxPercentage > 0, "TaxCollector/null-sf");
-        require(usedTaxReceiver[receiverAccount] == 0, "TaxCollector/account-already-used");
-        require(addition(taxReceiverListLength(), ONE) <= maxSecondaryReceivers, "TaxCollector/exceeds-max-receiver-limit");
-        require(addition(receiverAllotedTax[collateralType], taxPercentage) < HUNDRED, "TaxCollector/tax-cut-exceeds-hundred");
-        taxReceiverNonce                                                      = addition(taxReceiverNonce, 1);
-        latestTaxReceiver                                                     = taxReceiverNonce;
-        usedTaxReceiver[receiverAccount]                                      = ONE;
-        receiverAllotedTax[collateralType]                                    = addition(receiverAllotedTax[collateralType], taxPercentage);
-        taxReceivers[collateralType][latestTaxReceiver].taxPercentage = taxPercentage;
-        taxReceiverAccounts[latestTaxReceiver]                                = receiverAccount;
-        taxReceiverRevenueSources[receiverAccount]                            = ONE;
-        taxReceiverList.push(latestTaxReceiver, false);
+        require(usedSecondaryReceiver[receiverAccount] == 0, "TaxCollector/account-already-used");
+        require(addition(secondaryReceiversAmount(), ONE) <= maxSecondaryReceivers, "TaxCollector/exceeds-max-receiver-limit");
+        require(addition(secondaryReceiverAllotedTax[collateralType], taxPercentage) < HUNDRED, "TaxCollector/tax-cut-exceeds-hundred");
+        secondaryReceiverNonce                                                       = addition(secondaryReceiverNonce, 1);
+        latestSecondaryReceiver                                                      = secondaryReceiverNonce;
+        usedSecondaryReceiver[receiverAccount]                                       = ONE;
+        secondaryReceiverAllotedTax[collateralType]                                  = addition(secondaryReceiverAllotedTax[collateralType], taxPercentage);
+        secondaryTaxReceivers[collateralType][latestSecondaryReceiver].taxPercentage = taxPercentage;
+        secondaryReceiverAccounts[latestSecondaryReceiver]                           = receiverAccount;
+        secondaryReceiverRevenueSources[receiverAccount]                             = ONE;
+        secondaryReceiverList.push(latestSecondaryReceiver, false);
     }
     /**
-     * @notice Update a tax receiver's data (add a new SF source or modify % of SF taken from a collateral type)
+     * @notice Update a secondary tax receiver's data (add a new SF source or modify % of SF taken from a collateral type)
      * @param collateralType Collateral type that will give SF to the tax receiver
      * @param position Receiver's position in the tax receiver list
      * @param taxPercentage Percentage of SF offered to the tax receiver
      */
-    function modifyTaxReceiver(bytes32 collateralType, uint256 position, uint256 taxPercentage) internal {
+    function modifySecondaryReceiver(bytes32 collateralType, uint256 position, uint256 taxPercentage) internal {
         if (taxPercentage == 0) {
-          receiverAllotedTax[collateralType] = subtract(
-            receiverAllotedTax[collateralType],
-            taxReceivers[collateralType][position].taxPercentage
+          secondaryReceiverAllotedTax[collateralType] = subtract(
+            secondaryReceiverAllotedTax[collateralType],
+            secondaryTaxReceivers[collateralType][position].taxPercentage
           );
 
-          if (taxReceiverRevenueSources[taxReceiverAccounts[position]] == 1) {
-            if (position == latestTaxReceiver) {
-              (, uint256 prevReceiver) = taxReceiverList.prev(latestTaxReceiver);
-              latestTaxReceiver = prevReceiver;
+          if (secondaryReceiverRevenueSources[secondaryReceiverAccounts[position]] == 1) {
+            if (position == latestSecondaryReceiver) {
+              (, uint256 prevReceiver) = secondaryReceiverList.prev(latestSecondaryReceiver);
+              latestSecondaryReceiver = prevReceiver;
             }
-            taxReceiverList.del(position);
-            delete(usedTaxReceiver[taxReceiverAccounts[position]]);
-            delete(taxReceivers[collateralType][position]);
-            delete(taxReceiverRevenueSources[taxReceiverAccounts[position]]);
-            delete(taxReceiverAccounts[position]);
-          } else if (taxReceivers[collateralType][position].taxPercentage > 0) {
-            taxReceiverRevenueSources[taxReceiverAccounts[position]] = subtract(taxReceiverRevenueSources[taxReceiverAccounts[position]], 1);
-            delete(taxReceivers[collateralType][position]);
+            secondaryReceiverList.del(position);
+            delete(usedSecondaryReceiver[secondaryReceiverAccounts[position]]);
+            delete(secondaryTaxReceivers[collateralType][position]);
+            delete(secondaryReceiverRevenueSources[secondaryReceiverAccounts[position]]);
+            delete(secondaryReceiverAccounts[position]);
+          } else if (secondaryTaxReceivers[collateralType][position].taxPercentage > 0) {
+            secondaryReceiverRevenueSources[secondaryReceiverAccounts[position]] = subtract(secondaryReceiverRevenueSources[secondaryReceiverAccounts[position]], 1);
+            delete(secondaryTaxReceivers[collateralType][position]);
           }
         } else {
-          uint256 receiverAllotedTax_ = addition(
-            subtract(receiverAllotedTax[collateralType], taxReceivers[collateralType][position].taxPercentage),
+          uint256 secondaryReceiverAllotedTax_ = addition(
+            subtract(secondaryReceiverAllotedTax[collateralType], secondaryTaxReceivers[collateralType][position].taxPercentage),
             taxPercentage
           );
-          require(receiverAllotedTax_ < HUNDRED, "TaxCollector/tax-cut-too-big");
-          if (taxReceivers[collateralType][position].taxPercentage == 0) {
-            taxReceiverRevenueSources[taxReceiverAccounts[position]] = addition(
-              taxReceiverRevenueSources[taxReceiverAccounts[position]],
+          require(secondaryReceiverAllotedTax_ < HUNDRED, "TaxCollector/tax-cut-too-big");
+          if (secondaryTaxReceivers[collateralType][position].taxPercentage == 0) {
+            secondaryReceiverRevenueSources[secondaryReceiverAccounts[position]] = addition(
+              secondaryReceiverRevenueSources[secondaryReceiverAccounts[position]],
               1
             );
           }
-          receiverAllotedTax[collateralType]                    = receiverAllotedTax_;
-          taxReceivers[collateralType][position].taxPercentage = taxPercentage;
+          secondaryReceiverAllotedTax[collateralType]                    = secondaryReceiverAllotedTax_;
+          secondaryTaxReceivers[collateralType][position].taxPercentage = taxPercentage;
         }
     }
 
@@ -335,56 +335,30 @@ contract TaxCollector is Logging {
         }
     }
     /**
-     * @notice Check how much SF will be distributed (from all collateral types) during the next taxation
+     * @notice Check how much SF will be charged (to all collateral types) during the next taxation
      */
-    function nextTaxationOutcome() public view returns (bool ok, int rad) {
-        int  accountingEngineCoinBalance_ = -int(cdpEngine.coinBalance(accountingEngine));
+    function taxAllOutcome() public view returns (bool ok, int rad) {
+        int  primaryReceiverBalance = -int(cdpEngine.coinBalance(primaryTaxReceiver));
         int  deltaRate;
         uint debtAmount;
         for (uint i = 0; i < collateralList.length; i++) {
           if (now > collateralTypes[collateralList[i]].updateTime) {
             (debtAmount, ) = cdpEngine.collateralTypes(collateralList[i]);
-            (, deltaRate) = taxationOutcome(collateralList[i]);
+            (, deltaRate) = taxSingleOutcome(collateralList[i]);
             rad = addition(rad, multiply(debtAmount, deltaRate));
           }
         }
         if (rad < 0) {
-          ok = (rad < accountingEngineCoinBalance_) ? false : true;
+          ok = (rad < primaryReceiverBalance) ? false : true;
         } else {
           ok = true;
         }
     }
     /**
-     * @notice Get the average taxation rate across all collateral types
-     */
-    function averageTaxationRate(uint globalStabilityFee_) public view returns (uint256 z) {
-        if (collateralList.length == 0) return globalStabilityFee_;
-        for (uint i = 0; i < collateralList.length; i++) {
-          z = addition(z, addition(globalStabilityFee_, collateralTypes[collateralList[i]].stabilityFee));
-        }
-        z = z / collateralList.length;
-    }
-
-    // --- Gifts Utils ---
-    /**
-     * @notice Get the tax receiver list length
-     */
-    function taxReceiverListLength() public view returns (uint) {
-        return taxReceiverList.range();
-    }
-    /**
-     * @notice Check if a tax receiver is at a certain position in the list
-     */
-    function isTaxReceiver(uint256 _receiver) public view returns (bool) {
-        return taxReceiverList.isNode(_receiver);
-    }
-
-    // --- Tax (Stability Fee) Collection ---
-    /**
      * @notice Get how much SF will be distributed after taxing a specific collateral type
      * @param collateralType Collateral type to compute the taxation outcome for
      */
-    function taxationOutcome(bytes32 collateralType) public view returns (uint, int) {
+    function taxSingleOutcome(bytes32 collateralType) public view returns (uint, int) {
         (, uint lastAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
         uint newlyAccumulatedRate =
           rmultiply(
@@ -401,6 +375,22 @@ contract TaxCollector is Logging {
           lastAccumulatedRate);
         return (newlyAccumulatedRate, diff(newlyAccumulatedRate, lastAccumulatedRate));
     }
+
+    // --- Tax Receiver Utils ---
+    /**
+     * @notice Get the secondary tax receiver list length
+     */
+    function secondaryReceiversAmount() public view returns (uint) {
+        return secondaryReceiverList.range();
+    }
+    /**
+     * @notice Check if a tax receiver is at a certain position in the list
+     */
+    function isSecondaryReceiver(uint256 _receiver) public view returns (bool) {
+        return secondaryReceiverList.isNode(_receiver);
+    }
+
+    // --- Tax (Stability Fee) Collection ---
     /**
      * @notice Collect tax from all collateral types
      */
@@ -419,62 +409,67 @@ contract TaxCollector is Logging {
           (, latestAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
           return latestAccumulatedRate;
         }
-        (, int deltaRate) = taxationOutcome(collateralType);
-        splitTaxIncome(collateralType, deltaRate);
+        (, int deltaRate) = taxSingleOutcome(collateralType);
+        // Check how much debt has been generated for collateralType
+        (uint debtAmount, ) = cdpEngine.collateralTypes(collateralType);
+        if (debtAmount > 0) {
+          splitTaxIncome(collateralType, debtAmount, deltaRate);
+        }
         (, latestAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
         collateralTypes[collateralType].updateTime = now;
-        emit Taxed(collateralType, latestAccumulatedRate, deltaRate);
+        emit CollectTax(collateralType, latestAccumulatedRate, deltaRate);
         return latestAccumulatedRate;
     }
     /**
-     * @notice Distribute SF to tax receivers and to the AccountingEngine
+     * @notice Split SF between all tax receivers
      * @param collateralType Collateral type to distribute SF for
      * @param deltaRate Difference between the last and the latest accumulate rates for the collateralType
      */
-    function splitTaxIncome(bytes32 collateralType, int deltaRate) internal {
-        // Check how much debt has been generated for collateralType
-        (uint debtAmount, ) = cdpEngine.collateralTypes(collateralType);
+    function splitTaxIncome(bytes32 collateralType, uint debtAmount, int deltaRate) internal {
         // Start looping from the latest tax receiver
-        uint256 currentTaxReceiver = latestTaxReceiver;
+        uint256 currentSecondaryReceiver = latestSecondaryReceiver;
         // While we still haven't gone through the entire tax receiver list
-        while (currentTaxReceiver > 0) {
+        while (currentSecondaryReceiver > 0) {
           // If the current tax receiver should receive SF from collateralType
-          if (taxReceivers[collateralType][currentTaxReceiver].taxPercentage > 0) {
-            distributeSecondaryTaxReceiverIncome(collateralType, currentTaxReceiver, debtAmount, deltaRate);
+          if (secondaryTaxReceivers[collateralType][currentSecondaryReceiver].taxPercentage > 0) {
+            distributeTax(
+              collateralType,
+              secondaryReceiverAccounts[currentSecondaryReceiver],
+              currentSecondaryReceiver,
+              debtAmount,
+              deltaRate
+            );
           }
           // Continue looping
-          (, currentTaxReceiver) = taxReceiverList.prev(currentTaxReceiver);
+          (, currentSecondaryReceiver) = secondaryReceiverList.prev(currentSecondaryReceiver);
         }
-        // Repeat the exact process for AccountingEngine but do not check if it accepts negative rates
-        distributeAccountingEngineIncome(collateralType, debtAmount, deltaRate);
+        // Distribute to primary receiver
+        distributeTax(collateralType, primaryTaxReceiver, uint(-1), debtAmount, deltaRate);
     }
-    function distributeAccountingEngineIncome(
+
+    /**
+     * @notice Give/withdraw SF from a tax receiver
+     * @param collateralType Collateral type to distribute SF for
+     * @param receiver Tax receiver address
+     * @param receiverListPosition Position of receiver in the secondaryReceiverList (if the receiver is secondary)
+     * @param debtAmount Total debt currently issued
+     * @param deltaRate Difference between the latest and the last accumulated rates for the collateralType
+     */
+    function distributeTax(
         bytes32 collateralType,
-        uint256 debtAmount,
-        int256 deltaRate
-    ) internal {
-        int256 coinBalance   = -int(cdpEngine.coinBalance(accountingEngine));
-        int256 currentTaxCut = multiply(subtract(HUNDRED, receiverAllotedTax[collateralType]), deltaRate) / int(HUNDRED);
-        currentTaxCut  = (
-          both(multiply(debtAmount, currentTaxCut) < 0, coinBalance > multiply(debtAmount, currentTaxCut))
-        ) ? coinBalance / int(debtAmount) : currentTaxCut;
-        if (currentTaxCut != 0) {
-          cdpEngine.updateAccumulatedRate(collateralType, accountingEngine, currentTaxCut);
-          emit UpdatedAccumulatedRate(collateralType, accountingEngine, currentTaxCut);
-        }
-    }
-    function distributeSecondaryTaxReceiverIncome(
-        bytes32 collateralType,
-        uint256 receiver,
+        address receiver,
+        uint256 receiverListPosition,
         uint256 debtAmount,
         int256 deltaRate
     ) internal {
         // Check how many coins the receiver has and negate the value
-        int256 coinBalance   = -int(cdpEngine.coinBalance(taxReceiverAccounts[receiver]));
-        // Compute the % out of deltaRate that should be allocated to the current tax receiver
-        int256 currentTaxCut = multiply(int(taxReceivers[collateralType][receiver].taxPercentage), deltaRate) / int(HUNDRED);
+        int256 coinBalance   = -int(cdpEngine.coinBalance(receiver));
+        // Compute the % out of SF that should be allocated to the receiver
+        int256 currentTaxCut = (receiver == primaryTaxReceiver) ?
+          multiply(subtract(HUNDRED, secondaryReceiverAllotedTax[collateralType]), deltaRate) / int(HUNDRED) :
+          multiply(int(secondaryTaxReceivers[collateralType][receiverListPosition].taxPercentage), deltaRate) / int(HUNDRED);
         /**
-            If SF is negative and the tax receiver doesn't have enough coins to absorb the loss,
+            If SF is negative and a tax receiver doesn't have enough coins to absorb the loss,
             compute a new tax cut that can be absorbed
         **/
         currentTaxCut  = (
@@ -482,19 +477,21 @@ contract TaxCollector is Logging {
         ) ? coinBalance / int(debtAmount) : currentTaxCut;
         /**
           If the tax receiver's tax cut is not null and if the receiver accepts negative SF
-          (in case currentTaxCut is negative), offer/subtract SF from them
+          offer/take SF to/from them
         **/
-        if (
-          both(
-            currentTaxCut != 0,
+        if (currentTaxCut != 0) {
+          if (
             either(
-              deltaRate >= 0,
-              both(currentTaxCut < 0, taxReceivers[collateralType][receiver].canTakeBackTax > 0)
+              receiver == primaryTaxReceiver,
+              either(
+                deltaRate >= 0,
+                both(currentTaxCut < 0, secondaryTaxReceivers[collateralType][receiverListPosition].canTakeBackTax > 0)
+              )
             )
-          )
-        ) {
-          cdpEngine.updateAccumulatedRate(collateralType, taxReceiverAccounts[receiver], currentTaxCut);
-          emit UpdatedAccumulatedRate(collateralType, taxReceiverAccounts[receiver], currentTaxCut);
-        }
+          ) {
+            cdpEngine.updateAccumulatedRate(collateralType, receiver, currentTaxCut);
+            emit DistributeTax(collateralType, receiver, currentTaxCut);
+          }
+       }
     }
 }

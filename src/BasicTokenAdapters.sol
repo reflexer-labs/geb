@@ -39,7 +39,7 @@ abstract contract CDPEngineLike {
     Here we provide *adapters* to connect the CDPEngine to arbitrary external
     token implementations, creating a bounded context for the CDPEngine. The
     adapters here are provided as working examples:
-      - `CollateralJoin`: For well behaved ERC20 tokens, with simple transfer semantics.
+      - `BasicCollateralJoin`: For well behaved ERC20 tokens, with simple transfer semantics.
       - `ETHJoin`: For native Ether.
       - `CoinJoin`: For connecting internal coin balances to an external
                    `Coin` implementation.
@@ -51,7 +51,7 @@ abstract contract CDPEngineLike {
       - `exit`: remove collateral from the system
 */
 
-contract CollateralJoin is Logging {
+contract BasicCollateralJoin is Logging {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
@@ -68,7 +68,7 @@ contract CollateralJoin is Logging {
     * @notice Checks whether msg.sender can call an authed function
     **/
     modifier isAuthorized {
-        require(authorizedAccounts[msg.sender] == 1, "CollateralJoin/account-not-authorized");
+        require(authorizedAccounts[msg.sender] == 1, "BasicCollateralJoin/account-not-authorized");
         _;
     }
 
@@ -106,10 +106,10 @@ contract CollateralJoin is Logging {
     * @param wad Amount of collateral to transfer in the system (represented as a number with 18 decimals)
     **/
     function join(address account, uint wad) external emitLog {
-        require(contractEnabled == 1, "CollateralJoin/contract-not-enabled");
-        require(int(wad) >= 0, "CollateralJoin/overflow");
+        require(contractEnabled == 1, "BasicCollateralJoin/contract-not-enabled");
+        require(int(wad) >= 0, "BasicCollateralJoin/overflow");
         cdpEngine.modifyCollateralBalance(collateralType, account, int(wad));
-        require(collateral.transferFrom(msg.sender, address(this), wad), "CollateralJoin/failed-transfer");
+        require(collateral.transferFrom(msg.sender, address(this), wad), "BasicCollateralJoin/failed-transfer");
     }
     /**
     * @notice Exit collateral from the system
@@ -120,9 +120,9 @@ contract CollateralJoin is Logging {
     * @param wad Amount of collateral to transfer to 'account' (represented as a number with 18 decimals)
     **/
     function exit(address account, uint wad) external emitLog {
-        require(wad <= 2 ** 255, "CollateralJoin/overflow");
+        require(wad <= 2 ** 255, "BasicCollateralJoin/overflow");
         cdpEngine.modifyCollateralBalance(collateralType, msg.sender, -int(wad));
-        require(collateral.transfer(account, wad), "CollateralJoin/failed-transfer");
+        require(collateral.transfer(account, wad), "BasicCollateralJoin/failed-transfer");
     }
 }
 

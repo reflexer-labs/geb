@@ -31,7 +31,7 @@ import {CollateralAuctionHouse} from '../CollateralAuctionHouse.sol';
 import {PreSettlementSurplusAuctionHouse} from '../SurplusAuctionHouse.sol';
 import {DebtAuctionHouse} from '../DebtAuctionHouse.sol';
 import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
-import {CollateralJoin, CoinJoin} from '../BasicTokenAdapters.sol';
+import {BasicCollateralJoin, CoinJoin} from '../BasicTokenAdapters.sol';
 import {GlobalSettlement}  from '../GlobalSettlement.sol';
 import {OracleRelayer} from '../OracleRelayer.sol';
 
@@ -108,7 +108,7 @@ contract Usr {
     function approveCDPModification(address usr) public {
         cdpEngine.approveCDPModification(usr);
     }
-    function exit(CollateralJoin collateralA, address usr, uint wad) public {
+    function exit(BasicCollateralJoin collateralA, address usr, uint wad) public {
         collateralA.exit(usr, wad);
     }
     function freeCollateral(bytes32 collateralType) public {
@@ -164,7 +164,7 @@ contract GlobalSettlementTest is DSTest {
     struct CollateralType {
         DummyOSM oracleSecurityModule;
         DSToken collateral;
-        CollateralJoin collateralA;
+        BasicCollateralJoin collateralA;
         CollateralAuctionHouse collateralAuctionHouse;
     }
 
@@ -231,7 +231,7 @@ contract GlobalSettlementTest is DSTest {
         oracleOSM.updateCollateralPrice(bytes32(5 * WAD));
 
         cdpEngine.initializeCollateralType(name);
-        CollateralJoin collateralA = new CollateralJoin(address(cdpEngine), name, address(newCollateral));
+        BasicCollateralJoin collateralA = new BasicCollateralJoin(address(cdpEngine), name, address(newCollateral));
 
         cdpEngine.modifyParameters(name, "safetyPrice", ray(3 ether));
         cdpEngine.modifyParameters(name, "debtCeiling", rad(1000 ether));

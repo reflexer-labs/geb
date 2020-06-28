@@ -12,8 +12,6 @@ A reflex bond is an asset that mirrors the price movements of its collateral in 
 
 GEB creators can allow CDP users to specify "trigger" contracts that protect them against liquidation. A trigger is called when a keeper calls the *liquidateCDP* function (previously *bite*) from LiquidationEngine (previously Cat). The trigger can, for example, sell a short position and add the proceeds to a CDP, thus saving it from the CollateralAuctionHouse (previously Flip/per).
 
-Trigger integrations need to be thoroughly audited because there is the risk that too little collateral is locked in a CollateralJoin adapter (previously GemJoin) and too much is added in the CDPEngine (previously Vat). A bug like this would allow a CDP user to generate GEB that is not covered by enough (or any) collateral.
-
 ## Two CDP Ratio Thresholds
 
 CDP users can generate GEB until they hit the *safeCRatio* but they will only get liquidated when the CDP's ratio goes under *liquidationCRatio*. liquidationCRatio must be smaller than or equal to safeCRatio.

@@ -24,7 +24,7 @@ import "ds-token/token.sol";
 import {Coin} from "../Coin.sol";
 import {CDPEngine} from '../CDPEngine.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
-import {CollateralJoin} from '../BasicTokenAdapters.sol';
+import {BasicCollateralJoin} from '../BasicTokenAdapters.sol';
 import {OracleRelayer} from '../OracleRelayer.sol';
 
 contract Feed {
@@ -111,7 +111,7 @@ contract CoinTest is DSTest {
     CDPEngine cdpEngine;
     OracleRelayer oracleRelayer;
 
-    CollateralJoin collateralA;
+    BasicCollateralJoin collateralA;
     DSToken gold;
     Feed    goldFeed;
 
@@ -160,7 +160,7 @@ contract CoinTest is DSTest {
         oracleRelayer.modifyParameters("gold", "liquidationCRatio", 1000000000000000000000000000);
         oracleRelayer.modifyParameters("gold", "safetyCRatio", 1000000000000000000000000000);
         oracleRelayer.updateCollateralPrice("gold");
-        collateralA = new CollateralJoin(address(cdpEngine), "gold", address(gold));
+        collateralA = new BasicCollateralJoin(address(cdpEngine), "gold", address(gold));
 
         cdpEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
         cdpEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
