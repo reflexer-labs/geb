@@ -125,7 +125,7 @@ contract TaxCollectorTest is DSTest {
     }
     function test_collect_tax_1d() public {
         taxCollector.initializeCollateralType("i");
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
         taxCollector.modifyParameters("i", "stabilityFee", 1000000564701133626865910626);  // 5% / day
         hevm.warp(now + 1 days);
@@ -135,7 +135,7 @@ contract TaxCollectorTest is DSTest {
     }
     function test_collect_tax_2d() public {
         taxCollector.initializeCollateralType("i");
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
         taxCollector.modifyParameters("i", "stabilityFee", 1000000564701133626865910626);  // 5% / day
 
         hevm.warp(now + 2 days);
@@ -145,7 +145,7 @@ contract TaxCollectorTest is DSTest {
     }
     function test_collect_tax_3d() public {
         taxCollector.initializeCollateralType("i");
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
         taxCollector.modifyParameters("i", "stabilityFee", 1000000564701133626865910626);  // 5% / day
         hevm.warp(now + 3 days);
@@ -155,7 +155,7 @@ contract TaxCollectorTest is DSTest {
     }
     function test_collect_tax_negative_3d() public {
         taxCollector.initializeCollateralType("i");
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
         taxCollector.modifyParameters("i", "stabilityFee", 999999706969857929985428567);  // -2.5% / day
         hevm.warp(now + 3 days);
@@ -168,7 +168,7 @@ contract TaxCollectorTest is DSTest {
 
     function test_collect_tax_multi() public {
         taxCollector.initializeCollateralType("i");
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
         taxCollector.modifyParameters("i", "stabilityFee", 1000000564701133626865910626);  // 5% / day
         hevm.warp(now + 1 days);
@@ -187,7 +187,7 @@ contract TaxCollectorTest is DSTest {
 
         taxCollector.initializeCollateralType("i");
         taxCollector.initializeCollateralType("j");
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
         taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000); // 5% / second
         taxCollector.modifyParameters("j", "stabilityFee", 1000000000000000000000000000); // 0% / second
@@ -202,7 +202,7 @@ contract TaxCollectorTest is DSTest {
 
         taxCollector.initializeCollateralType("i");
         taxCollector.initializeCollateralType("j");
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
         taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
         taxCollector.modifyParameters("j", "stabilityFee", 1030000000000000000000000000);  // 3% / second
@@ -226,7 +226,7 @@ contract TaxCollectorTest is DSTest {
 
         taxCollector.initializeCollateralType("i");
         taxCollector.initializeCollateralType("j");
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
         taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
         taxCollector.modifyParameters("j", "stabilityFee", 900000000000000000000000000);
@@ -272,122 +272,122 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("i", 1, 0, address(this));
         taxCollector.modifyParameters("i", 1, 0, address(this));
     }
-    function testFail_tax_bucket_accountingEngine() public {
+    function testFail_tax_bucket_primaryTaxReceiver() public {
         taxCollector.modifyParameters("maxSecondaryReceivers", 1);
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
         taxCollector.modifyParameters("i", 1, ray(1 ether), ali);
     }
     function testFail_tax_bucket_null() public {
         taxCollector.modifyParameters("maxSecondaryReceivers", 1);
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(0));
     }
-    function test_add_tax_taxReceivers() public {
+    function test_add_tax_secondaryTaxReceivers() public {
         taxCollector.modifyParameters("maxSecondaryReceivers", 2);
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
-        assertEq(taxCollector.receiverAllotedTax("i"), ray(1 ether));
-        assertEq(taxCollector.latestTaxReceiver(), 1);
-        assertEq(taxCollector.usedTaxReceiver(address(this)), 1);
-        assertEq(taxCollector.taxReceiverRevenueSources(address(this)), 1);
-        assertEq(taxCollector.taxReceiverAccounts(1), address(this));
-        (uint canTakeBackTax, uint taxPercentage) = taxCollector.taxReceivers("i", 1);
+        assertEq(taxCollector.secondaryReceiverAllotedTax("i"), ray(1 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(), 1);
+        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(1), address(this));
+        (uint canTakeBackTax, uint taxPercentage) = taxCollector.secondaryTaxReceivers("i", 1);
         assertEq(canTakeBackTax, 0);
         assertEq(taxPercentage, ray(1 ether));
-        assertEq(taxCollector.latestTaxReceiver(), 1);
+        assertEq(taxCollector.latestSecondaryReceiver(), 1);
     }
     function test_modify_tax_bucket_cut() public {
         taxCollector.modifyParameters("maxSecondaryReceivers", 1);
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
         taxCollector.modifyParameters("i", 1, ray(99.9 ether), address(this));
-        uint Cut = taxCollector.receiverAllotedTax("i");
+        uint Cut = taxCollector.secondaryReceiverAllotedTax("i");
         assertEq(Cut, ray(99.9 ether));
-        (,uint cut) = taxCollector.taxReceivers("i", 1);
+        (,uint cut) = taxCollector.secondaryTaxReceivers("i", 1);
         assertEq(cut, ray(99.9 ether));
     }
-    function test_remove_some_tax_taxReceivers() public {
+    function test_remove_some_tax_secondaryTaxReceivers() public {
         // Add
         taxCollector.modifyParameters("maxSecondaryReceivers", 2);
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
         taxCollector.modifyParameters("i", 2, ray(98 ether), ali);
-        assertEq(taxCollector.receiverAllotedTax("i"), ray(99 ether));
-        assertEq(taxCollector.latestTaxReceiver(), 2);
-        assertEq(taxCollector.usedTaxReceiver(ali), 1);
-        assertEq(taxCollector.taxReceiverRevenueSources(ali), 1);
-        assertEq(taxCollector.taxReceiverAccounts(2), ali);
-        assertEq(taxCollector.usedTaxReceiver(address(this)), 1);
-        assertEq(taxCollector.taxReceiverRevenueSources(address(this)), 1);
-        assertEq(taxCollector.taxReceiverAccounts(1), address(this));
-        (uint take, uint cut) = taxCollector.taxReceivers("i", 2);
+        assertEq(taxCollector.secondaryReceiverAllotedTax("i"), ray(99 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(ali), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(ali), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(2), ali);
+        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(1), address(this));
+        (uint take, uint cut) = taxCollector.secondaryTaxReceivers("i", 2);
         assertEq(take, 0);
         assertEq(cut, ray(98 ether));
-        assertEq(taxCollector.latestTaxReceiver(), 2);
+        assertEq(taxCollector.latestSecondaryReceiver(), 2);
         // Remove
         taxCollector.modifyParameters("i", 1, 0, address(this));
-        assertEq(taxCollector.receiverAllotedTax("i"), ray(98 ether));
-        assertEq(taxCollector.usedTaxReceiver(address(this)), 0);
-        assertEq(taxCollector.taxReceiverRevenueSources(address(this)), 0);
-        assertEq(taxCollector.taxReceiverAccounts(1), address(0));
-        (take, cut) = taxCollector.taxReceivers("i", 1);
+        assertEq(taxCollector.secondaryReceiverAllotedTax("i"), ray(98 ether));
+        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(1), address(0));
+        (take, cut) = taxCollector.secondaryTaxReceivers("i", 1);
         assertEq(take, 0);
         assertEq(cut, 0);
-        assertEq(taxCollector.latestTaxReceiver(), 2);
-        assertEq(taxCollector.usedTaxReceiver(ali), 1);
-        assertEq(taxCollector.taxReceiverRevenueSources(ali), 1);
-        assertEq(taxCollector.taxReceiverAccounts(2), ali);
+        assertEq(taxCollector.latestSecondaryReceiver(), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(ali), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(ali), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(2), ali);
     }
-    function test_remove_all_taxReceivers() public {
+    function test_remove_all_secondaryTaxReceivers() public {
         // Add
         taxCollector.modifyParameters("maxSecondaryReceivers", 2);
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
         taxCollector.modifyParameters("i", 2, ray(98 ether), ali);
-        assertEq(taxCollector.taxReceiverAccounts(1), address(this));
-        assertEq(taxCollector.taxReceiverAccounts(2), ali);
-        assertEq(taxCollector.taxReceiverRevenueSources(address(this)), 1);
-        assertEq(taxCollector.taxReceiverRevenueSources(ali), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(1), address(this));
+        assertEq(taxCollector.secondaryReceiverAccounts(2), ali);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(ali), 1);
         // Remove
         taxCollector.modifyParameters("i", 2, 0, ali);
         taxCollector.modifyParameters("i", 1, 0, address(this));
-        uint Cut = taxCollector.receiverAllotedTax("i");
+        uint Cut = taxCollector.secondaryReceiverAllotedTax("i");
         assertEq(Cut, 0);
-        assertEq(taxCollector.usedTaxReceiver(ali), 0);
-        assertEq(taxCollector.usedTaxReceiver(address(0)), 0);
-        assertEq(taxCollector.taxReceiverRevenueSources(ali), 0);
-        assertEq(taxCollector.taxReceiverRevenueSources(address(this)), 0);
-        assertEq(taxCollector.taxReceiverAccounts(2), address(0));
-        assertEq(taxCollector.taxReceiverAccounts(1), address(0));
-        (uint take, uint cut) = taxCollector.taxReceivers("i", 1);
+        assertEq(taxCollector.usedSecondaryReceiver(ali), 0);
+        assertEq(taxCollector.usedSecondaryReceiver(address(0)), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(ali), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(2), address(0));
+        assertEq(taxCollector.secondaryReceiverAccounts(1), address(0));
+        (uint take, uint cut) = taxCollector.secondaryTaxReceivers("i", 1);
         assertEq(take, 0);
         assertEq(cut, 0);
-        assertEq(taxCollector.latestTaxReceiver(), 0);
+        assertEq(taxCollector.latestSecondaryReceiver(), 0);
     }
-    function test_add_remove_add_taxReceivers() public {
+    function test_add_remove_add_secondaryTaxReceivers() public {
         // Add
         taxCollector.modifyParameters("maxSecondaryReceivers", 2);
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
-        assertTrue(taxCollector.isTaxReceiver(1));
+        assertTrue(taxCollector.isSecondaryReceiver(1));
         // Remove
         taxCollector.modifyParameters("i", 1, 0, address(this));
-        assertTrue(!taxCollector.isTaxReceiver(1));
+        assertTrue(!taxCollector.isSecondaryReceiver(1));
         // Add again
         taxCollector.modifyParameters("i", 2, ray(1 ether), address(this));
-        assertEq(taxCollector.receiverAllotedTax("i"), ray(1 ether));
-        assertEq(taxCollector.latestTaxReceiver(), 2);
-        assertEq(taxCollector.usedTaxReceiver(address(this)), 1);
-        assertEq(taxCollector.taxReceiverRevenueSources(address(this)), 1);
-        assertEq(taxCollector.taxReceiverAccounts(2), address(this));
-        assertEq(taxCollector.taxReceiverListLength(), 1);
-        assertTrue(taxCollector.isTaxReceiver(2));
-        (uint take, uint cut) = taxCollector.taxReceivers("i", 2);
+        assertEq(taxCollector.secondaryReceiverAllotedTax("i"), ray(1 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(2), address(this));
+        assertEq(taxCollector.secondaryReceiversAmount(), 1);
+        assertTrue(taxCollector.isSecondaryReceiver(2));
+        (uint take, uint cut) = taxCollector.secondaryTaxReceivers("i", 2);
         assertEq(take, 0);
         assertEq(cut, ray(1 ether));
         // Remove again
         taxCollector.modifyParameters("i", 2, 0, address(this));
-        assertEq(taxCollector.receiverAllotedTax("i"), 0);
-        assertEq(taxCollector.latestTaxReceiver(), 0);
-        assertEq(taxCollector.usedTaxReceiver(address(this)), 0);
-        assertEq(taxCollector.taxReceiverRevenueSources(address(this)), 0);
-        assertEq(taxCollector.taxReceiverAccounts(2), address(0));
-        assertTrue(!taxCollector.isTaxReceiver(2));
-        (take, cut) = taxCollector.taxReceivers("i", 2);
+        assertEq(taxCollector.secondaryReceiverAllotedTax("i"), 0);
+        assertEq(taxCollector.latestSecondaryReceiver(), 0);
+        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(2), address(0));
+        assertTrue(!taxCollector.isSecondaryReceiver(2));
+        (take, cut) = taxCollector.secondaryTaxReceivers("i", 2);
         assertEq(take, 0);
         assertEq(cut, 0);
     }
@@ -401,24 +401,24 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
         taxCollector.modifyParameters("j", 1, ray(1 ether), address(0));
 
-        assertEq(taxCollector.usedTaxReceiver(address(this)), 1);
-        assertEq(taxCollector.taxReceiverAccounts(1), address(this));
-        assertEq(taxCollector.taxReceiverRevenueSources(address(this)), 2);
-        assertEq(taxCollector.latestTaxReceiver(), 1);
+        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(1), address(this));
+        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 2);
+        assertEq(taxCollector.latestSecondaryReceiver(), 1);
 
         taxCollector.modifyParameters("i", 1, 0, address(0));
 
-        assertEq(taxCollector.usedTaxReceiver(address(this)), 1);
-        assertEq(taxCollector.taxReceiverAccounts(1), address(this));
-        assertEq(taxCollector.taxReceiverRevenueSources(address(this)), 1);
-        assertEq(taxCollector.latestTaxReceiver(), 1);
+        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(1), address(this));
+        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 1);
+        assertEq(taxCollector.latestSecondaryReceiver(), 1);
 
         taxCollector.modifyParameters("j", 1, 0, address(0));
 
-        assertEq(taxCollector.usedTaxReceiver(address(this)), 0);
-        assertEq(taxCollector.taxReceiverAccounts(1), address(0));
-        assertEq(taxCollector.taxReceiverRevenueSources(address(this)), 0);
-        assertEq(taxCollector.latestTaxReceiver(), 0);
+        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(1), address(0));
+        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 0);
+        assertEq(taxCollector.latestSecondaryReceiver(), 0);
     }
     function test_toggle_bucket_take() public {
         // Add
@@ -426,31 +426,31 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
         // Toggle
         taxCollector.modifyParameters("i", 1, 1);
-        (uint take,) = taxCollector.taxReceivers("i", 1);
+        (uint take,) = taxCollector.secondaryTaxReceivers("i", 1);
         assertEq(take, 1);
 
         taxCollector.modifyParameters("i", 1, 5);
-        (take,) = taxCollector.taxReceivers("i", 1);
+        (take,) = taxCollector.secondaryTaxReceivers("i", 1);
         assertEq(take, 5);
 
         taxCollector.modifyParameters("i", 1, 0);
-        (take,) = taxCollector.taxReceivers("i", 1);
+        (take,) = taxCollector.secondaryTaxReceivers("i", 1);
         assertEq(take, 0);
     }
-    function test_add_taxReceivers_single_collateral_type_collect_tax_positive() public {
+    function test_add_secondaryTaxReceivers_single_collateral_type_collect_tax_positive() public {
         taxCollector.initializeCollateralType("i");
         taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
 
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
         taxCollector.modifyParameters("maxSecondaryReceivers", 2);
         taxCollector.modifyParameters("i", 1, ray(40 ether), bob);
         taxCollector.modifyParameters("i", 2, ray(45 ether), char);
 
-        assertEq(taxCollector.latestTaxReceiver(), 2);
+        assertEq(taxCollector.latestSecondaryReceiver(), 2);
         hevm.warp(now + 10);
-        (, int currentRates) = taxCollector.taxationOutcome("i");
+        (, int currentRates) = taxCollector.taxSingleOutcome("i");
         taxCollector.taxSingle("i");
-        assertEq(taxCollector.latestTaxReceiver(), 2);
+        assertEq(taxCollector.latestSecondaryReceiver(), 2);
 
         assertEq(wad(cdpEngine.coinBalance(ali)), 9433419401661621093);
         assertEq(wad(cdpEngine.coinBalance(bob)), 25155785071097656250);
@@ -460,8 +460,8 @@ contract TaxCollectorTest is DSTest {
         assertEq(wad(cdpEngine.coinBalance(bob)) * ray(100 ether) / uint(currentRates), 4000000000000000000000);
         assertEq(wad(cdpEngine.coinBalance(char)) * ray(100 ether) / uint(currentRates), 4499999999999999999960);
     }
-    function test_add_taxReceivers_multi_collateral_types_collect_tax_positive() public {
-        taxCollector.modifyParameters("accountingEngine", ali);
+    function test_add_secondaryTaxReceivers_multi_collateral_types_collect_tax_positive() public {
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
         taxCollector.modifyParameters("maxSecondaryReceivers", 2);
 
         taxCollector.initializeCollateralType("i");
@@ -492,39 +492,39 @@ contract TaxCollectorTest is DSTest {
         assertEq(wad(cdpEngine.coinBalance(bob)), 91741985164951273550);
         assertEq(wad(cdpEngine.coinBalance(char)), 108203698317609204041);
 
-        assertEq(taxCollector.receiverAllotedTax("i"), ray(85 ether));
-        assertEq(taxCollector.latestTaxReceiver(), 2);
-        assertEq(taxCollector.usedTaxReceiver(bob), 1);
-        assertEq(taxCollector.usedTaxReceiver(char), 1);
-        assertEq(taxCollector.taxReceiverRevenueSources(bob), 2);
-        assertEq(taxCollector.taxReceiverRevenueSources(char), 2);
-        assertEq(taxCollector.taxReceiverAccounts(1), bob);
-        assertEq(taxCollector.taxReceiverAccounts(2), char);
-        assertEq(taxCollector.taxReceiverListLength(), 2);
-        assertTrue(taxCollector.isTaxReceiver(1));
-        assertTrue(taxCollector.isTaxReceiver(2));
+        assertEq(taxCollector.secondaryReceiverAllotedTax("i"), ray(85 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(bob), 1);
+        assertEq(taxCollector.usedSecondaryReceiver(char), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(bob), 2);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(char), 2);
+        assertEq(taxCollector.secondaryReceiverAccounts(1), bob);
+        assertEq(taxCollector.secondaryReceiverAccounts(2), char);
+        assertEq(taxCollector.secondaryReceiversAmount(), 2);
+        assertTrue(taxCollector.isSecondaryReceiver(1));
+        assertTrue(taxCollector.isSecondaryReceiver(2));
 
-        (uint take, uint cut) = taxCollector.taxReceivers("i", 1);
+        (uint take, uint cut) = taxCollector.secondaryTaxReceivers("i", 1);
         assertEq(take, 0);
         assertEq(cut, ray(40 ether));
 
-        (take, cut) = taxCollector.taxReceivers("i", 2);
+        (take, cut) = taxCollector.secondaryTaxReceivers("i", 2);
         assertEq(take, 0);
         assertEq(cut, ray(45 ether));
 
-        (take, cut) = taxCollector.taxReceivers("j", 1);
+        (take, cut) = taxCollector.secondaryTaxReceivers("j", 1);
         assertEq(take, 0);
         assertEq(cut, ray(25 ether));
 
-        (take, cut) = taxCollector.taxReceivers("j", 2);
+        (take, cut) = taxCollector.secondaryTaxReceivers("j", 2);
         assertEq(take, 0);
         assertEq(cut, ray(33 ether));
     }
-    function test_add_taxReceivers_single_collateral_type_toggle_collect_tax_negative() public {
+    function test_add_secondaryTaxReceivers_single_collateral_type_toggle_collect_tax_negative() public {
         taxCollector.initializeCollateralType("i");
         taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
 
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
         taxCollector.modifyParameters("maxSecondaryReceivers", 2);
         taxCollector.modifyParameters("i", 1, ray(5 ether), bob);
         taxCollector.modifyParameters("i", 2, ray(10 ether), char);
@@ -549,7 +549,7 @@ contract TaxCollectorTest is DSTest {
         assertEq(wad(cdpEngine.coinBalance(bob)), 0);
         assertEq(wad(cdpEngine.coinBalance(char)), 0);
     }
-    function test_add_taxReceivers_multi_collateral_types_toggle_collect_tax_negative() public {
+    function test_add_secondaryTaxReceivers_multi_collateral_types_toggle_collect_tax_negative() public {
         taxCollector.initializeCollateralType("i");
         taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
 
@@ -558,7 +558,7 @@ contract TaxCollectorTest is DSTest {
         taxCollector.initializeCollateralType("j");
         taxCollector.modifyParameters("j", "stabilityFee", 1050000000000000000000000000);
 
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
         taxCollector.modifyParameters("maxSecondaryReceivers", 2);
         taxCollector.modifyParameters("i", 1, ray(5 ether), bob);
         taxCollector.modifyParameters("i", 2, ray(10 ether), char);
@@ -582,12 +582,12 @@ contract TaxCollectorTest is DSTest {
         assertEq(wad(cdpEngine.coinBalance(bob)), 0);
         assertEq(wad(cdpEngine.coinBalance(char)), 0);
     }
-    function test_add_taxReceivers_no_toggle_collect_tax_negative() public {
+    function test_add_secondaryTaxReceivers_no_toggle_collect_tax_negative() public {
         // Setup
         taxCollector.initializeCollateralType("i");
         taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
 
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
         taxCollector.modifyParameters("maxSecondaryReceivers", 2);
         taxCollector.modifyParameters("i", 1, ray(5 ether), bob);
         taxCollector.modifyParameters("i", 2, ray(10 ether), char);
@@ -616,7 +616,7 @@ contract TaxCollectorTest is DSTest {
 
         taxCollector.initializeCollateralType("i");
         taxCollector.initializeCollateralType("j");
-        taxCollector.modifyParameters("accountingEngine", ali);
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
         taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
         taxCollector.modifyParameters("j", "stabilityFee", 1000000000000000000000000000);  // 0% / second

@@ -604,7 +604,7 @@ contract LiquidationTest is DSTest {
 
         taxCollector = new TaxCollector(address(cdpEngine));
         taxCollector.initializeCollateralType("gold");
-        taxCollector.modifyParameters("accountingEngine", address(accountingEngine));
+        taxCollector.modifyParameters("primaryTaxReceiver", address(accountingEngine));
         cdpEngine.addAuthorization(address(taxCollector));
 
         liquidationEngine = new LiquidationEngine(address(cdpEngine));
