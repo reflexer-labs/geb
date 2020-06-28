@@ -75,17 +75,6 @@ contract TaxCollectorTest is DSTest {
         cdpEngine.modifyCollateralBalance(collateralType, self,  10 ** 27 * 1 ether);
         cdpEngine.modifyCDPCollateralization(collateralType, self, self, self, int(1 ether), int(coin));
     }
-
-    function test_average_taxation() public {
-        taxCollector.initializeCollateralType("i");
-        taxCollector.initializeCollateralType("j");
-
-        taxCollector.modifyParameters("i", "stabilityFee", 999999706969857929985428567);
-        taxCollector.modifyParameters("j", "stabilityFee", 1000000564701133626865910626);
-
-        assertEq(taxCollector.averageTaxationRate(0), 1000000135835495778425669596);
-        assertEq(taxCollector.averageTaxationRate(ray(1 ether)), 2000000135835495778425669596);
-    }
     function test_collect_tax_setup() public {
         hevm.warp(0);
         assertEq(uint(now), 0);
@@ -245,7 +234,7 @@ contract TaxCollectorTest is DSTest {
 
         assertTrue(!taxCollector.collectedAllTax());
     }
-    function testFail_add_same_tax_bucket_twice() public {
+    function testFail_add_same_tax_receiver_twice() public {
         taxCollector.modifyParameters("maxSecondaryReceivers", 10);
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
         taxCollector.modifyParameters("i", 2, ray(1 ether), address(this));
@@ -272,12 +261,12 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("i", 1, 0, address(this));
         taxCollector.modifyParameters("i", 1, 0, address(this));
     }
-    function testFail_tax_bucket_primaryTaxReceiver() public {
+    function testFail_tax_receiver_primaryTaxReceiver() public {
         taxCollector.modifyParameters("maxSecondaryReceivers", 1);
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
         taxCollector.modifyParameters("i", 1, ray(1 ether), ali);
     }
-    function testFail_tax_bucket_null() public {
+    function testFail_tax_receiver_null() public {
         taxCollector.modifyParameters("maxSecondaryReceivers", 1);
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(0));
     }
@@ -294,7 +283,7 @@ contract TaxCollectorTest is DSTest {
         assertEq(taxPercentage, ray(1 ether));
         assertEq(taxCollector.latestSecondaryReceiver(), 1);
     }
-    function test_modify_tax_bucket_cut() public {
+    function test_modify_tax_receiver_cut() public {
         taxCollector.modifyParameters("maxSecondaryReceivers", 1);
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
         taxCollector.modifyParameters("i", 1, ray(99.9 ether), address(this));
@@ -391,7 +380,7 @@ contract TaxCollectorTest is DSTest {
         assertEq(take, 0);
         assertEq(cut, 0);
     }
-    function test_multi_collateral_types_bucket() public {
+    function test_multi_collateral_types_receivers() public {
         taxCollector.modifyParameters("maxSecondaryReceivers", 1);
 
         cdpEngine.initializeCollateralType("j");
@@ -420,7 +409,7 @@ contract TaxCollectorTest is DSTest {
         assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 0);
         assertEq(taxCollector.latestSecondaryReceiver(), 0);
     }
-    function test_toggle_bucket_take() public {
+    function test_toggle_receiver_take() public {
         // Add
         taxCollector.modifyParameters("maxSecondaryReceivers", 2);
         taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));

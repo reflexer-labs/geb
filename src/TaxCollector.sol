@@ -251,18 +251,18 @@ contract TaxCollector is Logging {
       address receiverAccount
     ) external emitLog isAuthorized {
         (!secondaryReceiverList.isNode(position)) ?
-          createSecondaryReceiver(collateralType, taxPercentage, receiverAccount) :
+          addSecondaryReceiver(collateralType, taxPercentage, receiverAccount) :
           modifySecondaryReceiver(collateralType, position, taxPercentage);
     }
 
     // --- Tax Receiver Utils ---
     /**
-     * @notice Create a new secondary tax receiver
+     * @notice Add a new secondary tax receiver
      * @param collateralType Collateral type that will give SF to the tax receiver
      * @param taxPercentage Percentage of SF offered to the tax receiver
      * @param receiverAccount Tax receiver address
      */
-    function createSecondaryReceiver(bytes32 collateralType, uint256 taxPercentage, address receiverAccount) internal {
+    function addSecondaryReceiver(bytes32 collateralType, uint256 taxPercentage, address receiverAccount) internal {
         require(receiverAccount != address(0), "TaxCollector/null-account");
         require(receiverAccount != primaryTaxReceiver, "TaxCollector/primary-receiver-cannot-be-secondary");
         require(taxPercentage > 0, "TaxCollector/null-sf");
@@ -355,33 +355,6 @@ contract TaxCollector is Logging {
         }
     }
     /**
-     * @notice Get the average taxation rate across all collateral types (given a specific global fee)
-     * @param globalFee Custom global stability fee
-     */
-    function averageTaxationRate(uint globalFee) public view returns (uint256 z) {
-        if (collateralList.length == 0) return globalFee;
-        for (uint i = 0; i < collateralList.length; i++) {
-          z = addition(z, addition(globalFee, collateralTypes[collateralList[i]].stabilityFee));
-        }
-        z = z / collateralList.length;
-    }
-
-    // --- Gifts Utils ---
-    /**
-     * @notice Get the secondary tax receiver list length
-     */
-    function secondaryReceiversAmount() public view returns (uint) {
-        return secondaryReceiverList.range();
-    }
-    /**
-     * @notice Check if a tax receiver is at a certain position in the list
-     */
-    function isSecondaryReceiver(uint256 _receiver) public view returns (bool) {
-        return secondaryReceiverList.isNode(_receiver);
-    }
-
-    // --- Tax (Stability Fee) Collection ---
-    /**
      * @notice Get how much SF will be distributed after taxing a specific collateral type
      * @param collateralType Collateral type to compute the taxation outcome for
      */
@@ -402,6 +375,22 @@ contract TaxCollector is Logging {
           lastAccumulatedRate);
         return (newlyAccumulatedRate, diff(newlyAccumulatedRate, lastAccumulatedRate));
     }
+
+    // --- Tax Receiver Utils ---
+    /**
+     * @notice Get the secondary tax receiver list length
+     */
+    function secondaryReceiversAmount() public view returns (uint) {
+        return secondaryReceiverList.range();
+    }
+    /**
+     * @notice Check if a tax receiver is at a certain position in the list
+     */
+    function isSecondaryReceiver(uint256 _receiver) public view returns (bool) {
+        return secondaryReceiverList.isNode(_receiver);
+    }
+
+    // --- Tax (Stability Fee) Collection ---
     /**
      * @notice Collect tax from all collateral types
      */
@@ -432,7 +421,7 @@ contract TaxCollector is Logging {
         return latestAccumulatedRate;
     }
     /**
-     * @notice Distribute SF to tax receivers
+     * @notice Split SF between all tax receivers
      * @param collateralType Collateral type to distribute SF for
      * @param deltaRate Difference between the last and the latest accumulate rates for the collateralType
      */
@@ -457,6 +446,15 @@ contract TaxCollector is Logging {
         // Distribute to primary receiver
         distributeTax(collateralType, primaryTaxReceiver, uint(-1), debtAmount, deltaRate);
     }
+
+    /**
+     * @notice Give/withdraw SF from a tax receiver
+     * @param collateralType Collateral type to distribute SF for
+     * @param receiver Tax receiver address
+     * @param receiverListPosition Position of receiver in the secondaryReceiverList (if the receiver is secondary)
+     * @param debtAmount Total debt currently issued
+     * @param deltaRate Difference between the latest and the last accumulated rates for the collateralType
+     */
     function distributeTax(
         bytes32 collateralType,
         address receiver,
