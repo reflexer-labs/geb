@@ -412,9 +412,7 @@ contract TaxCollector is Logging {
         (, int deltaRate) = taxSingleOutcome(collateralType);
         // Check how much debt has been generated for collateralType
         (uint debtAmount, ) = cdpEngine.collateralTypes(collateralType);
-        if (debtAmount > 0) {
-          splitTaxIncome(collateralType, debtAmount, deltaRate);
-        }
+        splitTaxIncome(collateralType, debtAmount, deltaRate);
         (, latestAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
         collateralTypes[collateralType].updateTime = now;
         emit CollectTax(collateralType, latestAccumulatedRate, deltaRate);
