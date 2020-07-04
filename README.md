@@ -40,4 +40,4 @@ AccountingEngine (previously Vow) has an accumulator that keep track of active d
 
 ## Variable Names You Can Actually Understand :astonished:
 
-Check out the more in-depth [documentation](https://reflexer-labs.gitbook.io/geb/mcd-greater-than-geb-naming-transition).
+Check out the more in-depth [documentation](https://docs.reflexer.finance/).
