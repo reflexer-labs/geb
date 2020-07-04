@@ -1,5 +1,5 @@
 { dappPkgs ? (
-    import (fetchGit "https://github.com/makerdao/makerpkgs") {}
+    import (fetchGit "https://github.com/reflexer-labs/nixpkgs-pin") {}
   ).dappPkgsVersions.seth-0_8_4
 }:
 

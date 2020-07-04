@@ -153,12 +153,15 @@ contract ETHJoin is Logging {
     bytes32       public collateralType;
     // Whether this contract is enabled or not
     uint          public contractEnabled;
+    // Number of decimals ETH has
+    uint          public decimals;
 
     constructor(address cdpEngine_, bytes32 collateralType_) public {
         authorizedAccounts[msg.sender] = 1;
         contractEnabled                = 1;
         cdpEngine                      = CDPEngineLike(cdpEngine_);
         collateralType                 = collateralType_;
+        decimals                       = 18;
     }
     /**
      * @notice Disable this contract
@@ -217,12 +220,15 @@ contract CoinJoin is Logging {
     DSTokenLike   public systemCoin;
     // Whether this contract is enabled or not
     uint          public contractEnabled;
+    // Number of decimals the system coin has
+    uint          public decimals;
 
     constructor(address cdpEngine_, address systemCoin_) public {
         authorizedAccounts[msg.sender] = 1;
         contractEnabled                = 1;
         cdpEngine                      = CDPEngineLike(cdpEngine_);
         systemCoin                     = DSTokenLike(systemCoin_);
+        decimals                       = 18;
     }
     /**
      * @notice Disable this contract

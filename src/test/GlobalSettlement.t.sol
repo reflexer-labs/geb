@@ -153,7 +153,7 @@ contract GlobalSettlementTest is DSTest {
     OracleRelayer oracleRelayer;
     CoinSavingsAccount coinSavingsAccount;
     StabilityFeeTreasury stabilityFeeTreasury;
-    SettlementSurplusAuctioneer settlementSurplusAuctioneer;
+    SettlementSurplusAuctioneer postSettlementSurplusDrain;
     MockRateSetter rateSetter;
 
     DexLike dex;
@@ -287,10 +287,10 @@ contract GlobalSettlementTest is DSTest {
         protocolToken.setOwner(address(debtAuctionHouse));
 
         accountingEngine = new AccountingEngine(address(cdpEngine), address(surplusAuctionHouseOne), address(debtAuctionHouse));
-        settlementSurplusAuctioneer = new SettlementSurplusAuctioneer(address(accountingEngine), address(0));
-        surplusAuctionHouseOne.addAuthorization(address(settlementSurplusAuctioneer));
+        postSettlementSurplusDrain = new SettlementSurplusAuctioneer(address(accountingEngine), address(0));
+        surplusAuctionHouseOne.addAuthorization(address(postSettlementSurplusDrain));
 
-        accountingEngine.modifyParameters("settlementSurplusAuctioneer", address(settlementSurplusAuctioneer));
+        accountingEngine.modifyParameters("postSettlementSurplusDrain", address(postSettlementSurplusDrain));
         cdpEngine.addAuthorization(address(accountingEngine));
 
         surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
@@ -747,7 +747,7 @@ contract GlobalSettlementTest is DSTest {
         assertEq(tokenCollateral("gold", address(globalSettlement)), 0.2 ether);
         assertEq(balanceOf("gold", address(gold.collateralA)), 0.2 ether);
 
-        assertEq(coinBalance(address(settlementSurplusAuctioneer)), 2 ether);
+        assertEq(coinBalance(address(postSettlementSurplusDrain)), 2 ether);
     }
 
     function test_shutdown_overcollateralized_surplus_bigger_redemption() public {
@@ -832,7 +832,7 @@ contract GlobalSettlementTest is DSTest {
         assertEq(tokenCollateral("gold", address(globalSettlement)), 0.8 ether);
         assertEq(balanceOf("gold", address(gold.collateralA)), 0.8 ether);
 
-        assertEq(coinBalance(address(settlementSurplusAuctioneer)), 2 ether);
+        assertEq(coinBalance(address(postSettlementSurplusDrain)), 2 ether);
     }
 
     // -- Scenario where there is one over-collateralised CDP
@@ -930,7 +930,7 @@ contract GlobalSettlementTest is DSTest {
         assertEq(tokenCollateral("gold", address(globalSettlement)), 472222222222222223);
         assertEq(balanceOf("gold", address(gold.collateralA)), 472222222222222223);
 
-        assertEq(coinBalance(address(settlementSurplusAuctioneer)), 1 ether);
+        assertEq(coinBalance(address(postSettlementSurplusDrain)), 1 ether);
     }
 
     // -- Scenario where there is one over-collateralised and one

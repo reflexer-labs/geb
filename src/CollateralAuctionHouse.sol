@@ -272,8 +272,8 @@ contract CollateralAuctionHouse is Logging {
     }
     /**
      * @notice Terminate an auction prematurely (if it's still in the first phase).
-     *         Usually called by Global Settlement
-     * @param id ID of the auction to terminate
+     *         Usually called by Global Settlement.
+     * @param id ID of the auction to settle
      */
     function terminateAuctionPrematurely(uint id) external emitLog isAuthorized {
         require(bids[id].highBidder != address(0), "CollateralAuctionHouse/high-bidder-not-set");

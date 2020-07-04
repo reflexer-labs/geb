@@ -173,11 +173,11 @@ contract OracleRelayer is Logging {
     ) external emitLog isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         if (parameter == "safetyCRatio") {
-          require(data <= collateralTypes[collateralType].liquidationCRatio, "OracleRelayer/mat-lower-than-tam");
+          require(data <= collateralTypes[collateralType].liquidationCRatio, "OracleRelayer/safety-lower-than-liquidation-cratio");
           collateralTypes[collateralType].safetyCRatio = data;
         }
         else if (parameter == "liquidationCRatio") {
-          require(data >= collateralTypes[collateralType].safetyCRatio, "OracleRelayer/tam-bigger-than-mat");
+          require(data >= collateralTypes[collateralType].safetyCRatio, "OracleRelayer/safety-lower-than-liquidation-cratio");
           collateralTypes[collateralType].liquidationCRatio = data;
         }
         else revert("OracleRelayer/modify-unrecognized-param");
