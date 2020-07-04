@@ -198,7 +198,7 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("globalStabilityFee",  uint(50000000000000000000000000));  // 5% / second
 
         hevm.warp(now + 1);
-        taxCollector.taxAll();
+        taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
 
         assertEq(wad(cdpEngine.coinBalance(ali)), 18 ether);
 
@@ -465,7 +465,7 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("i", 2, ray(45 ether), char);
 
         hevm.warp(now + 10);
-        taxCollector.taxAll();
+        taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
 
         assertEq(wad(cdpEngine.coinBalance(ali)), 72322882079405761718);
         assertEq(wad(cdpEngine.coinBalance(bob)), 25155785071097656250);
@@ -475,7 +475,7 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("j", 2, ray(33 ether), char);
 
         hevm.warp(now + 10);
-        taxCollector.taxAll();
+        taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
 
         assertEq(wad(cdpEngine.coinBalance(ali)), 130713857546323549197);
         assertEq(wad(cdpEngine.coinBalance(bob)), 91741985164951273550);
@@ -555,7 +555,7 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("i", 2, 1);
 
         hevm.warp(now + 5);
-        taxCollector.taxAll();
+        taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
 
         taxCollector.modifyParameters("i", "stabilityFee", 900000000000000000000000000);
         taxCollector.modifyParameters("j", "stabilityFee", 900000000000000000000000000);
@@ -565,7 +565,7 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("j", 2, ray(20 ether), char);
 
         hevm.warp(now + 5);
-        taxCollector.taxAll();
+        taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
 
         assertEq(wad(cdpEngine.coinBalance(ali)), 0);
         assertEq(wad(cdpEngine.coinBalance(bob)), 0);

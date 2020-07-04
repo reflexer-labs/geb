@@ -335,13 +335,17 @@ contract TaxCollector is Logging {
         }
     }
     /**
-     * @notice Check how much SF will be charged (to all collateral types) during the next taxation
+     * @notice Check how much SF will be charged (to collateral types between indexes 'start' and 'end'
+     *         in the collateralList) during the next taxation
+     * @param start Index in collateralList from which to start looping and calculating the tax outcome
+     * @param end Index in collateralList at which we stop looping and calculating the tax outcome
      */
-    function taxAllOutcome() public view returns (bool ok, int rad) {
+    function taxManyOutcome(uint start, uint end) public view returns (bool ok, int rad) {
+        require(both(start <= end, end < collateralList.length), "TaxCollector/invalid-indexes");
         int  primaryReceiverBalance = -int(cdpEngine.coinBalance(primaryTaxReceiver));
         int  deltaRate;
         uint debtAmount;
-        for (uint i = 0; i < collateralList.length; i++) {
+        for (uint i = start; i <= end; i++) {
           if (now > collateralTypes[collateralList[i]].updateTime) {
             (debtAmount, ) = cdpEngine.collateralTypes(collateralList[i]);
             (, deltaRate) = taxSingleOutcome(collateralList[i]);
@@ -384,6 +388,12 @@ contract TaxCollector is Logging {
         return secondaryReceiverList.range();
     }
     /**
+     * @notice Get the collateralList length
+     */
+    function collateralListLength() public view returns (uint) {
+        return collateralList.length;
+    }
+    /**
      * @notice Check if a tax receiver is at a certain position in the list
      */
     function isSecondaryReceiver(uint256 _receiver) public view returns (bool) {
@@ -392,10 +402,13 @@ contract TaxCollector is Logging {
 
     // --- Tax (Stability Fee) Collection ---
     /**
-     * @notice Collect tax from all collateral types
+     * @notice Collect tax from multiple collateral types at once
+     * @param start Index in collateralList from which to start looping and calculating the tax outcome
+     * @param end Index in collateralList at which we stop looping and calculating the tax outcome
      */
-    function taxAll() external emitLog {
-        for (uint i = 0; i < collateralList.length; i++) {
+    function taxMany(uint start, uint end) external emitLog {
+        require(both(start <= end, end < collateralList.length), "TaxCollector/invalid-indexes");
+        for (uint i = start; i <= end; i++) {
             taxSingle(collateralList[i]);
         }
     }

@@ -29,7 +29,7 @@ contract AccountingEngineTest is DSTest {
     DAH debtAuctionHouse;
     SAH_ONE surplusAuctionHouseOne;
     SAH_TWO surplusAuctionHouseTwo;
-    SettlementSurplusAuctioneer settlementSurplusAuctioneer;
+    SettlementSurplusAuctioneer postSettlementSurplusDrain;
     Gem  protocolToken;
 
     function setUp() public {
@@ -171,12 +171,12 @@ contract AccountingEngineTest is DSTest {
         // Post settlement auction house setup
         surplusAuctionHouseTwo = new SAH_TWO(address(cdpEngine), address(protocolToken));
         // Auctioneer setup
-        settlementSurplusAuctioneer = new SettlementSurplusAuctioneer(address(accountingEngine), address(surplusAuctionHouseTwo));
-        surplusAuctionHouseTwo.addAuthorization(address(settlementSurplusAuctioneer));
+        postSettlementSurplusDrain = new SettlementSurplusAuctioneer(address(accountingEngine), address(surplusAuctionHouseTwo));
+        surplusAuctionHouseTwo.addAuthorization(address(postSettlementSurplusDrain));
 
-        cdpEngine.mint(address(settlementSurplusAuctioneer), 100 ether);
+        cdpEngine.mint(address(postSettlementSurplusDrain), 100 ether);
         accountingEngine.disableContract();
-        uint id = settlementSurplusAuctioneer.auctionSurplus();
+        uint id = postSettlementSurplusDrain.auctionSurplus();
         assertEq(id, 1);
     }
 

@@ -78,7 +78,7 @@ contract AccountingEngine is Logging {
     **/
     DebtAuctionHouseLike    public debtAuctionHouse;
     // Contract that auctions extra surplus after settlement is triggered
-    address                 public settlementSurplusAuctioneer;
+    address                 public postSettlementSurplusDrain;
 
     /**
       Debt blocks that need to be covered by auctions. There is a delay to pop debt from
@@ -176,7 +176,7 @@ contract AccountingEngine is Logging {
             cdpEngine.approveCDPModification(data);
         }
         else if (parameter == "debtAuctionHouse") debtAuctionHouse = DebtAuctionHouseLike(data);
-        else if (parameter == "settlementSurplusAuctioneer") settlementSurplusAuctioneer = data;
+        else if (parameter == "postSettlementSurplusDrain") postSettlementSurplusDrain = data;
         else revert("AccountingEngine/modify-unrecognized-param");
     }
 
@@ -295,16 +295,16 @@ contract AccountingEngine is Logging {
 
         cdpEngine.settleDebt(min(cdpEngine.coinBalance(address(this)), cdpEngine.debtBalance(address(this))));
         if (disableCooldown == 0) {
-          cdpEngine.transferInternalCoins(address(this), settlementSurplusAuctioneer, cdpEngine.coinBalance(address(this)));
+          cdpEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, cdpEngine.coinBalance(address(this)));
         }
     }
     /**
      * @notice Transfer any remaining surplus after the disable cooldown has passed
      * @dev Transfer any remaining surplus after disableCooldown seconds have passed since disabling the contract
     **/
-    function transferSurplusPostSettlement() external emitLog isAuthorized {
+    function transferPostSettlementSurplus() external emitLog isAuthorized {
         require(contractEnabled == 0, "AccountingEngine/still-enabled");
         require(add(disableTimestamp, disableCooldown) <= now, "AccountingEngine/cooldown-not-passed");
-        cdpEngine.transferInternalCoins(address(this), settlementSurplusAuctioneer, cdpEngine.coinBalance(address(this)));
+        cdpEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, cdpEngine.coinBalance(address(this)));
     }
 }

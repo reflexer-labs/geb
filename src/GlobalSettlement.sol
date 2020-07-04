@@ -102,7 +102,7 @@ abstract contract OracleRelayerLike {
       a. `collateralShortfall` (considers under-collateralised CDPs)
       b. `outstandingCoinSupply` (after including system surplus / deficit)
     We determine (a) by processing all under-collateralised CDPs with
-    `processRiskyCDP`:
+    `processCDP`
     3. `processCDP(collateralType, cdp)`:
        - cancels CDP debt
        - any excess collateral remains
@@ -110,21 +110,21 @@ abstract contract OracleRelayerLike {
     We determine (b) by processing ongoing coin generating processes,
     i.e. auctions. We need to ensure that auctions will not generate any
     further coin income. In the two-way auction model this occurs when
-    all auctions are in the reverse (`reduceAuctionedAmount`) phase. There are two ways
+    all auctions are in the reverse (`decreaseSoldAmount`) phase. There are two ways
     of ensuring this:
     4.  i) `shutdownCooldown`: set the cooldown period to be at least as long as the
            longest auction duration, which needs to be determined by the
            shutdown administrator.
            This takes a fairly predictable time to occur but with altered
-           auction dynamics due to the now varying price of coin.
+           auction dynamics due to the now varying price of the system coin.
        ii) `fastTrackAuction`: cancel all ongoing auctions and seize the collateral.
            This allows for faster processing at the expense of more
            processing calls. This option allows coin holders to retrieve
            their collateral faster.
            `fastTrackAuction(collateralType, auctionId)`:
-            - cancel individual flip auctions in the `tend` (forward) phase
-            - retrieves collateral and returns coin to bidder
-            - `reduceAuctionedAmount` (reverse) phase auctions can continue normally
+            - cancel individual collateral auctions in the `increaseBidSize` (forward) phase
+            - retrieves collateral and returns coins to bidder
+            - `decreaseSoldAmount` (reverse) phase auctions can continue normally
     Option (i), `shutdownCooldown`, is sufficient for processing the system
     settlement but option (ii), `fastTrackAuction`, will speed it up. Both options
     are available in this implementation, with `fastTrackAuction` being enabled on a
@@ -150,9 +150,7 @@ abstract contract OracleRelayerLike {
     Coin holders must first `prepareCoinsForRedeeming` into a `coinBag`. Once prepared,
     coins cannot be transferred out of the bag. More coin can be added to a bag later.
     8. `prepareCoinsForRedeeming(coinAmount)`:
-        - put some coin into a bag in preparation for `redeemCollateral`
-    Finally, collateral can be obtained with `redeemCollateral`. The bigger the bag,
-    the more collateral can be released.
+        - put some coins into a bag in order to 'redeemCollateral'. The bigger the bag, the more collateral the user can claim.
     9. `redeemCollateral(collateralType, collateralAmount)`:
         - exchange some coin from your bag for gems from a specific collateral type
         - the amount of collateral available to redeem is limited by how big your bag is
