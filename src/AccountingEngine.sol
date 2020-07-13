@@ -41,6 +41,10 @@ abstract contract CDPEngineLike {
     function denyCDPModification(address) virtual external;
 }
 
+abstract contract ProtocolTokenAuthorityLike {
+    function authorizedAccounts(address) virtual public view returns (uint);
+}
+
 contract AccountingEngine is Logging {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
@@ -69,16 +73,18 @@ contract AccountingEngine is Logging {
 
     // --- Data ---
     // CDP database
-    CDPEngineLike           public cdpEngine;
+    CDPEngineLike              public cdpEngine;
     // Contract that handles auctions for surplus stability fees (sell coins for protocol tokens that are then burned)
-    SurplusAuctionHouseLike public surplusAuctionHouse;
+    SurplusAuctionHouseLike    public surplusAuctionHouse;
     /**
       Contract that handles auctions for debt that couldn't be covered by collateral
       auctions (it prints protocol tokens in exchange for coins that will settle the debt)
     **/
-    DebtAuctionHouseLike    public debtAuctionHouse;
+    DebtAuctionHouseLike       public debtAuctionHouse;
+    // Permissions registry for who can burn and mint protocol tokens
+    ProtocolTokenAuthorityLike public protocolTokenAuthority;
     // Contract that auctions extra surplus after settlement is triggered
-    address                 public postSettlementSurplusDrain;
+    address                    public postSettlementSurplusDrain;
 
     /**
       Debt blocks that need to be covered by auctions. There is a delay to pop debt from
@@ -91,9 +97,9 @@ contract AccountingEngine is Logging {
     **/
     mapping (uint256 => uint256) public activeDebtAuctions;
     // Total debt in the queue (that the system tries to cover with collateral auctions)
-    uint256 public totalQueuedDebt;      // [rad]
+    uint256 public totalQueuedDebt;                         // [rad]
     // Total debt being auctioned in DebtAuctionHouse (printing protocol tokens for coins that will settle the debt)
-    uint256 public totalOnAuctionDebt;   // [rad]
+    uint256 public totalOnAuctionDebt;                      // [rad]
 
     // Accumulator for all debt auctions currently not settled
     uint256 public activeDebtAuctionsAccumulator;
@@ -104,14 +110,14 @@ contract AccountingEngine is Logging {
     // Delay after which debt can be popped from debtQueue
     uint256 public popDebtDelay;
     // Amount of protocol tokens to be minted post-auction
-    uint256 public initialDebtAuctionMintedTokens;  // [wad]
+    uint256 public initialDebtAuctionMintedTokens;          // [wad]
     // Amount of debt sold in one debt auction (initial coin bid for initialDebtAuctionMintedTokens protocol tokens)
-    uint256 public debtAuctionBidSize;        // [rad]
+    uint256 public debtAuctionBidSize;                      // [rad]
 
     // Amount of surplus stability fees sold in one surplus auction
-    uint256 public surplusAuctionAmountToSell;  // [rad]
+    uint256 public surplusAuctionAmountToSell;              // [rad]
     // Amount of stability fees that need to accrue in this contract before any surplus auction can start
-    uint256 public surplusBuffer;               // [rad]
+    uint256 public surplusBuffer;                           // [rad]
 
     // Time to wait (post settlement) until any remaining surpluscan be transferred to the settlement auctioneer
     uint256 public disableCooldown;
@@ -177,6 +183,7 @@ contract AccountingEngine is Logging {
         }
         else if (parameter == "debtAuctionHouse") debtAuctionHouse = DebtAuctionHouseLike(data);
         else if (parameter == "postSettlementSurplusDrain") postSettlementSurplusDrain = data;
+        else if (parameter == "protocolTokenAuthority") protocolTokenAuthority = ProtocolTokenAuthorityLike(data);
         else revert("AccountingEngine/modify-unrecognized-param");
     }
 
@@ -233,7 +240,8 @@ contract AccountingEngine is Logging {
     function auctionDebt() external emitLog returns (uint id) {
         require(debtAuctionBidSize <= sub(sub(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt), "AccountingEngine/insufficient-debt");
         require(cdpEngine.coinBalance(address(this)) == 0, "AccountingEngine/surplus-not-zero");
-        require(debtAuctionHouse.protocolToken() != address(0), "AccountingEngine/protocol-token-not-set");
+        require(debtAuctionHouse.protocolToken() != address(0), "AccountingEngine/debt-auction-house-null-prot");
+        require(protocolTokenAuthority.authorizedAccounts(address(debtAuctionHouse)) == 1, "AccountingEngine/debt-auction-house-cannot-print-prot");
         totalOnAuctionDebt = add(totalOnAuctionDebt, debtAuctionBidSize);
         id = debtAuctionHouse.startAuction(address(this), initialDebtAuctionMintedTokens, debtAuctionBidSize);
         activeDebtAuctionsAccumulator = add(activeDebtAuctionsAccumulator, 1);
