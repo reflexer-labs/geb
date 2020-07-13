@@ -526,7 +526,24 @@ abstract contract CollateralAuctionHouseLike {
     );
 }
 
-//TODO: test CDPSaviour behaviour when failing/succeeding
+contract ProtocolTokenAuthority {
+    mapping (address => uint) public authorizedAccounts;
+
+    /**
+     * @notice Add auth to an account
+     * @param account Account to add auth to
+     */
+    function addAuthorization(address account) external {
+        authorizedAccounts[account] = 1;
+    }
+    /**
+     * @notice Remove auth from an account
+     * @param account Account to remove auth from
+     */
+    function removeAuthorization(address account) external {
+        authorizedAccounts[account] = 0;
+    }
+}
 
 contract LiquidationTest is DSTest {
     Hevm hevm;
@@ -544,6 +561,8 @@ contract LiquidationTest is DSTest {
     PostSettlementSurplusAuctionHouse surplusAuctionHouse;
 
     DSToken protocolToken;
+
+    ProtocolTokenAuthority tokenAuthority;
 
     address me;
 
@@ -639,6 +658,11 @@ contract LiquidationTest is DSTest {
         cdpEngine.approveCDPModification(address(debtAuctionHouse));
         gold.approve(address(cdpEngine));
         protocolToken.approve(address(surplusAuctionHouse));
+
+        tokenAuthority = new ProtocolTokenAuthority();
+        tokenAuthority.addAuthorization(address(debtAuctionHouse));
+
+        accountingEngine.modifyParameters("protocolTokenAuthority", address(tokenAuthority));
 
         me = address(this);
     }

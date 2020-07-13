@@ -21,6 +21,25 @@ contract Gem {
     }
 }
 
+contract ProtocolTokenAuthority {
+    mapping (address => uint) public authorizedAccounts;
+
+    /**
+     * @notice Add auth to an account
+     * @param account Account to add auth to
+     */
+    function addAuthorization(address account) external {
+        authorizedAccounts[account] = 1;
+    }
+    /**
+     * @notice Remove auth from an account
+     * @param account Account to remove auth from
+     */
+    function removeAuthorization(address account) external {
+        authorizedAccounts[account] = 0;
+    }
+}
+
 contract AccountingEngineTest is DSTest {
     Hevm hevm;
 
@@ -31,6 +50,7 @@ contract AccountingEngineTest is DSTest {
     SAH_TWO surplusAuctionHouseTwo;
     SettlementSurplusAuctioneer postSettlementSurplusDrain;
     Gem  protocolToken;
+    ProtocolTokenAuthority tokenAuthority;
 
     function setUp() public {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
@@ -54,6 +74,11 @@ contract AccountingEngineTest is DSTest {
         accountingEngine.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
 
         cdpEngine.approveCDPModification(address(debtAuctionHouse));
+
+        tokenAuthority = new ProtocolTokenAuthority();
+        tokenAuthority.addAuthorization(address(debtAuctionHouse));
+
+        accountingEngine.modifyParameters("protocolTokenAuthority", address(tokenAuthority));
     }
 
     function try_popDebtFromQueue(uint era) internal returns (bool ok) {
@@ -145,6 +170,16 @@ contract AccountingEngineTest is DSTest {
         assertTrue( try_popDebtFromQueue(tic) );
     }
 
+    function test_no_debt_auction_not_auth_permitted() public {
+        tokenAuthority.removeAuthorization(address(debtAuctionHouse));
+        assertTrue( !can_auction_debt() );
+    }
+
+    function test_no_debt_auction_token_auth_not_set() public {
+        accountingEngine.modifyParameters("protocolTokenAuthority", address(0));
+        assertTrue( !can_auction_debt() );
+    }
+
     function test_no_reauction_debt() public {
         popDebtFromQueue(100 ether);
         assertTrue( can_auction_debt() );
@@ -162,7 +197,7 @@ contract AccountingEngineTest is DSTest {
         assertTrue( can_auction_debt() );
     }
 
-    function test_surplus_auction_one() public {
+    function test_surplus_auction() public {
         cdpEngine.mint(address(accountingEngine), 100 ether);
         assertTrue( can_auctionSurplus() );
     }
