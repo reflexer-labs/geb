@@ -1,7 +1,6 @@
 /// Coin.t.sol -- tests for Coin.sol
 
 // Copyright (C) 2015-2020  DappHub, LLC
-// Copyright (C) 2020       Stefan C. Ionescu <stefanionescu@protonmail.com>
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by

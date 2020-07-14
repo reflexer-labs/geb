@@ -1,6 +1,6 @@
 /// SettlementSurplusAuctioneer.sol
 
-// Copyright (C) 2020 Stefan C. Ionescu <stefanionescu@protonmail.com>
+// Copyright (C) 2020 Reflexer Labs, INC
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -80,18 +80,28 @@ contract SettlementSurplusAuctioneer is Logging {
     }
 
     // --- Administration ---
-    function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
+    /**
+     * @notice Modify contract addresses
+     * @param parameter The name of the contract whose address will be changed
+     * @param addr New address for the contract
+     */
+    function modifyParameters(bytes32 parameter, address addr) external emitLog isAuthorized {
         if (parameter == "accountingEngine") {
           cdpEngine.denyCDPModification(address(surplusAuctionHouse));
-          accountingEngine = AccountingEngineLike(data);
+          accountingEngine = AccountingEngineLike(addr);
           cdpEngine.approveCDPModification(address(surplusAuctionHouse));
         } else if (parameter == "surplusAuctionHouse") {
-          surplusAuctionHouse = SurplusAuctionHouseLike(data);
+          surplusAuctionHouse = SurplusAuctionHouseLike(addr);
         }
         else revert("SettlementSurplusAuctioneer/modify-unrecognized-param");
     }
 
     // --- Core Logic ---
+    /**
+     * @notice Auction stability fees. The process is very similar to how the AccountingEngine would do it.
+               The contract even reads surplus auction parameters from the AccountingEngine and uses them to
+               start a new auction.
+     */
     function auctionSurplus() external emitLog returns (uint id) {
         require(accountingEngine.contractEnabled() == 0, "SettlementSurplusAuctioneer/accounting-engine-still-enabled");
         require(

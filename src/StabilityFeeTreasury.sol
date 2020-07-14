@@ -1,6 +1,6 @@
 /// StabilityFeeTreasury.sol
 
-// Copyright (C) 2020 Stefan C. Ionescu <stefanionescu@protonmail.com>
+// Copyright (C) 2020 Reflexer Labs, INC
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -116,12 +116,22 @@ contract StabilityFeeTreasury is Logging {
     }
 
     // --- Administration ---
+    /**
+     * @notice Modify contract addresses
+     * @param parameter The name of the contract whose address will be changed
+     * @param addr New address for the contract
+     */
     function modifyParameters(bytes32 parameter, address addr) external emitLog isAuthorized {
         require(contractEnabled == 1, "StabilityFeeTreasury/contract-not-enabled");
         require(addr != address(0), "StabilityFeeTreasury/null-addr");
         if (parameter == "accountingEngine") accountingEngine = addr;
         else revert("StabilityFeeTreasury/modify-unrecognized-param");
     }
+    /**
+     * @notice Modify uint256 parameters
+     * @param parameter The name of the parameter to modify
+     * @param val New parameter value
+     */
     function modifyParameters(bytes32 parameter, uint val) external emitLog isAuthorized {
         require(contractEnabled == 1, "StabilityFeeTreasury/not-live");
         if (parameter == "expensesMultiplier") expensesMultiplier = val;
@@ -136,6 +146,9 @@ contract StabilityFeeTreasury is Logging {
         else if (parameter == "surplusTransferDelay") surplusTransferDelay = val;
         else revert("StabilityFeeTreasury/modify-unrecognized-param");
     }
+    /**
+     * @notice Disable this contract (normally called by GlobalSettlement)
+     */
     function disableContract() external emitLog isAuthorized {
         require(contractEnabled == 1, "StabilityFeeTreasury/already-disabled");
         contractEnabled = 0;
@@ -152,6 +165,9 @@ contract StabilityFeeTreasury is Logging {
     function both(bool x, bool y) internal pure returns (bool z) {
         assembly{ z := and(x, y)}
     }
+    /**
+     * @notice Join all ERC20 system coins that the treasury has inside CDPEngine
+     */
     function joinAllCoins() internal {
         if (systemCoin.balanceOf(address(this)) > 0) {
           coinJoin.join(address(this), systemCoin.balanceOf(address(this)));
@@ -159,12 +175,22 @@ contract StabilityFeeTreasury is Logging {
     }
 
     // --- SF Transfer Allowance ---
+    /**
+     * @notice Modify an address' allowance in order to withdraw SF from the treasury
+     * @param account The approved address
+     * @param wad The approved amount of SF to withdraw (number with 18 decimals)
+     */
     function allow(address account, uint wad) external emitLog isAuthorized {
         require(account != address(0), "StabilityFeeTreasury/null-account");
         allowance[account] = wad;
     }
 
     // --- Stability Fee Transfer (Governance) ---
+    /**
+     * @notice Governance transfers SF to an address
+     * @param account Address to transfer SF to
+     * @param rad Amount of internal system coins to transfer (a number with 45 decimals)
+     */
     function giveFunds(address account, uint rad) external emitLog isAuthorized {
         require(account != address(0), "StabilityFeeTreasury/null-account");
         joinAllCoins();
@@ -173,11 +199,24 @@ contract StabilityFeeTreasury is Logging {
         expensesAccumulator = addition(expensesAccumulator, rad);
         cdpEngine.transferInternalCoins(address(this), account, rad);
     }
+    /**
+     * @notice Governance takes funds from an address
+     * @param account Address to take system coins from
+     * @param rad Amount of internal system coins to take from the account (a number with 45 decimals)
+     */
     function takeFunds(address account, uint rad) external emitLog isAuthorized {
         cdpEngine.transferInternalCoins(account, address(this), rad);
     }
 
     // --- Stability Fee Transfer (Approved Accounts) ---
+    /**
+     * @notice Pull stability fees from the treasury (if your allowance permits)
+     * @param dstAccount Address to transfer funds to
+     * @param token Address of the token to transfer (in this case it must be the address of the ERC20 system coin).
+     *              Used only to adhere to a standard for automated, on-chain treasuries
+     * @param wad Amount of system coins (SF) to transfer (expressed as an 18 decimal number but the contract will transfer
+              internal system coins that have 45 decimals)
+     */
     function pullFunds(address dstAccount, address token, uint wad) external emitLog {
         require(allowance[msg.sender] >= wad, "StabilityFeeTreasury/not-allowed");
         require(dstAccount != address(0), "StabilityFeeTreasury/null-dst");
@@ -196,6 +235,12 @@ contract StabilityFeeTreasury is Logging {
     }
 
     // --- Treasury Maintenance ---
+    /**
+     * @notice Tranfer surplus stability fees to the AccountingEngine. This is here to make sure that the treasury
+               doesn't accumulate too many fees that it doesn't even need in order to pay for allowances. It ensures
+               that there are enough funds left in the treasury to account for projected expenses (latest expenses multiplied
+               by an expense multiplier)
+     */
     function transferSurplusFunds() external emitLog {
         require(now >= addition(latestSurplusTransferTime, surplusTransferDelay), "StabilityFeeTreasury/transfer-cooldown-not-passed");
         // Compute latestExpenses and capacity
