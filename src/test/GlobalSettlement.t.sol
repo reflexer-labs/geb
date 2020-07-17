@@ -17,7 +17,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.6.7;
+pragma solidity >=0.5.12;
 
 import "ds-test/test.sol";
 import "ds-token/token.sol";
@@ -225,8 +225,9 @@ contract GlobalSettlementTest is DSTest {
 
         DummyOSM oracleOSM = new DummyOSM();
         oracleRelayer.modifyParameters(name, "orcl", address(oracleOSM));
-        oracleRelayer.modifyParameters(name, "liquidationCRatio", ray(1.5 ether));
         oracleRelayer.modifyParameters(name, "safetyCRatio", ray(1.5 ether));
+        oracleRelayer.modifyParameters(name, "liquidationCRatio", ray(1.5 ether));
+
         // initial collateral price of 5
         oracleOSM.updateCollateralPrice(bytes32(5 * WAD));
 

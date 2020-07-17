@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-pragma solidity ^0.6.7;
+pragma solidity >=0.5.12;
 
 import "ds-test/test.sol";
 import "ds-token/token.sol";
@@ -156,8 +156,8 @@ contract CoinTest is DSTest {
         cdpEngine.initializeCollateralType("gold");
         goldFeed = new Feed(1 ether, true);
         oracleRelayer.modifyParameters("gold", "orcl", address(goldFeed));
-        oracleRelayer.modifyParameters("gold", "liquidationCRatio", 1000000000000000000000000000);
         oracleRelayer.modifyParameters("gold", "safetyCRatio", 1000000000000000000000000000);
+        oracleRelayer.modifyParameters("gold", "liquidationCRatio", 1000000000000000000000000000);
         oracleRelayer.updateCollateralPrice("gold");
         collateralA = new BasicCollateralJoin(address(cdpEngine), "gold", address(gold));
 

@@ -1,4 +1,4 @@
-pragma solidity ^0.6.7;
+pragma solidity >=0.5.12;
 pragma experimental ABIEncoderV2;
 
 import "ds-test/test.sol";
@@ -668,10 +668,9 @@ contract LiquidationTest is DSTest {
     }
 
     function test_bite_under_collateral_to_sell_threshold() public {
-        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(10 ether));
         cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
-        // tag=4, mat=2
+
         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
         cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
 

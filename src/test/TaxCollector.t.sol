@@ -1,4 +1,4 @@
-pragma solidity ^0.6.7;
+pragma solidity >=0.5.12;
 pragma experimental ABIEncoderV2;
 
 import "ds-test/test.sol";
