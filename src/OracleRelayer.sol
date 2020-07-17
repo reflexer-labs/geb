@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.6.7;
+pragma solidity >=0.5.12;
 
 import "./Logging.sol";
 
@@ -50,7 +50,7 @@ contract OracleRelayer is Logging {
     struct CollateralType {
         // Usually an oracle security module that enforces delays to fresh price feeds
         OracleLike orcl;
-        // CRatio used to compute the 'safePrice' - the price used when opening a CDP
+        // CRatio used to compute the 'safePrice' - the price used when generating debt in CDPEngine
         uint256 safetyCRatio;
         // CRatio used to compute the 'liquidationPrice' - the price used when liquidating CDPs
         uint256 liquidationCRatio;
@@ -173,11 +173,11 @@ contract OracleRelayer is Logging {
     ) external emitLog isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         if (parameter == "safetyCRatio") {
-          require(data <= collateralTypes[collateralType].liquidationCRatio, "OracleRelayer/safety-lower-than-liquidation-cratio");
+          require(data >= collateralTypes[collateralType].liquidationCRatio, "OracleRelayer/safety-lower-than-liquidation-cratio");
           collateralTypes[collateralType].safetyCRatio = data;
         }
         else if (parameter == "liquidationCRatio") {
-          require(data >= collateralTypes[collateralType].safetyCRatio, "OracleRelayer/safety-lower-than-liquidation-cratio");
+          require(data <= collateralTypes[collateralType].safetyCRatio, "OracleRelayer/safety-lower-than-liquidation-cratio");
           collateralTypes[collateralType].liquidationCRatio = data;
         }
         else revert("OracleRelayer/modify-unrecognized-param");
