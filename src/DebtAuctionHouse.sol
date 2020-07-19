@@ -171,7 +171,7 @@ contract DebtAuctionHouse is Logging {
     // --- Shutdown ---
     function disableContract() external emitLog isAuthorized {
         contractEnabled = 0;
-        // Removed line where we set the accounting engine
+        accountingEngine = AccountingEngineLike(msg.sender);
     }
     function terminateAuctionPrematurely(uint id) external emitLog {
         require(contractEnabled == 0, "DebtAuctionHouse/contract-still-enabled");
