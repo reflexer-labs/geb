@@ -215,7 +215,7 @@ contract OracleRelayer is Logging {
           collateralTypes[collateralType].orcl.getResultWithValidity();
         uint redemptionPrice_ = redemptionPrice();
         uint256 safetyPrice_ = hasValidValue ? rdivide(rdivide(multiply(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].safetyCRatio) : 0;
-        uint256 liquidationPrice_ = (hasValidValue && collateralTypes[collateralType].liquidationCRatio > 0) ? rdivide(rdivide(multiply(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].liquidationCRatio) : 0;
+        uint256 liquidationPrice_ = hasValidValue ? rdivide(rdivide(multiply(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].liquidationCRatio) : 0;
 
         cdpEngine.modifyParameters(collateralType, "safetyPrice", safetyPrice_);
         cdpEngine.modifyParameters(collateralType, "liquidationPrice", liquidationPrice_);

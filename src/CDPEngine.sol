@@ -295,7 +295,7 @@ contract CDPEngine {
 
         CDP memory cdp_ = cdps[collateralType][cdp];
         CollateralType memory collateralType_ = collateralTypes[collateralType];
-        // ilk has been initialised
+        // collateral type has been initialised
         require(collateralType_.accumulatedRates != 0, "CDPEngine/collateral-type-not-initialized");
 
         cdp_.lockedCollateral      = addition(cdp_.lockedCollateral, deltaCollateral);
