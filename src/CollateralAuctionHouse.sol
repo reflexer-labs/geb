@@ -65,7 +65,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         address highBidder;
         // When the latest bid expires and the auction can be settled
         uint48  bidExpiry;
-        // Hard deadline for the auction after which no more bids can be places
+        // Hard deadline for the auction after which no more bids can be placed
         uint48  auctionDeadline;
         // Who (which CDP) receives leftover collateral that is not sold in the auction; usually the liquidated CDP
         address forgoneCollateralReceiver;
@@ -336,6 +336,8 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         uint256 amountToSell;
         // Total/max amount of coins to raise
         uint256 amountToRaise;
+        // Hard deadline for the auction after which no more bids can be placed
+        uint48  auctionDeadline;
         // Who (which CDP) receives leftover collateral that is not sold in the auction; usually the liquidated CDP
         address forgoneCollateralReceiver;
         // Who receives the coins raised from the auction; usually the accounting engine
@@ -352,6 +354,8 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
 
     // Minimum acceptable bid
     uint256  public   minimumBid = 5 * WAD; // 5 system coins (expressed as WAD, not RAD)
+    // Total length of the auction
+    uint48   public   totalAuctionLength = 2 days;
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // Discount (compared to the system coin's current redemption price) at which collateral is being sold
@@ -377,7 +381,10 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     }
 
     // --- Math ---
-    function addition(uint x, uint y) internal pure returns (uint z) {
+    function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
+        require((z = x + y) >= x);
+    }
+    function addUint256(uint256 x, uint256 y) internal pure returns (uint z) {
         require((z = x + y) >= x);
     }
     function subtract(uint x, uint y) internal pure returns (uint z) {
@@ -444,11 +451,14 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
      */
     function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
         if (parameter == "discount") {
-          require(data < WAD, "FixedDiscountCollateralAuctionHouse/no-discount-offered");
-          discount = data;
+            require(data < WAD, "FixedDiscountCollateralAuctionHouse/no-discount-offered");
+            discount = data;
         }
         else if (parameter == "minimumBid") {
-          minimumBid = data;
+            minimumBid = data;
+        }
+        else if (parameter == "totalAuctionLength") {
+            totalAuctionLength = uint48(data);
         }
         else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
     }
@@ -481,6 +491,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         require(amountToRaise > 0, "FixedDiscountCollateralAuctionHouse/nothing-to-raise");
         id = ++auctionsStarted;
 
+        bids[id].auctionDeadline = addUint48(uint48(now), uint48(totalAuctionLength));
         bids[id].amountToSell = amountToSell;
         bids[id].forgoneCollateralReceiver = forgoneCollateralReceiver;
         bids[id].auctionIncomeRecipient = auctionIncomeRecipient;
@@ -507,7 +518,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         // bound max amount offered in exchange for collateral
         uint256 adjustedBid = wad;
         if (multiply(adjustedBid, RAY) > subtract(bids[id].amountToRaise, bids[id].raisedAmount)) {
-            adjustedBid = addition(subtract(bids[id].amountToRaise, bids[id].raisedAmount) / RAY, WAD);
+            adjustedBid = addUint256(subtract(bids[id].amountToRaise, bids[id].raisedAmount) / RAY, WAD);
         }
 
         // check that the oracle doesn't return an invalid value
@@ -533,11 +544,11 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         // bound max amount offered in exchange for collateral
         uint256 adjustedBid = wad;
         if (multiply(adjustedBid, RAY) > subtract(bids[id].amountToRaise, bids[id].raisedAmount)) {
-            adjustedBid = addition(subtract(bids[id].amountToRaise, bids[id].raisedAmount) / RAY, WAD);
+            adjustedBid = addUint256(subtract(bids[id].amountToRaise, bids[id].raisedAmount) / RAY, WAD);
         }
 
         // update amount raised
-        bids[id].raisedAmount = addition(bids[id].raisedAmount, multiply(adjustedBid, RAY));
+        bids[id].raisedAmount = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
 
         // check that the oracle doesn't return an invalid value
         (bytes32 priceFeedValue, bool hasValidValue) = orcl.getResultWithValidity();
@@ -548,18 +559,34 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         // check that the calculated amount is greater than zero
         require(boughtCollateral > 0, "FixedDiscountCollateralAuctionHouse/null-bought-amount");
         // update the amount of collateral already sold
-        bids[id].soldAmount = addition(bids[id].soldAmount, boughtCollateral);
+        bids[id].soldAmount = addUint256(bids[id].soldAmount, boughtCollateral);
 
         // transfer the bid to the income recipient and the collateral to the bidder
         cdpEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, multiply(adjustedBid, RAY));
         cdpEngine.transferCollateral(collateralType, address(this), msg.sender, boughtCollateral);
 
-        // if the auction raised the whole amount, transfer remaining collateral to the forgone receiver and delete bid data
-        if (either(bids[id].amountToRaise <= bids[id].raisedAmount, bids[id].amountToSell == bids[id].soldAmount)) {
+        // if the auction raised the whole amount, all collateral was sold or the auction expired,
+        // send remaining collateral back to the forgone receiver
+        bool deadlinePassed = bids[id].auctionDeadline < now;
+        bool soldAll        = either(bids[id].amountToRaise <= bids[id].raisedAmount, bids[id].amountToSell == bids[id].soldAmount);
+        if (either(deadlinePassed, soldAll)) {
             uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
             cdpEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
             delete bids[id];
         }
+    }
+    /**
+     * @notice Settle/finish an auction
+     * @param id ID of the auction to settle
+     */
+    function settleAuction(uint id) external emitLog {
+        require(both(
+          both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0),
+          bids[id].auctionDeadline < now
+        ), "FixedDiscountCollateralAuctionHouse/not-finished");
+        uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
+        cdpEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
+        delete bids[id];
     }
     /**
      * @notice Terminate an auction prematurely. Usually called by Global Settlement.
