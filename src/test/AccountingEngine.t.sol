@@ -215,6 +215,33 @@ contract AccountingEngineTest is DSTest {
         assertEq(id, 1);
     }
 
+    function test_settlement_delay_transfer_surplus() public {
+        // Post settlement auction house setup
+        surplusAuctionHouseTwo = new SAH_TWO(address(cdpEngine), address(protocolToken));
+        // Auctioneer setup
+        postSettlementSurplusDrain = new SettlementSurplusAuctioneer(address(accountingEngine), address(surplusAuctionHouseTwo));
+        surplusAuctionHouseTwo.addAuthorization(address(postSettlementSurplusDrain));
+
+        accountingEngine.modifyParameters("postSettlementSurplusDrain", address(postSettlementSurplusDrain));
+        cdpEngine.mint(address(accountingEngine), 100 ether);
+
+        accountingEngine.modifyParameters("disableCooldown", 1);
+        accountingEngine.disableContract();
+
+        assertEq(cdpEngine.coinBalance(address(accountingEngine)), rad(100 ether));
+        assertEq(cdpEngine.coinBalance(address(postSettlementSurplusDrain)), 0);
+        hevm.warp(now + 1);
+
+        accountingEngine.transferPostSettlementSurplus();
+        assertEq(cdpEngine.coinBalance(address(accountingEngine)), 0);
+        assertEq(cdpEngine.coinBalance(address(postSettlementSurplusDrain)), rad(100 ether));
+
+        cdpEngine.mint(address(accountingEngine), 100 ether);
+        accountingEngine.transferPostSettlementSurplus();
+        assertEq(cdpEngine.coinBalance(address(accountingEngine)), 0);
+        assertEq(cdpEngine.coinBalance(address(postSettlementSurplusDrain)), rad(200 ether));
+    }
+
     function test_no_surplus_auction_pending_debt() public {
         accountingEngine.modifyParameters("surplusAuctionAmountToSell", uint256(0 ether));
         popDebtFromQueue(100 ether);

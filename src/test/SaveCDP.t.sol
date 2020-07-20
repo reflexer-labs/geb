@@ -294,7 +294,7 @@ contract SaveCDPTest is DSTest {
     function test_liquidate_genuine_saviour() public {
         cdpEngine.modifyParameters("gold", "safetyPrice", ray(5 ether));
 
-        GenuineSaviour saviour = new GenuineSaviour(address(cdpEngine));
+        GenuineSaviour saviour = new GenuineSaviour(address(cdpEngine), address(liquidationEngine));
         liquidationEngine.connectCDPSaviour(address(saviour));
         liquidationEngine.protectCDP("gold", me, address(saviour));
         cdpEngine.approveCDPModification(address(saviour));
