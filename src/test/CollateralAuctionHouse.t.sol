@@ -487,9 +487,11 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
     function test_modifyParameters() public {
         collateralAuctionHouse.modifyParameters("discount", 0.90E18);
         collateralAuctionHouse.modifyParameters("minimumBid", 50 * WAD);
+        collateralAuctionHouse.modifyParameters("totalAuctionLength", 5 days);
 
         assertEq(collateralAuctionHouse.discount(), 0.90E18);
         assertEq(collateralAuctionHouse.minimumBid(), 50 * WAD);
+        assertEq(uint(collateralAuctionHouse.totalAuctionLength()), 5 days);
     }
     function testFail_no_discount() public {
         collateralAuctionHouse.modifyParameters("discount", 1 ether);
@@ -542,7 +544,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       });
         Guy(ali).buyCollateral(id, 0, 25 * WAD);
 
-        (uint256 raisedAmount, uint256 soldAmount, , , , ) = collateralAuctionHouse.bids(id);
+        (uint256 raisedAmount, uint256 soldAmount, , , , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 25 * RAD);
         assertEq(soldAmount, 131578947368421052);
 
@@ -568,7 +570,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         assertEq(collateralAuctionHouse.getCollateralBought(id, 0, 50 * WAD), 526315789473684210);
         Guy(ali).buyCollateral(id, 0, 50 * WAD);
 
-        (uint256 raisedAmount, uint256 soldAmount, uint256 amountToSell, uint256 amountToRaise, , ) = collateralAuctionHouse.bids(id);
+        (uint256 raisedAmount, uint256 soldAmount, uint256 amountToSell, uint256 amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 0);
         assertEq(soldAmount, 0);
         assertEq(amountToSell, 0);
@@ -578,6 +580,33 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         assertEq(cdpEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 0);
         assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 526315789473684210);
         assertEq(cdpEngine.tokenCollateral("collateralType", address(cdpAuctioned)), 1 ether - 526315789473684210);
+    }
+    function test_tiny_collateral_amount_amount_to_raise() public {
+        oracleRelayer.modifyParameters("redemptionPrice", 2 * RAY);
+        feed.set_val(bytes32(uint256(200 ether)));
+        cdpEngine.mint(ali, 200 * RAD - 200 ether);
+
+        uint collateralAmountPreBid = cdpEngine.tokenCollateral("collateralType", address(ali));
+
+        uint id = collateralAuctionHouse.startAuction({ amountToSell: 100
+                                                      , amountToRaise: 50
+                                                      , forgoneCollateralReceiver: cdpAuctioned
+                                                      , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
+                                                      });
+
+        Guy(ali).buyCollateral(id, 0, 5 * WAD);
+
+        (uint256 raisedAmount, uint256 soldAmount, uint256 amountToSell, uint256 amountToRaise, , , ) = collateralAuctionHouse.bids(id);
+        assertEq(raisedAmount, 0);
+        assertEq(soldAmount, 0);
+        assertEq(amountToSell, 0);
+        assertEq(amountToRaise, 0);
+
+        assertEq(cdpEngine.coinBalance(auctionIncomeRecipient), RAD);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 0);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 100);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(cdpAuctioned)), 0);
     }
     function test_buyCollateral_adjusted_bid_higher_than_leftover() public {
         oracleRelayer.modifyParameters("redemptionPrice", 2 * RAY);
@@ -594,7 +623,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       });
 
         Guy(ali).buyCollateral(id, 0, 49.9E18);
-        (uint256 raisedAmount, uint256 soldAmount, uint256 amountToSell, uint256 amountToRaise, , ) = collateralAuctionHouse.bids(id);
+        (uint256 raisedAmount, uint256 soldAmount, uint256 amountToSell, uint256 amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 49.9E45);
         assertEq(soldAmount, 525263157894736842);
         assertEq(amountToSell, 1 ether);
@@ -604,7 +633,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         assertTrue(11578947368421052 + 525263157894736842 > 526315789473684210);
 
         Guy(ali).buyCollateral(id, 0, 5 * WAD);
-        (raisedAmount, soldAmount, amountToSell, amountToRaise, , ) = collateralAuctionHouse.bids(id);
+        (raisedAmount, soldAmount, amountToSell, amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 0);
         assertEq(soldAmount, 0);
         assertEq(amountToSell, 0);
@@ -632,7 +661,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
 
         Guy(ali).buyCollateral(id, 0, 5 * WAD);
 
-        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , ) = collateralAuctionHouse.bids(id);
+        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 0);
         assertEq(soldAmount, 0);
         assertEq(amountToSell, 0);
@@ -659,7 +688,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
 
         Guy(ali).buyCollateral(id, 0, 50 * WAD);
 
-        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , ) = collateralAuctionHouse.bids(id);
+        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 0);
         assertEq(soldAmount, 0);
         assertEq(amountToSell, 0);
@@ -686,7 +715,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         Guy(ali).buyCollateral(id, 0, 49.99E18);
         Guy(ali).buyCollateral(id, 0, 5 * WAD);
 
-        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , ) = collateralAuctionHouse.bids(id);
+        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 0);
         assertEq(soldAmount, 0);
         assertEq(amountToSell, 0);
@@ -713,7 +742,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       });
         Guy(ali).buyCollateral(id, 0, 50 * WAD);
 
-        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , ) = collateralAuctionHouse.bids(id);
+        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 0);
         assertEq(soldAmount, 0);
         assertEq(amountToSell, 0);
@@ -740,7 +769,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       });
         Guy(ali).buyCollateral(id, 0, 50 * WAD);
 
-        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , ) = collateralAuctionHouse.bids(id);
+        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 0);
         assertEq(soldAmount, 0);
         assertEq(amountToSell, 0);
@@ -767,7 +796,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
 
         Guy(ali).buyCollateral(id, 0.01 ether, 50 * WAD);
 
-        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , ) = collateralAuctionHouse.bids(id);
+        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 0);
         assertEq(soldAmount, 0);
         assertEq(amountToSell, 0);
@@ -794,7 +823,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
 
         Guy(ali).buyCollateral(id, 10000 ether, 50 * WAD);
 
-        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , ) = collateralAuctionHouse.bids(id);
+        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 0);
         assertEq(soldAmount, 0);
         assertEq(amountToSell, 0);
@@ -804,6 +833,62 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         assertEq(cdpEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 0);
         assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 526315789473684210);
         assertEq(cdpEngine.tokenCollateral("collateralType", address(cdpAuctioned)), 1 ether - 526315789473684210);
+    }
+    function test_buy_and_settle() public {
+        oracleRelayer.modifyParameters("redemptionPrice", 2 * RAY);
+        feed.set_val(bytes32(uint256(200 ether)));
+        cdpEngine.mint(ali, 200 * RAD - 200 ether);
+
+        uint collateralAmountPreBid = cdpEngine.tokenCollateral("collateralType", address(ali));
+
+        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
+                                                      , amountToRaise: 50 * RAD
+                                                      , forgoneCollateralReceiver: cdpAuctioned
+                                                      , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
+                                                      });
+
+        hevm.warp(now + collateralAuctionHouse.totalAuctionLength() + 1);
+        Guy(ali).buyCollateral(id, 0, 25 * WAD);
+
+        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , , ) = collateralAuctionHouse.bids(id);
+        assertEq(raisedAmount, 0);
+        assertEq(soldAmount, 0);
+        assertEq(amountToSell, 0);
+        assertEq(amountToRaise, 0);
+
+        assertEq(cdpEngine.coinBalance(auctionIncomeRecipient), 25 * RAD);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 0);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 263157894736842105);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(cdpAuctioned)), 1 ether - 263157894736842105);
+    }
+    function test_settle_auction() public {
+        oracleRelayer.modifyParameters("redemptionPrice", 2 * RAY);
+        feed.set_val(bytes32(uint256(200 ether)));
+        cdpEngine.mint(ali, 200 * RAD - 200 ether);
+
+        uint collateralAmountPreBid = cdpEngine.tokenCollateral("collateralType", address(ali));
+
+        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
+                                                      , amountToRaise: 50 * RAD
+                                                      , forgoneCollateralReceiver: cdpAuctioned
+                                                      , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
+                                                      });
+
+        hevm.warp(now + collateralAuctionHouse.totalAuctionLength() + 1);
+        collateralAuctionHouse.settleAuction(id);
+
+        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , , ) = collateralAuctionHouse.bids(id);
+        assertEq(raisedAmount, 0);
+        assertEq(soldAmount, 0);
+        assertEq(amountToSell, 0);
+        assertEq(amountToRaise, 0);
+
+        assertEq(cdpEngine.coinBalance(auctionIncomeRecipient), 0);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 0);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 0);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(cdpAuctioned)), 1 ether);
     }
     function testFail_terminate_inexistent() public {
         collateralAuctionHouse.terminateAuctionPrematurely(1);
@@ -825,7 +910,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         Guy(ali).buyCollateral(id, 0, 25 * WAD);
         collateralAuctionHouse.terminateAuctionPrematurely(1);
 
-        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , ) = collateralAuctionHouse.bids(id);
+        (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 0);
         assertEq(soldAmount, 0);
         assertEq(amountToSell, 0);
