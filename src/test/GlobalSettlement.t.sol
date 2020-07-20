@@ -27,7 +27,7 @@ import {LiquidationEngine} from '../LiquidationEngine.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
 import {CoinSavingsAccount} from '../CoinSavingsAccount.sol';
 import {StabilityFeeTreasury}  from '../StabilityFeeTreasury.sol';
-import {CollateralAuctionHouse} from '../CollateralAuctionHouse.sol';
+import {EnglishCollateralAuctionHouse} from '../CollateralAuctionHouse.sol';
 import {PreSettlementSurplusAuctionHouse} from '../SurplusAuctionHouse.sol';
 import {DebtAuctionHouse} from '../DebtAuctionHouse.sol';
 import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
@@ -165,7 +165,7 @@ contract GlobalSettlementTest is DSTest {
         DummyOSM oracleSecurityModule;
         DSToken collateral;
         BasicCollateralJoin collateralA;
-        CollateralAuctionHouse collateralAuctionHouse;
+        EnglishCollateralAuctionHouse collateralAuctionHouse;
     }
 
     mapping (bytes32 => CollateralType) collateralTypes;
@@ -242,7 +242,7 @@ contract GlobalSettlementTest is DSTest {
 
         cdpEngine.addAuthorization(address(collateralA));
 
-        CollateralAuctionHouse collateralAuctionHouse = new CollateralAuctionHouse(address(cdpEngine), name);
+        EnglishCollateralAuctionHouse collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(cdpEngine), name);
         collateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
         // bidToMarketPriceRatio is zero so feed price is irrelevant
         collateralAuctionHouse.modifyParameters("orcl", address(new Feed(bytes32(uint256(200 ether)), true)));

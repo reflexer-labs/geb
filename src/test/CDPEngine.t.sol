@@ -11,7 +11,7 @@ import {TaxCollector} from '../TaxCollector.sol';
 import '../BasicTokenAdapters.sol';
 import {OracleRelayer} from '../OracleRelayer.sol';
 
-import {CollateralAuctionHouse} from './CollateralAuctionHouse.t.sol';
+import {EnglishCollateralAuctionHouse} from './CollateralAuctionHouse.t.sol';
 import {DebtAuctionHouse} from './DebtAuctionHouse.t.sol';
 import {PostSettlementSurplusAuctionHouse} from './SurplusAuctionHouse.t.sol';
 
@@ -503,7 +503,7 @@ contract JoinTest is DSTest {
     }
 }
 
-abstract contract CollateralAuctionHouseLike {
+abstract contract EnglishCollateralAuctionHouseLike {
     struct Bid {
         uint256 bidAmount;
         uint256 amountToSell;
@@ -556,7 +556,7 @@ contract LiquidationTest is DSTest {
 
     BasicCollateralJoin collateralA;
 
-    CollateralAuctionHouse collateralAuctionHouse;
+    EnglishCollateralAuctionHouse collateralAuctionHouse;
     DebtAuctionHouse debtAuctionHouse;
     PostSettlementSurplusAuctionHouse surplusAuctionHouse;
 
@@ -643,7 +643,7 @@ contract LiquidationTest is DSTest {
         cdpEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
         cdpEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
         cdpEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
-        collateralAuctionHouse = new CollateralAuctionHouse(address(cdpEngine), "gold");
+        collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(cdpEngine), "gold");
         collateralAuctionHouse.modifyParameters("oracleRelayer", address(new OracleRelayer(address(cdpEngine))));
         collateralAuctionHouse.modifyParameters("orcl", address(new Feed(uint256(1), true)));
         collateralAuctionHouse.addAuthorization(address(liquidationEngine));
@@ -684,7 +684,7 @@ contract LiquidationTest is DSTest {
         // all debt goes to the accounting engine
         assertEq(accountingEngine.totalDeficit(), rad(100 ether));
         // auction is for all collateral
-        (, uint lot,,,,,, uint tab) = CollateralAuctionHouseLike(address(collateralAuctionHouse)).bids(auction);
+        (, uint lot,,,,,, uint tab) = EnglishCollateralAuctionHouseLike(address(collateralAuctionHouse)).bids(auction);
         assertEq(lot,        40 ether);
         assertEq(tab,   rad(110 ether));
     }
@@ -705,7 +705,7 @@ contract LiquidationTest is DSTest {
         // a fraction of the debt goes to the accounting engine
         assertEq(accountingEngine.totalDeficit(), rad(75 ether));
         // auction is for a fraction of the collateral
-        (, uint lot,,,,,, uint tab) = CollateralAuctionHouseLike(address(collateralAuctionHouse)).bids(auction);
+        (, uint lot,,,,,, uint tab) = EnglishCollateralAuctionHouseLike(address(collateralAuctionHouse)).bids(auction);
         assertEq(lot,       30 ether);
         assertEq(tab,   rad(82.5 ether));
     }
