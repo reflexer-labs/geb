@@ -4,7 +4,7 @@ import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
 
 import {CDPEngine} from "../CDPEngine.sol";
-import {CollateralAuctionHouse} from "../CollateralAuctionHouse.sol";
+import {EnglishCollateralAuctionHouse} from "../CollateralAuctionHouse.sol";
 import {OracleRelayer} from "../OracleRelayer.sol";
 
 abstract contract Hevm {
@@ -12,8 +12,8 @@ abstract contract Hevm {
 }
 
 contract Guy {
-    CollateralAuctionHouse collateralAuctionHouse;
-    constructor(CollateralAuctionHouse collateralAuctionHouse_) public {
+    EnglishCollateralAuctionHouse collateralAuctionHouse;
+    constructor(EnglishCollateralAuctionHouse collateralAuctionHouse_) public {
         collateralAuctionHouse = collateralAuctionHouse_;
     }
     function approveCDPModification(address cdp) public {
@@ -97,11 +97,11 @@ contract Feed {
     }
 }
 
-contract CollateralAuctionHouseTest is DSTest {
+contract EnglishCollateralAuctionHouseTest is DSTest {
     Hevm hevm;
 
     CDPEngine_ cdpEngine;
-    CollateralAuctionHouse collateralAuctionHouse;
+    EnglishCollateralAuctionHouse collateralAuctionHouse;
     OracleRelayer oracleRelayer;
     Feed    feed;
 
@@ -119,7 +119,7 @@ contract CollateralAuctionHouseTest is DSTest {
         cdpEngine.initializeCollateralType("gems");
         cdpEngine.set_collateral_type("gems");
 
-        collateralAuctionHouse = new CollateralAuctionHouse(address(cdpEngine), "gems");
+        collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(cdpEngine), "gems");
 
         oracleRelayer = new OracleRelayer(address(cdpEngine));
         collateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));

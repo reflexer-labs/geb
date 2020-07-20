@@ -62,7 +62,7 @@ abstract contract CoinSavingsAccountLike {
 abstract contract RateSetterLike {
     function disableContract() virtual external;
 }
-abstract contract CollateralAuctionHouseLike {
+abstract contract EnglishCollateralAuctionHouseLike {
     function bids(uint auctionId) virtual public view returns (
         uint256 bidAmount,
         uint256 collateralToSell,
@@ -275,7 +275,7 @@ contract GlobalSettlement is Logging {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
 
         (address auctionHouse_,,) = liquidationEngine.collateralTypes(collateralType);
-        CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
+        EnglishCollateralAuctionHouseLike collateralAuctionHouse = EnglishCollateralAuctionHouseLike(auctionHouse_);
         (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
         (uint bidAmount, uint collateralToSell,,,, address forgoneCollateralReceiver,, uint amountToRaise) = collateralAuctionHouse.bids(auctionId);
 

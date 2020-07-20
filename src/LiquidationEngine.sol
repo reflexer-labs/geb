@@ -19,7 +19,7 @@ pragma solidity ^0.6.7;
 
 import "./Logging.sol";
 
-abstract contract CollateralAuctionHouseLike {
+abstract contract EnglishCollateralAuctionHouseLike {
     function startAuction(
       address forgoneCollateralReceiver,
       address initialBidder,
@@ -253,7 +253,7 @@ contract LiquidationEngine is Logging {
 
           accountingEngine.pushDebtToQueue(multiply(cdpDebt, accumulatedRates));
 
-          auctionId = CollateralAuctionHouseLike(collateralTypes[collateralType].collateralAuctionHouse).startAuction(
+          auctionId = EnglishCollateralAuctionHouseLike(collateralTypes[collateralType].collateralAuctionHouse).startAuction(
             { forgoneCollateralReceiver: cdp
             , initialBidder: address(accountingEngine)
             , amountToRaise: rmultiply(multiply(cdpDebt, accumulatedRates), collateralTypes[collateralType].liquidationPenalty)
