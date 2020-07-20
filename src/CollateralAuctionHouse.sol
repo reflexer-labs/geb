@@ -398,12 +398,42 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
       z = multiply(x, WAD) / y;
     }
 
-    // --- Utils ---
+    // --- General Utils ---
     function either(bool x, bool y) internal pure returns (bool z) {
         assembly{ z := or(x, y)}
     }
     function both(bool x, bool y) internal pure returns (bool z) {
         assembly{ z := and(x, y)}
+    }
+
+    // --- Auction Utils ---
+    function getDiscountedRedemptionCollateralPrice(
+        bytes32 priceFeedValue,
+        uint256 customDiscount
+    ) public returns (uint256) {
+        // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
+        return wmultiply(
+          rdivide(uint256(priceFeedValue), oracleRelayer.redemptionPrice()), customDiscount
+        );
+    }
+    function getDiscountedRedemptionBoughtCollateral(
+        uint id,
+        bytes32 priceFeedValue,
+        uint256 amountToBuy,
+        uint256 adjustedBid
+    ) internal returns (uint256) {
+        // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
+        uint256 discountedRedemptionCollateralPrice = getDiscountedRedemptionCollateralPrice(priceFeedValue, discount);
+        // calculate the amount of collateral bought
+        uint256 boughtCollateral = wdivide(adjustedBid, discountedRedemptionCollateralPrice);
+        // if the calculate collateral amount exceeds the amount still up for sale, adjust it to the remaining amount
+        boughtCollateral = (boughtCollateral > subtract(bids[id].amountToSell, bids[id].soldAmount)) ?
+                           subtract(bids[id].amountToSell, bids[id].soldAmount) : boughtCollateral;
+        // if the buyer is willing to buy less collateral than calculated, offer that amount
+        boughtCollateral = (both(amountToBuy > 0, amountToBuy < boughtCollateral)) ?
+                           amountToBuy : boughtCollateral;
+
+        return boughtCollateral;
     }
 
     // --- Admin ---
@@ -442,8 +472,8 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     function startAuction(
         address forgoneCollateralReceiver,
         address auctionIncomeRecipient,
-        uint amountToRaise,
-        uint amountToSell
+        uint256 amountToRaise,
+        uint256 amountToSell
     ) public isAuthorized returns (uint id) {
         require(auctionsStarted < uint(-1), "FixedDiscountCollateralAuctionHouse/overflow");
         require(amountToSell > 0, "FixedDiscountCollateralAuctionHouse/no-collateral-for-sale");
@@ -458,6 +488,34 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         cdpEngine.transferCollateral(collateralType, msg.sender, address(this), amountToSell);
 
         emit StartAuction(id, amountToSell, amountToRaise, forgoneCollateralReceiver, auctionIncomeRecipient);
+    }
+    /**
+     * @notice Calculate how much collateral someone would buy from an auction
+     * @param id ID of the auction to buy collateral from
+     * @param amountToBuy Amount of collateral to buy (must be equal to the amount sold in this implementation)
+     * @param wad New bid submitted (as WAD, not as RAD)
+     */
+    function getCollateralBought(uint id, uint amountToBuy, uint wad) external returns (uint256) {
+        if (either(
+          either(bids[id].amountToSell == 0, bids[id].amountToRaise == 0),
+          either(wad == 0, wad < minimumBid)
+        )) {
+          return 0;
+        }
+
+        // bound max amount offered in exchange for collateral
+        uint256 adjustedBid = wad;
+        if (multiply(adjustedBid, RAY) > subtract(bids[id].amountToRaise, bids[id].raisedAmount)) {
+            adjustedBid = addition(subtract(bids[id].amountToRaise, bids[id].raisedAmount) / RAY, WAD);
+        }
+
+        // check that the oracle doesn't return an invalid value
+        (bytes32 priceFeedValue, bool hasValidValue) = orcl.getResultWithValidity();
+        if (!hasValidValue) {
+          return 0;
+        }
+
+        return getDiscountedRedemptionBoughtCollateral(id, priceFeedValue, amountToBuy, adjustedBid);
     }
     /**
      * @notice Buy collateral from an auction at a fixed discount. The buyer can either set amountToBuy to zero
@@ -484,17 +542,8 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         (bytes32 priceFeedValue, bool hasValidValue) = orcl.getResultWithValidity();
         require(hasValidValue, "FixedDiscountCollateralAuctionHouse/orcl-invalid-value");
 
-        // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
-        uint256 discountedRedemptionCollateralPrice = wmultiply(
-          rdivide(uint256(priceFeedValue), oracleRelayer.redemptionPrice()), discount
-        );
-        uint256 boughtCollateral = wdivide(adjustedBid, discountedRedemptionCollateralPrice);
-        // if the calculate collateral amount exceeds the amount still up for sale, adjust it to the remaining amount
-        boughtCollateral = (boughtCollateral > subtract(bids[id].amountToSell, bids[id].soldAmount)) ?
-                           subtract(bids[id].amountToSell, bids[id].soldAmount) : boughtCollateral;
-        // if the buyer is willing to buy less collateral than calculated, offer that amount
-        boughtCollateral = (both(amountToBuy > 0, amountToBuy < boughtCollateral)) ?
-                           amountToBuy : boughtCollateral;
+        // get the amount of collateral bought
+        uint256 boughtCollateral = getDiscountedRedemptionBoughtCollateral(id, priceFeedValue, amountToBuy, adjustedBid);
         // check that the calculated amount is greater than zero
         require(boughtCollateral > 0, "FixedDiscountCollateralAuctionHouse/null-bought-amount");
         // update the amount of collateral already sold
