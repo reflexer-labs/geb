@@ -667,7 +667,7 @@ contract LiquidationTest is DSTest {
         me = address(this);
     }
 
-    function test_bite_under_collateral_to_sell_threshold() public {
+    function test_liquidate_under_collateral_to_sell_threshold() public {
         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(10 ether));
         cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
 
@@ -688,7 +688,7 @@ contract LiquidationTest is DSTest {
         assertEq(lot,        40 ether);
         assertEq(tab,   rad(110 ether));
     }
-    function test_bite_over_collateral_to_sell_threshold() public {
+    function test_liquidate_over_collateral_to_sell_threshold() public {
         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
         cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
         // tag=4, mat=2
@@ -710,7 +710,7 @@ contract LiquidationTest is DSTest {
         assertEq(tab,   rad(82.5 ether));
     }
 
-    function test_bite_safetyPrice_when_liquidation_price_set() public {
+    function test_liquidate_safetyPrice_when_liquidation_price_set() public {
         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
         cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(10 ether));
 
@@ -745,7 +745,7 @@ contract LiquidationTest is DSTest {
         assertEq(accountingEngine.preAuctionDebt(), 0 ether);
         assertEq(tokenCollateral("gold", address(this)), 960 ether);
 
-        liquidationEngine.modifyParameters("gold", "collateralToSell", 100 ether);  // => bite everything
+        liquidationEngine.modifyParameters("gold", "collateralToSell", 100 ether);  // => liquidate everything
         uint auction = liquidationEngine.liquidateCDP("gold", address(this));
         assertEq(lockedCollateral("gold", address(this)), 0);
         assertEq(generatedDebt("gold", address(this)), 0);
@@ -776,7 +776,7 @@ contract LiquidationTest is DSTest {
         cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
         cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
 
-        liquidationEngine.modifyParameters("gold", "collateralToSell", 100 ether);  // => bite everything
+        liquidationEngine.modifyParameters("gold", "collateralToSell", 100 ether);  // => liquidate everything
         assertEq(accountingEngine.debtQueue(now), rad(  0 ether));
         liquidationEngine.liquidateCDP("gold", address(this));
         assertEq(accountingEngine.debtQueue(now), rad(100 ether));

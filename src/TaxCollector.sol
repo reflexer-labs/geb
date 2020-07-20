@@ -317,22 +317,24 @@ contract TaxCollector is Logging {
               1
             );
           }
-          secondaryReceiverAllotedTax[collateralType]                    = secondaryReceiverAllotedTax_;
+          secondaryReceiverAllotedTax[collateralType]                   = secondaryReceiverAllotedTax_;
           secondaryTaxReceivers[collateralType][position].taxPercentage = taxPercentage;
         }
     }
 
     // --- Tax Collection Utils ---
     /**
-     * @notice Check if all collateral types are up to date with taxation
+     * @notice Check if multiple collateral types are up to date with taxation
      */
-    function collectedAllTax() public view returns (bool ko) {
-        for (uint i = 0; i < collateralList.length; i++) {
+    function collectedManyTax(uint start, uint end) public view returns (bool ok) {
+        require(both(start <= end, end < collateralList.length), "TaxCollector/invalid-indexes");
+        for (uint i = start; i <= end; i++) {
           if (now > collateralTypes[collateralList[i]].updateTime) {
-            ko = true;
-            break;
+            ok = false;
+            return ok;
           }
         }
+        ok = true;
     }
     /**
      * @notice Check how much SF will be charged (to collateral types between indexes 'start' and 'end'
@@ -348,7 +350,7 @@ contract TaxCollector is Logging {
         for (uint i = start; i <= end; i++) {
           if (now > collateralTypes[collateralList[i]].updateTime) {
             (debtAmount, ) = cdpEngine.collateralTypes(collateralList[i]);
-            (, deltaRate) = taxSingleOutcome(collateralList[i]);
+            (, deltaRate)  = taxSingleOutcome(collateralList[i]);
             rad = addition(rad, multiply(debtAmount, deltaRate));
           }
         }

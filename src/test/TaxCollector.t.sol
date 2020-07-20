@@ -207,7 +207,7 @@ contract TaxCollectorTest is DSTest {
         (, updatedTime) = taxCollector.collateralTypes("j");
         assertEq(updatedTime, now);
 
-        assertTrue(!taxCollector.collectedAllTax());
+        assertTrue(taxCollector.collectedManyTax(0, 1));
     }
     function test_collect_tax_all_some_negative() public {
         cdpEngine.initializeCollateralType("j");
@@ -232,7 +232,7 @@ contract TaxCollectorTest is DSTest {
         (, updatedTime) = taxCollector.collateralTypes("j");
         assertEq(updatedTime, now);
 
-        assertTrue(!taxCollector.collectedAllTax());
+        assertTrue(taxCollector.collectedManyTax(0, 1));
     }
     function testFail_add_same_tax_receiver_twice() public {
         taxCollector.modifyParameters("maxSecondaryReceivers", 10);
@@ -599,7 +599,7 @@ contract TaxCollectorTest is DSTest {
         assertEq(wad(cdpEngine.coinBalance(bob)), 1381407812500000000);
         assertEq(wad(cdpEngine.coinBalance(char)), 2762815625000000000);
     }
-    function test_collectedAllTax() public {
+    function test_collectedManyTax() public {
         cdpEngine.initializeCollateralType("j");
         draw("j", 100 ether);
 
@@ -612,20 +612,91 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("globalStabilityFee", uint(50000000000000000000000000));  // 5% / second
 
         hevm.warp(now + 1);
-        assertTrue(taxCollector.collectedAllTax());
+        assertTrue(!taxCollector.collectedManyTax(0, 1));
 
         taxCollector.taxSingle("i");
-        assertTrue(taxCollector.collectedAllTax());
+        assertTrue(taxCollector.collectedManyTax(0, 0));
+        assertTrue(!taxCollector.collectedManyTax(0, 1));
     }
-    function test_file_stabilityFee() public {
+    function test_modify_stabilityFee() public {
         taxCollector.initializeCollateralType("i");
         hevm.warp(now + 1);
         taxCollector.taxSingle("i");
         taxCollector.modifyParameters("i", "stabilityFee", 1);
     }
-    function testFail_file_stabilityFee() public {
+    function testFail_modify_stabilityFee() public {
         taxCollector.initializeCollateralType("i");
         hevm.warp(now + 1);
         taxCollector.modifyParameters("i", "stabilityFee", 1);
+    }
+    function test_taxManyOutcome_all_untaxed_positive_rates() public {
+        cdpEngine.initializeCollateralType("j");
+        draw("i", 100 ether);
+        draw("j", 100 ether);
+
+        taxCollector.initializeCollateralType("i");
+        taxCollector.initializeCollateralType("j");
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
+
+        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
+        taxCollector.modifyParameters("j", "stabilityFee", 1030000000000000000000000000);  // 3% / second
+        taxCollector.modifyParameters("globalStabilityFee",  uint(50000000000000000000000000));  // 5% / second
+
+        hevm.warp(now + 1);
+        (bool ok, int rad) = taxCollector.taxManyOutcome(0, 1);
+        assertTrue(ok);
+        assertEq(uint(rad), 28 * 10 ** 45);
+    }
+    function test_taxManyOutcome_some_untaxed_positive_rates() public {
+        cdpEngine.initializeCollateralType("j");
+        draw("i", 100 ether);
+        draw("j", 100 ether);
+
+        taxCollector.initializeCollateralType("i");
+        taxCollector.initializeCollateralType("j");
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
+
+        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
+        taxCollector.modifyParameters("j", "stabilityFee", 1030000000000000000000000000);  // 3% / second
+        taxCollector.modifyParameters("globalStabilityFee",  uint(50000000000000000000000000));  // 5% / second
+
+        hevm.warp(now + 1);
+        taxCollector.taxSingle("i");
+        (bool ok, int rad) = taxCollector.taxManyOutcome(0, 1);
+        assertTrue(ok);
+        assertEq(uint(rad), 8 * 10 ** 45);
+    }
+    function test_taxManyOutcome_all_untaxed_negative_rates() public {
+        cdpEngine.initializeCollateralType("j");
+        draw("i", 100 ether);
+        draw("j", 100 ether);
+
+        taxCollector.initializeCollateralType("i");
+        taxCollector.initializeCollateralType("j");
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
+
+        taxCollector.modifyParameters("i", "stabilityFee", 950000000000000000000000000);  // -5% / second
+        taxCollector.modifyParameters("j", "stabilityFee", 930000000000000000000000000);  // -3% / second
+
+        hevm.warp(now + 1);
+        (bool ok, int rad) = taxCollector.taxManyOutcome(0, 1);
+        assertTrue(!ok);
+        assertEq(rad, -17 * 10 ** 45);
+    }
+    function test_taxManyOutcome_all_untaxed_mixed_rates() public {
+        cdpEngine.initializeCollateralType("j");
+        draw("j", 100 ether);
+
+        taxCollector.initializeCollateralType("i");
+        taxCollector.initializeCollateralType("j");
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
+
+        taxCollector.modifyParameters("i", "stabilityFee", 950000000000000000000000000);  // -5% / second
+        taxCollector.modifyParameters("j", "stabilityFee", 1050000000000000000000000000);  // 5% / second
+
+        hevm.warp(now + 1);
+        (bool ok, int rad) = taxCollector.taxManyOutcome(0, 1);
+        assertTrue(ok);
+        assertEq(rad, 0);
     }
 }

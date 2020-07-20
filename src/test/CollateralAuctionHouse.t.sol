@@ -499,6 +499,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                             , amountToRaise: 50 ether
                                             , forgoneCollateralReceiver: cdpAuctioned
                                             , auctionIncomeRecipient: auctionIncomeRecipient
+                                            , initialBid: 0
                                             });
     }
     function testFail_buyCollateral_inexistent_auction() public {
@@ -510,6 +511,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                             , amountToRaise: 50 ether
                                             , forgoneCollateralReceiver: cdpAuctioned
                                             , auctionIncomeRecipient: auctionIncomeRecipient
+                                            , initialBid: 0
                                             });
         // can't buy collateral on non-existent
         collateralAuctionHouse.buyCollateral(1, 0, 0);
@@ -521,6 +523,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                             , amountToRaise: 50 ether
                                             , forgoneCollateralReceiver: cdpAuctioned
                                             , auctionIncomeRecipient: auctionIncomeRecipient
+                                            , initialBid: 0
                                             });
         collateralAuctionHouse.buyCollateral(1, 0, 5 * WAD);
     }
@@ -535,6 +538,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , amountToRaise: 50 * RAD
                                                       , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
                                                       });
         Guy(ali).buyCollateral(id, 0, 25 * WAD);
 
@@ -557,6 +561,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , amountToRaise: 50 * RAD
                                                       , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
                                                       });
 
         assertEq(collateralAuctionHouse.getDiscountedRedemptionCollateralPrice(bytes32(uint256(200 ether)), 0.95E18), 95 ether);
@@ -585,6 +590,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , amountToRaise: 50 * RAD
                                                       , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
                                                       });
 
         Guy(ali).buyCollateral(id, 0, 49.9E18);
@@ -621,6 +627,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , amountToRaise: 50 * RAD
                                                       , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
                                                       });
 
         Guy(ali).buyCollateral(id, 0, 5 * WAD);
@@ -647,6 +654,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , amountToRaise: 50 * RAD
                                                       , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
                                                       });
 
         Guy(ali).buyCollateral(id, 0, 50 * WAD);
@@ -673,6 +681,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , amountToRaise: 50 * RAD
                                                       , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
                                                       });
         Guy(ali).buyCollateral(id, 0, 49.99E18);
         Guy(ali).buyCollateral(id, 0, 5 * WAD);
@@ -700,6 +709,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , amountToRaise: 50 * RAD
                                                       , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
                                                       });
         Guy(ali).buyCollateral(id, 0, 50 * WAD);
 
@@ -726,6 +736,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , amountToRaise: 50 * RAD
                                                       , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
                                                       });
         Guy(ali).buyCollateral(id, 0, 50 * WAD);
 
@@ -751,6 +762,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , amountToRaise: 50 * RAD
                                                       , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
                                                       });
 
         Guy(ali).buyCollateral(id, 0.01 ether, 50 * WAD);
@@ -777,6 +789,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , amountToRaise: 50 * RAD
                                                       , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
                                                       });
 
         Guy(ali).buyCollateral(id, 10000 ether, 50 * WAD);
@@ -806,6 +819,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , amountToRaise: 50 * RAD
                                                       , forgoneCollateralReceiver: cdpAuctioned
                                                       , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
                                                       });
 
         Guy(ali).buyCollateral(id, 0, 25 * WAD);
