@@ -355,7 +355,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // Discount (compared to the system coin's current redemption price) at which collateral is being sold
-    uint256  public   discount = 0.95E18; // 5% discount
+    uint256  public   discount = 0.95E18;   // 5% discount
 
     OracleRelayerLike public oracleRelayer;
     OracleLike        public orcl;
@@ -417,6 +417,9 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
           require(data < WAD, "FixedDiscountCollateralAuctionHouse/no-discount-offered");
           discount = data;
         }
+        else if (parameter == "minimumBid") {
+          minimumBid = data;
+        }
         else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
     }
     /**
@@ -466,16 +469,16 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
      */
     function buyCollateral(uint id, uint amountToBuy, uint wad) external emitLog {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
-        require(wad > 0, "FixedDiscountCollateralAuctionHouse/null-bid");
+        require(both(wad > 0, wad >= minimumBid), "FixedDiscountCollateralAuctionHouse/invalid-bid");
 
         // bound max amount offered in exchange for collateral
-        uint256 adjustedBid = (wad < minimumBid) ? minimumBid : wad;
+        uint256 adjustedBid = wad;
         if (multiply(adjustedBid, RAY) > subtract(bids[id].amountToRaise, bids[id].raisedAmount)) {
             adjustedBid = addition(subtract(bids[id].amountToRaise, bids[id].raisedAmount) / RAY, WAD);
         }
 
         // update amount raised
-        bids[id].amountToRaise = addition(bids[id].amountToRaise, multiply(adjustedBid, RAY));
+        bids[id].raisedAmount = addition(bids[id].raisedAmount, multiply(adjustedBid, RAY));
 
         // check that the oracle doesn't return an invalid value
         (bytes32 priceFeedValue, bool hasValidValue) = orcl.getResultWithValidity();
@@ -492,6 +495,8 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         // if the buyer is willing to buy less collateral than calculated, offer that amount
         boughtCollateral = (both(amountToBuy > 0, amountToBuy < boughtCollateral)) ?
                            amountToBuy : boughtCollateral;
+        // check that the calculated amount is greater than zero
+        require(boughtCollateral > 0, "FixedDiscountCollateralAuctionHouse/null-bought-amount");
         // update the amount of collateral already sold
         bids[id].soldAmount = addition(bids[id].soldAmount, boughtCollateral);
 

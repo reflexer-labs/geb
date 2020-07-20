@@ -4,7 +4,7 @@ import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
 
 import {CDPEngine} from "../CDPEngine.sol";
-import {EnglishCollateralAuctionHouse} from "../CollateralAuctionHouse.sol";
+import {EnglishCollateralAuctionHouse, FixedDiscountCollateralAuctionHouse} from "../CollateralAuctionHouse.sol";
 import {OracleRelayer} from "../OracleRelayer.sol";
 
 abstract contract Hevm {
@@ -12,51 +12,74 @@ abstract contract Hevm {
 }
 
 contract Guy {
-    EnglishCollateralAuctionHouse collateralAuctionHouse;
-    constructor(EnglishCollateralAuctionHouse collateralAuctionHouse_) public {
-        collateralAuctionHouse = collateralAuctionHouse_;
+    EnglishCollateralAuctionHouse englishCollateralAuctionHouse;
+    FixedDiscountCollateralAuctionHouse fixedDiscountCollateralAuctionHouse;
+
+    constructor(
+      EnglishCollateralAuctionHouse englishCollateralAuctionHouse_,
+      FixedDiscountCollateralAuctionHouse fixedDiscountCollateralAuctionHouse_
+    ) public {
+        englishCollateralAuctionHouse = englishCollateralAuctionHouse_;
+        fixedDiscountCollateralAuctionHouse = fixedDiscountCollateralAuctionHouse_;
     }
-    function approveCDPModification(address cdp) public {
-        CDPEngine(address(collateralAuctionHouse.cdpEngine())).approveCDPModification(cdp);
+    function approveCDPModification(bytes32 auctionType, address cdp) public {
+        address cdpEngine = (auctionType == "english") ?
+          address(englishCollateralAuctionHouse.cdpEngine()) : address(fixedDiscountCollateralAuctionHouse.cdpEngine());
+        CDPEngine(cdpEngine).approveCDPModification(cdp);
     }
-    function increaseBidSize(uint id, uint amountToBuy, uint bid) public {
-        collateralAuctionHouse.increaseBidSize(id, amountToBuy, bid);
+    function increaseBidSize(uint id, uint amountToBuy, uint rad) public {
+        englishCollateralAuctionHouse.increaseBidSize(id, amountToBuy, rad);
+    }
+    function buyCollateral(uint id, uint amountToBuy, uint wad) public {
+        fixedDiscountCollateralAuctionHouse.buyCollateral(id, amountToBuy, wad);
     }
     function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) public {
-        collateralAuctionHouse.decreaseSoldAmount(id, amountToBuy, bid);
+        englishCollateralAuctionHouse.decreaseSoldAmount(id, amountToBuy, bid);
     }
     function settleAuction(uint id) public {
-        collateralAuctionHouse.settleAuction(id);
+        englishCollateralAuctionHouse.settleAuction(id);
     }
-    function try_increaseBidSize(uint id, uint amountToBuy, uint bid)
+    function try_increaseBidSize(uint id, uint amountToBuy, uint rad)
         public returns (bool ok)
     {
         string memory sig = "increaseBidSize(uint256,uint256,uint256)";
-        (ok,) = address(collateralAuctionHouse).call(abi.encodeWithSignature(sig, id, amountToBuy, bid));
+        (ok,) = address(englishCollateralAuctionHouse).call(abi.encodeWithSignature(sig, id, amountToBuy, rad));
+    }
+    function try_buyCollateral(uint id, uint amountToBuy, uint wad)
+        public returns (bool ok)
+    {
+        string memory sig = "buyCollateral(uint256,uint256,uint256)";
+        (ok,) = address(fixedDiscountCollateralAuctionHouse).call(abi.encodeWithSignature(sig, id, amountToBuy, wad));
     }
     function try_decreaseSoldAmount(uint id, uint amountToBuy, uint bid)
         public returns (bool ok)
     {
         string memory sig = "decreaseSoldAmount(uint256,uint256,uint256)";
-        (ok,) = address(collateralAuctionHouse).call(abi.encodeWithSignature(sig, id, amountToBuy, bid));
+        (ok,) = address(englishCollateralAuctionHouse).call(abi.encodeWithSignature(sig, id, amountToBuy, bid));
     }
     function try_settleAuction(uint id)
         public returns (bool ok)
     {
         string memory sig = "settleAuction(uint256)";
-        (ok,) = address(collateralAuctionHouse).call(abi.encodeWithSignature(sig, id));
+        (ok,) = address(englishCollateralAuctionHouse).call(abi.encodeWithSignature(sig, id));
     }
     function try_restartAuction(uint id)
         public returns (bool ok)
     {
         string memory sig = "restartAuction(uint256)";
-        (ok,) = address(collateralAuctionHouse).call(abi.encodeWithSignature(sig, id));
+        (ok,) = address(englishCollateralAuctionHouse).call(abi.encodeWithSignature(sig, id));
     }
-    function try_terminateAuctionPrematurely(uint id)
+    function try_english_terminateAuctionPrematurely(uint id)
         public returns (bool ok)
     {
         string memory sig = "terminateAuctionPrematurely(uint256)";
-        (ok,) = address(collateralAuctionHouse).call(abi.encodeWithSignature(sig, id));
+        (ok,) = address(englishCollateralAuctionHouse).call(abi.encodeWithSignature(sig, id));
+    }
+    function try_fixedDiscount_terminateAuctionPrematurely(uint id)
+        public returns (bool ok)
+    {
+        string memory sig = "terminateAuctionPrematurely(uint256)";
+        (ok,) = address(fixedDiscountCollateralAuctionHouse).call(abi.encodeWithSignature(sig, id));
     }
 }
 
@@ -116,10 +139,10 @@ contract EnglishCollateralAuctionHouseTest is DSTest {
 
         cdpEngine = new CDPEngine_();
 
-        cdpEngine.initializeCollateralType("gems");
-        cdpEngine.set_collateral_type("gems");
+        cdpEngine.initializeCollateralType("collateralType");
+        cdpEngine.set_collateral_type("collateralType");
 
-        collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(cdpEngine), "gems");
+        collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(cdpEngine), "collateralType");
 
         oracleRelayer = new OracleRelayer(address(cdpEngine));
         collateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
@@ -127,15 +150,15 @@ contract EnglishCollateralAuctionHouseTest is DSTest {
         feed = new Feed(bytes32(uint256(0)), true);
         collateralAuctionHouse.modifyParameters("orcl", address(feed));
 
-        ali = address(new Guy(collateralAuctionHouse));
-        bob = address(new Guy(collateralAuctionHouse));
+        ali = address(new Guy(collateralAuctionHouse, FixedDiscountCollateralAuctionHouse(address(0))));
+        bob = address(new Guy(collateralAuctionHouse, FixedDiscountCollateralAuctionHouse(address(0))));
         auctionIncomeRecipient = address(new Gal());
 
-        Guy(ali).approveCDPModification(address(collateralAuctionHouse));
-        Guy(bob).approveCDPModification(address(collateralAuctionHouse));
+        Guy(ali).approveCDPModification("english", address(collateralAuctionHouse));
+        Guy(bob).approveCDPModification("english", address(collateralAuctionHouse));
         cdpEngine.approveCDPModification(address(collateralAuctionHouse));
 
-        cdpEngine.modifyCollateralBalance("gems", address(this), 1000 ether);
+        cdpEngine.modifyCollateralBalance("collateralType", address(this), 1000 ether);
         cdpEngine.mint(ali, 200 ether);
         cdpEngine.mint(bob, 200 ether);
     }
@@ -147,8 +170,8 @@ contract EnglishCollateralAuctionHouseTest is DSTest {
                                             , initialBid: 0
                                             });
     }
-    function testFail_tend_empty() public {
-        // can't tend on non-existent
+    function testFail_increaseBidSize_empty() public {
+        // can't increase bid size on non-existent
         collateralAuctionHouse.increaseBidSize(42, 0, 0);
     }
     function test_increase_bid_decrease_sold_same_bidder() public {
@@ -374,7 +397,7 @@ contract EnglishCollateralAuctionHouseTest is DSTest {
         // initialBid is refunded to bidder from caller
         assertEq(cdpEngine.coin_balance(ali),            200 ether);
         assertEq(cdpEngine.coin_balance(address(this)),    0 ether);
-        // gems go to caller
+        // collateralType go to caller
         assertEq(cdpEngine.token_collateral_balance(address(this)), 1000 ether);
     }
     function test_terminate_prematurely_decrease_sold() public {
@@ -389,6 +412,171 @@ contract EnglishCollateralAuctionHouseTest is DSTest {
         Guy(ali).decreaseSoldAmount(id,  95 ether, 50 ether);
 
         // cannot terminate_prematurely in the dent phase
-        assertTrue(!Guy(ali).try_terminateAuctionPrematurely(id));
+        assertTrue(!Guy(ali).try_english_terminateAuctionPrematurely(id));
     }
+}
+
+contract FixedDiscountCollateralAuctionHouseTest is DSTest {
+    Hevm hevm;
+
+    CDPEngine_ cdpEngine;
+    FixedDiscountCollateralAuctionHouse collateralAuctionHouse;
+    OracleRelayer oracleRelayer;
+    Feed    feed;
+
+    address ali;
+    address bob;
+    address auctionIncomeRecipient;
+    address cdpAuctioned = address(0xacab);
+
+    uint constant WAD = 10 ** 18;
+    uint constant RAY = 10 ** 27;
+    uint constant RAD = 10 ** 45;
+
+    function setUp() public {
+        hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
+        hevm.warp(604411200);
+
+        cdpEngine = new CDPEngine_();
+
+        cdpEngine.initializeCollateralType("collateralType");
+        cdpEngine.set_collateral_type("collateralType");
+
+        collateralAuctionHouse = new FixedDiscountCollateralAuctionHouse(address(cdpEngine), "collateralType");
+
+        oracleRelayer = new OracleRelayer(address(cdpEngine));
+        oracleRelayer.modifyParameters("redemptionPrice", 5 * RAY);
+        collateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
+
+        feed = new Feed(bytes32(uint256(0)), true);
+        collateralAuctionHouse.modifyParameters("orcl", address(feed));
+
+        ali = address(new Guy(EnglishCollateralAuctionHouse(address(0)), collateralAuctionHouse));
+        bob = address(new Guy(EnglishCollateralAuctionHouse(address(0)), collateralAuctionHouse));
+        auctionIncomeRecipient = address(new Gal());
+
+        Guy(ali).approveCDPModification("fixed", address(collateralAuctionHouse));
+        Guy(bob).approveCDPModification("fixed", address(collateralAuctionHouse));
+        cdpEngine.approveCDPModification(address(collateralAuctionHouse));
+
+        cdpEngine.modifyCollateralBalance("collateralType", address(this), 1000 ether);
+        cdpEngine.mint(ali, 200 ether);
+        cdpEngine.mint(bob, 200 ether);
+    }
+
+    // --- Math ---
+    function addition(uint x, uint y) internal pure returns (uint z) {
+        require((z = x + y) >= x);
+    }
+    function subtract(uint x, uint y) internal pure returns (uint z) {
+        require((z = x - y) <= x);
+    }
+    function multiply(uint x, uint y) internal pure returns (uint z) {
+        require(y == 0 || (z = x * y) / y == x);
+    }
+    function wmultiply(uint x, uint y) internal pure returns (uint z) {
+        z = multiply(x, y) / WAD;
+    }
+    function rdivide(uint x, uint y) internal pure returns (uint z) {
+      z = multiply(x, RAY) / y;
+    }
+    function wdivide(uint x, uint y) internal pure returns (uint z) {
+      z = multiply(x, WAD) / y;
+    }
+
+    function test_modifyParameters() public {
+        collateralAuctionHouse.modifyParameters("discount", 0.90E18);
+        collateralAuctionHouse.modifyParameters("minimumBid", 50 * WAD);
+
+        assertEq(collateralAuctionHouse.discount(), 0.90E18);
+        assertEq(collateralAuctionHouse.minimumBid(), 50 * WAD);
+    }
+    function test_startAuction() public {
+        collateralAuctionHouse.startAuction({ amountToSell: 100 ether
+                                            , amountToRaise: 50 ether
+                                            , forgoneCollateralReceiver: cdpAuctioned
+                                            , auctionIncomeRecipient: auctionIncomeRecipient
+                                            });
+    }
+    function testFail_buyCollateral_inexistent_auction() public {
+        // can't buyCollateral on non-existent
+        collateralAuctionHouse.buyCollateral(42, 0, 5 * WAD);
+    }
+    function testFail_buyCollateral_null_bid() public {
+        collateralAuctionHouse.startAuction({ amountToSell: 100 ether
+                                            , amountToRaise: 50 ether
+                                            , forgoneCollateralReceiver: cdpAuctioned
+                                            , auctionIncomeRecipient: auctionIncomeRecipient
+                                            });
+        // can't buy collateral on non-existent
+        collateralAuctionHouse.buyCollateral(1, 0, 0);
+    }
+    function testFail_faulty_oracle_price() public {
+        Feed faultyFeed = new Feed(bytes32(uint256(1)), false);
+        collateralAuctionHouse.modifyParameters("orcl", address(faultyFeed));
+        collateralAuctionHouse.startAuction({ amountToSell: 100 ether
+                                            , amountToRaise: 50 ether
+                                            , forgoneCollateralReceiver: cdpAuctioned
+                                            , auctionIncomeRecipient: auctionIncomeRecipient
+                                            });
+        collateralAuctionHouse.buyCollateral(1, 0, 5 * WAD);
+    }
+    function test_buy_some_collateral() public {
+        oracleRelayer.modifyParameters("redemptionPrice", RAY);
+        feed.set_val(bytes32(uint256(200 ether)));
+        cdpEngine.mint(ali, 200 * RAD - 200 ether);
+
+        uint collateralAmountPreBid = cdpEngine.tokenCollateral("collateralType", address(ali));
+
+        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
+                                                      , amountToRaise: 50 * RAD
+                                                      , forgoneCollateralReceiver: cdpAuctioned
+                                                      , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      });
+        Guy(ali).buyCollateral(id, 0, 25 * WAD);
+
+        (uint256 raisedAmount, uint256 soldAmount, , , , ) = collateralAuctionHouse.bids(id);
+        assertEq(raisedAmount, 25 * RAD);
+        assertEq(soldAmount, 131578947368421052);
+
+        assertEq(cdpEngine.coinBalance(auctionIncomeRecipient), 25 * RAD);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 1 ether - 131578947368421052);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 131578947368421052);
+    }
+    function test_buy_all_collateral() public {
+
+    }
+    function test_buyCollateral_adjusted_bid_higher_than_leftover() public {
+
+    }
+    function test_buyCollateral_small_market_price() public {
+        feed.set_val(bytes32(uint256(0.1 ether)));
+    }
+    function test_buyCollateral_small_redemption_price() public {
+
+    }
+    function test_buyCollateral_insignificant_leftover_collateral() public {
+        feed.set_val(bytes32(uint256(200 ether)));
+    }
+    function test_buyCollateral_insignificant_leftover_to_raise() public {
+        feed.set_val(bytes32(uint256(200 ether)));
+    }
+    function test_big_discount_buy() public {
+        feed.set_val(bytes32(uint256(200 ether)));
+    }
+    function test_small_discount_buy() public {
+        feed.set_val(bytes32(uint256(200 ether)));
+    }
+    function test_non_null_amountToBuy() public {
+        feed.set_val(bytes32(uint256(200 ether)));
+    }
+    function test_big_amountToBuy() public {
+        feed.set_val(bytes32(uint256(200 ether)));
+    }
+    // function testFail_terminate_inexistent() public {
+    //
+    // }
+    // function test_terminatePrematurely() public {
+    //
+    // }
 }
