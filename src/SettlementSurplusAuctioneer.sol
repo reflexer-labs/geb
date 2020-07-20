@@ -87,11 +87,11 @@ contract SettlementSurplusAuctioneer is Logging {
      */
     function modifyParameters(bytes32 parameter, address addr) external emitLog isAuthorized {
         if (parameter == "accountingEngine") {
-          cdpEngine.denyCDPModification(address(surplusAuctionHouse));
           accountingEngine = AccountingEngineLike(addr);
-          cdpEngine.approveCDPModification(address(surplusAuctionHouse));
         } else if (parameter == "surplusAuctionHouse") {
+          cdpEngine.denyCDPModification(address(surplusAuctionHouse));
           surplusAuctionHouse = SurplusAuctionHouseLike(addr);
+          cdpEngine.approveCDPModification(address(surplusAuctionHouse));
         }
         else revert("SettlementSurplusAuctioneer/modify-unrecognized-param");
     }
