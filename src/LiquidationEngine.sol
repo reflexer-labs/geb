@@ -19,7 +19,7 @@ pragma solidity ^0.6.7;
 
 import "./Logging.sol";
 
-abstract contract EnglishCollateralAuctionHouseLike {
+abstract contract CollateralAuctionHouseLike {
     function startAuction(
       address forgoneCollateralReceiver,
       address initialBidder,
@@ -29,7 +29,7 @@ abstract contract EnglishCollateralAuctionHouseLike {
     ) virtual public returns (uint);
 }
 abstract contract CDPSaviourLike {
-    function saveCDP(address,bytes32,address) virtual public returns (bool,uint256,uint256);
+    function saveCDP(address,bytes32,address) virtual external returns (bool,uint256,uint256);
 }
 abstract contract CDPEngineLike {
     function collateralTypes(bytes32) virtual public view returns (
@@ -77,7 +77,13 @@ contract LiquidationEngine is Logging {
     // Contracts that can save CDPs from liquidation
     mapping (address => uint) public cdpSaviours;
     // Governance used function to add contracts that can save CDPs from liquidation
-    function connectCDPSaviour(address saviour) external emitLog isAuthorized { cdpSaviours[saviour] = 1; }
+    function connectCDPSaviour(address saviour) external emitLog isAuthorized {
+        (bool ok, uint256 collateralAdded, uint256 liquidatorReward) =
+          CDPSaviourLike(saviour).saveCDP(address(this), "", address(0));
+        require(ok, "LiquidationEngine/saviour-not-ok");
+        require(both(collateralAdded == uint(-1), liquidatorReward == uint(-1)), "LiquidationEngine/invalid-amounts");
+        cdpSaviours[saviour] = 1;
+    }
     // Governance used function to remove contracts that can save CDPs from liquidation
     function disconnectCDPSaviour(address saviour) external emitLog isAuthorized { cdpSaviours[saviour] = 0; }
 
@@ -116,7 +122,7 @@ contract LiquidationEngine is Logging {
       address indexed cdp,
       uint256 collateralAdded
     );
-    event FailedCDPSave(string failReason);
+    event FailedCDPSave(bytes failReason);
 
     // --- Init ---
     constructor(address cdpEngine_) public {
@@ -230,11 +236,11 @@ contract LiquidationEngine is Logging {
         if (chosenCDPSaviour[collateralType][cdp] != address(0) &&
             cdpSaviours[chosenCDPSaviour[collateralType][cdp]] == 1) {
           try CDPSaviourLike(chosenCDPSaviour[collateralType][cdp]).saveCDP(msg.sender, collateralType, cdp)
-            returns (bool ok, uint256 collateralAdded, uint256 liquidatorReward) {
+            returns (bool ok, uint256 collateralAdded, uint256) {
             if (both(ok, collateralAdded > 0)) {
               emit SaveCDP(collateralType, cdp, collateralAdded);
             }
-          } catch Error(string memory revertReason) {
+          } catch (bytes memory revertReason) {
             emit FailedCDPSave(revertReason);
           }
         }
@@ -253,7 +259,7 @@ contract LiquidationEngine is Logging {
 
           accountingEngine.pushDebtToQueue(multiply(cdpDebt, accumulatedRates));
 
-          auctionId = EnglishCollateralAuctionHouseLike(collateralTypes[collateralType].collateralAuctionHouse).startAuction(
+          auctionId = CollateralAuctionHouseLike(collateralTypes[collateralType].collateralAuctionHouse).startAuction(
             { forgoneCollateralReceiver: cdp
             , initialBidder: address(accountingEngine)
             , amountToRaise: rmultiply(multiply(cdpDebt, accumulatedRates), collateralTypes[collateralType].liquidationPenalty)

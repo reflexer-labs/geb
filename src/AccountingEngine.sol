@@ -162,7 +162,6 @@ contract AccountingEngine is Logging {
     function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
         if (parameter == "surplusAuctionDelay") surplusAuctionDelay = data;
         else if (parameter == "popDebtDelay") popDebtDelay = data;
-        else if (parameter == "surplusAuctionDelay") surplusAuctionDelay = data;
         else if (parameter == "surplusAuctionAmountToSell") surplusAuctionAmountToSell = data;
         else if (parameter == "debtAuctionBidSize") debtAuctionBidSize = data;
         else if (parameter == "initialDebtAuctionMintedTokens") initialDebtAuctionMintedTokens = data;

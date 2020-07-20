@@ -473,7 +473,8 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         address forgoneCollateralReceiver,
         address auctionIncomeRecipient,
         uint256 amountToRaise,
-        uint256 amountToSell
+        uint256 amountToSell,
+        uint256 initialBid
     ) public isAuthorized returns (uint id) {
         require(auctionsStarted < uint(-1), "FixedDiscountCollateralAuctionHouse/overflow");
         require(amountToSell > 0, "FixedDiscountCollateralAuctionHouse/no-collateral-for-sale");
