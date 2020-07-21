@@ -243,7 +243,7 @@ contract StabilityFeeTreasury is Logging {
      */
     function transferSurplusFunds() external emitLog {
         require(now >= addition(latestSurplusTransferTime, surplusTransferDelay), "StabilityFeeTreasury/transfer-cooldown-not-passed");
-        // Compute latestExpenses and capacity
+        // Compute latest expenses
         uint latestExpenses = subtract(expensesAccumulator, accumulatorTag);
         // Check if we need to keep more funds than the total capacity
         uint remainingFunds =

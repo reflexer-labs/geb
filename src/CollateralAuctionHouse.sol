@@ -118,7 +118,7 @@ contract EnglishCollateralAuctionHouse is Logging {
     }
 
     // --- Math ---
-    function addition(uint48 x, uint48 y) internal pure returns (uint48 z) {
+    function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
         require((z = x + y) >= x);
     }
     function multiply(uint x, uint y) internal pure returns (uint z) {
@@ -180,7 +180,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         bids[id].bidAmount = initialBid;
         bids[id].amountToSell = amountToSell;
         bids[id].highBidder = msg.sender;
-        bids[id].auctionDeadline = addition(uint48(now), totalAuctionLength);
+        bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
         bids[id].forgoneCollateralReceiver = forgoneCollateralReceiver;
         bids[id].auctionIncomeRecipient = auctionIncomeRecipient;
         bids[id].amountToRaise = amountToRaise;
@@ -196,7 +196,7 @@ contract EnglishCollateralAuctionHouse is Logging {
     function restartAuction(uint id) external emitLog {
         require(bids[id].auctionDeadline < now, "EnglishCollateralAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "EnglishCollateralAuctionHouse/bid-already-placed");
-        bids[id].auctionDeadline = addition(uint48(now), totalAuctionLength);
+        bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
     }
     /**
      * @notice First auction phase: submit a higher bid for the same amount of collateral
@@ -230,7 +230,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         cdpEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, rad - bids[id].bidAmount);
 
         bids[id].bidAmount = rad;
-        bids[id].bidExpiry = addition(uint48(now), bidDuration);
+        bids[id].bidExpiry = addUint48(uint48(now), bidDuration);
     }
     /**
      * @notice Second auction phase: decrease the collateral amount you're willing to receive in
@@ -261,7 +261,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         );
 
         bids[id].amountToSell = amountToBuy;
-        bids[id].bidExpiry    = addition(uint48(now), bidDuration);
+        bids[id].bidExpiry    = addUint48(uint48(now), bidDuration);
     }
     /**
      * @notice Settle/finish an auction

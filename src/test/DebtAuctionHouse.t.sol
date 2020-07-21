@@ -43,8 +43,6 @@ contract Guy {
 }
 
 contract Gal {
-    mapping (uint256 => uint256) public activeDebtAuctions;
-    uint256 public activeDebtAuctionsAccumulator;
     uint256 public totalOnAuctionDebt;
 
     function sub(uint x, uint y) internal pure returns (uint z) {
@@ -53,14 +51,7 @@ contract Gal {
     function startAuction(DebtAuctionHouse debtAuctionHouse, uint amountToSell, uint initialBid) external returns (uint) {
         totalOnAuctionDebt += initialBid;
         uint id = debtAuctionHouse.startAuction(address(this), amountToSell, initialBid);
-        activeDebtAuctionsAccumulator = activeDebtAuctionsAccumulator + id;
-        activeDebtAuctions[id] = 1;
         return id;
-    }
-    function settleDebtAuction(uint id) external {
-        require(activeDebtAuctions[id] == 1, "AccountingEngine/debt-auction-not-active");
-        activeDebtAuctions[id] = 0;
-        activeDebtAuctionsAccumulator = sub(activeDebtAuctionsAccumulator, id);
     }
     function cancelAuctionedDebtWithSurplus(uint rad) external {
         totalOnAuctionDebt = sub(totalOnAuctionDebt, rad);
@@ -127,9 +118,7 @@ contract DebtAuctionHouseTest is DSTest {
         assertEq(cdpEngine.coinBalance(accountingEngine), 0);
         assertEq(protocolToken.balanceOf(accountingEngine), 0 ether);
         uint id = Gal(accountingEngine).startAuction(debtAuctionHouse, /*amountToSell*/ 200 ether, /*bid*/ 5000 ether);
-        // marked auction in the accounting engine
-        assertEq(Gal(accountingEngine).activeDebtAuctions(id), id);
-        assertEq(Gal(accountingEngine).activeDebtAuctionsAccumulator(), id);
+        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), id);
         // no value transferred
         assertEq(cdpEngine.coinBalance(accountingEngine), 0);
         assertEq(protocolToken.balanceOf(accountingEngine), 0 ether);
@@ -165,8 +154,7 @@ contract DebtAuctionHouseTest is DSTest {
         protocolToken.setOwner(address(debtAuctionHouse));
         Guy(bob).settleAuction(id);
         // marked auction in the accounting engine
-        assertEq(Gal(accountingEngine).activeDebtAuctions(id), 0);
-        assertEq(Gal(accountingEngine).activeDebtAuctionsAccumulator(), 0);
+        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), 0);
         // tokens minted on demand
         assertEq(protocolToken.totalSupply(), 80 ether);
         // bob gets the winnings
@@ -199,8 +187,7 @@ contract DebtAuctionHouseTest is DSTest {
         protocolToken.setOwner(address(debtAuctionHouse));
         Guy(bob).settleAuction(id);
         // marked auction in the accounting engine
-        assertEq(Gal(accountingEngine).activeDebtAuctions(id), 0);
-        assertEq(Gal(accountingEngine).activeDebtAuctionsAccumulator(), 0);
+        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), 0);
         // tokens minted on demand
         assertEq(protocolToken.totalSupply(), 80 ether);
         // bob gets the winnings
@@ -217,8 +204,7 @@ contract DebtAuctionHouseTest is DSTest {
         assertTrue(!Guy(ali).try_decreaseSoldAmount(id, 100 ether, 10 ether));
         assertTrue( Guy(ali).try_restart_auction(id));
         // left auction in the accounting engine
-        assertEq(Gal(accountingEngine).activeDebtAuctions(id), id);
-        assertEq(Gal(accountingEngine).activeDebtAuctionsAccumulator(), id);
+        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), id);
         // check biddable
         (, uint _amountToSell,,,) = debtAuctionHouse.bids(id);
         // restart should increase the amountToSell by pad (50%) and restart the auction
@@ -226,7 +212,7 @@ contract DebtAuctionHouseTest is DSTest {
         assertTrue( Guy(ali).try_decreaseSoldAmount(id, 100 ether, 10 ether));
     }
 
-    function test_no_deal_after_end() public {
+    function test_no_deal_after_settlement() public {
         // if there are no bids and the auction ends, then it should not
         // be refundable to the creator. Rather, it restarts indefinitely.
         uint id = Gal(accountingEngine).startAuction(debtAuctionHouse, /*amountToSell*/ 200 ether, /*bid*/ 10 ether);
@@ -235,8 +221,7 @@ contract DebtAuctionHouseTest is DSTest {
         assertTrue(!Guy(ali).try_settleAuction(id));
         assertTrue( Guy(ali).try_restart_auction(id));
         // left auction in the accounting engine
-        assertEq(Gal(accountingEngine).activeDebtAuctions(id), id);
-        assertEq(Gal(accountingEngine).activeDebtAuctionsAccumulator(), id);
+        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), id);
         assertTrue(!Guy(ali).try_settleAuction(id));
     }
 
@@ -265,8 +250,7 @@ contract DebtAuctionHouseTest is DSTest {
         debtAuctionHouse.terminateAuctionPrematurely(id);
 
         // deleted auction from the accounting engine
-        assertEq(Gal(accountingEngine).activeDebtAuctions(id), 0);
-        assertEq(Gal(accountingEngine).activeDebtAuctionsAccumulator(), 0);
+        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), 0);
         // confirm final state
         assertEq(cdpEngine.coinBalance(ali), 200 ether);
         assertEq(cdpEngine.coinBalance(bob), 200 ether);  // bob's bid has been refunded
@@ -296,8 +280,7 @@ contract DebtAuctionHouseTest is DSTest {
         debtAuctionHouse.terminateAuctionPrematurely(id);
 
         // deleted auction from the accounting engine
-        assertEq(Gal(accountingEngine).activeDebtAuctions(id), 0);
-        assertEq(Gal(accountingEngine).activeDebtAuctionsAccumulator(), 0);
+        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), 0);
         // confirm final state
         assertEq(cdpEngine.coinBalance(ali), 200 ether);
         assertEq(cdpEngine.coinBalance(bob), 200 ether);

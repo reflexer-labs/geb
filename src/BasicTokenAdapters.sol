@@ -237,7 +237,7 @@ contract CoinJoin is Logging {
         contractEnabled = 0;
     }
     uint constant RAY = 10 ** 27;
-    function mul(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
     /**
@@ -248,7 +248,7 @@ contract CoinJoin is Logging {
     * @param wad Amount of external coins to join (18 decimal number)
     **/
     function join(address account, uint wad) external emitLog {
-        cdpEngine.transferInternalCoins(address(this), account, mul(RAY, wad));
+        cdpEngine.transferInternalCoins(address(this), account, multiply(RAY, wad));
         systemCoin.burn(msg.sender, wad);
     }
     /**
@@ -261,7 +261,7 @@ contract CoinJoin is Logging {
     **/
     function exit(address account, uint wad) external emitLog {
         require(contractEnabled == 1, "CoinJoin/contract-not-enabled");
-        cdpEngine.transferInternalCoins(msg.sender, address(this), mul(RAY, wad));
+        cdpEngine.transferInternalCoins(msg.sender, address(this), multiply(RAY, wad));
         systemCoin.mint(account, wad);
     }
 }
