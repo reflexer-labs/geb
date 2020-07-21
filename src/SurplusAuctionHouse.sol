@@ -71,6 +71,8 @@ contract PreSettlementSurplusAuctionHouse is Logging {
     uint256  public   auctionsStarted = 0;
     uint256  public   contractEnabled;
 
+    bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("SURPLUS");
+
     // --- Events ---
     event StartAuction(
         uint256 id,
@@ -195,6 +197,8 @@ contract PostSettlementSurplusAuctionHouse is Logging {
     uint48   public   totalAuctionLength = 2 days;
     uint256  public   auctionsStarted = 0;
     uint256  public   contractEnabled;
+
+    bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("SURPLUS");
 
     // --- Events ---
     event StartAuction(

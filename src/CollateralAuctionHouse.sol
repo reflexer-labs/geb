@@ -98,6 +98,8 @@ contract EnglishCollateralAuctionHouse is Logging {
     OracleRelayerLike public oracleRelayer;
     OracleLike        public orcl;
 
+    bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("COLLATERAL");
+
     // --- Events ---
     event StartAuction(
         uint256 id,
@@ -363,6 +365,8 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
 
     OracleRelayerLike public oracleRelayer;
     OracleLike        public orcl;
+
+    bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("COLLATERAL");
 
     // --- Events ---
     event StartAuction(

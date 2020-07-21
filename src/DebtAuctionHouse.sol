@@ -73,6 +73,8 @@ contract DebtAuctionHouse is Logging {
     uint256  public   auctionsStarted = 0;
     uint256  public   contractEnabled;
 
+    bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("DEBT");
+
     // --- Events ---
     event StartAuction(
       uint256 id,
@@ -164,6 +166,7 @@ contract DebtAuctionHouse is Logging {
         require(contractEnabled == 1, "DebtAuctionHouse/not-live");
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "DebtAuctionHouse/not-finished");
         protocolToken.mint(bids[id].highBidder, bids[id].amountToSell);
+	// TODO: try/catch esm-setter signalling
         accountingEngine.settleDebtAuction(id);
         delete bids[id];
     }
