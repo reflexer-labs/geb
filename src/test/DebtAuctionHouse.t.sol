@@ -118,7 +118,7 @@ contract DebtAuctionHouseTest is DSTest {
         assertEq(cdpEngine.coinBalance(accountingEngine), 0);
         assertEq(protocolToken.balanceOf(accountingEngine), 0 ether);
         uint id = Gal(accountingEngine).startAuction(debtAuctionHouse, /*amountToSell*/ 200 ether, /*bid*/ 5000 ether);
-        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), id);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), id);
         // no value transferred
         assertEq(cdpEngine.coinBalance(accountingEngine), 0);
         assertEq(protocolToken.balanceOf(accountingEngine), 0 ether);
@@ -154,7 +154,7 @@ contract DebtAuctionHouseTest is DSTest {
         protocolToken.setOwner(address(debtAuctionHouse));
         Guy(bob).settleAuction(id);
         // marked auction in the accounting engine
-        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), 0);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), 0);
         // tokens minted on demand
         assertEq(protocolToken.totalSupply(), 80 ether);
         // bob gets the winnings
@@ -187,7 +187,7 @@ contract DebtAuctionHouseTest is DSTest {
         protocolToken.setOwner(address(debtAuctionHouse));
         Guy(bob).settleAuction(id);
         // marked auction in the accounting engine
-        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), 0);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), 0);
         // tokens minted on demand
         assertEq(protocolToken.totalSupply(), 80 ether);
         // bob gets the winnings
@@ -204,7 +204,7 @@ contract DebtAuctionHouseTest is DSTest {
         assertTrue(!Guy(ali).try_decreaseSoldAmount(id, 100 ether, 10 ether));
         assertTrue( Guy(ali).try_restart_auction(id));
         // left auction in the accounting engine
-        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), id);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), id);
         // check biddable
         (, uint _amountToSell,,,) = debtAuctionHouse.bids(id);
         // restart should increase the amountToSell by pad (50%) and restart the auction
@@ -221,7 +221,7 @@ contract DebtAuctionHouseTest is DSTest {
         assertTrue(!Guy(ali).try_settleAuction(id));
         assertTrue( Guy(ali).try_restart_auction(id));
         // left auction in the accounting engine
-        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), id);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), id);
         assertTrue(!Guy(ali).try_settleAuction(id));
     }
 
@@ -250,7 +250,7 @@ contract DebtAuctionHouseTest is DSTest {
         debtAuctionHouse.terminateAuctionPrematurely(id);
 
         // deleted auction from the accounting engine
-        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), 0);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), 0);
         // confirm final state
         assertEq(cdpEngine.coinBalance(ali), 200 ether);
         assertEq(cdpEngine.coinBalance(bob), 200 ether);  // bob's bid has been refunded
@@ -280,7 +280,7 @@ contract DebtAuctionHouseTest is DSTest {
         debtAuctionHouse.terminateAuctionPrematurely(id);
 
         // deleted auction from the accounting engine
-        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), 0);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), 0);
         // confirm final state
         assertEq(cdpEngine.coinBalance(ali), 200 ether);
         assertEq(cdpEngine.coinBalance(bob), 200 ether);

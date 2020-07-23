@@ -791,7 +791,7 @@ contract LiquidationTest is DSTest {
         accountingEngine.modifyParameters("debtAuctionBidSize", rad(10 ether));
         accountingEngine.modifyParameters("initialDebtAuctionMintedTokens", 2000 ether);
         uint f1 = accountingEngine.auctionDebt();
-        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), f1);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), f1);
         assertEq(accountingEngine.preAuctionDebt(), rad(90 ether));
         assertEq(accountingEngine.totalSurplus(),  rad( 0 ether));
         assertEq(accountingEngine.totalOnAuctionDebt(),  rad(10 ether));
@@ -804,7 +804,7 @@ contract LiquidationTest is DSTest {
         hevm.warp(now + 4 hours);
         protocolToken.setOwner(address(debtAuctionHouse));
         debtAuctionHouse.settleAuction(f1);
-        assertEq(debtAuctionHouse.activeDebtAuctionsAccumulator(), 0);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), 0);
         assertEq(protocolToken.balanceOf(address(this)), 1100 ether);
     }
 }
