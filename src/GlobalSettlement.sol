@@ -243,7 +243,7 @@ contract GlobalSettlement is Logging {
         shutdownTime = now;
         cdpEngine.disableContract();
         liquidationEngine.disableContract();
-        // Treasury must be disabled before accounting engine so all surplus is gathered in one place
+        // treasury must be disabled before AccountingEngine so that all surplus is gathered in one place
         if (address(stabilityFeeTreasury) != address(0)) {
           stabilityFeeTreasury.disableContract();
         }

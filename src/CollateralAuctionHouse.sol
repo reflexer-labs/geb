@@ -202,7 +202,7 @@ contract EnglishCollateralAuctionHouse is Logging {
     /**
      * @notice First auction phase: submit a higher bid for the same amount of collateral
      * @param id ID of the auction you want to submit the bid for
-     * @param amountToBuy Amount of collateral to buy (must be equal to the amount sold in this implementation)
+     * @param amountToBuy Amount of collateral to buy
      * @param rad New bid submitted (expressed as RAD)
      */
     function increaseBidSize(uint id, uint amountToBuy, uint rad) external emitLog {
