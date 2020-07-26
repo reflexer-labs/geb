@@ -44,10 +44,10 @@ contract Coin is Logging {
     event Transfer(address indexed src, address indexed dst, uint amount);
 
     // --- Math ---
-    function add(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint x, uint y) internal pure returns (uint z) {
         require((z = x + y) >= x);
     }
-    function sub(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint x, uint y) internal pure returns (uint z) {
         require((z = x - y) <= x);
     }
 
@@ -83,26 +83,26 @@ contract Coin is Logging {
         require(balanceOf[src] >= amount, "Coin/insufficient-balance");
         if (src != msg.sender && allowance[src][msg.sender] != uint(-1)) {
             require(allowance[src][msg.sender] >= amount, "Coin/insufficient-allowance");
-            allowance[src][msg.sender] = sub(allowance[src][msg.sender], amount);
+            allowance[src][msg.sender] = subtract(allowance[src][msg.sender], amount);
         }
-        balanceOf[src] = sub(balanceOf[src], amount);
-        balanceOf[dst] = add(balanceOf[dst], amount);
+        balanceOf[src] = subtract(balanceOf[src], amount);
+        balanceOf[dst] = addition(balanceOf[dst], amount);
         emit Transfer(src, dst, amount);
         return true;
     }
     function mint(address usr, uint amount) external isAuthorized {
-        balanceOf[usr] = add(balanceOf[usr], amount);
-        totalSupply    = add(totalSupply, amount);
+        balanceOf[usr] = addition(balanceOf[usr], amount);
+        totalSupply    = addition(totalSupply, amount);
         emit Transfer(address(0), usr, amount);
     }
     function burn(address usr, uint amount) external {
         require(balanceOf[usr] >= amount, "Coin/insufficient-balance");
         if (usr != msg.sender && allowance[usr][msg.sender] != uint(-1)) {
             require(allowance[usr][msg.sender] >= amount, "Coin/insufficient-allowance");
-            allowance[usr][msg.sender] = sub(allowance[usr][msg.sender], amount);
+            allowance[usr][msg.sender] = subtract(allowance[usr][msg.sender], amount);
         }
-        balanceOf[usr] = sub(balanceOf[usr], amount);
-        totalSupply    = sub(totalSupply, amount);
+        balanceOf[usr] = subtract(balanceOf[usr], amount);
+        totalSupply    = subtract(totalSupply, amount);
         emit Transfer(usr, address(0), amount);
     }
     function approve(address usr, uint amount) external returns (bool) {

@@ -92,17 +92,11 @@ contract AccountingEngine is Logging {
       that print protocol tokens
     **/
     mapping (uint256 => uint256) public debtQueue;
-    /**
-      Which debt auctions are currently being bid on
-    **/
-    mapping (uint256 => uint256) public activeDebtAuctions;
     // Total debt in the queue (that the system tries to cover with collateral auctions)
     uint256 public totalQueuedDebt;                         // [rad]
     // Total debt being auctioned in DebtAuctionHouse (printing protocol tokens for coins that will settle the debt)
     uint256 public totalOnAuctionDebt;                      // [rad]
 
-    // Accumulator for all debt auctions currently not settled
-    uint256 public activeDebtAuctionsAccumulator;
     // When the last surplus auction was triggered; enforces a delay in case we use DEX surplus auctions
     uint256 public lastSurplusAuctionTime;
     // Delay between surplus auctions
@@ -143,13 +137,13 @@ contract AccountingEngine is Logging {
     }
 
     // --- Math ---
-    function add(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint x, uint y) internal pure returns (uint z) {
         require((z = x + y) >= x);
     }
-    function sub(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint x, uint y) internal pure returns (uint z) {
         require((z = x - y) <= x);
     }
-    function min(uint x, uint y) internal pure returns (uint z) {
+    function minimum(uint x, uint y) internal pure returns (uint z) {
         return x <= y ? x : y;
     }
 
@@ -194,8 +188,8 @@ contract AccountingEngine is Logging {
      * @param debtBlock Amount of debt to push
      */
     function pushDebtToQueue(uint debtBlock) external emitLog isAuthorized {
-        debtQueue[now] = add(debtQueue[now], debtBlock);
-        totalQueuedDebt = add(totalQueuedDebt, debtBlock);
+        debtQueue[now] = addition(debtQueue[now], debtBlock);
+        totalQueuedDebt = addition(totalQueuedDebt, debtBlock);
     }
     /**
      * @notice A block of debt can be popped from the queue after popDebtDelay seconds passed since it was
@@ -203,8 +197,8 @@ contract AccountingEngine is Logging {
      * @param debtBlockTimestamp Timestamp of the block of debt that should be popped out
      */
     function popDebtFromQueue(uint debtBlockTimestamp) external emitLog {
-        require(add(debtBlockTimestamp, popDebtDelay) <= now, "AccountingEngine/pop-debt-delay-not-passed");
-        totalQueuedDebt = sub(totalQueuedDebt, debtQueue[debtBlockTimestamp]);
+        require(addition(debtBlockTimestamp, popDebtDelay) <= now, "AccountingEngine/pop-debt-delay-not-passed");
+        totalQueuedDebt = subtract(totalQueuedDebt, debtQueue[debtBlockTimestamp]);
         debtQueue[debtBlockTimestamp] = 0;
     }
 
@@ -216,7 +210,7 @@ contract AccountingEngine is Logging {
     **/
     function settleDebt(uint rad) external emitLog {
         require(rad <= cdpEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
-        require(rad <= sub(sub(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt), "AccountingEngine/insufficient-debt");
+        require(rad <= subtract(subtract(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt), "AccountingEngine/insufficient-debt");
         cdpEngine.settleDebt(rad);
     }
     /**
@@ -226,7 +220,7 @@ contract AccountingEngine is Logging {
     function cancelAuctionedDebtWithSurplus(uint rad) external emitLog {
         require(rad <= totalOnAuctionDebt, "AccountingEngine/not-enough-debt-being-auctioned");
         require(rad <= cdpEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
-        totalOnAuctionDebt = sub(totalOnAuctionDebt, rad);
+        totalOnAuctionDebt = subtract(totalOnAuctionDebt, rad);
         cdpEngine.settleDebt(rad);
     }
 
@@ -237,25 +231,12 @@ contract AccountingEngine is Logging {
      * @dev We can only auction debt that is not already being auctioned and is not locked in the debt queue
     **/
     function auctionDebt() external emitLog returns (uint id) {
-        require(debtAuctionBidSize <= sub(sub(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt), "AccountingEngine/insufficient-debt");
+        require(debtAuctionBidSize <= subtract(subtract(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt), "AccountingEngine/insufficient-debt");
         require(cdpEngine.coinBalance(address(this)) == 0, "AccountingEngine/surplus-not-zero");
         require(debtAuctionHouse.protocolToken() != address(0), "AccountingEngine/debt-auction-house-null-prot");
         require(protocolTokenAuthority.authorizedAccounts(address(debtAuctionHouse)) == 1, "AccountingEngine/debt-auction-house-cannot-print-prot");
-        totalOnAuctionDebt = add(totalOnAuctionDebt, debtAuctionBidSize);
+        totalOnAuctionDebt = addition(totalOnAuctionDebt, debtAuctionBidSize);
         id = debtAuctionHouse.startAuction(address(this), initialDebtAuctionMintedTokens, debtAuctionBidSize);
-        activeDebtAuctionsAccumulator = add(activeDebtAuctionsAccumulator, 1);
-        activeDebtAuctions[id] = 1;
-    }
-    /**
-      @notice Indicate that a debt auction has settled
-      @dev The msg.sender must be the debtAuctionHouse
-      @param id The id of the debt auction to mark as settled
-    **/
-    function settleDebtAuction(uint id) external emitLog {
-        require(activeDebtAuctions[id] == 1, "AccountingEngine/debt-auction-not-active");
-        require(msg.sender == address(debtAuctionHouse), "AccountingEngine/invalid-msg-sender");
-        activeDebtAuctions[id] = 0;
-        activeDebtAuctionsAccumulator = sub(activeDebtAuctionsAccumulator, 1);
     }
     // Surplus auction
     /**
@@ -265,16 +246,16 @@ contract AccountingEngine is Logging {
     **/
     function auctionSurplus() external emitLog returns (uint id) {
         require(
-          now >= add(lastSurplusAuctionTime, surplusAuctionDelay),
+          now >= addition(lastSurplusAuctionTime, surplusAuctionDelay),
           "AccountingEngine/surplus-auction-delay-not-passed"
         );
         require(
           cdpEngine.coinBalance(address(this)) >=
-          add(add(cdpEngine.debtBalance(address(this)), surplusAuctionAmountToSell), surplusBuffer),
+          addition(addition(cdpEngine.debtBalance(address(this)), surplusAuctionAmountToSell), surplusBuffer),
           "AccountingEngine/insufficient-surplus"
         );
         require(
-          sub(sub(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt) == 0,
+          subtract(subtract(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt) == 0,
           "AccountingEngine/debt-not-zero"
         );
         lastSurplusAuctionTime = now;
@@ -300,7 +281,7 @@ contract AccountingEngine is Logging {
         surplusAuctionHouse.disableContract();
         debtAuctionHouse.disableContract();
 
-        cdpEngine.settleDebt(min(cdpEngine.coinBalance(address(this)), cdpEngine.debtBalance(address(this))));
+        cdpEngine.settleDebt(minimum(cdpEngine.coinBalance(address(this)), cdpEngine.debtBalance(address(this))));
         if (disableCooldown == 0) {
           cdpEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, cdpEngine.coinBalance(address(this)));
         }
@@ -311,7 +292,7 @@ contract AccountingEngine is Logging {
     **/
     function transferPostSettlementSurplus() external emitLog isAuthorized {
         require(contractEnabled == 0, "AccountingEngine/still-enabled");
-        require(add(disableTimestamp, disableCooldown) <= now, "AccountingEngine/cooldown-not-passed");
+        require(addition(disableTimestamp, disableCooldown) <= now, "AccountingEngine/cooldown-not-passed");
         cdpEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, cdpEngine.coinBalance(address(this)));
     }
 }

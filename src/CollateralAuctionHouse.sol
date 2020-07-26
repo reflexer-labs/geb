@@ -98,6 +98,9 @@ contract EnglishCollateralAuctionHouse is Logging {
     OracleRelayerLike public oracleRelayer;
     OracleLike        public orcl;
 
+    bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("COLLATERAL");
+    bytes32 public constant AUCTION_TYPE       = bytes32("ENGLISH");
+
     // --- Events ---
     event StartAuction(
         uint256 id,
@@ -116,7 +119,7 @@ contract EnglishCollateralAuctionHouse is Logging {
     }
 
     // --- Math ---
-    function addition(uint48 x, uint48 y) internal pure returns (uint48 z) {
+    function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
         require((z = x + y) >= x);
     }
     function multiply(uint x, uint y) internal pure returns (uint z) {
@@ -178,7 +181,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         bids[id].bidAmount = initialBid;
         bids[id].amountToSell = amountToSell;
         bids[id].highBidder = msg.sender;
-        bids[id].auctionDeadline = addition(uint48(now), totalAuctionLength);
+        bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
         bids[id].forgoneCollateralReceiver = forgoneCollateralReceiver;
         bids[id].auctionIncomeRecipient = auctionIncomeRecipient;
         bids[id].amountToRaise = amountToRaise;
@@ -194,12 +197,12 @@ contract EnglishCollateralAuctionHouse is Logging {
     function restartAuction(uint id) external emitLog {
         require(bids[id].auctionDeadline < now, "EnglishCollateralAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "EnglishCollateralAuctionHouse/bid-already-placed");
-        bids[id].auctionDeadline = addition(uint48(now), totalAuctionLength);
+        bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
     }
     /**
      * @notice First auction phase: submit a higher bid for the same amount of collateral
      * @param id ID of the auction you want to submit the bid for
-     * @param amountToBuy Amount of collateral to buy (must be equal to the amount sold in this implementation)
+     * @param amountToBuy Amount of collateral to buy
      * @param rad New bid submitted (expressed as RAD)
      */
     function increaseBidSize(uint id, uint amountToBuy, uint rad) external emitLog {
@@ -228,7 +231,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         cdpEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, rad - bids[id].bidAmount);
 
         bids[id].bidAmount = rad;
-        bids[id].bidExpiry = addition(uint48(now), bidDuration);
+        bids[id].bidExpiry = addUint48(uint48(now), bidDuration);
     }
     /**
      * @notice Second auction phase: decrease the collateral amount you're willing to receive in
@@ -259,7 +262,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         );
 
         bids[id].amountToSell = amountToBuy;
-        bids[id].bidExpiry    = addition(uint48(now), bidDuration);
+        bids[id].bidExpiry    = addUint48(uint48(now), bidDuration);
     }
     /**
      * @notice Settle/finish an auction
@@ -281,6 +284,20 @@ contract EnglishCollateralAuctionHouse is Logging {
         cdpEngine.transferCollateral(collateralType, address(this), msg.sender, bids[id].amountToSell);
         cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bids[id].bidAmount);
         delete bids[id];
+    }
+
+    // --- Getters ---
+    function bidAmount(uint id) public view returns (uint256) {
+        return bids[id].bidAmount;
+    }
+    function remainingAmountToSell(uint id) public view returns (uint256) {
+        return bids[id].amountToSell;
+    }
+    function forgoneCollateralReceiver(uint id) public view returns (address) {
+        return bids[id].forgoneCollateralReceiver;
+    }
+    function amountToRaise(uint id) public view returns (uint256) {
+        return bids[id].amountToRaise;
     }
 }
 
@@ -355,7 +372,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     // Minimum acceptable bid
     uint256  public   minimumBid = 5 * WAD; // 5 system coins (expressed as WAD, not RAD)
     // Total length of the auction
-    uint48   public   totalAuctionLength = 2 days;
+    uint48   public   totalAuctionLength = 7 days;
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // Discount (compared to the system coin's current redemption price) at which collateral is being sold
@@ -363,6 +380,9 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
 
     OracleRelayerLike public oracleRelayer;
     OracleLike        public orcl;
+
+    bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("COLLATERAL");
+    bytes32 public constant AUCTION_TYPE       = bytes32("FIXED_DISCOUNT");
 
     // --- Events ---
     event StartAuction(
@@ -428,7 +448,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         bytes32 priceFeedValue,
         uint256 amountToBuy,
         uint256 adjustedBid
-    ) internal returns (uint256) {
+    ) public returns (uint256) {
         // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
         uint256 discountedRedemptionCollateralPrice = getDiscountedRedemptionCollateralPrice(priceFeedValue, discount);
         // calculate the amount of collateral bought
@@ -596,5 +616,19 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
         cdpEngine.transferCollateral(collateralType, address(this), msg.sender, subtract(bids[id].amountToSell, bids[id].soldAmount));
         delete bids[id];
+    }
+
+    // --- Getters ---
+    function bidAmount(uint id) public view returns (uint256) {
+        return 0;
+    }
+    function remainingAmountToSell(uint id) public view returns (uint256) {
+        return subtract(bids[id].amountToSell, bids[id].soldAmount);
+    }
+    function forgoneCollateralReceiver(uint id) public view returns (address) {
+        return bids[id].forgoneCollateralReceiver;
+    }
+    function amountToRaise(uint id) public view returns (uint256) {
+        return bids[id].amountToRaise;
     }
 }

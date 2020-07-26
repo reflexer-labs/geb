@@ -62,7 +62,7 @@ contract TestAccountingEngine is AccountingEngine {
         return cdpEngine.coinBalance(address(this));
     }
     function preAuctionDebt() public view returns (uint) {
-        return sub(sub(totalDeficit(), totalQueuedDebt), totalOnAuctionDebt);
+        return subtract(subtract(totalDeficit(), totalQueuedDebt), totalOnAuctionDebt);
     }
 }
 

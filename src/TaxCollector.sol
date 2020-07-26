@@ -148,7 +148,7 @@ contract TaxCollector is Logging {
         require(y <= 0 || z <= x);
         require(y >= 0 || z >= x);
     }
-    function diff(uint x, uint y) internal pure returns (int z) {
+    function deduct(uint x, uint y) internal pure returns (int z) {
         z = int(x) - int(y);
         require(int(x) >= 0 && int(y) >= 0);
     }
@@ -379,7 +379,7 @@ contract TaxCollector is Logging {
               ),
             RAY),
           lastAccumulatedRate);
-        return (newlyAccumulatedRate, diff(newlyAccumulatedRate, lastAccumulatedRate));
+        return (newlyAccumulatedRate, deduct(newlyAccumulatedRate, lastAccumulatedRate));
     }
 
     // --- Tax Receiver Utils ---

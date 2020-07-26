@@ -27,7 +27,7 @@ import {LiquidationEngine} from '../LiquidationEngine.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
 import {CoinSavingsAccount} from '../CoinSavingsAccount.sol';
 import {StabilityFeeTreasury}  from '../StabilityFeeTreasury.sol';
-import {EnglishCollateralAuctionHouse} from '../CollateralAuctionHouse.sol';
+import {EnglishCollateralAuctionHouse, FixedDiscountCollateralAuctionHouse} from '../CollateralAuctionHouse.sol';
 import {PreSettlementSurplusAuctionHouse} from '../SurplusAuctionHouse.sol';
 import {DebtAuctionHouse} from '../DebtAuctionHouse.sol';
 import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
@@ -156,7 +156,6 @@ contract GlobalSettlementTest is DSTest {
     SettlementSurplusAuctioneer postSettlementSurplusDrain;
     MockRateSetter rateSetter;
 
-    DexLike dex;
     DSToken protocolToken;
     DSToken systemCoin;
     CoinJoin systemCoinA;
@@ -165,7 +164,8 @@ contract GlobalSettlementTest is DSTest {
         DummyOSM oracleSecurityModule;
         DSToken collateral;
         BasicCollateralJoin collateralA;
-        EnglishCollateralAuctionHouse collateralAuctionHouse;
+        EnglishCollateralAuctionHouse englishCollateralAuctionHouse;
+        FixedDiscountCollateralAuctionHouse fixedDiscountCollateralAuctionHouse;
     }
 
     mapping (bytes32 => CollateralType) collateralTypes;
@@ -182,17 +182,17 @@ contract GlobalSettlementTest is DSTest {
     function rad(uint wad) internal pure returns (uint) {
         return wad * RAY;
     }
-    function rmul(uint x, uint y) internal pure returns (uint z) {
+    function rmultiply(uint x, uint y) internal pure returns (uint z) {
         z = x * y;
         require(y == 0 || z / y == x);
         z = z / RAY;
     }
-    function rmul(int x, uint y) internal pure returns (int z) {
+    function rmultiply(int x, uint y) internal pure returns (int z) {
         z = x * int(y);
         require(y == 0 || z / int(y) == x);
         z = z / int(RAY);
     }
-    function min(uint x, uint y) internal pure returns (uint z) {
+    function minimum(uint x, uint y) internal pure returns (uint z) {
         (x >= y) ? z = y : z = x;
     }
     function coinBalance(address cdp) internal view returns (uint) {
@@ -235,6 +235,7 @@ contract GlobalSettlementTest is DSTest {
         BasicCollateralJoin collateralA = new BasicCollateralJoin(address(cdpEngine), name, address(newCollateral));
 
         cdpEngine.modifyParameters(name, "safetyPrice", ray(3 ether));
+        cdpEngine.modifyParameters(name, "liquidationPrice", ray(3 ether));
         cdpEngine.modifyParameters(name, "debtCeiling", rad(1000 ether));
 
         newCollateral.approve(address(collateralA));
@@ -242,21 +243,32 @@ contract GlobalSettlementTest is DSTest {
 
         cdpEngine.addAuthorization(address(collateralA));
 
-        EnglishCollateralAuctionHouse collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(cdpEngine), name);
-        collateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
+        EnglishCollateralAuctionHouse englishCollateralAuctionHouse = new EnglishCollateralAuctionHouse(address(cdpEngine), name);
+        englishCollateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
         // bidToMarketPriceRatio is zero so feed price is irrelevant
-        collateralAuctionHouse.modifyParameters("orcl", address(new Feed(bytes32(uint256(200 ether)), true)));
-        cdpEngine.approveCDPModification(address(collateralAuctionHouse));
-        collateralAuctionHouse.addAuthorization(address(globalSettlement));
-        collateralAuctionHouse.addAuthorization(address(liquidationEngine));
-        liquidationEngine.modifyParameters(name, "collateralAuctionHouse", address(collateralAuctionHouse));
+        englishCollateralAuctionHouse.modifyParameters("orcl", address(new Feed(bytes32(uint256(200 ether)), true)));
+        cdpEngine.approveCDPModification(address(englishCollateralAuctionHouse));
+        englishCollateralAuctionHouse.addAuthorization(address(globalSettlement));
+        englishCollateralAuctionHouse.addAuthorization(address(liquidationEngine));
+
+        FixedDiscountCollateralAuctionHouse fixedDiscountCollateralAuctionHouse =
+          new FixedDiscountCollateralAuctionHouse(address(cdpEngine), name);
+        fixedDiscountCollateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
+        fixedDiscountCollateralAuctionHouse.modifyParameters("orcl", address(new Feed(bytes32(uint256(200 ether)), true)));
+        cdpEngine.approveCDPModification(address(fixedDiscountCollateralAuctionHouse));
+        fixedDiscountCollateralAuctionHouse.addAuthorization(address(globalSettlement));
+        fixedDiscountCollateralAuctionHouse.addAuthorization(address(liquidationEngine));
+
+        // Start with English auction house
+        liquidationEngine.modifyParameters(name, "collateralAuctionHouse", address(englishCollateralAuctionHouse));
         liquidationEngine.modifyParameters(name, "liquidationPenalty", ray(1 ether));
         liquidationEngine.modifyParameters(name, "collateralToSell", rad(15 ether));
 
         collateralTypes[name].oracleSecurityModule = oracleOSM;
         collateralTypes[name].collateral = newCollateral;
         collateralTypes[name].collateralA = collateralA;
-        collateralTypes[name].collateralAuctionHouse = collateralAuctionHouse;
+        collateralTypes[name].englishCollateralAuctionHouse = englishCollateralAuctionHouse;
+        collateralTypes[name].fixedDiscountCollateralAuctionHouse = fixedDiscountCollateralAuctionHouse;
 
         return collateralTypes[name];
     }
@@ -268,7 +280,6 @@ contract GlobalSettlementTest is DSTest {
         cdpEngine = new CDPEngine();
         protocolToken = new DSToken('GOV');
         systemCoin = new DSToken("Coin");
-        dex = new DexLike(1 ether);
         systemCoinA = new CoinJoin(address(cdpEngine), address(systemCoin));
 
         surplusAuctionHouseOne = new PreSettlementSurplusAuctionHouse(address(cdpEngine), address(protocolToken));
@@ -284,7 +295,6 @@ contract GlobalSettlementTest is DSTest {
         systemCoin.setOwner(address(systemCoinA));
 
         protocolToken.mint(200 ether);
-        protocolToken.push(address(dex), 200 ether);
         protocolToken.setOwner(address(debtAuctionHouse));
 
         accountingEngine = new AccountingEngine(address(cdpEngine), address(surplusAuctionHouseOne), address(debtAuctionHouse));
@@ -501,8 +511,8 @@ contract GlobalSettlementTest is DSTest {
         // local checks:
         assertEq(coinBalance(cdp1), 0);
         uint fix = globalSettlement.collateralCashPrice("gold");
-        assertEq(tokenCollateral("gold", cdp1), rmul(fix, 15 ether));
-        ali.exit(gold.collateralA, address(this), uint(rmul(fix, 15 ether)));
+        assertEq(tokenCollateral("gold", cdp1), rmultiply(fix, 15 ether));
+        ali.exit(gold.collateralA, address(this), uint(rmultiply(fix, 15 ether)));
 
         // second coin redemption
         bob.approveCDPModification(address(globalSettlement));
@@ -517,8 +527,8 @@ contract GlobalSettlementTest is DSTest {
 
         // local checks:
         assertEq(coinBalance(cdp2), 0);
-        assertEq(tokenCollateral("gold", cdp2), rmul(fix, 3 ether));
-        bob.exit(gold.collateralA, address(this), uint(rmul(fix, 3 ether)));
+        assertEq(tokenCollateral("gold", cdp2), rmultiply(fix, 3 ether));
+        bob.exit(gold.collateralA, address(this), uint(rmultiply(fix, 3 ether)));
 
         // some dust remains in GlobalSettlement because of rounding:
         assertEq(tokenCollateral("gold", address(globalSettlement)), 1);
@@ -527,7 +537,7 @@ contract GlobalSettlementTest is DSTest {
 
     // -- Scenario where there is one collateralised CDP
     // -- undergoing auction at the time of shutdown
-    function test_shutdown_fast_track_auction() public {
+    function test_shutdown_fast_track_english_auction() public {
         CollateralType memory gold = init_collateral("gold");
 
         Usr ali = new Usr(cdpEngine, globalSettlement);
@@ -541,11 +551,11 @@ contract GlobalSettlementTest is DSTest {
         cdpEngine.modifyParameters("gold", "liquidationPrice", ray(1 ether)); // now unsafe
 
         uint auction = liquidationEngine.liquidateCDP("gold", cdp1); // CDP liquidated
-        assertEq(cdpEngine.globalUnbackedDebt(), rad(15 ether));     // now there is sin
+        assertEq(cdpEngine.globalUnbackedDebt(), rad(15 ether));     // now there is bad debt
         // get 1 coin from ali
         ali.transferInternalCoins(address(ali), address(this), rad(1 ether));
-        cdpEngine.approveCDPModification(address(gold.collateralAuctionHouse));
-        gold.collateralAuctionHouse.increaseBidSize(auction, 10 ether, rad(1 ether)); // bid 1 coin
+        cdpEngine.approveCDPModification(address(gold.englishCollateralAuctionHouse));
+        gold.englishCollateralAuctionHouse.increaseBidSize(auction, 10 ether, rad(1 ether)); // bid 1 coin
         assertEq(coinBalance(cdp1), 14 ether);
 
         // collateral price is 5
@@ -565,7 +575,7 @@ contract GlobalSettlementTest is DSTest {
         assertEq(cdpEngine.debtBalance(address(accountingEngine)), rad(30 ether));
 
         // balance the accountingEngine
-        accountingEngine.settleDebt(min(cdpEngine.coinBalance(address(accountingEngine)), cdpEngine.debtBalance(address(accountingEngine))));
+        accountingEngine.settleDebt(minimum(cdpEngine.coinBalance(address(accountingEngine)), cdpEngine.debtBalance(address(accountingEngine))));
         // global checks:
         assertEq(cdpEngine.globalDebt(), rad(15 ether));
         assertEq(cdpEngine.globalUnbackedDebt(), rad(15 ether));
@@ -596,6 +606,83 @@ contract GlobalSettlementTest is DSTest {
         assertEq(coinBalance(cdp1), 0);
         assertEq(tokenCollateral("gold", cdp1), 3 ether);
         ali.exit(gold.collateralA, address(this), 3 ether);
+
+        assertEq(tokenCollateral("gold", address(globalSettlement)), 0);
+        assertEq(balanceOf("gold", address(gold.collateralA)), 0);
+    }
+
+    function test_shutdown_fast_track_fixed_discount_auction() public {
+        CollateralType memory gold = init_collateral("gold");
+        // swap auction house in the liquidation engine
+        liquidationEngine.modifyParameters("gold", "collateralAuctionHouse", address(gold.fixedDiscountCollateralAuctionHouse));
+
+        Usr ali = new Usr(cdpEngine, globalSettlement);
+
+        // make a CDP:
+        address cdp1 = address(ali);
+        gold.collateralA.join(cdp1, 10 ether);
+        ali.modifyCDPCollateralization("gold", cdp1, cdp1, cdp1, 10 ether, 15 ether);
+
+        cdpEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
+        cdpEngine.modifyParameters("gold", "liquidationPrice", ray(1 ether)); // now unsafe
+
+        uint auction = liquidationEngine.liquidateCDP("gold", cdp1); // CDP liquidated
+        assertEq(cdpEngine.globalUnbackedDebt(), rad(15 ether));     // now there is bad debt
+        // get 1 coin from ali
+        ali.transferInternalCoins(address(ali), address(this), rad(5 ether));
+        cdpEngine.approveCDPModification(address(gold.fixedDiscountCollateralAuctionHouse));
+        gold.fixedDiscountCollateralAuctionHouse.buyCollateral(auction, 0, 5 ether);
+
+        assertEq(coinBalance(cdp1), 10 ether);
+
+        // collateral price is 5
+        gold.oracleSecurityModule.updateCollateralPrice(bytes32(5 * WAD));
+        globalSettlement.shutdownSystem();
+        globalSettlement.freezeCollateralType("gold");
+
+        globalSettlement.fastTrackAuction("gold", auction);
+        assertEq(coinBalance(address(this)), 0);       // bid refunded
+
+        globalSettlement.processCDP("gold", cdp1);
+
+        // local checks:
+        assertEq(generatedDebt("gold", cdp1), 0);
+        assertEq(lockedCollateral("gold", cdp1), 6973684210526315790);
+        assertEq(cdpEngine.debtBalance(address(accountingEngine)), rad(25 ether));
+
+        // balance the accountingEngine
+        accountingEngine.settleDebt(minimum(cdpEngine.coinBalance(address(accountingEngine)), cdpEngine.debtBalance(address(accountingEngine))));
+        // global checks:
+        assertEq(cdpEngine.globalDebt(), rad(10 ether));
+        assertEq(cdpEngine.globalUnbackedDebt(), rad(10 ether));
+
+        // CDP closing
+        ali.freeCollateral("gold");
+        assertEq(lockedCollateral("gold", cdp1), 0);
+        assertEq(tokenCollateral("gold", cdp1), 6973684210526315790);
+        ali.exit(gold.collateralA, address(this), 6973684210526315790);
+
+        hevm.warp(now + 1 hours);
+        globalSettlement.setOutstandingCoinSupply();
+        globalSettlement.calculateCashPrice("gold");
+        assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
+
+        // coin redemption
+        ali.approveCDPModification(address(globalSettlement));
+        ali.prepareCoinsForRedeeming(10 ether);
+        accountingEngine.settleDebt(rad(10 ether));
+
+        // global checks:
+        assertEq(cdpEngine.globalDebt(), 0);
+        assertEq(cdpEngine.globalUnbackedDebt(), 0);
+
+        ali.redeemCollateral("gold", 10 ether);
+
+        // local checks:
+        assertEq(coinBalance(cdp1), 0);
+        assertEq(tokenCollateral("gold", cdp1), 3000000000000000000);
+        ali.exit(gold.collateralA, address(this), 3000000000000000000);
+        gold.collateralA.exit(address(this), 26315789473684210);
 
         assertEq(tokenCollateral("gold", address(globalSettlement)), 0);
         assertEq(balanceOf("gold", address(gold.collateralA)), 0);
@@ -908,8 +995,8 @@ contract GlobalSettlementTest is DSTest {
         // local checks:
         assertEq(coinBalance(cdp1), 0);
         uint256 fix = globalSettlement.collateralCashPrice("gold");
-        assertEq(tokenCollateral("gold", cdp1), uint(rmul(fix, 14 ether)));
-        ali.exit(gold.collateralA, address(this), uint(rmul(fix, 14 ether)));
+        assertEq(tokenCollateral("gold", cdp1), uint(rmultiply(fix, 14 ether)));
+        ali.exit(gold.collateralA, address(this), uint(rmultiply(fix, 14 ether)));
 
         // second coin redemption
         bob.approveCDPModification(address(globalSettlement));
@@ -924,8 +1011,8 @@ contract GlobalSettlementTest is DSTest {
 
         // local checks:
         assertEq(coinBalance(cdp2), 0);
-        assertEq(tokenCollateral("gold", cdp2), rmul(fix, 3 ether));
-        bob.exit(gold.collateralA, address(this), uint(rmul(fix, 3 ether)));
+        assertEq(tokenCollateral("gold", cdp2), rmultiply(fix, 3 ether));
+        bob.exit(gold.collateralA, address(this), uint(rmultiply(fix, 3 ether)));
 
         // nothing left in the GlobalSettlement
         assertEq(tokenCollateral("gold", address(globalSettlement)), 472222222222222223);

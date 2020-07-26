@@ -89,9 +89,9 @@ contract CDPEngine {
     mapping (bytes32 => mapping (address => CDP )) public cdps;
     // Balance of each collateral type
     mapping (bytes32 => mapping (address => uint)) public tokenCollateral;  // [wad]
-    // Internal balance of reflex-bonds/pegged-coins
+    // Internal balance of system coins
     mapping (address => uint)                      public coinBalance;      // [rad]
-    // Amount of debt held by an account. Coin & debt are like matter and antimatter. They nullify each other
+    // Amount of debt held by an account. Coins & debt are like matter and antimatter. They nullify each other
     mapping (address => uint)                      public debtBalance;      // [rad]
 
     // Total amount of debt (coins) currently issued

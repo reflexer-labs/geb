@@ -27,7 +27,6 @@ abstract contract TokenLike {
     function mint(address,uint) virtual external;
 }
 abstract contract AccountingEngineLike {
-    function settleDebtAuction(uint id) virtual external;
     function totalOnAuctionDebt() virtual public returns (uint);
     function cancelAuctionedDebtWithSurplus(uint) virtual external;
 }
@@ -71,7 +70,11 @@ contract DebtAuctionHouse is Logging {
     uint48   public   bidDuration = 3 hours;
     uint48   public   totalAuctionLength = 2 days;
     uint256  public   auctionsStarted = 0;
+    // Accumulator for all debt auctions currently not settled
+    uint256  public   activeDebtAuctions;
     uint256  public   contractEnabled;
+
+    bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("DEBT");
 
     // --- Events ---
     event StartAuction(
@@ -90,13 +93,19 @@ contract DebtAuctionHouse is Logging {
     }
 
     // --- Math ---
-    function add(uint48 x, uint48 y) internal pure returns (uint48 z) {
+    function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
         require((z = x + y) >= x);
     }
-    function mul(uint x, uint y) internal pure returns (uint z) {
+    function addUint256(uint256 x, uint256 y) internal pure returns (uint z) {
+        require((z = x + y) >= x);
+    }
+    function subtract(uint x, uint y) internal pure returns (uint z) {
+        require((z = x - y) <= x);
+    }
+    function multiply(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
-    function min(uint x, uint y) internal pure returns (uint z) {
+    function minimum(uint x, uint y) internal pure returns (uint z) {
         if (x > y) { z = y; } else { z = x; }
     }
 
@@ -128,15 +137,17 @@ contract DebtAuctionHouse is Logging {
         bids[id].bidAmount = initialBid;
         bids[id].amountToSell = amountToSell;
         bids[id].highBidder = incomeReceiver;
-        bids[id].auctionDeadline = add(uint48(now), totalAuctionLength);
+        bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
+
+        activeDebtAuctions = addUint256(activeDebtAuctions, 1);
 
         emit StartAuction(id, amountToSell, initialBid, incomeReceiver);
     }
     function restartAuction(uint id) external emitLog {
         require(bids[id].auctionDeadline < now, "DebtAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "DebtAuctionHouse/bid-already-placed");
-        bids[id].amountToSell = mul(amountSoldIncrease, bids[id].amountToSell) / ONE;
-        bids[id].auctionDeadline = add(uint48(now), totalAuctionLength);
+        bids[id].amountToSell = multiply(amountSoldIncrease, bids[id].amountToSell) / ONE;
+        bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
     }
     function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) external emitLog {
         require(contractEnabled == 1, "DebtAuctionHouse/contract-not-enabled");
@@ -146,25 +157,25 @@ contract DebtAuctionHouse is Logging {
 
         require(bid == bids[id].bidAmount, "DebtAuctionHouse/not-matching-bid");
         require(amountToBuy <  bids[id].amountToSell, "DebtAuctionHouse/amount-bought-not-lower");
-        require(mul(bidDecrease, amountToBuy) <= mul(bids[id].amountToSell, ONE), "DebtAuctionHouse/insufficient-decrease");
+        require(multiply(bidDecrease, amountToBuy) <= multiply(bids[id].amountToSell, ONE), "DebtAuctionHouse/insufficient-decrease");
 
         cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bid);
 
         // on first bid submitted, clear as much totalOnAuctionDebt as possible
         if (bids[id].bidExpiry == 0) {
             uint totalOnAuctionDebt = AccountingEngineLike(bids[id].highBidder).totalOnAuctionDebt();
-            AccountingEngineLike(bids[id].highBidder).cancelAuctionedDebtWithSurplus(min(bid, totalOnAuctionDebt));
+            AccountingEngineLike(bids[id].highBidder).cancelAuctionedDebtWithSurplus(minimum(bid, totalOnAuctionDebt));
         }
 
         bids[id].highBidder = msg.sender;
         bids[id].amountToSell = amountToBuy;
-        bids[id].bidExpiry = add(uint48(now), bidDuration);
+        bids[id].bidExpiry = addUint48(uint48(now), bidDuration);
     }
     function settleAuction(uint id) external emitLog {
         require(contractEnabled == 1, "DebtAuctionHouse/not-live");
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "DebtAuctionHouse/not-finished");
         protocolToken.mint(bids[id].highBidder, bids[id].amountToSell);
-        accountingEngine.settleDebtAuction(id);
+        activeDebtAuctions = subtract(activeDebtAuctions, 1);
         delete bids[id];
     }
 
@@ -177,7 +188,7 @@ contract DebtAuctionHouse is Logging {
         require(contractEnabled == 0, "DebtAuctionHouse/contract-still-enabled");
         require(bids[id].highBidder != address(0), "DebtAuctionHouse/high-bidder-not-set");
         cdpEngine.createUnbackedDebt(address(accountingEngine), bids[id].highBidder, bids[id].bidAmount);
-        accountingEngine.settleDebtAuction(id);
+        activeDebtAuctions = subtract(activeDebtAuctions, 1);
         delete bids[id];
     }
 }
