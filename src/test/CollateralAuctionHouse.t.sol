@@ -581,7 +581,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 526315789473684210);
         assertEq(cdpEngine.tokenCollateral("collateralType", address(cdpAuctioned)), 1 ether - 526315789473684210);
     }
-    function test_tiny_collateral_amount_amount_to_raise() public {
+    function test_tiny_collateral_amount_to_raise() public {
         oracleRelayer.modifyParameters("redemptionPrice", 2 * RAY);
         feed.set_val(bytes32(uint256(200 ether)));
         cdpEngine.mint(ali, 200 * RAD - 200 ether);

@@ -99,6 +99,7 @@ contract EnglishCollateralAuctionHouse is Logging {
     OracleLike        public orcl;
 
     bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("COLLATERAL");
+    bytes32 public constant AUCTION_TYPE       = bytes32("ENGLISH");
 
     // --- Events ---
     event StartAuction(
@@ -284,6 +285,20 @@ contract EnglishCollateralAuctionHouse is Logging {
         cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bids[id].bidAmount);
         delete bids[id];
     }
+
+    // --- Getters ---
+    function bidAmount(uint id) public view returns (uint256) {
+        return bids[id].bidAmount;
+    }
+    function remainingAmountToSell(uint id) public view returns (uint256) {
+        return bids[id].amountToSell;
+    }
+    function forgoneCollateralReceiver(uint id) public view returns (address) {
+        return bids[id].forgoneCollateralReceiver;
+    }
+    function amountToRaise(uint id) public view returns (uint256) {
+        return bids[id].amountToRaise;
+    }
 }
 
 /// FixedDiscountCollateralAuctionHouse.sol
@@ -357,7 +372,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     // Minimum acceptable bid
     uint256  public   minimumBid = 5 * WAD; // 5 system coins (expressed as WAD, not RAD)
     // Total length of the auction
-    uint48   public   totalAuctionLength = 2 days;
+    uint48   public   totalAuctionLength = 7 days;
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // Discount (compared to the system coin's current redemption price) at which collateral is being sold
@@ -367,6 +382,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     OracleLike        public orcl;
 
     bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("COLLATERAL");
+    bytes32 public constant AUCTION_TYPE       = bytes32("FIXED_DISCOUNT");
 
     // --- Events ---
     event StartAuction(
@@ -432,7 +448,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         bytes32 priceFeedValue,
         uint256 amountToBuy,
         uint256 adjustedBid
-    ) internal returns (uint256) {
+    ) public returns (uint256) {
         // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
         uint256 discountedRedemptionCollateralPrice = getDiscountedRedemptionCollateralPrice(priceFeedValue, discount);
         // calculate the amount of collateral bought
@@ -600,5 +616,19 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
         cdpEngine.transferCollateral(collateralType, address(this), msg.sender, subtract(bids[id].amountToSell, bids[id].soldAmount));
         delete bids[id];
+    }
+
+    // --- Getters ---
+    function bidAmount(uint id) public view returns (uint256) {
+        return 0;
+    }
+    function remainingAmountToSell(uint id) public view returns (uint256) {
+        return subtract(bids[id].amountToSell, bids[id].soldAmount);
+    }
+    function forgoneCollateralReceiver(uint id) public view returns (address) {
+        return bids[id].forgoneCollateralReceiver;
+    }
+    function amountToRaise(uint id) public view returns (uint256) {
+        return bids[id].amountToRaise;
     }
 }

@@ -62,17 +62,11 @@ abstract contract CoinSavingsAccountLike {
 abstract contract RateSetterLike {
     function disableContract() virtual external;
 }
-abstract contract EnglishCollateralAuctionHouseLike {
-    function bids(uint auctionId) virtual public view returns (
-        uint256 bidAmount,
-        uint256 collateralToSell,
-        address highBidder,
-        uint48  bidExpiry,
-        uint48  auctionDeadline,
-        address forgoneCollateralReceiver,
-        address auctionIncomeRecipient,
-        uint256 amountToRaise
-    );
+abstract contract CollateralAuctionHouseLike {
+    function bidAmount(uint id) virtual public view returns (uint256);
+    function remainingAmountToSell(uint id) virtual public view returns (uint256);
+    function forgoneCollateralReceiver(uint id) virtual public view returns (address);
+    function amountToRaise(uint id) virtual public view returns (uint256);
     function terminateAuctionPrematurely(uint auctionId) virtual external;
 }
 abstract contract OracleLike {
@@ -275,9 +269,13 @@ contract GlobalSettlement is Logging {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
 
         (address auctionHouse_,,) = liquidationEngine.collateralTypes(collateralType);
-        EnglishCollateralAuctionHouseLike collateralAuctionHouse = EnglishCollateralAuctionHouseLike(auctionHouse_);
+        CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
         (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
-        (uint bidAmount, uint collateralToSell,,,, address forgoneCollateralReceiver,, uint amountToRaise) = collateralAuctionHouse.bids(auctionId);
+
+        uint bidAmount                    = collateralAuctionHouse.bidAmount(auctionId);
+        uint collateralToSell             = collateralAuctionHouse.remainingAmountToSell(auctionId);
+        address forgoneCollateralReceiver = collateralAuctionHouse.forgoneCollateralReceiver(auctionId);
+        uint amountToRaise                = collateralAuctionHouse.amountToRaise(auctionId);
 
         cdpEngine.createUnbackedDebt(address(accountingEngine), address(accountingEngine), amountToRaise);
         cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), bidAmount);
