@@ -82,7 +82,7 @@ contract PreSettlementSurplusAuctionHouse is Logging {
     uint256  constant ONE = 1.00E18;
     // Minimum bid increase compared to the last bid in order to take the new one in consideration
     uint256  public   bidIncrease = 1.05E18;
-    // How long the first phase of the auction lasts after a new bid is submitted
+    // How long the auction lasts after a new bid is submitted
     uint48   public   bidDuration = 3 hours;
     // Total length of the auction
     uint48   public   totalAuctionLength = 2 days;
