@@ -427,6 +427,12 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     function wdivide(uint x, uint y) internal pure returns (uint z) {
         z = multiply(x, WAD) / y;
     }
+    function minimum(uint x, uint y) internal pure returns (uint z) {
+        z = (x <= y) ? x : y;
+    }
+    function maximum(uint x, uint y) internal pure returns (uint z) {
+        z = (x >= y) ? x : y;
+    }
 
     // --- General Utils ---
     function either(bool x, bool y) internal pure returns (bool z) {
@@ -452,11 +458,17 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     function getFinalCollateralPrice(
         bytes32 osmPriceFeedValue,
         bytes32 medianPriceFeedValue
-    ) private view returns (uint256 finalPrice) {
+    ) private view returns (uint256) {
         uint256 floorPrice   = wmultiply(uint256(osmPriceFeedValue), medianDeviation);
         uint256 ceilingPrice = wmultiply(uint256(osmPriceFeedValue), subtract(2 * WAD, medianDeviation));
-        finalPrice = (both(uint(medianPriceFeedValue) >= floorPrice, uint(medianPriceFeedValue) <= ceilingPrice)) ?
-          uint(medianPriceFeedValue) : uint(osmPriceFeedValue);
+
+        uint256 adjustedMedianPrice = (uint(medianPriceFeedValue) == 0) ? uint(osmPriceFeedValue) : uint(medianPriceFeedValue);
+
+        if (adjustedMedianPrice < uint(osmPriceFeedValue)) {
+          return maximum(adjustedMedianPrice, floorPrice);
+        } else if (adjustedMedianPrice >= uint(osmPriceFeedValue)) {
+          return minimum(adjustedMedianPrice, ceilingPrice);
+        }
     }
     function getDiscountedRedemptionCollateralPrice(
         bytes32 osmPriceFeedValue,
