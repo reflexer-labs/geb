@@ -96,7 +96,7 @@ contract EnglishCollateralAuctionHouse is Logging {
     uint256  public bidToMarketPriceRatio; // [ray]
 
     OracleRelayerLike public oracleRelayer;
-    OracleLike        public orcl;
+    OracleLike        public osm;
 
     bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("COLLATERAL");
     bytes32 public constant AUCTION_TYPE       = bytes32("ENGLISH");
@@ -154,7 +154,7 @@ contract EnglishCollateralAuctionHouse is Logging {
      */
     function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
         if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
-        else if (parameter == "orcl") orcl = OracleLike(data);
+        else if (parameter == "osm") osm = OracleLike(data);
         else revert("EnglishCollateralAuctionHouse/modify-unrecognized-param");
     }
 
@@ -217,7 +217,7 @@ contract EnglishCollateralAuctionHouse is Logging {
 
         // check for first bid only
         if (bids[id].bidAmount == 0) {
-            (bytes32 priceFeedValue, bool hasValidValue) = orcl.getResultWithValidity();
+            (bytes32 priceFeedValue, bool hasValidValue) = osm.getResultWithValidity();
             if (hasValidValue) {
                 uint256 redemptionPrice = oracleRelayer.redemptionPrice();
                 require(rad >= multiply(wmultiply(rdivide(uint256(priceFeedValue), redemptionPrice), amountToBuy), bidToMarketPriceRatio), "EnglishCollateralAuctionHouse/first-bid-too-low");
@@ -377,9 +377,12 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     uint256  public   auctionsStarted = 0;
     // Discount (compared to the system coin's current redemption price) at which collateral is being sold
     uint256  public   discount = 0.95E18;   // 5% discount
+    // Max deviation that the median can have compared to the OSM price
+    uint256  public   medianDeviation = 0.90E18;   // 10% deviation
 
     OracleRelayerLike public oracleRelayer;
-    OracleLike        public orcl;
+    OracleLike        public osm;
+    OracleLike        public median;
 
     bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("COLLATERAL");
     bytes32 public constant AUCTION_TYPE       = bytes32("FIXED_DISCOUNT");
@@ -419,10 +422,16 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     }
     uint256 constant RAY = 10 ** 27;
     function rdivide(uint x, uint y) internal pure returns (uint z) {
-      z = multiply(x, RAY) / y;
+        z = multiply(x, RAY) / y;
     }
     function wdivide(uint x, uint y) internal pure returns (uint z) {
-      z = multiply(x, WAD) / y;
+        z = multiply(x, WAD) / y;
+    }
+    function minimum(uint x, uint y) internal pure returns (uint z) {
+        z = (x <= y) ? x : y;
+    }
+    function maximum(uint x, uint y) internal pure returns (uint z) {
+        z = (x >= y) ? x : y;
     }
 
     // --- General Utils ---
@@ -434,23 +443,52 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     }
 
     // --- Auction Utils ---
+    function getMedianPrice() private returns (bytes32 priceFeed) {
+        priceFeed = bytes32(uint(0));
+        if (address(median) == address(0)) return priceFeed;
+
+        // wrapped call toward the median
+        try median.getResultWithValidity()
+          returns (bytes32 price, bool valid) {
+          if (valid) {
+            priceFeed = price;
+          }
+        } catch (bytes memory revertReason) {}
+    }
+    function getFinalCollateralPrice(
+        bytes32 osmPriceFeedValue,
+        bytes32 medianPriceFeedValue
+    ) private view returns (uint256) {
+        uint256 floorPrice   = wmultiply(uint256(osmPriceFeedValue), medianDeviation);
+        uint256 ceilingPrice = wmultiply(uint256(osmPriceFeedValue), subtract(2 * WAD, medianDeviation));
+
+        uint256 adjustedMedianPrice = (uint(medianPriceFeedValue) == 0) ? uint(osmPriceFeedValue) : uint(medianPriceFeedValue);
+
+        if (adjustedMedianPrice < uint(osmPriceFeedValue)) {
+          return maximum(adjustedMedianPrice, floorPrice);
+        } else if (adjustedMedianPrice >= uint(osmPriceFeedValue)) {
+          return minimum(adjustedMedianPrice, ceilingPrice);
+        }
+    }
     function getDiscountedRedemptionCollateralPrice(
-        bytes32 priceFeedValue,
+        bytes32 osmPriceFeedValue,
+        bytes32 medianPriceFeedValue,
         uint256 customDiscount
     ) public returns (uint256) {
         // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
         return wmultiply(
-          rdivide(uint256(priceFeedValue), oracleRelayer.redemptionPrice()), customDiscount
+          rdivide(getFinalCollateralPrice(osmPriceFeedValue, medianPriceFeedValue), oracleRelayer.redemptionPrice()), customDiscount
         );
     }
     function getDiscountedRedemptionBoughtCollateral(
         uint id,
-        bytes32 priceFeedValue,
+        bytes32 osmPriceFeedValue,
+        bytes32 medianPriceFeedValue,
         uint256 amountToBuy,
         uint256 adjustedBid
     ) public returns (uint256) {
         // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
-        uint256 discountedRedemptionCollateralPrice = getDiscountedRedemptionCollateralPrice(priceFeedValue, discount);
+        uint256 discountedRedemptionCollateralPrice = getDiscountedRedemptionCollateralPrice(osmPriceFeedValue, medianPriceFeedValue, discount);
         // calculate the amount of collateral bought
         uint256 boughtCollateral = wdivide(adjustedBid, discountedRedemptionCollateralPrice);
         // if the calculate collateral amount exceeds the amount still up for sale, adjust it to the remaining amount
@@ -474,6 +512,10 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
             require(data < WAD, "FixedDiscountCollateralAuctionHouse/no-discount-offered");
             discount = data;
         }
+        else if (parameter == "medianDeviation") {
+            require(data <= WAD, "FixedDiscountCollateralAuctionHouse/invalid-median-deviation");
+            medianDeviation = data;
+        }
         else if (parameter == "minimumBid") {
             minimumBid = data;
         }
@@ -484,12 +526,13 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     }
     /**
      * @notice Modify oracle related integrations
-     * @param parameter The name of the oracle contract modified
+     * @param parameter The name of the contract address being updated
      * @param data New address for the oracle contract
      */
     function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
         if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
-        else if (parameter == "orcl") orcl = OracleLike(data);
+        else if (parameter == "osm") osm = OracleLike(data);
+        else if (parameter == "median") median = OracleLike(data);
         else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
     }
     /**
@@ -542,12 +585,15 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         }
 
         // check that the oracle doesn't return an invalid value
-        (bytes32 priceFeedValue, bool hasValidValue) = orcl.getResultWithValidity();
-        if (!hasValidValue) {
+        (bytes32 osmPriceFeedValue, bool osmHasValidValue) = osm.getResultWithValidity();
+        if (!osmHasValidValue) {
           return 0;
         }
 
-        return getDiscountedRedemptionBoughtCollateral(id, priceFeedValue, amountToBuy, adjustedBid);
+        // check if the median returns a value
+        bytes32 medianPriceFeedValue = getMedianPrice();
+
+        return getDiscountedRedemptionBoughtCollateral(id, osmPriceFeedValue, medianPriceFeedValue, amountToBuy, adjustedBid);
     }
     /**
      * @notice Buy collateral from an auction at a fixed discount. The buyer can either set amountToBuy to zero
@@ -570,12 +616,14 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         // update amount raised
         bids[id].raisedAmount = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
 
-        // check that the oracle doesn't return an invalid value
-        (bytes32 priceFeedValue, bool hasValidValue) = orcl.getResultWithValidity();
-        require(hasValidValue, "FixedDiscountCollateralAuctionHouse/orcl-invalid-value");
+        // check that the osm doesn't return an invalid value
+        (bytes32 osmPriceFeedValue, bool osmHasValidValue) = osm.getResultWithValidity();
+        require(osmHasValidValue, "FixedDiscountCollateralAuctionHouse/osm-invalid-value");
 
         // get the amount of collateral bought
-        uint256 boughtCollateral = getDiscountedRedemptionBoughtCollateral(id, priceFeedValue, amountToBuy, adjustedBid);
+        uint256 boughtCollateral = getDiscountedRedemptionBoughtCollateral(
+          id, osmPriceFeedValue, getMedianPrice(), amountToBuy, adjustedBid
+        );
         // check that the calculated amount is greater than zero
         require(boughtCollateral > 0, "FixedDiscountCollateralAuctionHouse/null-bought-amount");
         // update the amount of collateral already sold

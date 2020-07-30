@@ -226,7 +226,7 @@ contract SaveCDPTest is DSTest {
         cdpEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
         collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(cdpEngine), "gold");
         collateralAuctionHouse.modifyParameters("oracleRelayer", address(new OracleRelayer(address(cdpEngine))));
-        collateralAuctionHouse.modifyParameters("orcl", address(new Feed(uint256(1), true)));
+        collateralAuctionHouse.modifyParameters("osm", address(new Feed(uint256(1), true)));
         collateralAuctionHouse.addAuthorization(address(liquidationEngine));
         liquidationEngine.modifyParameters("gold", "collateralAuctionHouse", address(collateralAuctionHouse));
         liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1 ether));
