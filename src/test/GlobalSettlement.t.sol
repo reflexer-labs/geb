@@ -246,7 +246,7 @@ contract GlobalSettlementTest is DSTest {
         EnglishCollateralAuctionHouse englishCollateralAuctionHouse = new EnglishCollateralAuctionHouse(address(cdpEngine), name);
         englishCollateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
         // bidToMarketPriceRatio is zero so feed price is irrelevant
-        englishCollateralAuctionHouse.modifyParameters("orcl", address(new Feed(bytes32(uint256(200 ether)), true)));
+        englishCollateralAuctionHouse.modifyParameters("osm", address(new Feed(bytes32(uint256(200 ether)), true)));
         cdpEngine.approveCDPModification(address(englishCollateralAuctionHouse));
         englishCollateralAuctionHouse.addAuthorization(address(globalSettlement));
         englishCollateralAuctionHouse.addAuthorization(address(liquidationEngine));
@@ -254,7 +254,7 @@ contract GlobalSettlementTest is DSTest {
         FixedDiscountCollateralAuctionHouse fixedDiscountCollateralAuctionHouse =
           new FixedDiscountCollateralAuctionHouse(address(cdpEngine), name);
         fixedDiscountCollateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
-        fixedDiscountCollateralAuctionHouse.modifyParameters("orcl", address(new Feed(bytes32(uint256(200 ether)), true)));
+        fixedDiscountCollateralAuctionHouse.modifyParameters("osm", address(new Feed(bytes32(uint256(200 ether)), true)));
         cdpEngine.approveCDPModification(address(fixedDiscountCollateralAuctionHouse));
         fixedDiscountCollateralAuctionHouse.addAuthorization(address(globalSettlement));
         fixedDiscountCollateralAuctionHouse.addAuthorization(address(liquidationEngine));
