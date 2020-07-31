@@ -573,7 +573,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     function getCollateralBought(uint id, uint amountToBuy, uint wad) external returns (uint256) {
         if (either(
           either(bids[id].amountToSell == 0, bids[id].amountToRaise == 0),
-          either(wad == 0, wad < minimumBid)
+          wad == 0
         )) {
           return 0;
         }

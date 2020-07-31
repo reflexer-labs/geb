@@ -422,6 +422,7 @@ contract EnglishCollateralAuctionHouseTest is DSTest {
     }
 }
 
+
 contract FixedDiscountCollateralAuctionHouseTest is DSTest {
     Hevm hevm;
 
