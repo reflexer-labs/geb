@@ -498,10 +498,12 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         collateralAuctionHouse.modifyParameters("discount", 0.90E18);
         collateralAuctionHouse.modifyParameters("minimumBid", 50 * WAD);
         collateralAuctionHouse.modifyParameters("totalAuctionLength", 5 days);
-        collateralAuctionHouse.modifyParameters("medianDeviation", 0.95E18);
+        collateralAuctionHouse.modifyParameters("lowerMedianDeviation", 0.95E18);
+        collateralAuctionHouse.modifyParameters("upperMedianDeviation", 0.90E18);
 
         assertEq(collateralAuctionHouse.discount(), 0.90E18);
-        assertEq(collateralAuctionHouse.medianDeviation(), 0.95E18);
+        assertEq(collateralAuctionHouse.lowerMedianDeviation(), 0.95E18);
+        assertEq(collateralAuctionHouse.upperMedianDeviation(), 0.90E18);
         assertEq(collateralAuctionHouse.minimumBid(), 50 * WAD);
         assertEq(uint(collateralAuctionHouse.totalAuctionLength()), 5 days);
     }
@@ -901,7 +903,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
     function test_median_smaller_than_osm_ceiling() public {
         oracleRelayer.modifyParameters("redemptionPrice", RAY);
         osm.set_val(bytes32(uint256(200 ether)));
-        median.set_val(bytes32(uint256(219 ether)));
+        median.set_val(bytes32(uint256(209 ether)));
         collateralAuctionHouse.modifyParameters("median", address(median));
         cdpEngine.mint(ali, 200 * RAD - 200 ether);
 
@@ -918,11 +920,11 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
 
         (uint256 raisedAmount, uint256 soldAmount, , , , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 25 * RAD);
-        assertEq(soldAmount, 120163422254265801);
+        assertEq(soldAmount, 125912868295139763);
 
         assertEq(cdpEngine.coinBalance(auctionIncomeRecipient), 25 * RAD);
-        assertEq(cdpEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 1 ether - 120163422254265801);
-        assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 120163422254265801);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 1 ether - 125912868295139763);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 125912868295139763);
     }
     function test_median_bigger_than_osm_ceiling() public {
         oracleRelayer.modifyParameters("redemptionPrice", RAY);
@@ -944,11 +946,11 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
 
         (uint256 raisedAmount, uint256 soldAmount, , , , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 25 * RAD);
-        assertEq(soldAmount, 119617224880382775);
+        assertEq(soldAmount, 125313283208020050);
 
         assertEq(cdpEngine.coinBalance(auctionIncomeRecipient), 25 * RAD);
-        assertEq(cdpEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 1 ether - 119617224880382775);
-        assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 119617224880382775);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 1 ether - 125313283208020050);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 125313283208020050);
     }
     function test_median_smaller_than_osm_floor() public {
         oracleRelayer.modifyParameters("redemptionPrice", RAY);

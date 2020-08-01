@@ -377,8 +377,10 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     uint256  public   auctionsStarted = 0;
     // Discount (compared to the system coin's current redemption price) at which collateral is being sold
     uint256  public   discount = 0.95E18;   // 5% discount
-    // Max deviation that the median can have compared to the OSM price
-    uint256  public   medianDeviation = 0.90E18;   // 10% deviation
+    // Max lower bound deviation that the median can have compared to the OSM price
+    uint256  public   lowerMedianDeviation = 0.90E18;   // 10% deviation
+    // Max upper bound deviation that the median can have compared to the OSM price
+    uint256  public   upperMedianDeviation = 0.95E18;   // 5% deviation
 
     OracleRelayerLike public oracleRelayer;
     OracleLike        public osm;
@@ -442,6 +444,45 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         assembly{ z := and(x, y)}
     }
 
+    // --- Admin ---
+    /**
+     * @notice Modify auction parameters
+     * @param parameter The name of the parameter modified
+     * @param data New value for the parameter
+     */
+    function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
+        if (parameter == "discount") {
+            require(data < WAD, "FixedDiscountCollateralAuctionHouse/no-discount-offered");
+            discount = data;
+        }
+        else if (parameter == "lowerMedianDeviation") {
+            require(data <= WAD, "FixedDiscountCollateralAuctionHouse/invalid-lower-median-deviation");
+            lowerMedianDeviation = data;
+        }
+        else if (parameter == "upperMedianDeviation") {
+            require(data <= WAD, "FixedDiscountCollateralAuctionHouse/invalid-upper-median-deviation");
+            upperMedianDeviation = data;
+        }
+        else if (parameter == "minimumBid") {
+            minimumBid = data;
+        }
+        else if (parameter == "totalAuctionLength") {
+            totalAuctionLength = uint48(data);
+        }
+        else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
+    }
+    /**
+     * @notice Modify oracle related integrations
+     * @param parameter The name of the contract address being updated
+     * @param data New address for the oracle contract
+     */
+    function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
+        if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
+        else if (parameter == "osm") osm = OracleLike(data);
+        else if (parameter == "median") median = OracleLike(data);
+        else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
+    }
+
     // --- Auction Utils ---
     function getMedianPrice() private returns (bytes32 priceFeed) {
         priceFeed = bytes32(uint(0));
@@ -459,8 +500,8 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         bytes32 osmPriceFeedValue,
         bytes32 medianPriceFeedValue
     ) private view returns (uint256) {
-        uint256 floorPrice   = wmultiply(uint256(osmPriceFeedValue), medianDeviation);
-        uint256 ceilingPrice = wmultiply(uint256(osmPriceFeedValue), subtract(2 * WAD, medianDeviation));
+        uint256 floorPrice   = wmultiply(uint256(osmPriceFeedValue), lowerMedianDeviation);
+        uint256 ceilingPrice = wmultiply(uint256(osmPriceFeedValue), subtract(2 * WAD, upperMedianDeviation));
 
         uint256 adjustedMedianPrice = (uint(medianPriceFeedValue) == 0) ? uint(osmPriceFeedValue) : uint(medianPriceFeedValue);
 
@@ -501,40 +542,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         return boughtCollateral;
     }
 
-    // --- Admin ---
-    /**
-     * @notice Modify auction parameters
-     * @param parameter The name of the parameter modified
-     * @param data New value for the parameter
-     */
-    function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
-        if (parameter == "discount") {
-            require(data < WAD, "FixedDiscountCollateralAuctionHouse/no-discount-offered");
-            discount = data;
-        }
-        else if (parameter == "medianDeviation") {
-            require(data <= WAD, "FixedDiscountCollateralAuctionHouse/invalid-median-deviation");
-            medianDeviation = data;
-        }
-        else if (parameter == "minimumBid") {
-            minimumBid = data;
-        }
-        else if (parameter == "totalAuctionLength") {
-            totalAuctionLength = uint48(data);
-        }
-        else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
-    }
-    /**
-     * @notice Modify oracle related integrations
-     * @param parameter The name of the contract address being updated
-     * @param data New address for the oracle contract
-     */
-    function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
-        if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
-        else if (parameter == "osm") osm = OracleLike(data);
-        else if (parameter == "median") median = OracleLike(data);
-        else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
-    }
+    // --- Core Auction Logic ---
     /**
      * @notice Start a new collateral auction
      * @param forgoneCollateralReceiver Who receives leftover collateral that is not auctioned
