@@ -525,7 +525,6 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         uint id,
         bytes32 osmPriceFeedValue,
         bytes32 medianPriceFeedValue,
-        uint256 amountToBuy,
         uint256 adjustedBid
     ) public returns (uint256) {
         // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
@@ -535,9 +534,6 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         // if the calculate collateral amount exceeds the amount still up for sale, adjust it to the remaining amount
         boughtCollateral = (boughtCollateral > subtract(bids[id].amountToSell, bids[id].soldAmount)) ?
                            subtract(bids[id].amountToSell, bids[id].soldAmount) : boughtCollateral;
-        // if the buyer is willing to buy less collateral than calculated, offer that amount
-        boughtCollateral = (both(amountToBuy > 0, amountToBuy < boughtCollateral)) ?
-                           amountToBuy : boughtCollateral;
 
         return boughtCollateral;
     }
@@ -575,10 +571,9 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     /**
      * @notice Calculate how much collateral someone would buy from an auction
      * @param id ID of the auction to buy collateral from
-     * @param amountToBuy Amount of collateral to buy (must be equal to the amount sold in this implementation)
      * @param wad New bid submitted (as WAD, not as RAD)
      */
-    function getCollateralBought(uint id, uint amountToBuy, uint wad) external returns (uint256) {
+    function getCollateralBought(uint id, uint wad) external returns (uint256) {
         if (either(
           either(bids[id].amountToSell == 0, bids[id].amountToRaise == 0),
           wad == 0
@@ -601,17 +596,14 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         // check if the median returns a value
         bytes32 medianPriceFeedValue = getMedianPrice();
 
-        return getDiscountedRedemptionBoughtCollateral(id, osmPriceFeedValue, medianPriceFeedValue, amountToBuy, adjustedBid);
+        return getDiscountedRedemptionBoughtCollateral(id, osmPriceFeedValue, medianPriceFeedValue, adjustedBid);
     }
     /**
-     * @notice Buy collateral from an auction at a fixed discount. The buyer can either set amountToBuy to zero
-               (meaning that they want to buy the contract computed amount) or they can be more generous and offer more
-               system coins for less collateral than what the contract calculated (according to the discount)
+     * @notice Buy collateral from an auction at a fixed discount
      * @param id ID of the auction to buy collateral from
-     * @param amountToBuy Amount of collateral to buy (must be equal to the amount sold in this implementation)
      * @param wad New bid submitted (as WAD, not as RAD)
      */
-    function buyCollateral(uint id, uint amountToBuy, uint wad) external emitLog {
+    function buyCollateral(uint id, uint wad) external emitLog {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
         require(both(wad > 0, wad >= minimumBid), "FixedDiscountCollateralAuctionHouse/invalid-bid");
 
@@ -630,7 +622,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
 
         // get the amount of collateral bought
         uint256 boughtCollateral = getDiscountedRedemptionBoughtCollateral(
-          id, osmPriceFeedValue, getMedianPrice(), amountToBuy, adjustedBid
+          id, osmPriceFeedValue, getMedianPrice(), adjustedBid
         );
         // check that the calculated amount is greater than zero
         require(boughtCollateral > 0, "FixedDiscountCollateralAuctionHouse/null-bought-amount");

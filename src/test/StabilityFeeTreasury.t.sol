@@ -162,8 +162,8 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(50 ether));
         assertEq(cdpEngine.coinBalance(address(alice)), rad(151 ether));
     }
-    function test_allow() public {
-        stabilityFeeTreasury.allow(alice, 10 ether);
+    function test_setTotalAllowance() public {
+        stabilityFeeTreasury.setTotalAllowance(alice, 10 ether);
         assertEq(stabilityFeeTreasury.allowance(alice), 10 ether);
     }
     function testFail_give_non_relied() public {
@@ -184,28 +184,28 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(197 ether));
         assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(5 ether));
     }
-    function testFail_pull_above_allow() public {
-        stabilityFeeTreasury.allow(address(usr), rad(10 ether));
+    function testFail_pull_above_setTotalAllowance() public {
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), rad(11 ether));
     }
     function testFail_pull_null_tkn_amount() public {
-        stabilityFeeTreasury.allow(address(usr), rad(10 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(
           address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 0
         );
     }
     function testFail_pull_null_account() public {
-        stabilityFeeTreasury.allow(address(usr), rad(10 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(
           address(stabilityFeeTreasury), address(0), address(stabilityFeeTreasury.systemCoin()), rad(1 ether)
         );
     }
     function testFail_pull_random_tkn() public {
-        stabilityFeeTreasury.allow(address(usr), rad(10 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(0x3), rad(1 ether));
     }
     function test_pull_funds() public {
-        stabilityFeeTreasury.allow(address(usr), rad(10 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 1 ether);
         assertEq(stabilityFeeTreasury.allowance(address(usr)), rad(9 ether));
         assertEq(systemCoin.balanceOf(address(usr)), 0);
