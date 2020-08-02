@@ -162,9 +162,17 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(50 ether));
         assertEq(cdpEngine.coinBalance(address(alice)), rad(151 ether));
     }
-    function test_allow() public {
-        stabilityFeeTreasury.allow(alice, 10 ether);
-        assertEq(stabilityFeeTreasury.allowance(alice), 10 ether);
+    function test_setTotalAllowance() public {
+        stabilityFeeTreasury.setTotalAllowance(alice, 10 ether);
+        (uint total, uint perBlock) = stabilityFeeTreasury.allowance(alice);
+        assertEq(total, 10 ether);
+        assertEq(perBlock, 0);
+    }
+    function test_setPerBlockAllowance() public {
+        stabilityFeeTreasury.setPerBlockAllowance(alice, 1 ether);
+        (uint total, uint perBlock) = stabilityFeeTreasury.allowance(alice);
+        assertEq(total, 0);
+        assertEq(perBlock, 1 ether);
     }
     function testFail_give_non_relied() public {
         usr.giveFunds(address(stabilityFeeTreasury), address(usr), rad(5 ether));
@@ -184,35 +192,58 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(197 ether));
         assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(5 ether));
     }
-    function testFail_pull_above_allow() public {
-        stabilityFeeTreasury.allow(address(usr), rad(10 ether));
+    function testFail_pull_above_setTotalAllowance() public {
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), rad(11 ether));
     }
     function testFail_pull_null_tkn_amount() public {
-        stabilityFeeTreasury.allow(address(usr), rad(10 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(
           address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 0
         );
     }
     function testFail_pull_null_account() public {
-        stabilityFeeTreasury.allow(address(usr), rad(10 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(
           address(stabilityFeeTreasury), address(0), address(stabilityFeeTreasury.systemCoin()), rad(1 ether)
         );
     }
     function testFail_pull_random_tkn() public {
-        stabilityFeeTreasury.allow(address(usr), rad(10 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(0x3), rad(1 ether));
     }
-    function test_pull_funds() public {
-        stabilityFeeTreasury.allow(address(usr), rad(10 ether));
+    function test_pull_funds_no_block_limit() public {
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 1 ether);
-        assertEq(stabilityFeeTreasury.allowance(address(usr)), rad(9 ether));
+        (uint total, ) = stabilityFeeTreasury.allowance(address(usr));
+        assertEq(total, rad(9 ether));
         assertEq(systemCoin.balanceOf(address(usr)), 0);
         assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
         assertEq(cdpEngine.coinBalance(address(usr)), rad(1 ether));
         assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(199 ether));
         assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(1 ether));
+    }
+    function testFail_pull_funds_to_treasury_no_block_limit() public {
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
+        usr.pullFunds(address(stabilityFeeTreasury), address(stabilityFeeTreasury), address(stabilityFeeTreasury.systemCoin()), 1 ether);
+    }
+    function test_pull_funds_under_block_limit() public {
+        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
+        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 0.9 ether);
+        (uint total, ) = stabilityFeeTreasury.allowance(address(usr));
+        assertEq(total, rad(9.1 ether));
+        assertEq(stabilityFeeTreasury.pulledPerBlock(address(usr), block.number), rad(0.9 ether));
+        assertEq(systemCoin.balanceOf(address(usr)), 0);
+        assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
+        assertEq(cdpEngine.coinBalance(address(usr)), rad(0.9 ether));
+        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(199.1 ether));
+        assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(0.9 ether));
+    }
+    function testFail_pull_funds_above_block_limit() public {
+        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
+        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 10 ether);
     }
     function testFail_transferSurplusFunds_before_surplusTransferDelay() public {
         stabilityFeeTreasury.modifyParameters("surplusTransferDelay", 10 minutes);

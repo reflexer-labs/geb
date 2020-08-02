@@ -59,9 +59,6 @@ abstract contract AccountingEngineLike {
 abstract contract CoinSavingsAccountLike {
     function disableContract() virtual external;
 }
-abstract contract RateSetterLike {
-    function disableContract() virtual external;
-}
 abstract contract CollateralAuctionHouseLike {
     function bidAmount(uint id) virtual public view returns (uint256);
     function remainingAmountToSell(uint id) virtual public view returns (uint256);
@@ -170,7 +167,6 @@ contract GlobalSettlement is Logging {
     AccountingEngineLike     public accountingEngine;
     OracleRelayerLike        public oracleRelayer;
     CoinSavingsAccountLike   public coinSavingsAccount;
-    RateSetterLike           public rateSetter;
     StabilityFeeTreasuryLike public stabilityFeeTreasury;
 
     uint256  public contractEnabled;
@@ -226,7 +222,6 @@ contract GlobalSettlement is Logging {
         else if (parameter == "accountingEngine") accountingEngine = AccountingEngineLike(data);
         else if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
         else if (parameter == "coinSavingsAccount") coinSavingsAccount = CoinSavingsAccountLike(data);
-        else if (parameter == "rateSetter") rateSetter = RateSetterLike(data);
         else if (parameter == "stabilityFeeTreasury") stabilityFeeTreasury = StabilityFeeTreasuryLike(data);
         else revert("GlobalSettlement/modify-unrecognized-parameter");
     }
@@ -249,9 +244,6 @@ contract GlobalSettlement is Logging {
         }
         accountingEngine.disableContract();
         oracleRelayer.disableContract();
-        if (address(rateSetter) != address(0)) {
-          rateSetter.disableContract();
-        }
         if (address(coinSavingsAccount) != address(0)) {
           coinSavingsAccount.disableContract();
         }
