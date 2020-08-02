@@ -67,7 +67,7 @@ contract StabilityFeeTreasury is Logging {
         uint perBlock;
     }
 
-    mapping(address => Allowance) public allowances;
+    mapping(address => Allowance) public allowance;
     mapping(address => mapping(uint => uint)) public pulledPerBlock;
 
     CDPEngineLike   public cdpEngine;
@@ -205,20 +205,20 @@ contract StabilityFeeTreasury is Logging {
     /**
      * @notice Modify an address' total allowance in order to withdraw SF from the treasury
      * @param account The approved address
-     * @param wad The total approved amount of SF to withdraw (number with 45 decimals)
+     * @param rad The total approved amount of SF to withdraw (number with 45 decimals)
      */
     function setTotalAllowance(address account, uint rad) external emitLog isAuthorized accountNotTreasury(account) {
         require(account != address(0), "StabilityFeeTreasury/null-account");
-        allowances[account].total = rad;
+        allowance[account].total = rad;
     }
     /**
      * @notice Modify an address' per block allowance in order to withdraw SF from the treasury
      * @param account The approved address
-     * @param wad The per block approved amount of SF to withdraw (number with 45 decimals)
+     * @param rad The per block approved amount of SF to withdraw (number with 45 decimals)
      */
-     function setPerBlockPullLimit(address account, uint rad) external emitLog isAuthorized accountNotTreasury(account) {
+     function setPerBlockAllowance(address account, uint rad) external emitLog isAuthorized accountNotTreasury(account) {
        require(account != address(0), "StabilityFeeTreasury/null-account");
-       allowances[account].perBlock = rad;
+       allowance[account].perBlock = rad;
      }
 
     // --- Stability Fee Transfer (Governance) ---
@@ -247,28 +247,30 @@ contract StabilityFeeTreasury is Logging {
 
     // --- Stability Fee Transfer (Approved Accounts) ---
     /**
-     * @notice Pull stability fees from the treasury (if your allowances permits)
+     * @notice Pull stability fees from the treasury (if your allowance permits)
      * @param dstAccount Address to transfer funds to
      * @param token Address of the token to transfer (in this case it must be the address of the ERC20 system coin).
      *              Used only to adhere to a standard for automated, on-chain treasuries
      * @param wad Amount of system coins (SF) to transfer (expressed as an 18 decimal number but the contract will transfer
               internal system coins that have 18 decimals)
      */
-    function pullFunds(address dstAccount, address token, uint wad) external emitLog accountNotTreasury(account) {
-	      require(allowances[msg.sender].total >= wad, "StabilityFeeTreasury/not-allowed");
-        require(addition(pulledPerBlock[msg.sender][block.number], multiply(wad, RAY)) <= allowances[msg.sender].perBlock, "StabilityFeeTreasury/per-block-limit-exceeded");
+    function pullFunds(address dstAccount, address token, uint wad) external emitLog accountNotTreasury(dstAccount) {
+	      require(allowance[msg.sender].total >= wad, "StabilityFeeTreasury/not-allowed");
         require(dstAccount != address(0), "StabilityFeeTreasury/null-dst");
         require(wad > 0, "StabilityFeeTreasury/null-transfer-amount");
         require(token == address(systemCoin), "StabilityFeeTreasury/token-unavailable");
+        if (allowance[msg.sender].perBlock > 0) {
+          require(addition(pulledPerBlock[msg.sender][block.number], multiply(wad, RAY)) <= allowance[msg.sender].perBlock, "StabilityFeeTreasury/per-block-limit-exceeded");
+        }
 
         pulledPerBlock[msg.sender][block.number] = addition(pulledPerBlock[msg.sender][block.number], multiply(wad, RAY));
 
         joinAllCoins();
         require(cdpEngine.coinBalance(address(this)) >= multiply(wad, RAY), "StabilityFeeTreasury/not-enough-funds");
 
-        // Update allowances and accumulator
-        allowances[msg.sender].total = subtract(allowances[msg.sender].total, multiply(wad, RAY));
-        expensesAccumulator          = addition(expensesAccumulator, multiply(wad, RAY));
+        // Update allowance and accumulator
+        allowance[msg.sender].total = subtract(allowance[msg.sender].total, multiply(wad, RAY));
+        expensesAccumulator         = addition(expensesAccumulator, multiply(wad, RAY));
 
         // Transfer money
         cdpEngine.transferInternalCoins(address(this), dstAccount, multiply(wad, RAY));
@@ -277,7 +279,7 @@ contract StabilityFeeTreasury is Logging {
     // --- Treasury Maintenance ---
     /**
      * @notice Tranfer surplus stability fees to the AccountingEngine. This is here to make sure that the treasury
-               doesn't accumulate too many fees that it doesn't even need in order to pay for allowancess. It ensures
+               doesn't accumulate too many fees that it doesn't even need in order to pay for allowance. It ensures
                that there are enough funds left in the treasury to account for projected expenses (latest expenses multiplied
                by an expense multiplier)
      */

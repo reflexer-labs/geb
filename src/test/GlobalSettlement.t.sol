@@ -121,15 +121,6 @@ contract Usr {
         globalSettlement.redeemCollateral(collateralType, wad);
     }
 }
-contract MockRateSetter {
-    uint public contractEnabled = 1;
-
-    function addAuthorization(address addr) public {}
-
-    function disableContract() public {
-        contractEnabled = 0;
-    }
-}
 
 contract Feed {
     bool    validPrice;
@@ -154,7 +145,6 @@ contract GlobalSettlementTest is DSTest {
     CoinSavingsAccount coinSavingsAccount;
     StabilityFeeTreasury stabilityFeeTreasury;
     SettlementSurplusAuctioneer postSettlementSurplusDrain;
-    MockRateSetter rateSetter;
 
     DSToken protocolToken;
     DSToken systemCoin;
@@ -322,8 +312,6 @@ contract GlobalSettlementTest is DSTest {
 
         stabilityFeeTreasury = new StabilityFeeTreasury(address(cdpEngine), address(accountingEngine), address(systemCoinA));
 
-        rateSetter = new MockRateSetter();
-
         globalSettlement = new GlobalSettlement();
         globalSettlement.modifyParameters("cdpEngine", address(cdpEngine));
         globalSettlement.modifyParameters("liquidationEngine", address(liquidationEngine));
@@ -333,7 +321,6 @@ contract GlobalSettlementTest is DSTest {
         cdpEngine.addAuthorization(address(globalSettlement));
         accountingEngine.addAuthorization(address(globalSettlement));
         oracleRelayer.addAuthorization(address(globalSettlement));
-        rateSetter.addAuthorization(address(globalSettlement));
         coinSavingsAccount.addAuthorization(address(globalSettlement));
         liquidationEngine.addAuthorization(address(globalSettlement));
         stabilityFeeTreasury.addAuthorization(address(globalSettlement));
@@ -359,7 +346,6 @@ contract GlobalSettlementTest is DSTest {
     }
     function test_shutdown_savings_account_and_rate_setter_set_v2() public {
         globalSettlement.modifyParameters("coinSavingsAccount", address(coinSavingsAccount));
-        globalSettlement.modifyParameters("rateSetter", address(rateSetter));
         globalSettlement.modifyParameters("stabilityFeeTreasury", address(stabilityFeeTreasury));
         assertEq(globalSettlement.contractEnabled(), 1);
         assertEq(cdpEngine.contractEnabled(), 1);
@@ -370,7 +356,6 @@ contract GlobalSettlementTest is DSTest {
         assertEq(accountingEngine.surplusAuctionHouse().contractEnabled(), 1);
         assertEq(coinSavingsAccount.contractEnabled(), 1);
         assertEq(stabilityFeeTreasury.contractEnabled(), 1);
-        assertEq(rateSetter.contractEnabled(), 1);
         globalSettlement.shutdownSystem();
         assertEq(globalSettlement.contractEnabled(), 0);
         assertEq(cdpEngine.contractEnabled(), 0);
@@ -381,7 +366,6 @@ contract GlobalSettlementTest is DSTest {
         assertEq(accountingEngine.surplusAuctionHouse().contractEnabled(), 0);
         assertEq(stabilityFeeTreasury.contractEnabled(), 0);
         assertEq(coinSavingsAccount.contractEnabled(), 0);
-        assertEq(rateSetter.contractEnabled(), 0);
     }
     // -- Scenario where there is one over-collateralised CDP
     // -- and there is no AccountingEngine deficit or surplus
@@ -631,7 +615,7 @@ contract GlobalSettlementTest is DSTest {
         // get 1 coin from ali
         ali.transferInternalCoins(address(ali), address(this), rad(5 ether));
         cdpEngine.approveCDPModification(address(gold.fixedDiscountCollateralAuctionHouse));
-        gold.fixedDiscountCollateralAuctionHouse.buyCollateral(auction, 0, 5 ether);
+        gold.fixedDiscountCollateralAuctionHouse.buyCollateral(auction, 5 ether);
 
         assertEq(coinBalance(cdp1), 10 ether);
 
