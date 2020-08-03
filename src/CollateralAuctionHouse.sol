@@ -406,6 +406,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     }
 
     // --- Math ---
+    uint256 constant RAD = 10 ** 45;
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
         require((z = x + y) >= x);
     }
@@ -556,6 +557,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         require(auctionsStarted < uint(-1), "FixedDiscountCollateralAuctionHouse/overflow");
         require(amountToSell > 0, "FixedDiscountCollateralAuctionHouse/no-collateral-for-sale");
         require(amountToRaise > 0, "FixedDiscountCollateralAuctionHouse/nothing-to-raise");
+        require(amountToRaise >= RAY, "FixedDiscountCollateralAuctionHouse/dusty-auction");
         id = ++auctionsStarted;
 
         bids[id].auctionDeadline = addUint48(uint48(now), uint48(totalAuctionLength));
@@ -607,14 +609,20 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
         require(both(wad > 0, wad >= minimumBid), "FixedDiscountCollateralAuctionHouse/invalid-bid");
 
+        uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
+
         // bound max amount offered in exchange for collateral
         uint256 adjustedBid = wad;
-        if (multiply(adjustedBid, RAY) > subtract(bids[id].amountToRaise, bids[id].raisedAmount)) {
-            adjustedBid = addUint256(subtract(bids[id].amountToRaise, bids[id].raisedAmount) / RAY, WAD);
+        if (multiply(adjustedBid, RAY) > remainingToRaise) {
+            adjustedBid = remainingToRaise / RAY;
         }
 
         // update amount raised
         bids[id].raisedAmount = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
+
+        // cannot leave a dusty auction
+        remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
+        require(either(remainingToRaise == 0, remainingToRaise >= RAY), "FixedDiscountCollateralAuctionHouse/dusty-auction");
 
         // check that the osm doesn't return an invalid value
         (bytes32 osmPriceFeedValue, bool osmHasValidValue) = osm.getResultWithValidity();

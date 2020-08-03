@@ -180,6 +180,11 @@ contract AccountingEngine is Logging {
         else revert("AccountingEngine/modify-unrecognized-param");
     }
 
+    // --- Getters ---
+    function unqueuedUnauctionedDebt() public view returns (uint256) {
+        return subtract(subtract(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt);
+    }
+
     // --- Debt Queueing ---
     /**
      * @notice Push debt (that the system tries to cover with collateral auctions) to a queue
@@ -210,7 +215,7 @@ contract AccountingEngine is Logging {
     **/
     function settleDebt(uint rad) external emitLog {
         require(rad <= cdpEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
-        require(rad <= subtract(subtract(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt), "AccountingEngine/insufficient-debt");
+        require(rad <= unqueuedUnauctionedDebt(), "AccountingEngine/insufficient-debt");
         cdpEngine.settleDebt(rad);
     }
     /**
@@ -231,7 +236,7 @@ contract AccountingEngine is Logging {
      * @dev We can only auction debt that is not already being auctioned and is not locked in the debt queue
     **/
     function auctionDebt() external emitLog returns (uint id) {
-        require(debtAuctionBidSize <= subtract(subtract(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt), "AccountingEngine/insufficient-debt");
+        require(debtAuctionBidSize <= unqueuedUnauctionedDebt(), "AccountingEngine/insufficient-debt");
         require(cdpEngine.coinBalance(address(this)) == 0, "AccountingEngine/surplus-not-zero");
         require(debtAuctionHouse.protocolToken() != address(0), "AccountingEngine/debt-auction-house-null-prot");
         require(protocolTokenAuthority.authorizedAccounts(address(debtAuctionHouse)) == 1, "AccountingEngine/debt-auction-house-cannot-print-prot");
@@ -255,7 +260,7 @@ contract AccountingEngine is Logging {
           "AccountingEngine/insufficient-surplus"
         );
         require(
-          subtract(subtract(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt) == 0,
+          unqueuedUnauctionedDebt() == 0,
           "AccountingEngine/debt-not-zero"
         );
         lastSurplusAuctionTime = now;
