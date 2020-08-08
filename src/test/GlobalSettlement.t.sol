@@ -244,7 +244,7 @@ contract GlobalSettlementTest is DSTest {
         FixedDiscountCollateralAuctionHouse fixedDiscountCollateralAuctionHouse =
           new FixedDiscountCollateralAuctionHouse(address(cdpEngine), name);
         fixedDiscountCollateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
-        fixedDiscountCollateralAuctionHouse.modifyParameters("osm", address(new Feed(bytes32(uint256(200 ether)), true)));
+        fixedDiscountCollateralAuctionHouse.modifyParameters("collateralOSM", address(new Feed(bytes32(uint256(200 ether)), true)));
         cdpEngine.approveCDPModification(address(fixedDiscountCollateralAuctionHouse));
         fixedDiscountCollateralAuctionHouse.addAuthorization(address(globalSettlement));
         fixedDiscountCollateralAuctionHouse.addAuthorization(address(liquidationEngine));
