@@ -41,12 +41,18 @@ contract EnglishCollateralAuctionHouse is Logging {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
+    }
     /**
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
+    }
     /**
     * @notice Checks whether msg.sender can call an authed function
     **/
@@ -102,20 +108,31 @@ contract EnglishCollateralAuctionHouse is Logging {
     bytes32 public constant AUCTION_TYPE       = bytes32("ENGLISH");
 
     // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
     event StartAuction(
         uint256 id,
         uint256 amountToSell,
         uint256 initialBid,
         uint256 amountToRaise,
         address indexed forgoneCollateralReceiver,
-        address indexed auctionIncomeRecipient
+        address indexed auctionIncomeRecipient,
+        uint256 auctionDeadline
     );
+    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, address data);
+    event RestartAuction(uint id, uint256 auctionDeadline);
+    event IncreaseBidSize(uint id, uint amountToBuy, uint rad, uint bidExpiry);
+    event DecreaseSoldAmount(uint id, uint amountToBuy, uint rad, uint bidExpiry);
+    event SettleAuction(uint id);
+    event TerminateAuctionPrematurely(uint id, address sender, uint bidAmount, uint collateralAmount);
 
     // --- Init ---
     constructor(address cdpEngine_, bytes32 collateralType_) public {
         cdpEngine = CDPEngineLike(cdpEngine_);
         collateralType = collateralType_;
         authorizedAccounts[msg.sender] = 1;
+        emit AddAuthorization(msg.sender);
     }
 
     // --- Math ---
@@ -146,6 +163,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
         else if (parameter == "bidToMarketPriceRatio") bidToMarketPriceRatio = data;
         else revert("EnglishCollateralAuctionHouse/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
     }
     /**
      * @notice Modify oracle related integrations
@@ -156,6 +174,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
         else if (parameter == "osm") osm = OracleLike(data);
         else revert("EnglishCollateralAuctionHouse/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
     }
 
     // --- Auction ---
@@ -188,7 +207,7 @@ contract EnglishCollateralAuctionHouse is Logging {
 
         cdpEngine.transferCollateral(collateralType, msg.sender, address(this), amountToSell);
 
-        emit StartAuction(id, amountToSell, initialBid, amountToRaise, forgoneCollateralReceiver, auctionIncomeRecipient);
+        emit StartAuction(id, amountToSell, initialBid, amountToRaise, forgoneCollateralReceiver, auctionIncomeRecipient, bids[id].auctionDeadline);
     }
     /**
      * @notice Restart an auction if no bids were submitted for it
@@ -198,6 +217,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         require(bids[id].auctionDeadline < now, "EnglishCollateralAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "EnglishCollateralAuctionHouse/bid-already-placed");
         bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
+        emit RestartAuction(id, bids[id].auctionDeadline);
     }
     /**
      * @notice First auction phase: submit a higher bid for the same amount of collateral
@@ -232,6 +252,8 @@ contract EnglishCollateralAuctionHouse is Logging {
 
         bids[id].bidAmount = rad;
         bids[id].bidExpiry = addUint48(uint48(now), bidDuration);
+
+        emit IncreaseBidSize(id, amountToBuy, rad, bids[id].bidExpiry);
     }
     /**
      * @notice Second auction phase: decrease the collateral amount you're willing to receive in
@@ -263,6 +285,8 @@ contract EnglishCollateralAuctionHouse is Logging {
 
         bids[id].amountToSell = amountToBuy;
         bids[id].bidExpiry    = addUint48(uint48(now), bidDuration);
+
+        emit DecreaseSoldAmount(id, amountToBuy, rad, bids[id].bidExpiry);
     }
     /**
      * @notice Settle/finish an auction
@@ -272,6 +296,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "EnglishCollateralAuctionHouse/not-finished");
         cdpEngine.transferCollateral(collateralType, address(this), bids[id].highBidder, bids[id].amountToSell);
         delete bids[id];
+        emit SettleAuction(id);
     }
     /**
      * @notice Terminate an auction prematurely (if it's still in the first phase).
@@ -283,6 +308,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         require(bids[id].bidAmount < bids[id].amountToRaise, "EnglishCollateralAuctionHouse/already-decreasing-sold-amount");
         cdpEngine.transferCollateral(collateralType, address(this), msg.sender, bids[id].amountToSell);
         cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bids[id].bidAmount);
+        emit TerminateAuctionPrematurely(id, msg.sender, bids[id].bidAmount, bids[id].amountToSell);
         delete bids[id];
     }
 
@@ -329,12 +355,18 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
+    }
     /**
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
+    }
     /**
     * @notice Checks whether msg.sender can call an authed function
     **/
@@ -382,9 +414,9 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     // Max upper bound deviation that the collateral median can have compared to the OSM price
     uint256  public   upperCollateralMedianDeviation = 0.95E18;   // 5% deviation
     // Max lower bound deviation that the system coin oracle price feed can have compared to the OSM price
-    uint256  public   lowerSystemCoinMedianDeviation = 1E18;      // 0% deviation
+    uint256  public   lowerSystemCoinMedianDeviation = WAD;       // 0% deviation
     // Max upper bound deviation that the collateral median can have compared to the OSM price
-    uint256  public   upperSystemCoinMedianDeviation = 1E18;      // 0% deviation
+    uint256  public   upperSystemCoinMedianDeviation = WAD;       // 0% deviation
 
     OracleRelayerLike public oracleRelayer;
     OracleLike        public collateralOSM;
@@ -395,13 +427,22 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     bytes32 public constant AUCTION_TYPE       = bytes32("FIXED_DISCOUNT");
 
     // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
     event StartAuction(
         uint256 id,
         uint256 amountToSell,
+        uint256 initialBid,
         uint256 amountToRaise,
         address indexed forgoneCollateralReceiver,
-        address indexed auctionIncomeRecipient
+        address indexed auctionIncomeRecipient,
+        uint256 auctionDeadline
     );
+    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, address data);
+    event BuyCollateral(uint id, uint wad, uint boughtCollateral);
+    event SettleAuction(uint id, uint leftoverCollateral);
+    event TerminateAuctionPrematurely(uint id, address sender, uint collateralAmount);
 
     // --- Init ---
     constructor(address cdpEngine_, bytes32 collateralType_) public {
@@ -484,6 +525,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
             totalAuctionLength = uint48(data);
         }
         else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
     }
     /**
      * @notice Modify oracle related integrations
@@ -496,6 +538,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         else if (parameter == "collateralMedian") collateralMedian = OracleLike(data);
         else if (parameter == "systemCoinOracle") systemCoinOracle = OracleLike(data);
         else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
     }
 
     // --- Auction Utils ---
@@ -543,7 +586,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
           }
         } catch (bytes memory revertReason) {}
     }
-    function getFinalCollateralPrice(
+    function getFinalBaseCollateralPrice(
         uint256 collateralOSMPriceFeedValue,
         uint256 collateralMedianPriceFeedValue
     ) private view returns (uint256) {
@@ -567,17 +610,17 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     ) public returns (uint256) {
         // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
         return wmultiply(
-          rdivide(getFinalCollateralPrice(collateralOSMPriceFeedValue, collateralMedianPriceFeedValue), systemCoinPriceFeedValue),
+          rdivide(getFinalBaseCollateralPrice(collateralOSMPriceFeedValue, collateralMedianPriceFeedValue), systemCoinPriceFeedValue),
           customDiscount
         );
     }
-    function getBoughtCollateralAmount(
+    function getBoughtCollateral(
         uint id,
         uint256 collateralOSMPriceFeedValue,
         uint256 collateralMedianPriceFeedValue,
         uint256 systemCoinPriceFeedValue,
         uint256 adjustedBid
-    ) public returns (uint256) {
+    ) private returns (uint256) {
         // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
         uint256 discountedRedemptionCollateralPrice =
           getDiscountedCollateralPrice(
@@ -624,7 +667,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
 
         cdpEngine.transferCollateral(collateralType, msg.sender, address(this), amountToSell);
 
-        emit StartAuction(id, amountToSell, amountToRaise, forgoneCollateralReceiver, auctionIncomeRecipient);
+        emit StartAuction(id, amountToSell, initialBid, amountToRaise, forgoneCollateralReceiver, auctionIncomeRecipient, bids[id].auctionDeadline);
     }
     /**
      * @notice Calculate how much collateral someone would buy from an auction
@@ -659,7 +702,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
           return 0;
         }
 
-        return getBoughtCollateralAmount(
+        return getBoughtCollateral(
           id,
           collateralOsmPriceFeedValue,
           getCollateralMedianPrice(),
@@ -696,7 +739,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         require(collateralOsmPriceFeedValue > 0, "FixedDiscountCollateralAuctionHouse/collateral-osm-invalid-value");
 
         // get the amount of collateral bought
-        uint256 boughtCollateral = getBoughtCollateralAmount(
+        uint256 boughtCollateral = getBoughtCollateral(
           id, collateralOsmPriceFeedValue, getCollateralMedianPrice(), systemCoinPriceFeedValue, adjustedBid
         );
         // check that the calculated amount is greater than zero
@@ -716,7 +759,10 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
             uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
             cdpEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
             delete bids[id];
+            emit SettleAuction(id, leftoverCollateral);
         }
+
+        emit BuyCollateral(id, wad, boughtCollateral);
     }
     /**
      * @notice Settle/finish an auction
@@ -730,6 +776,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
         cdpEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
         delete bids[id];
+        emit SettleAuction(id, leftoverCollateral);
     }
     /**
      * @notice Terminate an auction prematurely. Usually called by Global Settlement.
@@ -737,8 +784,10 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
      */
     function terminateAuctionPrematurely(uint id) external emitLog isAuthorized {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
+        uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
         cdpEngine.transferCollateral(collateralType, address(this), msg.sender, subtract(bids[id].amountToSell, bids[id].soldAmount));
         delete bids[id];
+        emit TerminateAuctionPrematurely(id, msg.sender, leftoverCollateral);
     }
 
     // --- Getters ---

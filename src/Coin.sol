@@ -20,8 +20,14 @@ import "./Logging.sol";
 contract Coin is Logging {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
+    }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
+    }
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "Coin/account-not-authorized");
         _;
@@ -40,6 +46,9 @@ contract Coin is Logging {
     mapping (address => mapping (address => uint)) public allowance;
     mapping (address => uint)                      public nonces;
 
+    // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
     event Approval(address indexed src, address indexed guy, uint amount);
     event Transfer(address indexed src, address indexed dst, uint amount);
 
@@ -71,6 +80,7 @@ contract Coin is Logging {
             chainId_,
             address(this)
         ));
+        emit AddAuthorization(msg.sender);
     }
 
     // --- Token ---

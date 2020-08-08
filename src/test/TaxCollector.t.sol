@@ -13,7 +13,7 @@ abstract contract Hevm {
 abstract contract CDPEngineLike {
     function collateralTypes(bytes32) virtual public view returns (
         uint256 debtAmount,
-        uint256 accumulatedRates,
+        uint256 accumulatedRate,
         uint256 safetyPrice,
         uint256 debtCeiling,
         uint256 debtFloor,
@@ -45,8 +45,8 @@ contract TaxCollectorTest is DSTest {
     function debtAmount(bytes32 collateralType) internal view returns (uint debtAmountV) {
         (debtAmountV,,,,,) = CDPEngineLike(address(cdpEngine)).collateralTypes(collateralType);
     }
-    function accumulatedRates(bytes32 collateralType) internal view returns (uint accumulatedRatesV) {
-        (, accumulatedRatesV,,,,) = CDPEngineLike(address(cdpEngine)).collateralTypes(collateralType);
+    function accumulatedRate(bytes32 collateralType) internal view returns (uint accumulatedRateV) {
+        (, accumulatedRateV,,,,) = CDPEngineLike(address(cdpEngine)).collateralTypes(collateralType);
     }
     function debtCeiling(bytes32 collateralType) internal view returns (uint debtCeilingV) {
         (,,, debtCeilingV,,) = CDPEngineLike(address(cdpEngine)).collateralTypes(collateralType);
@@ -168,7 +168,7 @@ contract TaxCollectorTest is DSTest {
         taxCollector.taxSingle("i");
         assertEq(wad(cdpEngine.coinBalance(ali)),  15.5 ether);
         assertEq(wad(cdpEngine.globalDebt()),     115.5 ether);
-        assertEq(accumulatedRates("i") / 10 ** 9, 1.155 ether);
+        assertEq(accumulatedRate("i") / 10 ** 9, 1.155 ether);
     }
     function test_collect_tax_global_stability_fee() public {
         cdpEngine.initializeCollateralType("j");

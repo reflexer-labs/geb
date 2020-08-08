@@ -34,7 +34,7 @@ abstract contract CDPSaviourLike {
 abstract contract CDPEngineLike {
     function collateralTypes(bytes32) virtual public view returns (
         uint256 debtAmount,        // wad
-        uint256 accumulatedRates,  // ray
+        uint256 accumulatedRate,  // ray
         uint256 safetyPrice,       // ray
         uint256 debtCeiling,       // rad
         uint256 debtFloor,         // rad
@@ -225,13 +225,13 @@ contract LiquidationEngine is Logging {
         require(mutex[collateralType][cdp] == 0, "LiquidationEngine/non-null-mutex");
         mutex[collateralType][cdp] = 1;
 
-        (, uint accumulatedRates, , , , uint liquidationPrice) = cdpEngine.collateralTypes(collateralType);
+        (, uint accumulatedRate, , , , uint liquidationPrice) = cdpEngine.collateralTypes(collateralType);
         (uint cdpCollateral, uint cdpDebt) = cdpEngine.cdps(collateralType, cdp);
 
         require(contractEnabled == 1, "LiquidationEngine/contract-not-enabled");
         require(both(
           liquidationPrice > 0,
-          multiply(cdpCollateral, liquidationPrice) < multiply(cdpDebt, accumulatedRates)
+          multiply(cdpCollateral, liquidationPrice) < multiply(cdpDebt, accumulatedRate)
         ), "LiquidationEngine/cdp-not-unsafe");
 
         if (chosenCDPSaviour[collateralType][cdp] != address(0) &&
@@ -246,10 +246,10 @@ contract LiquidationEngine is Logging {
           }
         }
 
-        (, accumulatedRates, , , , liquidationPrice) = cdpEngine.collateralTypes(collateralType);
+        (, accumulatedRate, , , , liquidationPrice) = cdpEngine.collateralTypes(collateralType);
         (cdpCollateral, cdpDebt) = cdpEngine.cdps(collateralType, cdp);
 
-        if (both(liquidationPrice > 0, multiply(cdpCollateral, liquidationPrice) < multiply(cdpDebt, accumulatedRates))) {
+        if (both(liquidationPrice > 0, multiply(cdpCollateral, liquidationPrice) < multiply(cdpDebt, accumulatedRate))) {
           uint collateralToSell = minimum(cdpCollateral, collateralTypes[collateralType].collateralToSell);
           cdpDebt               = minimum(cdpDebt, multiply(collateralToSell, cdpDebt) / cdpCollateral);
 
@@ -258,17 +258,17 @@ contract LiquidationEngine is Logging {
             collateralType, cdp, address(this), address(accountingEngine), -int(collateralToSell), -int(cdpDebt)
           );
 
-          accountingEngine.pushDebtToQueue(multiply(cdpDebt, accumulatedRates));
+          accountingEngine.pushDebtToQueue(multiply(cdpDebt, accumulatedRate));
 
           auctionId = CollateralAuctionHouseLike(collateralTypes[collateralType].collateralAuctionHouse).startAuction(
             { forgoneCollateralReceiver: cdp
             , initialBidder: address(accountingEngine)
-            , amountToRaise: rmultiply(multiply(cdpDebt, accumulatedRates), collateralTypes[collateralType].liquidationPenalty)
+            , amountToRaise: rmultiply(multiply(cdpDebt, accumulatedRate), collateralTypes[collateralType].liquidationPenalty)
             , collateralToSell: collateralToSell
             , initialBid: 0
            });
 
-          emit Liquidate(collateralType, cdp, collateralToSell, cdpDebt, multiply(cdpDebt, accumulatedRates), collateralTypes[collateralType].collateralAuctionHouse, auctionId);
+          emit Liquidate(collateralType, cdp, collateralToSell, cdpDebt, multiply(cdpDebt, accumulatedRate), collateralTypes[collateralType].collateralAuctionHouse, auctionId);
         }
 
         mutex[collateralType][cdp] = 0;

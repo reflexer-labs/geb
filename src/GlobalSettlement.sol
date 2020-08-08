@@ -24,7 +24,7 @@ abstract contract CDPEngineLike {
     function coinBalance(address) virtual public view returns (uint256);
     function collateralTypes(bytes32) virtual public view returns (
         uint256 debtAmount,        // wad
-        uint256 accumulatedRates,  // ray
+        uint256 accumulatedRate,  // ray
         uint256 safetyPrice,       // ray
         uint256 debtCeiling,       // rad
         uint256 debtFloor,         // rad
@@ -262,7 +262,7 @@ contract GlobalSettlement is Logging {
 
         (address auctionHouse_,,) = liquidationEngine.collateralTypes(collateralType);
         CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
-        (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
+        (, uint accumulatedRate,,,,) = cdpEngine.collateralTypes(collateralType);
 
         uint bidAmount                    = collateralAuctionHouse.bidAmount(auctionId);
         uint collateralToSell             = collateralAuctionHouse.remainingAmountToSell(auctionId);
@@ -274,17 +274,17 @@ contract GlobalSettlement is Logging {
         cdpEngine.approveCDPModification(address(collateralAuctionHouse));
         collateralAuctionHouse.terminateAuctionPrematurely(auctionId);
 
-        uint debt_ = amountToRaise / accumulatedRates;
+        uint debt_ = amountToRaise / accumulatedRate;
         collateralTotalDebt[collateralType] = addition(collateralTotalDebt[collateralType], debt_);
         require(int(collateralToSell) >= 0 && int(debt_) >= 0, "GlobalSettlement/overflow");
         cdpEngine.confiscateCDPCollateralAndDebt(collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int(collateralToSell), int(debt_));
     }
     function processCDP(bytes32 collateralType, address cdp) external emitLog {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
-        (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
+        (, uint accumulatedRate,,,,) = cdpEngine.collateralTypes(collateralType);
         (uint cdpCollateral, uint cdpDebt) = cdpEngine.cdps(collateralType, cdp);
 
-        uint amountOwed = rmultiply(rmultiply(cdpDebt, accumulatedRates), finalCoinPerCollateralPrice[collateralType]);
+        uint amountOwed = rmultiply(rmultiply(cdpDebt, accumulatedRate), finalCoinPerCollateralPrice[collateralType]);
         uint minCollateral = minimum(cdpCollateral, amountOwed);
         collateralShortfall[collateralType] = addition(
             collateralShortfall[collateralType],
@@ -326,9 +326,9 @@ contract GlobalSettlement is Logging {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
         require(collateralCashPrice[collateralType] == 0, "GlobalSettlement/collateral-cash-price-already-defined");
 
-        (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
+        (, uint accumulatedRate,,,,) = cdpEngine.collateralTypes(collateralType);
         uint256 redemptionAdjustedDebt = rmultiply(
-          rmultiply(collateralTotalDebt[collateralType], accumulatedRates), finalCoinPerCollateralPrice[collateralType]
+          rmultiply(collateralTotalDebt[collateralType], accumulatedRate), finalCoinPerCollateralPrice[collateralType]
         );
         collateralCashPrice[collateralType] = rdivide(
           multiply(subtract(redemptionAdjustedDebt, collateralShortfall[collateralType]), RAY), outstandingCoinSupply

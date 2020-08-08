@@ -19,7 +19,7 @@ import "./LinkedList.sol";
 abstract contract CDPEngineLike {
     function collateralTypes(bytes32) virtual public view returns (
         uint256 debtAmount,       // wad
-        uint256 accumulatedRates  // ray
+        uint256 accumulatedRate  // ray
     );
     function updateAccumulatedRate(bytes32,address,int) virtual external;
     function coinBalance(address) virtual public view returns (uint);

@@ -821,9 +821,9 @@ contract AccumulateRatesTest is DSTest {
     function totalAdjustedDebt(bytes32 collateralType, address cdp) internal view returns (uint) {
         (, uint generatedDebt_) =
           cdpEngine.cdps(collateralType, cdp);
-        (, uint accumulatedRates_, , , , ) =
+        (, uint accumulatedRate_, , , , ) =
           cdpEngine.collateralTypes(collateralType);
-        return generatedDebt_ * accumulatedRates_;
+        return generatedDebt_ * accumulatedRate_;
     }
 
     function setUp() public {

@@ -200,9 +200,9 @@ contract GlobalSettlementTest is DSTest {
         return generatedDebt_;
     }
     function debtAmount(bytes32 collateralType) internal view returns (uint) {
-        (uint debtAmount_, uint accumulatedRates_, uint safetyPrice_, uint debtCeiling_, uint debtFloor_, uint liquidationPrice_)
+        (uint debtAmount_, uint accumulatedRate_, uint safetyPrice_, uint debtCeiling_, uint debtFloor_, uint liquidationPrice_)
           = cdpEngine.collateralTypes(collateralType);
-        accumulatedRates_; safetyPrice_; debtCeiling_; debtFloor_; liquidationPrice_;
+        accumulatedRate_; safetyPrice_; debtCeiling_; debtFloor_; liquidationPrice_;
         return debtAmount_;
     }
     function balanceOf(bytes32 collateralType, address usr) internal view returns (uint) {
