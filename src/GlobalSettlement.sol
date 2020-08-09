@@ -194,7 +194,7 @@ contract GlobalSettlement is Logging {
     event FastTrackAuction(bytes32 collateralType, uint256 auctionId, uint256 collateralTotalDebt);
     event ProcessCDP(bytes32 collateralType, address cdp, uint256 collateralShortfall);
     event FreeCollateral(bytes32 collateralType, address sender, int collateralAmount);
-    event SetOutstandingCoinSupply(address outstandingCoinSupply);
+    event SetOutstandingCoinSupply(uint256 outstandingCoinSupply);
     event CalculateCashPrice(bytes32 collateralType, uint collateralCashPrice);
     event PrepareCoinsForRedeeming(address sender, uint coinBag);
     event RedeemCollateral(bytes32 collateralType, address sender, uint coinsAmount, uint collateralAmount);

@@ -593,7 +593,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         try systemCoinOracle.getResultWithValidity()
           returns (bytes32 price, bool valid) {
           if (valid) {
-            priceFeed = uint(price);
+            priceFeed = uint(price) * 10 ** 9; // scale to RAY
           }
         } catch (bytes memory revertReason) {}
     }

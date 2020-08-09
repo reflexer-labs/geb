@@ -134,7 +134,7 @@ contract AccountingEngine is Logging {
     event CancelAuctionedDebtWithSurplus(uint rad, uint totalOnAuctionDebt, uint coinBalance, uint debtBalance);
     event AuctionDebt(uint id, uint totalOnAuctionDebt, uint debtBalance);
     event AuctionSurplus(uint id, uint lastSurplusAuctionTime, uint coinBalance);
-    event DisableContract(uint disableTimestamp, uint disableCooldown);
+    event DisableContract(uint disableTimestamp, uint disableCooldown, uint coinBalance, uint debtBalance);
     event TransferPostSettlementSurplus(address postSettlementSurplusDrain, uint coinBalance, uint debtBalance);
 
     // --- Init ---
@@ -326,6 +326,10 @@ contract AccountingEngine is Logging {
         require(contractEnabled == 0, "AccountingEngine/still-enabled");
         require(addition(disableTimestamp, disableCooldown) <= now, "AccountingEngine/cooldown-not-passed");
         cdpEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, cdpEngine.coinBalance(address(this)));
-        emit TransferPostSettlementSurplus(postSettlementSurplusDrain);
+        emit TransferPostSettlementSurplus(
+          postSettlementSurplusDrain,
+          cdpEngine.coinBalance(address(this)),
+          cdpEngine.debtBalance(address(this))
+        );
     }
 }

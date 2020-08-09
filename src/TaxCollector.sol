@@ -34,12 +34,18 @@ contract TaxCollector is Logging {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
+    }
     /**
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
+    }
     /**
     * @notice Checks whether msg.sender can call an authed function
     **/
@@ -71,12 +77,14 @@ contract TaxCollector is Logging {
       address receiverAccount
     );
     event AddSecondaryReceiver(
+      bytes32 collateralType,
       uint secondaryReceiverNonce,
       uint latestSecondaryReceiver,
       uint secondaryReceiverAllotedTax,
       uint secondaryReceiverRevenueSources
     );
     event ModifySecondaryReceiver(
+      bytes32 collateralType,
       uint secondaryReceiverNonce,
       uint latestSecondaryReceiver,
       uint secondaryReceiverAllotedTax,
@@ -134,6 +142,7 @@ contract TaxCollector is Logging {
     constructor(address cdpEngine_) public {
         authorizedAccounts[msg.sender] = 1;
         cdpEngine = CDPEngineLike(cdpEngine_);
+        emit AddAuthorization(msg.sender);
     }
 
     // --- Math ---
@@ -217,6 +226,7 @@ contract TaxCollector is Logging {
         collateralType_.stabilityFee = RAY;
         collateralType_.updateTime   = now;
         collateralList.push(collateralType);
+        emit InitializeCollateralType(collateralType);
     }
     /**
      * @notice Modify collateral specific uint params
@@ -232,6 +242,11 @@ contract TaxCollector is Logging {
         require(now == collateralTypes[collateralType].updateTime, "TaxCollector/update-time-not-now");
         if (parameter == "stabilityFee") collateralTypes[collateralType].stabilityFee = data;
         else revert("TaxCollector/modify-unrecognized-param");
+        emit ModifyParameters(
+          collateralType,
+          parameter,
+          data
+        );
     }
     /**
      * @notice Modify general uint params
@@ -242,6 +257,7 @@ contract TaxCollector is Logging {
         if (parameter == "globalStabilityFee") globalStabilityFee = data;
         else if (parameter == "maxSecondaryReceivers") maxSecondaryReceivers = data;
         else revert("TaxCollector/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
     }
     /**
      * @notice Modify general uint params
@@ -252,6 +268,7 @@ contract TaxCollector is Logging {
         require(data != address(0), "TaxCollector/null-data");
         if (parameter == "primaryTaxReceiver") primaryTaxReceiver = data;
         else revert("TaxCollector/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
     }
     /**
      * @notice Set whether a tax receiver can incur negative fees
@@ -268,6 +285,11 @@ contract TaxCollector is Logging {
             secondaryTaxReceivers[collateralType][position].canTakeBackTax = val;
         }
         else revert("TaxCollector/unknown-tax-receiver");
+        emit ModifyParameters(
+          collateralType,
+          position,
+          val
+        );
     }
     /**
      * @notice Create or modify a secondary tax receiver's data
@@ -286,6 +308,12 @@ contract TaxCollector is Logging {
         (!secondaryReceiverList.isNode(position)) ?
           addSecondaryReceiver(collateralType, taxPercentage, receiverAccount) :
           modifySecondaryReceiver(collateralType, position, taxPercentage);
+        emit ModifyParameters(
+          collateralType,
+          position,
+          taxPercentage,
+          receiverAccount
+        );
     }
 
     // --- Tax Receiver Utils ---
@@ -310,6 +338,13 @@ contract TaxCollector is Logging {
         secondaryReceiverAccounts[latestSecondaryReceiver]                           = receiverAccount;
         secondaryReceiverRevenueSources[receiverAccount]                             = ONE;
         secondaryReceiverList.push(latestSecondaryReceiver, false);
+        emit AddSecondaryReceiver(
+          collateralType,
+          secondaryReceiverNonce,
+          latestSecondaryReceiver,
+          secondaryReceiverAllotedTax[collateralType],
+          secondaryReceiverRevenueSources[receiverAccount]
+        );
     }
     /**
      * @notice Update a secondary tax receiver's data (add a new SF source or modify % of SF taken from a collateral type)
@@ -353,6 +388,13 @@ contract TaxCollector is Logging {
           secondaryReceiverAllotedTax[collateralType]                   = secondaryReceiverAllotedTax_;
           secondaryTaxReceivers[collateralType][position].taxPercentage = taxPercentage;
         }
+        emit ModifySecondaryReceiver(
+          collateralType,
+          secondaryReceiverNonce,
+          latestSecondaryReceiver,
+          secondaryReceiverAllotedTax[collateralType],
+          secondaryReceiverRevenueSources[secondaryReceiverAccounts[position]]
+        );
     }
 
     // --- Tax Collection Utils ---
