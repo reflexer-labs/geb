@@ -200,9 +200,9 @@ contract GlobalSettlementTest is DSTest {
         return generatedDebt_;
     }
     function debtAmount(bytes32 collateralType) internal view returns (uint) {
-        (uint debtAmount_, uint accumulatedRates_, uint safetyPrice_, uint debtCeiling_, uint debtFloor_, uint liquidationPrice_)
+        (uint debtAmount_, uint accumulatedRate_, uint safetyPrice_, uint debtCeiling_, uint debtFloor_, uint liquidationPrice_)
           = cdpEngine.collateralTypes(collateralType);
-        accumulatedRates_; safetyPrice_; debtCeiling_; debtFloor_; liquidationPrice_;
+        accumulatedRate_; safetyPrice_; debtCeiling_; debtFloor_; liquidationPrice_;
         return debtAmount_;
     }
     function balanceOf(bytes32 collateralType, address usr) internal view returns (uint) {
@@ -244,7 +244,7 @@ contract GlobalSettlementTest is DSTest {
         FixedDiscountCollateralAuctionHouse fixedDiscountCollateralAuctionHouse =
           new FixedDiscountCollateralAuctionHouse(address(cdpEngine), name);
         fixedDiscountCollateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
-        fixedDiscountCollateralAuctionHouse.modifyParameters("osm", address(new Feed(bytes32(uint256(200 ether)), true)));
+        fixedDiscountCollateralAuctionHouse.modifyParameters("collateralOSM", address(new Feed(bytes32(uint256(200 ether)), true)));
         cdpEngine.approveCDPModification(address(fixedDiscountCollateralAuctionHouse));
         fixedDiscountCollateralAuctionHouse.addAuthorization(address(globalSettlement));
         fixedDiscountCollateralAuctionHouse.addAuthorization(address(liquidationEngine));

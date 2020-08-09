@@ -44,12 +44,18 @@ contract CoinSavingsAccount is Logging {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
+    }
     /**
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
+    }
     /**
     * @notice Checks whether msg.sender can call an authed function
     **/
@@ -59,7 +65,14 @@ contract CoinSavingsAccount is Logging {
     }
 
     // --- Events ---
-    event UpdateAccumulatedRate(uint newAccumulatedRate, uint coinAmount);
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
+    event ModifyParameters(bytes32 parameter, uint256 data);
+    event ModifyParameters(bytes32 parameter, address data);
+    event DisableContract();
+    event Deposit(address usr, uint256 balance, uint256 totalSavings);
+    event Withdraw(address usr, uint256 balance, uint256 totalSavings);
+    event UpdateAccumulatedRate(uint256 newAccumulatedRate, uint256 coinAmount);
 
     // --- Data ---
     // Amount of coins each user has deposited
@@ -70,7 +83,7 @@ contract CoinSavingsAccount is Logging {
     // Per second savings rate
     uint256 public savingsRate;
     // An index representing total accumulated rates
-    uint256 public accumulatedRates;
+    uint256 public accumulatedRate;
 
     // CDP database
     CDPEngineLike public cdpEngine;
@@ -86,7 +99,7 @@ contract CoinSavingsAccount is Logging {
         authorizedAccounts[msg.sender] = 1;
         cdpEngine = CDPEngineLike(cdpEngine_);
         savingsRate = RAY;
-        accumulatedRates = RAY;
+        accumulatedRate = RAY;
         latestUpdateTime = now;
         contractEnabled = 1;
     }
@@ -144,6 +157,7 @@ contract CoinSavingsAccount is Logging {
         require(now == latestUpdateTime, "CoinSavingsAccount/accumulation-time-not-updated");
         if (parameter == "savingsRate") savingsRate = data;
         else revert("CoinSavingsAccount/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
     }
     /**
      * @notice Modify address of the accounting engine
@@ -153,6 +167,7 @@ contract CoinSavingsAccount is Logging {
     function modifyParameters(bytes32 parameter, address addr) external emitLog isAuthorized {
         if (parameter == "accountingEngine") accountingEngine = addr;
         else revert("CoinSavingsAccount/modify-unrecognized-param");
+        emit ModifyParameters(parameter, addr);
     }
     /**
      * @notice Disable this contract (usually called by Global Settlement)
@@ -160,6 +175,7 @@ contract CoinSavingsAccount is Logging {
     function disableContract() external emitLog isAuthorized {
         contractEnabled = 0;
         savingsRate = RAY;
+        emit DisableContract();
     }
 
     // --- Savings Rate Accumulation ---
@@ -170,42 +186,44 @@ contract CoinSavingsAccount is Logging {
             this contract
      */
     function updateAccumulatedRate() external emitLog returns (uint newAccumulatedRate) {
-        if (now <= latestUpdateTime) return accumulatedRates;
-        newAccumulatedRate = rmultiply(rpower(savingsRate, subtract(now, latestUpdateTime), RAY), accumulatedRates);
-        uint accumulatedRates_ = subtract(newAccumulatedRate, accumulatedRates);
-        accumulatedRates = newAccumulatedRate;
+        if (now <= latestUpdateTime) return accumulatedRate;
+        newAccumulatedRate = rmultiply(rpower(savingsRate, subtract(now, latestUpdateTime), RAY), accumulatedRate);
+        uint accumulatedRate_ = subtract(newAccumulatedRate, accumulatedRate);
+        accumulatedRate = newAccumulatedRate;
         latestUpdateTime = now;
-        cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), multiply(totalSavings, accumulatedRates_));
-        emit UpdateAccumulatedRate(newAccumulatedRate, multiply(totalSavings, accumulatedRates_));
+        cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), multiply(totalSavings, accumulatedRate_));
+        emit UpdateAccumulatedRate(newAccumulatedRate, multiply(totalSavings, accumulatedRate_));
     }
     /**
-     * @notice Get the next value of 'accumulatedRates' without actually updating the variable
+     * @notice Get the next value of 'accumulatedRate' without actually updating the variable
      */
     function nextAccumulatedRate() external view returns (uint) {
-        if (now <= latestUpdateTime) return accumulatedRates;
-        return rmultiply(rpower(savingsRate, subtract(now, latestUpdateTime), RAY), accumulatedRates);
+        if (now <= latestUpdateTime) return accumulatedRate;
+        return rmultiply(rpower(savingsRate, subtract(now, latestUpdateTime), RAY), accumulatedRate);
     }
 
     // --- Savings Management ---
     /**
      * @notice Deposit coins in the savings account
      * @param wad Amount of coins to deposit (expressed as an 18 decimal number). 'wad' will be multiplied by
-              'accumulatedRates' (27 decimals) to result in a correct amount of internal coins transferred
+              'accumulatedRate' (27 decimals) to result in a correct amount of internal coins transferred
      */
     function deposit(uint wad) external emitLog {
         require(now == latestUpdateTime, "CoinSavingsAccount/accumulation-time-not-updated");
         savings[msg.sender] = addition(savings[msg.sender], wad);
         totalSavings        = addition(totalSavings, wad);
-        cdpEngine.transferInternalCoins(msg.sender, address(this), multiply(accumulatedRates, wad));
+        cdpEngine.transferInternalCoins(msg.sender, address(this), multiply(accumulatedRate, wad));
+        emit Deposit(msg.sender, savings[msg.sender], totalSavings);
     }
     /**
      * @notice Withdraw coins (alongside any interest accrued) from the savings account
      * @param wad Amount of coins to withdraw (expressed as an 18 decimal number). 'wad' will be multiplied by
-              'accumulatedRates' (27 decimals) to result in a correct amount of internal coins transferred
+              'accumulatedRate' (27 decimals) to result in a correct amount of internal coins transferred
      */
     function withdraw(uint wad) external emitLog {
         savings[msg.sender] = subtract(savings[msg.sender], wad);
         totalSavings        = subtract(totalSavings, wad);
-        cdpEngine.transferInternalCoins(address(this), msg.sender, multiply(accumulatedRates, wad));
+        cdpEngine.transferInternalCoins(address(this), msg.sender, multiply(accumulatedRate, wad));
+        emit Withdraw(msg.sender, savings[msg.sender], totalSavings);
     }
 }

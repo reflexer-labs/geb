@@ -83,6 +83,11 @@ contract BasicCollateralJoin is Logging {
     // Whether this adapter contract is enabled or not
     uint           public contractEnabled;
 
+    // --- Events ---
+    event DisableContract();
+    event Join(address sender, address account, uint wad);
+    event Exit(address sender, address account, uint wad);
+
     constructor(address cdpEngine_, bytes32 collateralType_, address collateral_) public {
         authorizedAccounts[msg.sender] = 1;
         contractEnabled = 1;
@@ -96,6 +101,7 @@ contract BasicCollateralJoin is Logging {
      */
     function disableContract() external emitLog isAuthorized {
         contractEnabled = 0;
+        emit DisableContract();
     }
     /**
     * @notice Join collateral in the system
@@ -110,6 +116,7 @@ contract BasicCollateralJoin is Logging {
         require(int(wad) >= 0, "BasicCollateralJoin/overflow");
         cdpEngine.modifyCollateralBalance(collateralType, account, int(wad));
         require(collateral.transferFrom(msg.sender, address(this), wad), "BasicCollateralJoin/failed-transfer");
+        emit Join(msg.sender, account, wad);
     }
     /**
     * @notice Exit collateral from the system
@@ -123,6 +130,7 @@ contract BasicCollateralJoin is Logging {
         require(wad <= 2 ** 255, "BasicCollateralJoin/overflow");
         cdpEngine.modifyCollateralBalance(collateralType, msg.sender, -int(wad));
         require(collateral.transfer(account, wad), "BasicCollateralJoin/failed-transfer");
+        emit Exit(msg.sender, account, wad);
     }
 }
 
@@ -133,12 +141,18 @@ contract ETHJoin is Logging {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
+    }
     /**
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
+    }
     /**
     * @notice Checks whether msg.sender can call an authed function
     **/
@@ -156,18 +170,27 @@ contract ETHJoin is Logging {
     // Number of decimals ETH has
     uint          public decimals;
 
+    // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
+    event DisableContract();
+    event Join(address sender, address account, uint wad);
+    event Exit(address sender, address account, uint wad);
+
     constructor(address cdpEngine_, bytes32 collateralType_) public {
         authorizedAccounts[msg.sender] = 1;
         contractEnabled                = 1;
         cdpEngine                      = CDPEngineLike(cdpEngine_);
         collateralType                 = collateralType_;
         decimals                       = 18;
+        emit AddAuthorization(msg.sender);
     }
     /**
      * @notice Disable this contract
      */
     function disableContract() external emitLog isAuthorized {
         contractEnabled = 0;
+        emit DisableContract();
     }
     /**
     * @notice Join ETH in the system
@@ -177,6 +200,7 @@ contract ETHJoin is Logging {
         require(contractEnabled == 1, "ETHJoin/contract-not-enabled");
         require(int(msg.value) >= 0, "ETHJoin/overflow");
         cdpEngine.modifyCollateralBalance(collateralType, account, int(msg.value));
+        emit Join(msg.sender, account, msg.value);
     }
     /**
     * @notice Exit ETH from the system
@@ -185,6 +209,7 @@ contract ETHJoin is Logging {
     function exit(address payable account, uint wad) external emitLog {
         require(int(wad) >= 0, "ETHJoin/overflow");
         cdpEngine.modifyCollateralBalance(collateralType, msg.sender, -int(wad));
+        emit Exit(msg.sender, account, wad);
         account.transfer(wad);
     }
 }
@@ -197,14 +222,16 @@ contract CoinJoin is Logging {
      * @param account Account to add auth to
      */
     function addAuthorization(address account) external emitLog isAuthorized {
-      authorizedAccounts[account] = 1;
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
     }
     /**
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
     function removeAuthorization(address account) external emitLog isAuthorized {
-      authorizedAccounts[account] = 0;
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
     }
     /**
     * @notice Checks whether msg.sender can call an authed function
@@ -223,6 +250,13 @@ contract CoinJoin is Logging {
     // Number of decimals the system coin has
     uint          public decimals;
 
+    // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
+    event DisableContract();
+    event Join(address sender, address account, uint wad);
+    event Exit(address sender, address account, uint wad);
+
     constructor(address cdpEngine_, address systemCoin_) public {
         authorizedAccounts[msg.sender] = 1;
         contractEnabled                = 1;
@@ -235,6 +269,7 @@ contract CoinJoin is Logging {
      */
     function disableContract() external emitLog isAuthorized {
         contractEnabled = 0;
+        emit DisableContract();
     }
     uint constant RAY = 10 ** 27;
     function multiply(uint x, uint y) internal pure returns (uint z) {
@@ -250,6 +285,7 @@ contract CoinJoin is Logging {
     function join(address account, uint wad) external emitLog {
         cdpEngine.transferInternalCoins(address(this), account, multiply(RAY, wad));
         systemCoin.burn(msg.sender, wad);
+        emit Join(msg.sender, account, wad);
     }
     /**
     * @notice Exit reflex-bonds/pegged-coins from the system and inside 'Coin.sol'
@@ -263,5 +299,6 @@ contract CoinJoin is Logging {
         require(contractEnabled == 1, "CoinJoin/contract-not-enabled");
         cdpEngine.transferInternalCoins(msg.sender, address(this), multiply(RAY, wad));
         systemCoin.mint(account, wad);
+        emit Exit(msg.sender, account, wad);
     }
 }

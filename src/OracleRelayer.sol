@@ -32,12 +32,18 @@ contract OracleRelayer is Logging {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
+    }
     /**
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
+    }
     /**
     * @notice Checks whether msg.sender can call an authed function
     **/
@@ -71,6 +77,21 @@ contract OracleRelayer is Logging {
     uint256 internal _redemptionPrice;
 
     // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
+    event DisableContract();
+    event ModifyParameters(
+        bytes32 collateralType,
+        bytes32 parameter,
+        address addr
+    );
+    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(
+        bytes32 collateralType,
+        bytes32 parameter,
+        uint data
+    );
+    event UpdateRedemptionPrice(uint redemptionPrice);
     event UpdateCollateralPrice(
       bytes32 collateralType,
       bytes32 priceFeedValue,
@@ -86,6 +107,7 @@ contract OracleRelayer is Logging {
         redemptionRate   = RAY;
         redemptionPriceUpdateTime  = now;
         contractEnabled = 1;
+        emit AddAuthorization(msg.sender);
     }
 
     // --- Math ---
@@ -144,6 +166,11 @@ contract OracleRelayer is Logging {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         if (parameter == "orcl") collateralTypes[collateralType].orcl = OracleLike(addr);
         else revert("OracleRelayer/modify-unrecognized-param");
+        emit ModifyParameters(
+            collateralType,
+            parameter,
+            addr
+        );
     }
     /**
      * @notice Modify redemption related parameters
@@ -159,6 +186,10 @@ contract OracleRelayer is Logging {
           redemptionRate = data;
         }
         else revert("OracleRelayer/modify-unrecognized-param");
+        emit ModifyParameters(
+            parameter,
+            data
+        );
     }
     /**
      * @notice Modify CRatio related parameters
@@ -181,6 +212,11 @@ contract OracleRelayer is Logging {
           collateralTypes[collateralType].liquidationCRatio = data;
         }
         else revert("OracleRelayer/modify-unrecognized-param");
+        emit ModifyParameters(
+            collateralType,
+            parameter,
+            data
+        );
     }
 
     // --- Redemption Price Update ---
@@ -194,6 +230,7 @@ contract OracleRelayer is Logging {
           _redemptionPrice
         );
         redemptionPriceUpdateTime = now;
+        emit UpdateRedemptionPrice(_redemptionPrice);
         // Return updated redemption price
         return _redemptionPrice;
     }
@@ -227,6 +264,7 @@ contract OracleRelayer is Logging {
      */
     function disableContract() external emitLog isAuthorized {
         contractEnabled = 0;
+        emit DisableContract();
     }
 
     /**

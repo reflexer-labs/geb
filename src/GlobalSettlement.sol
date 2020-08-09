@@ -24,7 +24,7 @@ abstract contract CDPEngineLike {
     function coinBalance(address) virtual public view returns (uint256);
     function collateralTypes(bytes32) virtual public view returns (
         uint256 debtAmount,        // wad
-        uint256 accumulatedRates,  // ray
+        uint256 accumulatedRate,  // ray
         uint256 safetyPrice,       // ray
         uint256 debtCeiling,       // rad
         uint256 debtFloor,         // rad
@@ -151,10 +151,12 @@ contract GlobalSettlement is Logging {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     function addAuthorization(address account) external emitLog isAuthorized {
-      authorizedAccounts[account] = 1;
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
     }
     function removeAuthorization(address account) external emitLog isAuthorized {
-      authorizedAccounts[account] = 0;
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
     }
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "GlobalSettlement/account-not-authorized");
@@ -175,17 +177,33 @@ contract GlobalSettlement is Logging {
     uint256  public outstandingCoinSupply; // [rad]
 
     mapping (bytes32 => uint256) public finalCoinPerCollateralPrice;   // [ray]
-    mapping (bytes32 => uint256) public collateralShortfall;    // [wad]
-    mapping (bytes32 => uint256) public collateralTotalDebt;    // [wad]
-    mapping (bytes32 => uint256) public collateralCashPrice;    // [ray]
+    mapping (bytes32 => uint256) public collateralShortfall;           // [wad]
+    mapping (bytes32 => uint256) public collateralTotalDebt;           // [wad]
+    mapping (bytes32 => uint256) public collateralCashPrice;           // [ray]
 
     mapping (address => uint256)                      public coinBag;           // [wad]
     mapping (bytes32 => mapping (address => uint256)) public coinsUsedToRedeem; // [wad]
+
+    // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
+    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, address data);
+    event ShutdownSystem();
+    event FreezeCollateralType(bytes32 collateralType, uint finalCoinPerCollateralPrice);
+    event FastTrackAuction(bytes32 collateralType, uint256 auctionId, uint256 collateralTotalDebt);
+    event ProcessCDP(bytes32 collateralType, address cdp, uint256 collateralShortfall);
+    event FreeCollateral(bytes32 collateralType, address sender, int collateralAmount);
+    event SetOutstandingCoinSupply(uint256 outstandingCoinSupply);
+    event CalculateCashPrice(bytes32 collateralType, uint collateralCashPrice);
+    event PrepareCoinsForRedeeming(address sender, uint coinBag);
+    event RedeemCollateral(bytes32 collateralType, address sender, uint coinsAmount, uint collateralAmount);
 
     // --- Init ---
     constructor() public {
         authorizedAccounts[msg.sender] = 1;
         contractEnabled = 1;
+        emit AddAuthorization(msg.sender);
     }
 
     // --- Math ---
@@ -224,11 +242,13 @@ contract GlobalSettlement is Logging {
         else if (parameter == "coinSavingsAccount") coinSavingsAccount = CoinSavingsAccountLike(data);
         else if (parameter == "stabilityFeeTreasury") stabilityFeeTreasury = StabilityFeeTreasuryLike(data);
         else revert("GlobalSettlement/modify-unrecognized-parameter");
+        emit ModifyParameters(parameter, data);
     }
     function modifyParameters(bytes32 parameter, uint256 data) external emitLog isAuthorized {
         require(contractEnabled == 1, "GlobalSettlement/contract-not-enabled");
         if (parameter == "shutdownCooldown") shutdownCooldown = data;
         else revert("GlobalSettlement/modify-unrecognized-parameter");
+        emit ModifyParameters(parameter, data);
     }
 
     // --- Settlement ---
@@ -247,6 +267,7 @@ contract GlobalSettlement is Logging {
         if (address(coinSavingsAccount) != address(0)) {
           coinSavingsAccount.disableContract();
         }
+        emit ShutdownSystem();
     }
 
     function freezeCollateralType(bytes32 collateralType) external emitLog {
@@ -256,13 +277,14 @@ contract GlobalSettlement is Logging {
         (OracleLike orcl,) = oracleRelayer.collateralTypes(collateralType);
         // redemptionPrice is a ray, orcl returns a wad
         finalCoinPerCollateralPrice[collateralType] = wdivide(oracleRelayer.redemptionPrice(), uint(orcl.read()));
+        emit FreezeCollateralType(collateralType, finalCoinPerCollateralPrice[collateralType]);
     }
     function fastTrackAuction(bytes32 collateralType, uint256 auctionId) external emitLog {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
 
         (address auctionHouse_,,) = liquidationEngine.collateralTypes(collateralType);
         CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
-        (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
+        (, uint accumulatedRate,,,,) = cdpEngine.collateralTypes(collateralType);
 
         uint bidAmount                    = collateralAuctionHouse.bidAmount(auctionId);
         uint collateralToSell             = collateralAuctionHouse.remainingAmountToSell(auctionId);
@@ -274,17 +296,18 @@ contract GlobalSettlement is Logging {
         cdpEngine.approveCDPModification(address(collateralAuctionHouse));
         collateralAuctionHouse.terminateAuctionPrematurely(auctionId);
 
-        uint debt_ = amountToRaise / accumulatedRates;
+        uint debt_ = amountToRaise / accumulatedRate;
         collateralTotalDebt[collateralType] = addition(collateralTotalDebt[collateralType], debt_);
         require(int(collateralToSell) >= 0 && int(debt_) >= 0, "GlobalSettlement/overflow");
         cdpEngine.confiscateCDPCollateralAndDebt(collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int(collateralToSell), int(debt_));
+        emit FastTrackAuction(collateralType, auctionId, collateralTotalDebt[collateralType]);
     }
     function processCDP(bytes32 collateralType, address cdp) external emitLog {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
-        (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
+        (, uint accumulatedRate,,,,) = cdpEngine.collateralTypes(collateralType);
         (uint cdpCollateral, uint cdpDebt) = cdpEngine.cdps(collateralType, cdp);
 
-        uint amountOwed = rmultiply(rmultiply(cdpDebt, accumulatedRates), finalCoinPerCollateralPrice[collateralType]);
+        uint amountOwed = rmultiply(rmultiply(cdpDebt, accumulatedRate), finalCoinPerCollateralPrice[collateralType]);
         uint minCollateral = minimum(cdpCollateral, amountOwed);
         collateralShortfall[collateralType] = addition(
             collateralShortfall[collateralType],
@@ -300,6 +323,8 @@ contract GlobalSettlement is Logging {
             -int(minCollateral),
             -int(cdpDebt)
         );
+
+        emit ProcessCDP(collateralType, cdp, collateralShortfall[collateralType]);
     }
     function freeCollateral(bytes32 collateralType) external emitLog {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
@@ -314,6 +339,7 @@ contract GlobalSettlement is Logging {
           -int(cdpCollateral),
           0
         );
+        emit FreeCollateral(collateralType, msg.sender, -int(cdpCollateral));
     }
     function setOutstandingCoinSupply() external emitLog {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
@@ -321,33 +347,38 @@ contract GlobalSettlement is Logging {
         require(cdpEngine.coinBalance(address(accountingEngine)) == 0, "GlobalSettlement/surplus-not-zero");
         require(now >= addition(shutdownTime, shutdownCooldown), "GlobalSettlement/shutdown-cooldown-not-finished");
         outstandingCoinSupply = cdpEngine.globalDebt();
+        emit SetOutstandingCoinSupply(outstandingCoinSupply);
     }
     function calculateCashPrice(bytes32 collateralType) external emitLog {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
         require(collateralCashPrice[collateralType] == 0, "GlobalSettlement/collateral-cash-price-already-defined");
 
-        (, uint accumulatedRates,,,,) = cdpEngine.collateralTypes(collateralType);
+        (, uint accumulatedRate,,,,) = cdpEngine.collateralTypes(collateralType);
         uint256 redemptionAdjustedDebt = rmultiply(
-          rmultiply(collateralTotalDebt[collateralType], accumulatedRates), finalCoinPerCollateralPrice[collateralType]
+          rmultiply(collateralTotalDebt[collateralType], accumulatedRate), finalCoinPerCollateralPrice[collateralType]
         );
         collateralCashPrice[collateralType] = rdivide(
           multiply(subtract(redemptionAdjustedDebt, collateralShortfall[collateralType]), RAY), outstandingCoinSupply
         );
+        emit CalculateCashPrice(collateralType, collateralCashPrice[collateralType]);
     }
     function prepareCoinsForRedeeming(uint256 coinAmount) external emitLog {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
         cdpEngine.transferInternalCoins(msg.sender, address(accountingEngine), multiply(coinAmount, RAY));
         coinBag[msg.sender] = addition(coinBag[msg.sender], coinAmount);
+        emit PrepareCoinsForRedeeming(msg.sender, coinBag[msg.sender]);
     }
     function redeemCollateral(bytes32 collateralType, uint coinsAmount) external emitLog {
         require(collateralCashPrice[collateralType] != 0, "GlobalSettlement/collateral-cash-price-not-defined");
+        uint collateralAmount = rmultiply(coinsAmount, collateralCashPrice[collateralType]);
         cdpEngine.transferCollateral(
           collateralType,
           address(this),
           msg.sender,
-          rmultiply(coinsAmount, collateralCashPrice[collateralType])
+          collateralAmount
         );
         coinsUsedToRedeem[collateralType][msg.sender] = addition(coinsUsedToRedeem[collateralType][msg.sender], coinsAmount);
         require(coinsUsedToRedeem[collateralType][msg.sender] <= coinBag[msg.sender], "GlobalSettlement/insufficient-bag-balance");
+        emit RedeemCollateral(collateralType, msg.sender, coinsAmount, collateralAmount);
     }
 }

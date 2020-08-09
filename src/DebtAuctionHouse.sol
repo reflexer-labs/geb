@@ -42,12 +42,18 @@ contract DebtAuctionHouse is Logging {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
+    }
     /**
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
+    }
     /**
     * @notice Checks whether msg.sender can call an authed function
     **/
@@ -98,12 +104,24 @@ contract DebtAuctionHouse is Logging {
     bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("DEBT");
 
     // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
     event StartAuction(
       uint256 id,
+      uint256 auctionsStarted,
       uint256 amountToSell,
       uint256 initialBid,
-      address indexed incomeReceiver
+      address indexed incomeReceiver,
+      uint256 auctionDeadline,
+      uint256 activeDebtAuctions
     );
+    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, address data);
+    event RestartAuction(uint id, uint256 auctionDeadline);
+    event DecreaseSoldAmount(uint id, address highBidder, uint amountToBuy, uint bid, uint bidExpiry);
+    event SettleAuction(uint id, uint activeDebtAuctions);
+    event TerminateAuctionPrematurely(uint id, address sender, address highBidder, uint bidAmount, uint activeDebtAuctions);
+    event DisableContract(address sender);
 
     // --- Init ---
     constructor(address cdpEngine_, address protocolToken_) public {
@@ -111,6 +129,7 @@ contract DebtAuctionHouse is Logging {
         cdpEngine = CDPEngineLike(cdpEngine_);
         protocolToken = TokenLike(protocolToken_);
         contractEnabled = 1;
+        emit AddAuthorization(msg.sender);
     }
 
     // --- Math ---
@@ -142,6 +161,7 @@ contract DebtAuctionHouse is Logging {
         else if (parameter == "bidDuration") bidDuration = uint48(data);
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
         else revert("DebtAuctionHouse/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
     }
     /**
      * @notice Change addresses of integrated contracts
@@ -153,6 +173,7 @@ contract DebtAuctionHouse is Logging {
         if (parameter == "protocolToken") protocolToken = TokenLike(addr);
         else if (parameter == "accountingEngine") accountingEngine = addr;
         else revert("DebtAuctionHouse/modify-unrecognized-param");
+        emit ModifyParameters(parameter, addr);
     }
 
     // --- Auction ---
@@ -178,7 +199,7 @@ contract DebtAuctionHouse is Logging {
 
         activeDebtAuctions = addUint256(activeDebtAuctions, 1);
 
-        emit StartAuction(id, amountToSell, initialBid, incomeReceiver);
+        emit StartAuction(id, auctionsStarted, amountToSell, initialBid, incomeReceiver, bids[id].auctionDeadline, activeDebtAuctions);
     }
     /**
      * @notice Restart an auction if no bids were submitted for it
@@ -189,6 +210,7 @@ contract DebtAuctionHouse is Logging {
         require(bids[id].bidExpiry == 0, "DebtAuctionHouse/bid-already-placed");
         bids[id].amountToSell = multiply(amountSoldIncrease, bids[id].amountToSell) / ONE;
         bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
+        emit RestartAuction(id, bids[id].auctionDeadline);
     }
     /**
      * @notice Decrease the protocol token amount you're willing to receive in
@@ -218,6 +240,8 @@ contract DebtAuctionHouse is Logging {
         bids[id].highBidder = msg.sender;
         bids[id].amountToSell = amountToBuy;
         bids[id].bidExpiry = addUint48(uint48(now), bidDuration);
+
+        emit DecreaseSoldAmount(id, msg.sender, amountToBuy, bid, bids[id].bidExpiry);
     }
     /**
      * @notice Settle/finish an auction
@@ -229,6 +253,7 @@ contract DebtAuctionHouse is Logging {
         protocolToken.mint(bids[id].highBidder, bids[id].amountToSell);
         activeDebtAuctions = subtract(activeDebtAuctions, 1);
         delete bids[id];
+        emit SettleAuction(id, activeDebtAuctions);
     }
 
     // --- Shutdown ---
@@ -238,6 +263,7 @@ contract DebtAuctionHouse is Logging {
     function disableContract() external emitLog isAuthorized {
         contractEnabled = 0;
         accountingEngine = msg.sender;
+        emit DisableContract(msg.sender);
     }
     /**
      * @notice Terminate an auction prematurely.
@@ -248,6 +274,7 @@ contract DebtAuctionHouse is Logging {
         require(bids[id].highBidder != address(0), "DebtAuctionHouse/high-bidder-not-set");
         cdpEngine.createUnbackedDebt(accountingEngine, bids[id].highBidder, bids[id].bidAmount);
         activeDebtAuctions = subtract(activeDebtAuctions, 1);
+        emit TerminateAuctionPrematurely(id, msg.sender, bids[id].highBidder, bids[id].bidAmount, activeDebtAuctions);
         delete bids[id];
     }
 }
