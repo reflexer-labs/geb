@@ -60,12 +60,18 @@ contract LiquidationEngine is Logging {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
+    }
     /**
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
+    }
     /**
     * @notice Checks whether msg.sender can call an authed function
     **/
@@ -73,25 +79,38 @@ contract LiquidationEngine is Logging {
         require(authorizedAccounts[msg.sender] == 1, "LiquidationEngine/account-not-authorized");
         _;
     }
-    
+
     // --- CDP Saviours ---
     // Contracts that can save CDPs from liquidation
     mapping (address => uint) public cdpSaviours;
-    // Governance used function to add contracts that can save CDPs from liquidation
+    /**
+    * @notice Authed function to add contracts that can save CDPs from liquidation
+    * @param saviour CDP saviour contract to be whitelisted
+    **/
     function connectCDPSaviour(address saviour) external emitLog isAuthorized {
         (bool ok, uint256 collateralAdded, uint256 liquidatorReward) =
           CDPSaviourLike(saviour).saveCDP(address(this), "", address(0));
         require(ok, "LiquidationEngine/saviour-not-ok");
         require(both(collateralAdded == uint(-1), liquidatorReward == uint(-1)), "LiquidationEngine/invalid-amounts");
         cdpSaviours[saviour] = 1;
+        emit ConnectCDPSaviour(saviour);
     }
-    // Governance used function to remove contracts that can save CDPs from liquidation
-    function disconnectCDPSaviour(address saviour) external emitLog isAuthorized { cdpSaviours[saviour] = 0; }
+    /**
+    * @notice Governance used function to remove contracts that can save CDPs from liquidation
+    * @param saviour CDP saviour contract to be removed
+    **/
+    function disconnectCDPSaviour(address saviour) external emitLog isAuthorized {
+        cdpSaviours[saviour] = 0;
+        emit DisconnectCDPSaviour(saviour);
+    }
 
     // --- Data ---
     struct CollateralType {
+        // Address of the collateral auction house handling liquidations for this collateral type
         address collateralAuctionHouse;
+        // Penalty applied to every liquidation involving this collateral type. Discourages CDP users from bidding on their own CDPs
         uint256 liquidationPenalty; // [ray]
+        // Max amount of collateral to sell in one auction
         uint256 collateralToSell;   // [wad]
     }
 
@@ -109,6 +128,22 @@ contract LiquidationEngine is Logging {
     AccountingEngineLike public accountingEngine;
 
     // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
+    event ConnectCDPSaviour(address saviour);
+    event DisconnectCDPSaviour(address saviour);
+    event ModifyParameters(bytes32 parameter, address data);
+    event ModifyParameters(
+      bytes32 collateralType,
+      bytes32 parameter,
+      uint data
+    );
+    event ModifyParameters(
+      bytes32 collateralType,
+      bytes32 parameter,
+      address data
+    );
+    event DisableContract();
     event Liquidate(
       bytes32 indexed collateralType,
       address indexed cdp,
@@ -124,12 +159,18 @@ contract LiquidationEngine is Logging {
       uint256 collateralAdded
     );
     event FailedCDPSave(bytes failReason);
+    event ProtectCDP(
+      bytes32 collateralType,
+      address cdp,
+      address saviour
+    );
 
     // --- Init ---
     constructor(address cdpEngine_) public {
         authorizedAccounts[msg.sender] = 1;
         cdpEngine = CDPEngineLike(cdpEngine_);
         contractEnabled = 1;
+        emit AddAuthorization(msg.sender);
     }
 
     // --- Math ---
@@ -159,6 +200,7 @@ contract LiquidationEngine is Logging {
     function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
         if (parameter == "accountingEngine") accountingEngine = AccountingEngineLike(data);
         else revert("LiquidationEngine/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
     }
     /**
      * @notice Modify liquidation params
@@ -174,6 +216,11 @@ contract LiquidationEngine is Logging {
         if (parameter == "liquidationPenalty") collateralTypes[collateralType].liquidationPenalty = data;
         else if (parameter == "collateralToSell") collateralTypes[collateralType].collateralToSell = data;
         else revert("LiquidationEngine/modify-unrecognized-param");
+        emit ModifyParameters(
+          collateralType,
+          parameter,
+          data
+        );
     }
     /**
      * @notice Modify collateral auction integration
@@ -192,12 +239,18 @@ contract LiquidationEngine is Logging {
             cdpEngine.approveCDPModification(data);
         }
         else revert("LiquidationEngine/modify-unrecognized-param");
+        emit ModifyParameters(
+            collateralType,
+            parameter,
+            data
+        );
     }
     /**
      * @notice Disable this contract (normally called by GlobalSettlement)
      */
     function disableContract() external emitLog isAuthorized {
         contractEnabled = 0;
+        emit DisableContract();
     }
 
     // --- CDP Liquidation ---
@@ -215,6 +268,11 @@ contract LiquidationEngine is Logging {
         require(cdpEngine.canModifyCDP(cdp, msg.sender), "LiquidationEngine/cannot-modify-this-cdp");
         require(saviour == address(0) || cdpSaviours[saviour] == 1, "LiquidationEngine/saviour-not-authorized");
         chosenCDPSaviour[collateralType][cdp] = saviour;
+        emit ProtectCDP(
+            collateralType,
+            cdp,
+            saviour
+        );
     }
     /**
      * @notice Liquidate a CDP

@@ -44,6 +44,7 @@ contract SettlementSurplusAuctioneer is Logging {
      */
     function addAuthorization(address account) external emitLog isAuthorized {
         authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
     }
     /**
      * @notice Remove auth from an account
@@ -51,6 +52,7 @@ contract SettlementSurplusAuctioneer is Logging {
      */
     function removeAuthorization(address account) external emitLog isAuthorized {
         authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
     }
     /**
     * @notice Checks whether msg.sender can call an authed function
@@ -66,12 +68,19 @@ contract SettlementSurplusAuctioneer is Logging {
 
     uint256 public lastSurplusAuctionTime;
 
+    // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
+    event ModifyParameters(bytes32 parameter, address addr);
+    event AuctionSurplus(uint id, uint lastSurplusAuctionTime, uint coinBalance);
+
     constructor(address accountingEngine_, address surplusAuctionHouse_) public {
         authorizedAccounts[msg.sender] = 1;
         accountingEngine = AccountingEngineLike(accountingEngine_);
         surplusAuctionHouse = SurplusAuctionHouseLike(surplusAuctionHouse_);
         cdpEngine = CDPEngineLike(address(accountingEngine.cdpEngine()));
         cdpEngine.approveCDPModification(address(surplusAuctionHouse));
+        emit AddAuthorization(msg.sender);
     }
 
     // --- Math ---
@@ -94,6 +103,7 @@ contract SettlementSurplusAuctioneer is Logging {
           cdpEngine.approveCDPModification(address(surplusAuctionHouse));
         }
         else revert("SettlementSurplusAuctioneer/modify-unrecognized-param");
+        emit ModifyParameters(parameter, addr);
     }
 
     // --- Core Logic ---
@@ -113,6 +123,7 @@ contract SettlementSurplusAuctioneer is Logging {
           cdpEngine.coinBalance(address(this)) : accountingEngine.surplusAuctionAmountToSell();
         if (amountToSell > 0) {
           id = surplusAuctionHouse.startAuction(amountToSell, 0);
+          emit AuctionSurplus(id, lastSurplusAuctionTime, cdpEngine.coinBalance(address(this)));
         }
     }
 }

@@ -135,7 +135,7 @@ contract AccountingEngine is Logging {
     event AuctionDebt(uint id, uint totalOnAuctionDebt, uint debtBalance);
     event AuctionSurplus(uint id, uint lastSurplusAuctionTime, uint coinBalance);
     event DisableContract(uint disableTimestamp, uint disableCooldown);
-    event TransferPostSettlementSurplus(address postSettlementSurplusDrain);
+    event TransferPostSettlementSurplus(address postSettlementSurplusDrain, uint coinBalance, uint debtBalance);
 
     // --- Init ---
     constructor(
@@ -316,7 +316,7 @@ contract AccountingEngine is Logging {
           cdpEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, cdpEngine.coinBalance(address(this)));
         }
 
-        emit DisableContract(disableTimestamp, disableCooldown);
+        emit DisableContract(disableTimestamp, disableCooldown, cdpEngine.coinBalance(address(this)), cdpEngine.debtBalance(address(this)));
     }
     /**
      * @notice Transfer any remaining surplus after the disable cooldown has passed

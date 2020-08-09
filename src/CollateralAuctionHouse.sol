@@ -112,6 +112,7 @@ contract EnglishCollateralAuctionHouse is Logging {
     event RemoveAuthorization(address account);
     event StartAuction(
         uint256 id,
+        uint256 auctionsStarted,
         uint256 amountToSell,
         uint256 initialBid,
         uint256 amountToRaise,
@@ -122,8 +123,8 @@ contract EnglishCollateralAuctionHouse is Logging {
     event ModifyParameters(bytes32 parameter, uint data);
     event ModifyParameters(bytes32 parameter, address data);
     event RestartAuction(uint id, uint256 auctionDeadline);
-    event IncreaseBidSize(uint id, uint amountToBuy, uint rad, uint bidExpiry);
-    event DecreaseSoldAmount(uint id, uint amountToBuy, uint rad, uint bidExpiry);
+    event IncreaseBidSize(uint id, address highBidder, uint amountToBuy, uint rad, uint bidExpiry);
+    event DecreaseSoldAmount(uint id, address highBidder, uint amountToBuy, uint rad, uint bidExpiry);
     event SettleAuction(uint id);
     event TerminateAuctionPrematurely(uint id, address sender, uint bidAmount, uint collateralAmount);
 
@@ -207,7 +208,16 @@ contract EnglishCollateralAuctionHouse is Logging {
 
         cdpEngine.transferCollateral(collateralType, msg.sender, address(this), amountToSell);
 
-        emit StartAuction(id, amountToSell, initialBid, amountToRaise, forgoneCollateralReceiver, auctionIncomeRecipient, bids[id].auctionDeadline);
+        emit StartAuction(
+          id,
+          auctionsStarted,
+          amountToSell,
+          initialBid,
+          amountToRaise,
+          forgoneCollateralReceiver,
+          auctionIncomeRecipient,
+          bids[id].auctionDeadline
+        );
     }
     /**
      * @notice Restart an auction if no bids were submitted for it
@@ -253,7 +263,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         bids[id].bidAmount = rad;
         bids[id].bidExpiry = addUint48(uint48(now), bidDuration);
 
-        emit IncreaseBidSize(id, amountToBuy, rad, bids[id].bidExpiry);
+        emit IncreaseBidSize(id, msg.sender, amountToBuy, rad, bids[id].bidExpiry);
     }
     /**
      * @notice Second auction phase: decrease the collateral amount you're willing to receive in
@@ -286,7 +296,7 @@ contract EnglishCollateralAuctionHouse is Logging {
         bids[id].amountToSell = amountToBuy;
         bids[id].bidExpiry    = addUint48(uint48(now), bidDuration);
 
-        emit DecreaseSoldAmount(id, amountToBuy, rad, bids[id].bidExpiry);
+        emit DecreaseSoldAmount(id, msg.sender, amountToBuy, rad, bids[id].bidExpiry);
     }
     /**
      * @notice Settle/finish an auction
@@ -431,6 +441,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     event RemoveAuthorization(address account);
     event StartAuction(
         uint256 id,
+        uint256 auctionsStarted,
         uint256 amountToSell,
         uint256 initialBid,
         uint256 amountToRaise,
@@ -667,7 +678,16 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
 
         cdpEngine.transferCollateral(collateralType, msg.sender, address(this), amountToSell);
 
-        emit StartAuction(id, amountToSell, initialBid, amountToRaise, forgoneCollateralReceiver, auctionIncomeRecipient, bids[id].auctionDeadline);
+        emit StartAuction(
+          id,
+          auctionsStarted,
+          amountToSell,
+          initialBid,
+          amountToRaise,
+          forgoneCollateralReceiver,
+          auctionIncomeRecipient,
+          bids[id].auctionDeadline
+        );
     }
     /**
      * @notice Calculate how much collateral someone would buy from an auction

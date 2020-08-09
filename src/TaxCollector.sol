@@ -49,6 +49,39 @@ contract TaxCollector is Logging {
     }
 
     // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
+    event InitializeCollateralType(bytes32 collateralType);
+    event ModifyParameters(
+      bytes32 collateralType,
+      bytes32 parameter,
+      uint data
+    );
+    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, address data);
+    event ModifyParameters(
+      bytes32 collateralType,
+      uint256 position,
+      uint256 val
+    );
+    event ModifyParameters(
+      bytes32 collateralType,
+      uint256 position,
+      uint256 taxPercentage,
+      address receiverAccount
+    );
+    event AddSecondaryReceiver(
+      uint secondaryReceiverNonce,
+      uint latestSecondaryReceiver,
+      uint secondaryReceiverAllotedTax,
+      uint secondaryReceiverRevenueSources
+    );
+    event ModifySecondaryReceiver(
+      uint secondaryReceiverNonce,
+      uint latestSecondaryReceiver,
+      uint secondaryReceiverAllotedTax,
+      uint secondaryReceiverRevenueSources
+    );
     event CollectTax(bytes32 collateralType, uint latestAccumulatedRate, int deltaRate);
     event DistributeTax(bytes32 collateralType, address target, int taxCut);
 

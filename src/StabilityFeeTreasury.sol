@@ -44,12 +44,18 @@ contract StabilityFeeTreasury is Logging {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
+    }
     /**
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
+    }
     /**
     * @notice Checks whether msg.sender can call an authed function
     **/
@@ -59,6 +65,16 @@ contract StabilityFeeTreasury is Logging {
     }
 
     // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
+    event ModifyParameters(bytes32 parameter, address addr);
+    event ModifyParameters(bytes32 parameter, uint val);
+    event DisableContract();
+    event SetTotalAllowance(address account, uint rad);
+    event SetPerBlockAllowance(address account, uint rad);
+    event GiveFunds(address account, uint rad, uint expensesAccumulator);
+    event TakeFunds(address account, uint rad);
+    event PullFunds(address sender, address dstAccount, address token, uint rad, uint expensesAccumulator);
     event TransferSurplusFunds(address accountingEngine, uint fundsToTransfer);
 
     // --- Structs ---
@@ -107,6 +123,7 @@ contract StabilityFeeTreasury is Logging {
         contractEnabled           = 1;
         systemCoin.approve(address(coinJoin), uint(-1));
         cdpEngine.approveCDPModification(address(coinJoin));
+        emit AddAuthorization(msg.sender);
     }
 
     // --- Math ---
@@ -153,6 +170,7 @@ contract StabilityFeeTreasury is Logging {
           accountingEngine = addr;
         }
         else revert("StabilityFeeTreasury/modify-unrecognized-param");
+        emit ModifyParameters(parameter, addr);
     }
     /**
      * @notice Modify uint256 parameters
@@ -172,6 +190,7 @@ contract StabilityFeeTreasury is Logging {
         }
         else if (parameter == "surplusTransferDelay") surplusTransferDelay = val;
         else revert("StabilityFeeTreasury/modify-unrecognized-param");
+        emit ModifyParameters(parameter, val);
     }
     /**
      * @notice Disable this contract (normally called by GlobalSettlement)
@@ -183,6 +202,7 @@ contract StabilityFeeTreasury is Logging {
           coinJoin.join(address(this), systemCoin.balanceOf(address(this)));
         }
         cdpEngine.transferInternalCoins(address(this), accountingEngine, cdpEngine.coinBalance(address(this)));
+        emit DisableContract();
     }
 
     // --- Utils ---
@@ -210,16 +230,18 @@ contract StabilityFeeTreasury is Logging {
     function setTotalAllowance(address account, uint rad) external emitLog isAuthorized accountNotTreasury(account) {
         require(account != address(0), "StabilityFeeTreasury/null-account");
         allowance[account].total = rad;
+        emit SetTotalAllowance(account, rad);
     }
     /**
      * @notice Modify an address' per block allowance in order to withdraw SF from the treasury
      * @param account The approved address
      * @param rad The per block approved amount of SF to withdraw (number with 45 decimals)
      */
-     function setPerBlockAllowance(address account, uint rad) external emitLog isAuthorized accountNotTreasury(account) {
-       require(account != address(0), "StabilityFeeTreasury/null-account");
-       allowance[account].perBlock = rad;
-     }
+    function setPerBlockAllowance(address account, uint rad) external emitLog isAuthorized accountNotTreasury(account) {
+        require(account != address(0), "StabilityFeeTreasury/null-account");
+        allowance[account].perBlock = rad;
+        emit SetPerBlockAllowance(account, rad);
+    }
 
     // --- Stability Fee Transfer (Governance) ---
     /**
@@ -235,6 +257,7 @@ contract StabilityFeeTreasury is Logging {
 
         expensesAccumulator = addition(expensesAccumulator, rad);
         cdpEngine.transferInternalCoins(address(this), account, rad);
+        emit GiveFunds(account, rad, expensesAccumulator);
     }
     /**
      * @notice Governance takes funds from an address
@@ -243,6 +266,7 @@ contract StabilityFeeTreasury is Logging {
      */
     function takeFunds(address account, uint rad) external emitLog isAuthorized accountNotTreasury(account) {
         cdpEngine.transferInternalCoins(account, address(this), rad);
+        emit TakeFunds(account, rad);
     }
 
     // --- Stability Fee Transfer (Approved Accounts) ---
@@ -274,6 +298,8 @@ contract StabilityFeeTreasury is Logging {
 
         // Transfer money
         cdpEngine.transferInternalCoins(address(this), dstAccount, multiply(wad, RAY));
+
+        emit PullFunds(msg.sender, dstAccount, token, multiply(wad, RAY), expensesAccumulator);
     }
 
     // --- Treasury Maintenance ---
