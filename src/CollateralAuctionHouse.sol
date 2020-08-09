@@ -427,6 +427,8 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     uint256  public   lowerSystemCoinMedianDeviation = WAD;       // 0% deviation
     // Max upper bound deviation that the collateral median can have compared to the OSM price
     uint256  public   upperSystemCoinMedianDeviation = WAD;       // 0% deviation
+    // Min deviation for the system coin median result compared to the redemption price in order to take the median into account
+    uint256  public   minSystemCoinMedianDeviation   = 0.999E18;
 
     OracleRelayerLike public oracleRelayer;
     OracleLike        public collateralOSM;
@@ -460,6 +462,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
         cdpEngine = CDPEngineLike(cdpEngine_);
         collateralType = collateralType_;
         authorizedAccounts[msg.sender] = 1;
+        emit AddAuthorization(msg.sender);
     }
 
     // --- Math ---
@@ -529,6 +532,9 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
             require(data <= WAD, "FixedDiscountCollateralAuctionHouse/invalid-upper-system-coin-median-deviation");
             upperSystemCoinMedianDeviation = data;
         }
+        else if (parameter == "minSystemCoinMedianDeviation") {
+            minSystemCoinMedianDeviation = data;
+        }
         else if (parameter == "minimumBid") {
             minimumBid = data;
         }
@@ -553,28 +559,6 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
     }
 
     // --- Auction Utils ---
-    function getTokenPrices() private returns (uint256, uint256) {
-        (bytes32 collateralOsmPriceFeedValue, bool collateralOsmHasValidValue) = collateralOSM.getResultWithValidity();
-        if (!collateralOsmHasValidValue) {
-          return (0, 0);
-        }
-
-        uint256 systemCoinAdjustedPrice = oracleRelayer.redemptionPrice();
-
-        uint256 systemCoinPriceFeedValue = getSystemCoinPrice();
-        if (systemCoinPriceFeedValue > 0) {
-          uint256 floorPrice   = wmultiply(systemCoinAdjustedPrice, lowerSystemCoinMedianDeviation);
-          uint256 ceilingPrice = wmultiply(systemCoinAdjustedPrice, subtract(2 * WAD, upperSystemCoinMedianDeviation));
-
-          if (uint(systemCoinPriceFeedValue) < systemCoinAdjustedPrice) {
-            systemCoinAdjustedPrice = maximum(uint(systemCoinPriceFeedValue), floorPrice);
-          } else {
-            systemCoinAdjustedPrice = minimum(uint(systemCoinPriceFeedValue), ceilingPrice);
-          }
-        }
-
-        return (uint(collateralOsmPriceFeedValue), systemCoinAdjustedPrice);
-    }
     function getCollateralMedianPrice() private returns (uint256 priceFeed) {
         if (address(collateralMedian) == address(0)) return 0;
 
@@ -596,6 +580,38 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
             priceFeed = uint(price) * 10 ** 9; // scale to RAY
           }
         } catch (bytes memory revertReason) {}
+    }
+    function getSystemCoinFloorDeviatedPrice(uint256 redemptionPrice) private returns (uint256 floorPrice) {
+        uint256 minFloorDeviatedPrice = wmultiply(redemptionPrice, minSystemCoinMedianDeviation);
+        floorPrice = wmultiply(redemptionPrice, lowerSystemCoinMedianDeviation);
+        floorPrice = (floorPrice <= minFloorDeviatedPrice) ? floorPrice : redemptionPrice;
+    }
+    function getSystemCoinCeilingDeviatedPrice(uint256 redemptionPrice) private returns (uint256 ceilingPrice) {
+        uint256 minCeilingDeviatedPrice = wmultiply(redemptionPrice, subtract(2 * WAD, minSystemCoinMedianDeviation));
+        ceilingPrice = wmultiply(redemptionPrice, subtract(2 * WAD, upperSystemCoinMedianDeviation));
+        ceilingPrice = (ceilingPrice >= minCeilingDeviatedPrice) ? ceilingPrice : redemptionPrice;
+    }
+    function getTokenPrices() private returns (uint256, uint256) {
+        (bytes32 collateralOsmPriceFeedValue, bool collateralOsmHasValidValue) = collateralOSM.getResultWithValidity();
+        if (!collateralOsmHasValidValue) {
+          return (0, 0);
+        }
+
+        uint256 systemCoinAdjustedPrice = oracleRelayer.redemptionPrice();
+
+        uint256 systemCoinPriceFeedValue = getSystemCoinPrice();
+        if (systemCoinPriceFeedValue > 0) {
+          uint256 floorPrice   = getSystemCoinFloorDeviatedPrice(systemCoinAdjustedPrice);
+          uint256 ceilingPrice = getSystemCoinCeilingDeviatedPrice(systemCoinAdjustedPrice);
+
+          if (uint(systemCoinPriceFeedValue) < systemCoinAdjustedPrice) {
+            systemCoinAdjustedPrice = maximum(uint(systemCoinPriceFeedValue), floorPrice);
+          } else {
+            systemCoinAdjustedPrice = minimum(uint(systemCoinPriceFeedValue), ceilingPrice);
+          }
+        }
+
+        return (uint(collateralOsmPriceFeedValue), systemCoinAdjustedPrice);
     }
     function getFinalBaseCollateralPrice(
         uint256 collateralOSMPriceFeedValue,
@@ -642,7 +658,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
           );
         // calculate the amount of collateral bought
         uint256 boughtCollateral = wdivide(adjustedBid, discountedRedemptionCollateralPrice);
-        // if the calculate collateral amount exceeds the amount still up for sale, adjust it to the remaining amount
+        // if the calculated collateral amount exceeds the amount still up for sale, adjust it to the remaining amount
         boughtCollateral = (boughtCollateral > subtract(bids[id].amountToSell, bids[id].soldAmount)) ?
                            subtract(bids[id].amountToSell, bids[id].soldAmount) : boughtCollateral;
 
