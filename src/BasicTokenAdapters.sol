@@ -58,12 +58,18 @@ contract BasicCollateralJoin is Logging {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 1; }
+    function addAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 1;
+        emit AddAuthorization(account);
+    }
     /**
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized { authorizedAccounts[account] = 0; }
+    function removeAuthorization(address account) external emitLog isAuthorized {
+        authorizedAccounts[account] = 0;
+        emit RemoveAuthorization(account);
+    }
     /**
     * @notice Checks whether msg.sender can call an authed function
     **/
@@ -84,6 +90,8 @@ contract BasicCollateralJoin is Logging {
     uint           public contractEnabled;
 
     // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
     event DisableContract();
     event Join(address sender, address account, uint wad);
     event Exit(address sender, address account, uint wad);
@@ -95,6 +103,7 @@ contract BasicCollateralJoin is Logging {
         collateralType  = collateralType_;
         collateral      = CollateralLike(collateral_);
         decimals        = collateral.decimals();
+        emit AddAuthorization(msg.sender);
     }
     /**
      * @notice Disable this contract
@@ -263,6 +272,7 @@ contract CoinJoin is Logging {
         cdpEngine                      = CDPEngineLike(cdpEngine_);
         systemCoin                     = DSTokenLike(systemCoin_);
         decimals                       = 18;
+        emit AddAuthorization(msg.sender);
     }
     /**
      * @notice Disable this contract
