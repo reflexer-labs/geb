@@ -17,8 +17,6 @@
 
 pragma solidity ^0.6.7;
 
-import "./Logging.sol";
-
 abstract contract CollateralAuctionHouseLike {
     function startAuction(
       address forgoneCollateralReceiver,
@@ -53,14 +51,14 @@ abstract contract AccountingEngineLike {
     function pushDebtToQueue(uint) virtual external;
 }
 
-contract LiquidationEngine is Logging {
+contract LiquidationEngine {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -68,7 +66,7 @@ contract LiquidationEngine is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -87,7 +85,7 @@ contract LiquidationEngine is Logging {
     * @notice Authed function to add contracts that can save CDPs from liquidation
     * @param saviour CDP saviour contract to be whitelisted
     **/
-    function connectCDPSaviour(address saviour) external emitLog isAuthorized {
+    function connectCDPSaviour(address saviour) external isAuthorized {
         (bool ok, uint256 collateralAdded, uint256 liquidatorReward) =
           CDPSaviourLike(saviour).saveCDP(address(this), "", address(0));
         require(ok, "LiquidationEngine/saviour-not-ok");
@@ -99,7 +97,7 @@ contract LiquidationEngine is Logging {
     * @notice Governance used function to remove contracts that can save CDPs from liquidation
     * @param saviour CDP saviour contract to be removed
     **/
-    function disconnectCDPSaviour(address saviour) external emitLog isAuthorized {
+    function disconnectCDPSaviour(address saviour) external isAuthorized {
         cdpSaviours[saviour] = 0;
         emit DisconnectCDPSaviour(saviour);
     }
@@ -197,7 +195,7 @@ contract LiquidationEngine is Logging {
      * @param parameter The name of the parameter modified
      * @param data New address for the parameter
      */
-    function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "accountingEngine") accountingEngine = AccountingEngineLike(data);
         else revert("LiquidationEngine/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
@@ -212,7 +210,7 @@ contract LiquidationEngine is Logging {
         bytes32 collateralType,
         bytes32 parameter,
         uint data
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         if (parameter == "liquidationPenalty") collateralTypes[collateralType].liquidationPenalty = data;
         else if (parameter == "collateralToSell") collateralTypes[collateralType].collateralToSell = data;
         else revert("LiquidationEngine/modify-unrecognized-param");
@@ -232,7 +230,7 @@ contract LiquidationEngine is Logging {
         bytes32 collateralType,
         bytes32 parameter,
         address data
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         if (parameter == "collateralAuctionHouse") {
             cdpEngine.denyCDPModification(collateralTypes[collateralType].collateralAuctionHouse);
             collateralTypes[collateralType].collateralAuctionHouse = data;
@@ -248,7 +246,7 @@ contract LiquidationEngine is Logging {
     /**
      * @notice Disable this contract (normally called by GlobalSettlement)
      */
-    function disableContract() external emitLog isAuthorized {
+    function disableContract() external isAuthorized {
         contractEnabled = 0;
         emit DisableContract();
     }
@@ -264,7 +262,7 @@ contract LiquidationEngine is Logging {
         bytes32 collateralType,
         address cdp,
         address saviour
-    ) external emitLog {
+    ) external {
         require(cdpEngine.canModifyCDP(cdp, msg.sender), "LiquidationEngine/cannot-modify-this-cdp");
         require(saviour == address(0) || cdpSaviours[saviour] == 1, "LiquidationEngine/saviour-not-authorized");
         chosenCDPSaviour[collateralType][cdp] = saviour;

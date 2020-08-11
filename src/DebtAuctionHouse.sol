@@ -17,8 +17,6 @@
 
 pragma solidity ^0.6.7;
 
-import "./Logging.sol";
-
 abstract contract CDPEngineLike {
     function transferInternalCoins(address,address,uint) virtual external;
     function createUnbackedDebt(address,address,uint) virtual external;
@@ -35,14 +33,14 @@ abstract contract AccountingEngineLike {
    This thing creates protocol tokens on demand in return for system coins
 */
 
-contract DebtAuctionHouse is Logging {
+contract DebtAuctionHouse {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -50,7 +48,7 @@ contract DebtAuctionHouse is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -155,7 +153,7 @@ contract DebtAuctionHouse is Logging {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
         if (parameter == "bidDecrease") bidDecrease = data;
         else if (parameter == "amountSoldIncrease") amountSoldIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
@@ -168,7 +166,7 @@ contract DebtAuctionHouse is Logging {
      * @param parameter The name of the oracle contract modified
      * @param addr New contract address
      */
-    function modifyParameters(bytes32 parameter, address addr) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, address addr) external isAuthorized {
         require(contractEnabled == 1, "DebtAuctionHouse/contract-not-enabled");
         if (parameter == "protocolToken") protocolToken = TokenLike(addr);
         else if (parameter == "accountingEngine") accountingEngine = addr;
@@ -205,7 +203,7 @@ contract DebtAuctionHouse is Logging {
      * @notice Restart an auction if no bids were submitted for it
      * @param id ID of the auction to restart
      */
-    function restartAuction(uint id) external emitLog {
+    function restartAuction(uint id) external {
         require(bids[id].auctionDeadline < now, "DebtAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "DebtAuctionHouse/bid-already-placed");
         bids[id].amountToSell = multiply(amountSoldIncrease, bids[id].amountToSell) / ONE;
@@ -219,7 +217,7 @@ contract DebtAuctionHouse is Logging {
      * @param amountToBuy Amount of protocol tokens to buy (must be smaller than the previous proposed amount)
      * @param bid New system coin bid (must always equal the total amount raised by the auction)
      */
-    function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) external emitLog {
+    function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) external {
         require(contractEnabled == 1, "DebtAuctionHouse/contract-not-enabled");
         require(bids[id].highBidder != address(0), "DebtAuctionHouse/high-bidder-not-set");
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "DebtAuctionHouse/bid-already-expired");
@@ -247,7 +245,7 @@ contract DebtAuctionHouse is Logging {
      * @notice Settle/finish an auction
      * @param id ID of the auction to settle
      */
-    function settleAuction(uint id) external emitLog {
+    function settleAuction(uint id) external {
         require(contractEnabled == 1, "DebtAuctionHouse/not-live");
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "DebtAuctionHouse/not-finished");
         protocolToken.mint(bids[id].highBidder, bids[id].amountToSell);
@@ -260,7 +258,7 @@ contract DebtAuctionHouse is Logging {
     /**
     * @notice Disable the auction house (usually called by the AccountingEngine)
     */
-    function disableContract() external emitLog isAuthorized {
+    function disableContract() external isAuthorized {
         contractEnabled = 0;
         accountingEngine = msg.sender;
         emit DisableContract(msg.sender);
@@ -269,7 +267,7 @@ contract DebtAuctionHouse is Logging {
      * @notice Terminate an auction prematurely.
      * @param id ID of the auction to terminate
      */
-    function terminateAuctionPrematurely(uint id) external emitLog {
+    function terminateAuctionPrematurely(uint id) external {
         require(contractEnabled == 0, "DebtAuctionHouse/contract-still-enabled");
         require(bids[id].highBidder != address(0), "DebtAuctionHouse/high-bidder-not-set");
         cdpEngine.createUnbackedDebt(accountingEngine, bids[id].highBidder, bids[id].bidAmount);

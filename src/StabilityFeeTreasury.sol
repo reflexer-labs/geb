@@ -17,8 +17,6 @@
 
 pragma solidity ^0.6.7;
 
-import "./Logging.sol";
-
 abstract contract CDPEngineLike {
     function approveCDPModification(address) virtual external;
     function denyCDPModification(address) virtual external;
@@ -37,14 +35,14 @@ abstract contract CoinJoinLike {
     function exit(address, uint) virtual external;
 }
 
-contract StabilityFeeTreasury is Logging {
+contract StabilityFeeTreasury {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -52,7 +50,7 @@ contract StabilityFeeTreasury is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -162,7 +160,7 @@ contract StabilityFeeTreasury is Logging {
      * @param parameter The name of the contract whose address will be changed
      * @param addr New address for the contract
      */
-    function modifyParameters(bytes32 parameter, address addr) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, address addr) external isAuthorized {
         require(contractEnabled == 1, "StabilityFeeTreasury/contract-not-enabled");
         require(addr != address(0), "StabilityFeeTreasury/null-addr");
         if (parameter == "accountingEngine") {
@@ -177,7 +175,7 @@ contract StabilityFeeTreasury is Logging {
      * @param parameter The name of the parameter to modify
      * @param val New parameter value
      */
-    function modifyParameters(bytes32 parameter, uint val) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, uint val) external isAuthorized {
         require(contractEnabled == 1, "StabilityFeeTreasury/not-live");
         if (parameter == "expensesMultiplier") expensesMultiplier = val;
         else if (parameter == "treasuryCapacity") {
@@ -195,7 +193,7 @@ contract StabilityFeeTreasury is Logging {
     /**
      * @notice Disable this contract (normally called by GlobalSettlement)
      */
-    function disableContract() external emitLog isAuthorized {
+    function disableContract() external isAuthorized {
         require(contractEnabled == 1, "StabilityFeeTreasury/already-disabled");
         contractEnabled = 0;
         if (systemCoin.balanceOf(address(this)) > 0) {
@@ -227,7 +225,7 @@ contract StabilityFeeTreasury is Logging {
      * @param account The approved address
      * @param rad The total approved amount of SF to withdraw (number with 45 decimals)
      */
-    function setTotalAllowance(address account, uint rad) external emitLog isAuthorized accountNotTreasury(account) {
+    function setTotalAllowance(address account, uint rad) external isAuthorized accountNotTreasury(account) {
         require(account != address(0), "StabilityFeeTreasury/null-account");
         allowance[account].total = rad;
         emit SetTotalAllowance(account, rad);
@@ -237,7 +235,7 @@ contract StabilityFeeTreasury is Logging {
      * @param account The approved address
      * @param rad The per block approved amount of SF to withdraw (number with 45 decimals)
      */
-    function setPerBlockAllowance(address account, uint rad) external emitLog isAuthorized accountNotTreasury(account) {
+    function setPerBlockAllowance(address account, uint rad) external isAuthorized accountNotTreasury(account) {
         require(account != address(0), "StabilityFeeTreasury/null-account");
         allowance[account].perBlock = rad;
         emit SetPerBlockAllowance(account, rad);
@@ -249,7 +247,7 @@ contract StabilityFeeTreasury is Logging {
      * @param account Address to transfer SF to
      * @param rad Amount of internal system coins to transfer (a number with 45 decimals)
      */
-    function giveFunds(address account, uint rad) external emitLog isAuthorized accountNotTreasury(account) {
+    function giveFunds(address account, uint rad) external isAuthorized accountNotTreasury(account) {
         require(account != address(0), "StabilityFeeTreasury/null-account");
 
         joinAllCoins();
@@ -264,7 +262,7 @@ contract StabilityFeeTreasury is Logging {
      * @param account Address to take system coins from
      * @param rad Amount of internal system coins to take from the account (a number with 45 decimals)
      */
-    function takeFunds(address account, uint rad) external emitLog isAuthorized accountNotTreasury(account) {
+    function takeFunds(address account, uint rad) external isAuthorized accountNotTreasury(account) {
         cdpEngine.transferInternalCoins(account, address(this), rad);
         emit TakeFunds(account, rad);
     }
@@ -278,7 +276,7 @@ contract StabilityFeeTreasury is Logging {
      * @param wad Amount of system coins (SF) to transfer (expressed as an 18 decimal number but the contract will transfer
               internal system coins that have 18 decimals)
      */
-    function pullFunds(address dstAccount, address token, uint wad) external emitLog accountNotTreasury(dstAccount) {
+    function pullFunds(address dstAccount, address token, uint wad) external accountNotTreasury(dstAccount) {
 	      require(allowance[msg.sender].total >= wad, "StabilityFeeTreasury/not-allowed");
         require(dstAccount != address(0), "StabilityFeeTreasury/null-dst");
         require(wad > 0, "StabilityFeeTreasury/null-transfer-amount");
@@ -309,7 +307,7 @@ contract StabilityFeeTreasury is Logging {
                that there are enough funds left in the treasury to account for projected expenses (latest expenses multiplied
                by an expense multiplier)
      */
-    function transferSurplusFunds() external emitLog {
+    function transferSurplusFunds() external {
         require(now >= addition(latestSurplusTransferTime, surplusTransferDelay), "StabilityFeeTreasury/transfer-cooldown-not-passed");
         // Compute latest expenses
         uint latestExpenses = subtract(expensesAccumulator, accumulatorTag);

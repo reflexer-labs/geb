@@ -24,7 +24,7 @@ contract CDPEngine {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
@@ -33,7 +33,7 @@ contract CDPEngine {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
@@ -52,7 +52,7 @@ contract CDPEngine {
      * @notice Allow an address to modify your CDP
      * @param account Account to give CDP permissions to
      */
-    function approveCDPModification(address account) external emitLog {
+    function approveCDPModification(address account) external {
         cdpRights[msg.sender][account] = 1;
         emit ApproveCDPModification(msg.sender, account);
     }
@@ -60,7 +60,7 @@ contract CDPEngine {
      * @notice Deny an address the rights to modify your CDP
      * @param account Account to give CDP permissions to
      */
-    function denyCDPModification(address account) external emitLog {
+    function denyCDPModification(address account) external {
         cdpRights[msg.sender][account] = 0;
         emit DenyCDPModification(msg.sender, account);
     }
@@ -174,29 +174,6 @@ contract CDPEngine {
         uint globalDebt
     );
 
-    /**
-    * @notice Log an 'anonymous' event with a constant 6 words of calldata
-    * and four indexed topics: the selector and the first three args
-    **/
-    modifier emitLog {
-        //
-        //
-        _;
-        assembly {
-            let mark := mload(0x40)                   // end of memory ensures zero
-            mstore(0x40, add(mark, 288))              // update free memory pointer
-            mstore(mark, 0x20)                        // bytes type data offset
-            mstore(add(mark, 0x20), 224)              // bytes size (padded)
-            calldatacopy(add(mark, 0x40), 0, 224)     // bytes payload
-            log4(mark, 288,                           // calldata
-                 shl(224, shr(224, calldataload(0))), // msg.sig
-                 calldataload(4),                     // arg1
-                 calldataload(36),                    // arg2
-                 calldataload(68)                     // arg3
-                )
-        }
-    }
-
     // --- Init ---
     constructor() public {
         authorizedAccounts[msg.sender] = 1;
@@ -246,7 +223,7 @@ contract CDPEngine {
      * @notice Creates a brand new collateral type
      * @param collateralType Collateral type name (e.g ETH-A, TBTC-B)
      */
-    function initializeCollateralType(bytes32 collateralType) external emitLog isAuthorized {
+    function initializeCollateralType(bytes32 collateralType) external isAuthorized {
         require(collateralTypes[collateralType].accumulatedRate == 0, "CDPEngine/collateral-type-already-exists");
         collateralTypes[collateralType].accumulatedRate = 10 ** 27;
         emit InitializeCollateralType(collateralType);
@@ -256,7 +233,7 @@ contract CDPEngine {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
         if (parameter == "globalDebtCeiling") globalDebtCeiling = data;
         else revert("CDPEngine/modify-unrecognized-param");
@@ -272,7 +249,7 @@ contract CDPEngine {
         bytes32 collateralType,
         bytes32 parameter,
         uint data
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
         if (parameter == "safetyPrice") collateralTypes[collateralType].safetyPrice = data;
         else if (parameter == "liquidationPrice") collateralTypes[collateralType].liquidationPrice = data;
@@ -284,7 +261,7 @@ contract CDPEngine {
     /**
      * @notice Disable this contract (normally called by GlobalSettlement)
      */
-    function disableContract() external emitLog isAuthorized {
+    function disableContract() external isAuthorized {
         contractEnabled = 0;
         emit DisableContract();
     }
@@ -300,7 +277,7 @@ contract CDPEngine {
         bytes32 collateralType,
         address account,
         int256 wad
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         tokenCollateral[collateralType][account] = addition(tokenCollateral[collateralType][account], wad);
         emit ModifyCollateralBalance(collateralType, account, wad);
     }
@@ -316,7 +293,7 @@ contract CDPEngine {
         address src,
         address dst,
         uint256 wad
-    ) external emitLog {
+    ) external {
         require(canModifyCDP(src, msg.sender), "CDPEngine/not-allowed");
         tokenCollateral[collateralType][src] = subtract(tokenCollateral[collateralType][src], wad);
         tokenCollateral[collateralType][dst] = addition(tokenCollateral[collateralType][dst], wad);
@@ -328,7 +305,7 @@ contract CDPEngine {
      * @param dst Coins destination
      * @param rad Amount of coins transferred (expressed as a number with 45 decimals)
      */
-    function transferInternalCoins(address src, address dst, uint256 rad) external emitLog {
+    function transferInternalCoins(address src, address dst, uint256 rad) external {
         require(canModifyCDP(src, msg.sender), "CDPEngine/not-allowed");
         coinBalance[src] = subtract(coinBalance[src], rad);
         coinBalance[dst] = addition(coinBalance[dst], rad);
@@ -359,7 +336,7 @@ contract CDPEngine {
         address debtDestination,
         int deltaCollateral,
         int deltaDebt
-    ) external emitLog {
+    ) external {
         // system is live
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
 
@@ -440,7 +417,7 @@ contract CDPEngine {
         address dst,
         int deltaCollateral,
         int deltaDebt
-    ) external emitLog {
+    ) external {
         CDP storage srcCDP = cdps[collateralType][src];
         CDP storage dstCDP = cdps[collateralType][dst];
         CollateralType storage collateralType_ = collateralTypes[collateralType];
@@ -495,7 +472,7 @@ contract CDPEngine {
         address debtCounterparty,
         int deltaCollateral,
         int deltaDebt
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         CDP storage cdp_ = cdps[collateralType][cdp];
         CollateralType storage collateralType_ = collateralTypes[collateralType];
 
@@ -534,7 +511,7 @@ contract CDPEngine {
      * @notice Nullify an amount of coins with an equal amount of debt
      * @param rad Amount of debt & coins to destroy (expressed as a number with 45 decimals)
      */
-    function settleDebt(uint rad) external emitLog {
+    function settleDebt(uint rad) external {
         address account       = msg.sender;
         debtBalance[account]  = subtract(debtBalance[account], rad);
         coinBalance[account]  = subtract(coinBalance[account], rad);
@@ -552,7 +529,7 @@ contract CDPEngine {
         address debtDestination,
         address coinDestination,
         uint rad
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         debtBalance[debtDestination]  = addition(debtBalance[debtDestination], rad);
         coinBalance[coinDestination]  = addition(coinBalance[coinDestination], rad);
         globalUnbackedDebt            = addition(globalUnbackedDebt, rad);
@@ -580,7 +557,7 @@ contract CDPEngine {
         bytes32 collateralType,
         address surplusDst,
         int rateMultiplier
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         require(contractEnabled == 1, "CDPEngine/contract-not-enabled");
         CollateralType storage collateralType_ = collateralTypes[collateralType];
         collateralType_.accumulatedRate        = addition(collateralType_.accumulatedRate, rateMultiplier);

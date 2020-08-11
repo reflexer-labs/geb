@@ -15,8 +15,6 @@
 
 pragma solidity ^0.6.7;
 
-import "./Logging.sol";
-
 abstract contract CDPEngineLike {
     function modifyParameters(bytes32, bytes32, uint) virtual external;
 }
@@ -25,14 +23,14 @@ abstract contract OracleLike {
     function getResultWithValidity() virtual public view returns (bytes32, bool);
 }
 
-contract OracleRelayer is Logging {
+contract OracleRelayer {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -40,7 +38,7 @@ contract OracleRelayer is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -162,7 +160,7 @@ contract OracleRelayer is Logging {
         bytes32 collateralType,
         bytes32 parameter,
         address addr
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         if (parameter == "orcl") collateralTypes[collateralType].orcl = OracleLike(addr);
         else revert("OracleRelayer/modify-unrecognized-param");
@@ -177,7 +175,7 @@ contract OracleRelayer is Logging {
      * @param parameter Name of the parameter
      * @param data New param value
      */
-    function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         require(data > 0, "OracleRelayer/null-data");
         if (parameter == "redemptionPrice") _redemptionPrice = data;
@@ -201,7 +199,7 @@ contract OracleRelayer is Logging {
         bytes32 collateralType,
         bytes32 parameter,
         uint data
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         if (parameter == "safetyCRatio") {
           require(data >= collateralTypes[collateralType].liquidationCRatio, "OracleRelayer/safety-lower-than-liquidation-cratio");
@@ -262,7 +260,7 @@ contract OracleRelayer is Logging {
     /**
      * @notice Disable this contract (normally called by GlobalSettlement)
      */
-    function disableContract() external emitLog isAuthorized {
+    function disableContract() external isAuthorized {
         contractEnabled = 0;
         emit DisableContract();
     }

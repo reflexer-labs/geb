@@ -13,7 +13,6 @@
 
 pragma solidity ^0.6.7;
 
-import "./Logging.sol";
 import "./LinkedList.sol";
 
 abstract contract CDPEngineLike {
@@ -25,7 +24,7 @@ abstract contract CDPEngineLike {
     function coinBalance(address) virtual public view returns (uint);
 }
 
-contract TaxCollector is Logging {
+contract TaxCollector {
     using LinkedList for LinkedList.List;
 
     // --- Auth ---
@@ -34,7 +33,7 @@ contract TaxCollector is Logging {
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -42,7 +41,7 @@ contract TaxCollector is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -220,7 +219,7 @@ contract TaxCollector is Logging {
      * @notice Initialize a brand new collateral type
      * @param collateralType Collateral type name (e.g ETH-A, TBTC-B)
      */
-    function initializeCollateralType(bytes32 collateralType) external emitLog isAuthorized {
+    function initializeCollateralType(bytes32 collateralType) external isAuthorized {
         CollateralType storage collateralType_ = collateralTypes[collateralType];
         require(collateralType_.stabilityFee == 0, "TaxCollector/collateral-type-already-init");
         collateralType_.stabilityFee = RAY;
@@ -238,7 +237,7 @@ contract TaxCollector is Logging {
         bytes32 collateralType,
         bytes32 parameter,
         uint data
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         require(now == collateralTypes[collateralType].updateTime, "TaxCollector/update-time-not-now");
         if (parameter == "stabilityFee") collateralTypes[collateralType].stabilityFee = data;
         else revert("TaxCollector/modify-unrecognized-param");
@@ -253,7 +252,7 @@ contract TaxCollector is Logging {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
         if (parameter == "globalStabilityFee") globalStabilityFee = data;
         else if (parameter == "maxSecondaryReceivers") maxSecondaryReceivers = data;
         else revert("TaxCollector/modify-unrecognized-param");
@@ -264,7 +263,7 @@ contract TaxCollector is Logging {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         require(data != address(0), "TaxCollector/null-data");
         if (parameter == "primaryTaxReceiver") primaryTaxReceiver = data;
         else revert("TaxCollector/modify-unrecognized-param");
@@ -280,7 +279,7 @@ contract TaxCollector is Logging {
         bytes32 collateralType,
         uint256 position,
         uint256 val
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         if (both(secondaryReceiverList.isNode(position), secondaryTaxReceivers[collateralType][position].taxPercentage > 0)) {
             secondaryTaxReceivers[collateralType][position].canTakeBackTax = val;
         }
@@ -304,7 +303,7 @@ contract TaxCollector is Logging {
       uint256 position,
       uint256 taxPercentage,
       address receiverAccount
-    ) external emitLog isAuthorized {
+    ) external isAuthorized {
         (!secondaryReceiverList.isNode(position)) ?
           addSecondaryReceiver(collateralType, taxPercentage, receiverAccount) :
           modifySecondaryReceiver(collateralType, position, taxPercentage);
@@ -483,7 +482,7 @@ contract TaxCollector is Logging {
      * @param start Index in collateralList from which to start looping and calculating the tax outcome
      * @param end Index in collateralList at which we stop looping and calculating the tax outcome
      */
-    function taxMany(uint start, uint end) external emitLog {
+    function taxMany(uint start, uint end) external {
         require(both(start <= end, end < collateralList.length), "TaxCollector/invalid-indexes");
         for (uint i = start; i <= end; i++) {
             taxSingle(collateralList[i]);
@@ -493,7 +492,7 @@ contract TaxCollector is Logging {
      * @notice Collect tax from a single collateral type
      * @param collateralType Collateral type to tax
      */
-    function taxSingle(bytes32 collateralType) public emitLog returns (uint) {
+    function taxSingle(bytes32 collateralType) public returns (uint) {
         uint latestAccumulatedRate;
         if (now <= collateralTypes[collateralType].updateTime) {
           (, latestAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
