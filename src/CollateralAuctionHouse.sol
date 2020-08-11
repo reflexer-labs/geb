@@ -17,8 +17,6 @@
 
 pragma solidity ^0.6.7;
 
-import "./Logging.sol";
-
 abstract contract CDPEngineLike {
     function transferInternalCoins(address,address,uint) virtual external;
     function transferCollateral(bytes32,address,address,uint) virtual external;
@@ -34,14 +32,14 @@ abstract contract OracleLike {
    This thing lets you (English) auction some collateral for a given amount of system coins
 */
 
-contract EnglishCollateralAuctionHouse is Logging {
+contract EnglishCollateralAuctionHouse {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -49,7 +47,7 @@ contract EnglishCollateralAuctionHouse is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -158,7 +156,7 @@ contract EnglishCollateralAuctionHouse is Logging {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
         if (parameter == "bidIncrease") bidIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
@@ -171,7 +169,7 @@ contract EnglishCollateralAuctionHouse is Logging {
      * @param parameter The name of the oracle contract modified
      * @param data New address for the oracle contract
      */
-    function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
         else if (parameter == "osm") osm = OracleLike(data);
         else revert("EnglishCollateralAuctionHouse/modify-unrecognized-param");
@@ -223,7 +221,7 @@ contract EnglishCollateralAuctionHouse is Logging {
      * @notice Restart an auction if no bids were submitted for it
      * @param id ID of the auction to restart
      */
-    function restartAuction(uint id) external emitLog {
+    function restartAuction(uint id) external {
         require(bids[id].auctionDeadline < now, "EnglishCollateralAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "EnglishCollateralAuctionHouse/bid-already-placed");
         bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
@@ -235,7 +233,7 @@ contract EnglishCollateralAuctionHouse is Logging {
      * @param amountToBuy Amount of collateral to buy
      * @param rad New bid submitted (expressed as RAD)
      */
-    function increaseBidSize(uint id, uint amountToBuy, uint rad) external emitLog {
+    function increaseBidSize(uint id, uint amountToBuy, uint rad) external {
         require(bids[id].highBidder != address(0), "EnglishCollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "EnglishCollateralAuctionHouse/bid-already-expired");
         require(bids[id].auctionDeadline > now, "EnglishCollateralAuctionHouse/auction-already-expired");
@@ -272,7 +270,7 @@ contract EnglishCollateralAuctionHouse is Logging {
      * @param amountToBuy Amount of collateral to buy (must be smaller than the previous proposed amount)
      * @param rad New bid submitted; must be equal to the winning bid from the increaseBidSize phase
      */
-    function decreaseSoldAmount(uint id, uint amountToBuy, uint rad) external emitLog {
+    function decreaseSoldAmount(uint id, uint amountToBuy, uint rad) external {
         require(bids[id].highBidder != address(0), "EnglishCollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "EnglishCollateralAuctionHouse/bid-already-expired");
         require(bids[id].auctionDeadline > now, "EnglishCollateralAuctionHouse/auction-already-expired");
@@ -302,7 +300,7 @@ contract EnglishCollateralAuctionHouse is Logging {
      * @notice Settle/finish an auction
      * @param id ID of the auction to settle
      */
-    function settleAuction(uint id) external emitLog {
+    function settleAuction(uint id) external {
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "EnglishCollateralAuctionHouse/not-finished");
         cdpEngine.transferCollateral(collateralType, address(this), bids[id].highBidder, bids[id].amountToSell);
         delete bids[id];
@@ -313,7 +311,7 @@ contract EnglishCollateralAuctionHouse is Logging {
      *         Usually called by Global Settlement.
      * @param id ID of the auction to settle
      */
-    function terminateAuctionPrematurely(uint id) external emitLog isAuthorized {
+    function terminateAuctionPrematurely(uint id) external isAuthorized {
         require(bids[id].highBidder != address(0), "EnglishCollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidAmount < bids[id].amountToRaise, "EnglishCollateralAuctionHouse/already-decreasing-sold-amount");
         cdpEngine.transferCollateral(collateralType, address(this), msg.sender, bids[id].amountToSell);
@@ -358,14 +356,14 @@ contract EnglishCollateralAuctionHouse is Logging {
    This thing lets you sell some collateral at a fixed discount in order to instantly recapitalize the system
 */
 
-contract FixedDiscountCollateralAuctionHouse is Logging {
+contract FixedDiscountCollateralAuctionHouse {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -373,7 +371,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -511,7 +509,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
         if (parameter == "discount") {
             require(data < WAD, "FixedDiscountCollateralAuctionHouse/no-discount-offered");
             discount = data;
@@ -549,7 +547,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
      * @param parameter The name of the contract address being updated
      * @param data New address for the oracle contract
      */
-    function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
         else if (parameter == "collateralOSM") collateralOSM = OracleLike(data);
         else if (parameter == "collateralMedian") collateralMedian = OracleLike(data);
@@ -751,7 +749,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
      * @param id ID of the auction to buy collateral from
      * @param wad New bid submitted (as WAD, not as RAD)
      */
-    function buyCollateral(uint id, uint wad) external emitLog {
+    function buyCollateral(uint id, uint wad) external {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
         require(both(wad > 0, wad >= minimumBid), "FixedDiscountCollateralAuctionHouse/invalid-bid");
 
@@ -804,7 +802,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
      * @notice Settle/finish an auction
      * @param id ID of the auction to settle
      */
-    function settleAuction(uint id) external emitLog {
+    function settleAuction(uint id) external {
         require(both(
           both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0),
           bids[id].auctionDeadline < now
@@ -818,7 +816,7 @@ contract FixedDiscountCollateralAuctionHouse is Logging {
      * @notice Terminate an auction prematurely. Usually called by Global Settlement.
      * @param id ID of the auction to settle
      */
-    function terminateAuctionPrematurely(uint id) external emitLog isAuthorized {
+    function terminateAuctionPrematurely(uint id) external isAuthorized {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
         uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
         cdpEngine.transferCollateral(collateralType, address(this), msg.sender, subtract(bids[id].amountToSell, bids[id].soldAmount));

@@ -17,8 +17,6 @@
 
 pragma solidity ^0.6.7;
 
-import "./Logging.sol";
-
 abstract contract DebtAuctionHouseLike {
     function startAuction(address incomeReceiver, uint amountToSell, uint initialBid) virtual public returns (uint);
     function protocolToken() virtual public view returns (address);
@@ -45,14 +43,14 @@ abstract contract ProtocolTokenAuthorityLike {
     function authorizedAccounts(address) virtual public view returns (uint);
 }
 
-contract AccountingEngine is Logging {
+contract AccountingEngine {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         require(contractEnabled == 1, "AccountingEngine/contract-not-enabled");
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
@@ -61,7 +59,7 @@ contract AccountingEngine is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -170,7 +168,7 @@ contract AccountingEngine is Logging {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
         if (parameter == "surplusAuctionDelay") surplusAuctionDelay = data;
         else if (parameter == "popDebtDelay") popDebtDelay = data;
         else if (parameter == "surplusAuctionAmountToSell") surplusAuctionAmountToSell = data;
@@ -186,7 +184,7 @@ contract AccountingEngine is Logging {
      * @param parameter The name of the auction type we want to change the address for
      * @param data New address for the auction
      */
-    function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "surplusAuctionHouse") {
             cdpEngine.denyCDPModification(address(surplusAuctionHouse));
             surplusAuctionHouse = SurplusAuctionHouseLike(data);
@@ -211,7 +209,7 @@ contract AccountingEngine is Logging {
      *      and gather surplus
      * @param debtBlock Amount of debt to push
      */
-    function pushDebtToQueue(uint debtBlock) external emitLog isAuthorized {
+    function pushDebtToQueue(uint debtBlock) external isAuthorized {
         debtQueue[now] = addition(debtQueue[now], debtBlock);
         totalQueuedDebt = addition(totalQueuedDebt, debtBlock);
         emit PushDebtToQueue(now, debtQueue[now], totalQueuedDebt);
@@ -221,7 +219,7 @@ contract AccountingEngine is Logging {
      *         added there
      * @param debtBlockTimestamp Timestamp of the block of debt that should be popped out
      */
-    function popDebtFromQueue(uint debtBlockTimestamp) external emitLog {
+    function popDebtFromQueue(uint debtBlockTimestamp) external {
         require(addition(debtBlockTimestamp, popDebtDelay) <= now, "AccountingEngine/pop-debt-delay-not-passed");
         totalQueuedDebt = subtract(totalQueuedDebt, debtQueue[debtBlockTimestamp]);
         debtQueue[debtBlockTimestamp] = 0;
@@ -234,7 +232,7 @@ contract AccountingEngine is Logging {
      * @dev We can only destroy debt that is not locked in the queue and also not in a debt auction
      * @param rad Amount of coins/debt to destroy (number with 45 decimals)
     **/
-    function settleDebt(uint rad) external emitLog {
+    function settleDebt(uint rad) external {
         require(rad <= cdpEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
         require(rad <= unqueuedUnauctionedDebt(), "AccountingEngine/insufficient-debt");
         cdpEngine.settleDebt(rad);
@@ -244,7 +242,7 @@ contract AccountingEngine is Logging {
      * @notice Use surplus coins to destroy debt that is/was in a debt auction
      * @param rad Amount of coins/debt to destroy (number with 45 decimals)
     **/
-    function cancelAuctionedDebtWithSurplus(uint rad) external emitLog {
+    function cancelAuctionedDebtWithSurplus(uint rad) external {
         require(rad <= totalOnAuctionDebt, "AccountingEngine/not-enough-debt-being-auctioned");
         require(rad <= cdpEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
         totalOnAuctionDebt = subtract(totalOnAuctionDebt, rad);
@@ -258,7 +256,7 @@ contract AccountingEngine is Logging {
      *         system can accumulate surplus)
      * @dev We can only auction debt that is not already being auctioned and is not locked in the debt queue
     **/
-    function auctionDebt() external emitLog returns (uint id) {
+    function auctionDebt() external returns (uint id) {
         require(debtAuctionBidSize <= unqueuedUnauctionedDebt(), "AccountingEngine/insufficient-debt");
         require(cdpEngine.coinBalance(address(this)) == 0, "AccountingEngine/surplus-not-zero");
         require(debtAuctionHouse.protocolToken() != address(0), "AccountingEngine/debt-auction-house-null-prot");
@@ -273,7 +271,7 @@ contract AccountingEngine is Logging {
      * @dev We can only auction surplus if we wait at least 'surplusAuctionDelay' seconds since the last
      *      auction trigger, if we keep enough surplus in the buffer and if there is no bad debt to settle
     **/
-    function auctionSurplus() external emitLog returns (uint id) {
+    function auctionSurplus() external returns (uint id) {
         require(
           now >= addition(lastSurplusAuctionTime, surplusAuctionDelay),
           "AccountingEngine/surplus-auction-delay-not-passed"
@@ -299,7 +297,7 @@ contract AccountingEngine is Logging {
             remaining surplus right away (if disableCooldown == 0) or will only record the timestamp when
             it was disabled
     **/
-    function disableContract() external emitLog isAuthorized {
+    function disableContract() external isAuthorized {
         require(contractEnabled == 1, "AccountingEngine/contract-not-enabled");
 
         contractEnabled = 0;
@@ -322,7 +320,7 @@ contract AccountingEngine is Logging {
      * @notice Transfer any remaining surplus after the disable cooldown has passed
      * @dev Transfer any remaining surplus after disableCooldown seconds have passed since disabling the contract
     **/
-    function transferPostSettlementSurplus() external emitLog isAuthorized {
+    function transferPostSettlementSurplus() external isAuthorized {
         require(contractEnabled == 0, "AccountingEngine/still-enabled");
         require(addition(disableTimestamp, disableCooldown) <= now, "AccountingEngine/cooldown-not-passed");
         cdpEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, cdpEngine.coinBalance(address(this)));

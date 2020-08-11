@@ -17,8 +17,6 @@
 
 pragma solidity ^0.6.7;
 
-import "./Logging.sol";
-
 abstract contract CollateralLike {
     function decimals() virtual public view returns (uint);
     function transfer(address,uint) virtual public returns (bool);
@@ -51,14 +49,14 @@ abstract contract CDPEngineLike {
       - `exit`: remove collateral from the system
 */
 
-contract BasicCollateralJoin is Logging {
+contract BasicCollateralJoin {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -66,7 +64,7 @@ contract BasicCollateralJoin is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -108,7 +106,7 @@ contract BasicCollateralJoin is Logging {
     /**
      * @notice Disable this contract
      */
-    function disableContract() external emitLog isAuthorized {
+    function disableContract() external isAuthorized {
         contractEnabled = 0;
         emit DisableContract();
     }
@@ -120,7 +118,7 @@ contract BasicCollateralJoin is Logging {
     * @param account Account from which we transferFrom collateral and add it in the system
     * @param wad Amount of collateral to transfer in the system (represented as a number with 18 decimals)
     **/
-    function join(address account, uint wad) external emitLog {
+    function join(address account, uint wad) external {
         require(contractEnabled == 1, "BasicCollateralJoin/contract-not-enabled");
         require(int(wad) >= 0, "BasicCollateralJoin/overflow");
         cdpEngine.modifyCollateralBalance(collateralType, account, int(wad));
@@ -135,7 +133,7 @@ contract BasicCollateralJoin is Logging {
     * @param account Account to which we transfer the collateral
     * @param wad Amount of collateral to transfer to 'account' (represented as a number with 18 decimals)
     **/
-    function exit(address account, uint wad) external emitLog {
+    function exit(address account, uint wad) external {
         require(wad <= 2 ** 255, "BasicCollateralJoin/overflow");
         cdpEngine.modifyCollateralBalance(collateralType, msg.sender, -int(wad));
         require(collateral.transfer(account, wad), "BasicCollateralJoin/failed-transfer");
@@ -143,14 +141,14 @@ contract BasicCollateralJoin is Logging {
     }
 }
 
-contract ETHJoin is Logging {
+contract ETHJoin {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -158,7 +156,7 @@ contract ETHJoin is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -197,7 +195,7 @@ contract ETHJoin is Logging {
     /**
      * @notice Disable this contract
      */
-    function disableContract() external emitLog isAuthorized {
+    function disableContract() external isAuthorized {
         contractEnabled = 0;
         emit DisableContract();
     }
@@ -205,7 +203,7 @@ contract ETHJoin is Logging {
     * @notice Join ETH in the system
     * @param account Account that will receive the ETH representation inside the system
     **/
-    function join(address account) external payable emitLog {
+    function join(address account) external payable {
         require(contractEnabled == 1, "ETHJoin/contract-not-enabled");
         require(int(msg.value) >= 0, "ETHJoin/overflow");
         cdpEngine.modifyCollateralBalance(collateralType, account, int(msg.value));
@@ -215,7 +213,7 @@ contract ETHJoin is Logging {
     * @notice Exit ETH from the system
     * @param account Account that will receive the ETH representation inside the system
     **/
-    function exit(address payable account, uint wad) external emitLog {
+    function exit(address payable account, uint wad) external {
         require(int(wad) >= 0, "ETHJoin/overflow");
         cdpEngine.modifyCollateralBalance(collateralType, msg.sender, -int(wad));
         emit Exit(msg.sender, account, wad);
@@ -223,14 +221,14 @@ contract ETHJoin is Logging {
     }
 }
 
-contract CoinJoin is Logging {
+contract CoinJoin {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -238,7 +236,7 @@ contract CoinJoin is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -277,7 +275,7 @@ contract CoinJoin is Logging {
     /**
      * @notice Disable this contract
      */
-    function disableContract() external emitLog isAuthorized {
+    function disableContract() external isAuthorized {
         contractEnabled = 0;
         emit DisableContract();
     }
@@ -292,7 +290,7 @@ contract CoinJoin is Logging {
     * @param account Account that will receive the joined coins
     * @param wad Amount of external coins to join (18 decimal number)
     **/
-    function join(address account, uint wad) external emitLog {
+    function join(address account, uint wad) external {
         cdpEngine.transferInternalCoins(address(this), account, multiply(RAY, wad));
         systemCoin.burn(msg.sender, wad);
         emit Join(msg.sender, account, wad);
@@ -305,7 +303,7 @@ contract CoinJoin is Logging {
     * @param account Account that will receive the exited coins
     * @param wad Amount of internal coins to join (18 decimal number that will be multiplied by ray)
     **/
-    function exit(address account, uint wad) external emitLog {
+    function exit(address account, uint wad) external {
         require(contractEnabled == 1, "CoinJoin/contract-not-enabled");
         cdpEngine.transferInternalCoins(msg.sender, address(this), multiply(RAY, wad));
         systemCoin.mint(account, wad);

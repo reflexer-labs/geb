@@ -17,8 +17,6 @@
 
 pragma solidity ^0.6.7;
 
-import "./Logging.sol";
-
 abstract contract AccountingEngineLike {
     function surplusAuctionDelay() virtual public view returns (uint);
     function surplusAuctionAmountToSell() virtual public view returns (uint);
@@ -35,14 +33,14 @@ abstract contract SurplusAuctionHouseLike {
     function startAuction(uint, uint) virtual public returns (uint);
 }
 
-contract SettlementSurplusAuctioneer is Logging {
+contract SettlementSurplusAuctioneer {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -50,7 +48,7 @@ contract SettlementSurplusAuctioneer is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -94,7 +92,7 @@ contract SettlementSurplusAuctioneer is Logging {
      * @param parameter The name of the contract whose address will be changed
      * @param addr New address for the contract
      */
-    function modifyParameters(bytes32 parameter, address addr) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, address addr) external isAuthorized {
         if (parameter == "accountingEngine") {
           accountingEngine = AccountingEngineLike(addr);
         } else if (parameter == "surplusAuctionHouse") {
@@ -112,7 +110,7 @@ contract SettlementSurplusAuctioneer is Logging {
                The contract even reads surplus auction parameters from the AccountingEngine and uses them to
                start a new auction.
      */
-    function auctionSurplus() external emitLog returns (uint id) {
+    function auctionSurplus() external returns (uint id) {
         require(accountingEngine.contractEnabled() == 0, "SettlementSurplusAuctioneer/accounting-engine-still-enabled");
         require(
           now >= addition(lastSurplusAuctionTime, accountingEngine.surplusAuctionDelay()),

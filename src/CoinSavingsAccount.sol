@@ -17,8 +17,6 @@
 
 pragma solidity ^0.6.7;
 
-import "./Logging.sol";
-
 /*
    "Savings Coin" is obtained when the core coin created by the protocol
    is deposited into this contract. Each "Savings Coin" accrues interest
@@ -37,14 +35,14 @@ abstract contract CDPEngineLike {
     function createUnbackedDebt(address,address,uint256) virtual external;
 }
 
-contract CoinSavingsAccount is Logging {
+contract CoinSavingsAccount {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
      */
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
@@ -52,7 +50,7 @@ contract CoinSavingsAccount is Logging {
      * @notice Remove auth from an account
      * @param account Account to remove auth from
      */
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -152,7 +150,7 @@ contract CoinSavingsAccount is Logging {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint256 data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         require(contractEnabled == 1, "CoinSavingsAccount/contract-not-enabled");
         require(now == latestUpdateTime, "CoinSavingsAccount/accumulation-time-not-updated");
         if (parameter == "savingsRate") savingsRate = data;
@@ -164,7 +162,7 @@ contract CoinSavingsAccount is Logging {
      * @param parameter The name of the parameter modified
      * @param addr New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, address addr) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, address addr) external isAuthorized {
         if (parameter == "accountingEngine") accountingEngine = addr;
         else revert("CoinSavingsAccount/modify-unrecognized-param");
         emit ModifyParameters(parameter, addr);
@@ -172,7 +170,7 @@ contract CoinSavingsAccount is Logging {
     /**
      * @notice Disable this contract (usually called by Global Settlement)
      */
-    function disableContract() external emitLog isAuthorized {
+    function disableContract() external isAuthorized {
         contractEnabled = 0;
         savingsRate = RAY;
         emit DisableContract();
@@ -185,7 +183,7 @@ contract CoinSavingsAccount is Logging {
             rate is positive, we create unbacked debt for the accounting engine and issue new coins for
             this contract
      */
-    function updateAccumulatedRate() external emitLog returns (uint newAccumulatedRate) {
+    function updateAccumulatedRate() external returns (uint newAccumulatedRate) {
         if (now <= latestUpdateTime) return accumulatedRate;
         newAccumulatedRate = rmultiply(rpower(savingsRate, subtract(now, latestUpdateTime), RAY), accumulatedRate);
         uint accumulatedRate_ = subtract(newAccumulatedRate, accumulatedRate);
@@ -208,7 +206,7 @@ contract CoinSavingsAccount is Logging {
      * @param wad Amount of coins to deposit (expressed as an 18 decimal number). 'wad' will be multiplied by
               'accumulatedRate' (27 decimals) to result in a correct amount of internal coins transferred
      */
-    function deposit(uint wad) external emitLog {
+    function deposit(uint wad) external {
         require(now == latestUpdateTime, "CoinSavingsAccount/accumulation-time-not-updated");
         savings[msg.sender] = addition(savings[msg.sender], wad);
         totalSavings        = addition(totalSavings, wad);
@@ -220,7 +218,7 @@ contract CoinSavingsAccount is Logging {
      * @param wad Amount of coins to withdraw (expressed as an 18 decimal number). 'wad' will be multiplied by
               'accumulatedRate' (27 decimals) to result in a correct amount of internal coins transferred
      */
-    function withdraw(uint wad) external emitLog {
+    function withdraw(uint wad) external {
         savings[msg.sender] = subtract(savings[msg.sender], wad);
         totalSavings        = subtract(totalSavings, wad);
         cdpEngine.transferInternalCoins(address(this), msg.sender, multiply(accumulatedRate, wad));

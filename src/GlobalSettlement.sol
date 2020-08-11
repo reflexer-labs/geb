@@ -18,8 +18,6 @@
 
 pragma solidity ^0.6.7;
 
-import "./Logging.sol";
-
 abstract contract CDPEngineLike {
     function coinBalance(address) virtual public view returns (uint256);
     function collateralTypes(bytes32) virtual public view returns (
@@ -147,14 +145,14 @@ abstract contract OracleRelayerLike {
         - the amount of collateral available to redeem is limited by how big your bag is
 */
 
-contract GlobalSettlement is Logging {
+contract GlobalSettlement {
     // --- Auth ---
     mapping (address => uint) public authorizedAccounts;
-    function addAuthorization(address account) external emitLog isAuthorized {
+    function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
-    function removeAuthorization(address account) external emitLog isAuthorized {
+    function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
@@ -233,7 +231,7 @@ contract GlobalSettlement is Logging {
     }
 
     // --- Administration ---
-    function modifyParameters(bytes32 parameter, address data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         require(contractEnabled == 1, "GlobalSettlement/contract-not-enabled");
         if (parameter == "cdpEngine") cdpEngine = CDPEngineLike(data);
         else if (parameter == "liquidationEngine") liquidationEngine = LiquidationEngineLike(data);
@@ -244,7 +242,7 @@ contract GlobalSettlement is Logging {
         else revert("GlobalSettlement/modify-unrecognized-parameter");
         emit ModifyParameters(parameter, data);
     }
-    function modifyParameters(bytes32 parameter, uint256 data) external emitLog isAuthorized {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         require(contractEnabled == 1, "GlobalSettlement/contract-not-enabled");
         if (parameter == "shutdownCooldown") shutdownCooldown = data;
         else revert("GlobalSettlement/modify-unrecognized-parameter");
@@ -252,7 +250,7 @@ contract GlobalSettlement is Logging {
     }
 
     // --- Settlement ---
-    function shutdownSystem() external emitLog isAuthorized {
+    function shutdownSystem() external isAuthorized {
         require(contractEnabled == 1, "GlobalSettlement/contract-not-enabled");
         contractEnabled = 0;
         shutdownTime = now;
@@ -270,7 +268,7 @@ contract GlobalSettlement is Logging {
         emit ShutdownSystem();
     }
 
-    function freezeCollateralType(bytes32 collateralType) external emitLog {
+    function freezeCollateralType(bytes32 collateralType) external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         require(finalCoinPerCollateralPrice[collateralType] == 0, "GlobalSettlement/final-collateral-price-already-defined");
         (collateralTotalDebt[collateralType],,,,,) = cdpEngine.collateralTypes(collateralType);
@@ -279,7 +277,7 @@ contract GlobalSettlement is Logging {
         finalCoinPerCollateralPrice[collateralType] = wdivide(oracleRelayer.redemptionPrice(), uint(orcl.read()));
         emit FreezeCollateralType(collateralType, finalCoinPerCollateralPrice[collateralType]);
     }
-    function fastTrackAuction(bytes32 collateralType, uint256 auctionId) external emitLog {
+    function fastTrackAuction(bytes32 collateralType, uint256 auctionId) external {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
 
         (address auctionHouse_,,) = liquidationEngine.collateralTypes(collateralType);
@@ -302,7 +300,7 @@ contract GlobalSettlement is Logging {
         cdpEngine.confiscateCDPCollateralAndDebt(collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int(collateralToSell), int(debt_));
         emit FastTrackAuction(collateralType, auctionId, collateralTotalDebt[collateralType]);
     }
-    function processCDP(bytes32 collateralType, address cdp) external emitLog {
+    function processCDP(bytes32 collateralType, address cdp) external {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
         (, uint accumulatedRate,,,,) = cdpEngine.collateralTypes(collateralType);
         (uint cdpCollateral, uint cdpDebt) = cdpEngine.cdps(collateralType, cdp);
@@ -326,7 +324,7 @@ contract GlobalSettlement is Logging {
 
         emit ProcessCDP(collateralType, cdp, collateralShortfall[collateralType]);
     }
-    function freeCollateral(bytes32 collateralType) external emitLog {
+    function freeCollateral(bytes32 collateralType) external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         (uint cdpCollateral, uint cdpDebt) = cdpEngine.cdps(collateralType, msg.sender);
         require(cdpDebt == 0, "GlobalSettlement/art-not-zero");
@@ -341,7 +339,7 @@ contract GlobalSettlement is Logging {
         );
         emit FreeCollateral(collateralType, msg.sender, -int(cdpCollateral));
     }
-    function setOutstandingCoinSupply() external emitLog {
+    function setOutstandingCoinSupply() external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         require(outstandingCoinSupply == 0, "GlobalSettlement/outstanding-coin-supply-not-zero");
         require(cdpEngine.coinBalance(address(accountingEngine)) == 0, "GlobalSettlement/surplus-not-zero");
@@ -349,7 +347,7 @@ contract GlobalSettlement is Logging {
         outstandingCoinSupply = cdpEngine.globalDebt();
         emit SetOutstandingCoinSupply(outstandingCoinSupply);
     }
-    function calculateCashPrice(bytes32 collateralType) external emitLog {
+    function calculateCashPrice(bytes32 collateralType) external {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
         require(collateralCashPrice[collateralType] == 0, "GlobalSettlement/collateral-cash-price-already-defined");
 
@@ -362,13 +360,13 @@ contract GlobalSettlement is Logging {
         );
         emit CalculateCashPrice(collateralType, collateralCashPrice[collateralType]);
     }
-    function prepareCoinsForRedeeming(uint256 coinAmount) external emitLog {
+    function prepareCoinsForRedeeming(uint256 coinAmount) external {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
         cdpEngine.transferInternalCoins(msg.sender, address(accountingEngine), multiply(coinAmount, RAY));
         coinBag[msg.sender] = addition(coinBag[msg.sender], coinAmount);
         emit PrepareCoinsForRedeeming(msg.sender, coinBag[msg.sender]);
     }
-    function redeemCollateral(bytes32 collateralType, uint coinsAmount) external emitLog {
+    function redeemCollateral(bytes32 collateralType, uint coinsAmount) external {
         require(collateralCashPrice[collateralType] != 0, "GlobalSettlement/collateral-cash-price-not-defined");
         uint collateralAmount = rmultiply(coinsAmount, collateralCashPrice[collateralType]);
         cdpEngine.transferCollateral(
