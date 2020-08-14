@@ -164,13 +164,13 @@ contract StabilityFeeTreasuryTest is DSTest {
     }
     function test_setTotalAllowance() public {
         stabilityFeeTreasury.setTotalAllowance(alice, 10 ether);
-        (uint total, uint perBlock) = stabilityFeeTreasury.allowance(alice);
+        (uint total, uint perBlock) = stabilityFeeTreasury.getAllowance(alice);
         assertEq(total, 10 ether);
         assertEq(perBlock, 0);
     }
     function test_setPerBlockAllowance() public {
         stabilityFeeTreasury.setPerBlockAllowance(alice, 1 ether);
-        (uint total, uint perBlock) = stabilityFeeTreasury.allowance(alice);
+        (uint total, uint perBlock) = stabilityFeeTreasury.getAllowance(alice);
         assertEq(total, 0);
         assertEq(perBlock, 1 ether);
     }
@@ -215,7 +215,7 @@ contract StabilityFeeTreasuryTest is DSTest {
     function test_pull_funds_no_block_limit() public {
         stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 1 ether);
-        (uint total, ) = stabilityFeeTreasury.allowance(address(usr));
+        (uint total, ) = stabilityFeeTreasury.getAllowance(address(usr));
         assertEq(total, rad(9 ether));
         assertEq(systemCoin.balanceOf(address(usr)), 0);
         assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
@@ -231,7 +231,7 @@ contract StabilityFeeTreasuryTest is DSTest {
         stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
         stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 0.9 ether);
-        (uint total, ) = stabilityFeeTreasury.allowance(address(usr));
+        (uint total, ) = stabilityFeeTreasury.getAllowance(address(usr));
         assertEq(total, rad(9.1 ether));
         assertEq(stabilityFeeTreasury.pulledPerBlock(address(usr), block.number), rad(0.9 ether));
         assertEq(systemCoin.balanceOf(address(usr)), 0);

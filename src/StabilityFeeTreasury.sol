@@ -81,7 +81,7 @@ contract StabilityFeeTreasury {
         uint perBlock;
     }
 
-    mapping(address => Allowance) public allowance;
+    mapping(address => Allowance) private allowance;
     mapping(address => mapping(uint => uint)) public pulledPerBlock;
 
     CDPEngineLike   public cdpEngine;
@@ -217,6 +217,11 @@ contract StabilityFeeTreasury {
         if (systemCoin.balanceOf(address(this)) > 0) {
           coinJoin.join(address(this), systemCoin.balanceOf(address(this)));
         }
+    }
+
+    // --- Getters ---
+    function getAllowance(address account) public view returns (uint256, uint256) {
+        return (allowance[account].total, allowance[account].perBlock);
     }
 
     // --- SF Transfer Allowance ---
