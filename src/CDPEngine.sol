@@ -113,7 +113,7 @@ contract CDPEngine {
     // Access flag, indicates whether this contract is still active
     uint256  public contractEnabled;
 
-    // --- Logs ---
+    // --- Events ---
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
     event ApproveCDPModification(address sender, address account);
