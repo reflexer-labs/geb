@@ -46,39 +46,23 @@ contract DSThing is DSAuth, DSNote, DSMath {
 }
 
 contract DummyOSM is DSThing {
-    bool    validPrice;
-    bytes32 price;
-    function getResultWithValidity() public view returns (bytes32, bool) {
+    bool validPrice;
+    uint price;
+    function getResultWithValidity() public view returns (uint256, bool) {
         return (price,validPrice);
     }
-    function read() public view returns (bytes32) {
-        bytes32 price_; bool validPrice_;
+    function read() public view returns (uint256) {
+        uint price_; bool validPrice_;
         (price_, validPrice_) = getResultWithValidity();
         require(validPrice_, "not-valid");
-        return price_;
+        return uint(price_);
     }
     function updateCollateralPrice(bytes32 newPrice) public note auth {
-        price = newPrice;
+        price = uint(newPrice);
         validPrice = true;
     }
     function restart() public note auth {  // unset the value
         validPrice = false;
-    }
-}
-
-contract DexLike {
-    uint256 amountToOffer;
-
-    constructor(
-      uint256 amountToOffer_
-    ) public {
-      amountToOffer = amountToOffer_;
-    }
-
-    function tkntkn(address systemCoin, address protocolToken, uint amountToSell) external returns (uint) {
-        DSToken(systemCoin).transferFrom(msg.sender, address(this), amountToSell);
-        DSToken(protocolToken).transfer(msg.sender, amountToOffer);
-        return amountToOffer;
     }
 }
 

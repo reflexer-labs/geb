@@ -65,7 +65,7 @@ abstract contract CollateralAuctionHouseLike {
     function terminateAuctionPrematurely(uint auctionId) virtual external;
 }
 abstract contract OracleLike {
-    function read() virtual public view returns (bytes32);
+    function read() virtual public view returns (uint256);
 }
 abstract contract OracleRelayerLike {
     function redemptionPrice() virtual public view returns (uint256);

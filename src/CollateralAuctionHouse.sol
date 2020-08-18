@@ -25,7 +25,7 @@ abstract contract OracleRelayerLike {
     function redemptionPrice() virtual public returns (uint256);
 }
 abstract contract OracleLike {
-    function getResultWithValidity() virtual public returns (bytes32, bool);
+    function getResultWithValidity() virtual public returns (uint256, bool);
 }
 
 /*
@@ -245,7 +245,7 @@ contract EnglishCollateralAuctionHouse {
 
         // check for first bid only
         if (bids[id].bidAmount == 0) {
-            (bytes32 priceFeedValue, bool hasValidValue) = osm.getResultWithValidity();
+            (uint256 priceFeedValue, bool hasValidValue) = osm.getResultWithValidity();
             if (hasValidValue) {
                 uint256 redemptionPrice = oracleRelayer.redemptionPrice();
                 require(rad >= multiply(wmultiply(rdivide(uint256(priceFeedValue), redemptionPrice), amountToBuy), bidToMarketPriceRatio), "EnglishCollateralAuctionHouse/first-bid-too-low");
@@ -562,7 +562,7 @@ contract FixedDiscountCollateralAuctionHouse {
 
         // wrapped call toward the collateral median
         try collateralMedian.getResultWithValidity()
-          returns (bytes32 price, bool valid) {
+          returns (uint256 price, bool valid) {
           if (valid) {
             priceFeed = uint(price);
           }
@@ -573,7 +573,7 @@ contract FixedDiscountCollateralAuctionHouse {
 
         // wrapped call toward the system coin oracle
         try systemCoinOracle.getResultWithValidity()
-          returns (bytes32 price, bool valid) {
+          returns (uint256 price, bool valid) {
           if (valid) {
             priceFeed = uint(price) * 10 ** 9; // scale to RAY
           }
@@ -590,7 +590,7 @@ contract FixedDiscountCollateralAuctionHouse {
         ceilingPrice = (ceilingPrice >= minCeilingDeviatedPrice) ? ceilingPrice : redemptionPrice;
     }
     function getTokenPrices() private returns (uint256, uint256) {
-        (bytes32 collateralOsmPriceFeedValue, bool collateralOsmHasValidValue) = collateralOSM.getResultWithValidity();
+        (uint256 collateralOsmPriceFeedValue, bool collateralOsmHasValidValue) = collateralOSM.getResultWithValidity();
         if (!collateralOsmHasValidValue) {
           return (0, 0);
         }
