@@ -20,7 +20,7 @@ abstract contract CDPEngineLike {
 }
 
 abstract contract OracleLike {
-    function getResultWithValidity() virtual public view returns (bytes32, bool);
+    function getResultWithValidity() virtual public view returns (uint256, bool);
 }
 
 contract OracleRelayer {
@@ -92,7 +92,7 @@ contract OracleRelayer {
     event UpdateRedemptionPrice(uint redemptionPrice);
     event UpdateCollateralPrice(
       bytes32 collateralType,
-      bytes32 priceFeedValue,
+      uint256 priceFeedValue,
       uint256 safetyPrice,
       uint256 liquidationPrice
     );
@@ -246,7 +246,7 @@ contract OracleRelayer {
      * @param collateralType The collateral we want to update prices (safety and liquidation prices) for
      */
     function updateCollateralPrice(bytes32 collateralType) external {
-        (bytes32 priceFeedValue, bool hasValidValue) =
+        (uint256 priceFeedValue, bool hasValidValue) =
           collateralTypes[collateralType].orcl.getResultWithValidity();
         uint redemptionPrice_ = redemptionPrice();
         uint256 safetyPrice_ = hasValidValue ? rdivide(rdivide(multiply(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].safetyCRatio) : 0;
