@@ -71,7 +71,8 @@ abstract contract OracleRelayerLike {
     function redemptionPrice() virtual public view returns (uint256);
     function collateralTypes(bytes32) virtual public view returns (
         OracleLike orcl,
-        uint256 safetyCRatio
+        uint256 safetyCRatio,
+        uint256 liquidationCRatio
     );
     function disableContract() virtual external;
 }
@@ -272,7 +273,7 @@ contract GlobalSettlement {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         require(finalCoinPerCollateralPrice[collateralType] == 0, "GlobalSettlement/final-collateral-price-already-defined");
         (collateralTotalDebt[collateralType],,,,,) = cdpEngine.collateralTypes(collateralType);
-        (OracleLike orcl,) = oracleRelayer.collateralTypes(collateralType);
+        (OracleLike orcl,,) = oracleRelayer.collateralTypes(collateralType);
         // redemptionPrice is a ray, orcl returns a wad
         finalCoinPerCollateralPrice[collateralType] = wdivide(oracleRelayer.redemptionPrice(), uint(orcl.read()));
         emit FreezeCollateralType(collateralType, finalCoinPerCollateralPrice[collateralType]);
