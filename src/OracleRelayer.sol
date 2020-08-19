@@ -262,6 +262,7 @@ contract OracleRelayer {
      */
     function disableContract() external isAuthorized {
         contractEnabled = 0;
+        redemptionRate = RAY;
         emit DisableContract();
     }
 
