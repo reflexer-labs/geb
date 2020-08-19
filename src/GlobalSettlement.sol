@@ -68,7 +68,7 @@ abstract contract OracleLike {
     function read() virtual public view returns (uint256);
 }
 abstract contract OracleRelayerLike {
-    function redemptionPrice() virtual public view returns (uint256);
+    function redemptionPrice() virtual public returns (uint256);
     function collateralTypes(bytes32) virtual public view returns (
         OracleLike orcl,
         uint256 safetyCRatio,
