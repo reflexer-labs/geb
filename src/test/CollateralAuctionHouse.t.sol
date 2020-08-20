@@ -670,6 +670,33 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 2631578947368421);
         assertEq(cdpEngine.tokenCollateral("collateralType", address(cdpAuctioned)), 1 ether - 2631578947368421);
     }
+    function test_precision_loss_buy_all() public {
+        oracleRelayer.modifyParameters("redemptionPrice", 2.015E27);
+        collateralOSM.set_val(400 ether);
+        cdpEngine.mint(ali, 200 * RAD - 200 ether);
+
+        uint collateralAmountPreBid = cdpEngine.tokenCollateral("collateralType", address(ali));
+
+        uint id = collateralAuctionHouse.startAuction({ amountToSell: 0.5 ether
+                                                      , amountToRaise: 99999999999999999999999999999999999999999999999
+                                                      , forgoneCollateralReceiver: cdpAuctioned
+                                                      , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
+                                                      });
+
+        Guy(ali).buyCollateral(id, 100 * WAD);
+
+        (uint256 raisedAmount, uint256 soldAmount, uint256 amountToSell, uint256 amountToRaise, , , ) = collateralAuctionHouse.bids(id);
+        assertEq(raisedAmount, 0);
+        assertEq(soldAmount, 0);
+        assertEq(amountToSell, 0);
+        assertEq(amountToRaise, 0);
+
+        assertEq(cdpEngine.coinBalance(auctionIncomeRecipient), 100999999999999999999000000000000000000000000000);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 0);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 0.5 ether);
+        assertEq(cdpEngine.tokenCollateral("collateralType", address(cdpAuctioned)), 0);
+    }
     function test_buyCollateral_insignificant_leftover_to_raise() public {
         oracleRelayer.modifyParameters("redemptionPrice", RAY);
         collateralOSM.set_val(200 ether);
