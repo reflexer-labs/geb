@@ -17,7 +17,7 @@
 
 pragma solidity ^0.6.7;
 
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function transferInternalCoins(address,address,uint) virtual external;
     function transferCollateral(bytes32,address,address,uint) virtual external;
 }
@@ -71,7 +71,7 @@ contract EnglishCollateralAuctionHouse {
         uint48  bidExpiry;                                                                                            // [unix epoch time]
         // Hard deadline for the auction after which no more bids can be placed
         uint48  auctionDeadline;                                                                                      // [unix epoch time]
-        // Who (which CDP) receives leftover collateral that is not sold in the auction; usually the liquidated CDP
+        // Who (which SAFE) receives leftover collateral that is not sold in the auction; usually the liquidated SAFE
         address forgoneCollateralReceiver;
         // Who receives the coins raised from the auction; usually the accounting engine
         address auctionIncomeRecipient;
@@ -82,8 +82,8 @@ contract EnglishCollateralAuctionHouse {
     // Bid data for each separate auction
     mapping (uint => Bid) public bids;
 
-    // CDP database
-    CDPEngineLike public cdpEngine;
+    // SAFE database
+    SAFEEngineLike public safeEngine;
     // Collateral type name
     bytes32       public collateralType;
 
@@ -127,8 +127,8 @@ contract EnglishCollateralAuctionHouse {
     event TerminateAuctionPrematurely(uint id, address sender, uint bidAmount, uint collateralAmount);
 
     // --- Init ---
-    constructor(address cdpEngine_, bytes32 collateralType_) public {
-        cdpEngine = CDPEngineLike(cdpEngine_);
+    constructor(address safeEngine_, bytes32 collateralType_) public {
+        safeEngine = SAFEEngineLike(safeEngine_);
         collateralType = collateralType_;
         authorizedAccounts[msg.sender] = 1;
         emit AddAuthorization(msg.sender);
@@ -204,7 +204,7 @@ contract EnglishCollateralAuctionHouse {
         bids[id].auctionIncomeRecipient = auctionIncomeRecipient;
         bids[id].amountToRaise = amountToRaise;
 
-        cdpEngine.transferCollateral(collateralType, msg.sender, address(this), amountToSell);
+        safeEngine.transferCollateral(collateralType, msg.sender, address(this), amountToSell);
 
         emit StartAuction(
           id,
@@ -253,10 +253,10 @@ contract EnglishCollateralAuctionHouse {
         }
 
         if (msg.sender != bids[id].highBidder) {
-            cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bids[id].bidAmount);
+            safeEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bids[id].bidAmount);
             bids[id].highBidder = msg.sender;
         }
-        cdpEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, rad - bids[id].bidAmount);
+        safeEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, rad - bids[id].bidAmount);
 
         bids[id].bidAmount = rad;
         bids[id].bidExpiry = addUint48(uint48(now), bidDuration);
@@ -281,10 +281,10 @@ contract EnglishCollateralAuctionHouse {
         require(multiply(bidIncrease, amountToBuy) <= multiply(bids[id].amountToSell, ONE), "EnglishCollateralAuctionHouse/insufficient-decrease");
 
         if (msg.sender != bids[id].highBidder) {
-            cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, rad);
+            safeEngine.transferInternalCoins(msg.sender, bids[id].highBidder, rad);
             bids[id].highBidder = msg.sender;
         }
-        cdpEngine.transferCollateral(
+        safeEngine.transferCollateral(
           collateralType,
           address(this),
           bids[id].forgoneCollateralReceiver,
@@ -302,7 +302,7 @@ contract EnglishCollateralAuctionHouse {
      */
     function settleAuction(uint id) external {
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "EnglishCollateralAuctionHouse/not-finished");
-        cdpEngine.transferCollateral(collateralType, address(this), bids[id].highBidder, bids[id].amountToSell);
+        safeEngine.transferCollateral(collateralType, address(this), bids[id].highBidder, bids[id].amountToSell);
         delete bids[id];
         emit SettleAuction(id);
     }
@@ -314,8 +314,8 @@ contract EnglishCollateralAuctionHouse {
     function terminateAuctionPrematurely(uint id) external isAuthorized {
         require(bids[id].highBidder != address(0), "EnglishCollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidAmount < bids[id].amountToRaise, "EnglishCollateralAuctionHouse/already-decreasing-sold-amount");
-        cdpEngine.transferCollateral(collateralType, address(this), msg.sender, bids[id].amountToSell);
-        cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bids[id].bidAmount);
+        safeEngine.transferCollateral(collateralType, address(this), msg.sender, bids[id].amountToSell);
+        safeEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bids[id].bidAmount);
         emit TerminateAuctionPrematurely(id, msg.sender, bids[id].bidAmount, bids[id].amountToSell);
         delete bids[id];
     }
@@ -395,7 +395,7 @@ contract FixedDiscountCollateralAuctionHouse {
         uint256 amountToRaise;                                                                                        // [rad]
         // Hard deadline for the auction after which no more bids can be placed
         uint48  auctionDeadline;                                                                                      // [unix epoch time]
-        // Who (which CDP) receives leftover collateral that is not sold in the auction; usually the liquidated CDP
+        // Who (which SAFE) receives leftover collateral that is not sold in the auction; usually the liquidated SAFE
         address forgoneCollateralReceiver;
         // Who receives the coins raised from the auction; usually the accounting engine
         address auctionIncomeRecipient;
@@ -404,8 +404,8 @@ contract FixedDiscountCollateralAuctionHouse {
     // Bid data for each separate auction
     mapping (uint => Bid) public bids;
 
-    // CDP database
-    CDPEngineLike public cdpEngine;
+    // SAFE database
+    SAFEEngineLike public safeEngine;
     // Collateral type name
     bytes32       public collateralType;
 
@@ -456,8 +456,8 @@ contract FixedDiscountCollateralAuctionHouse {
     event TerminateAuctionPrematurely(uint id, address sender, uint collateralAmount);
 
     // --- Init ---
-    constructor(address cdpEngine_, bytes32 collateralType_) public {
-        cdpEngine = CDPEngineLike(cdpEngine_);
+    constructor(address safeEngine_, bytes32 collateralType_) public {
+        safeEngine = SAFEEngineLike(safeEngine_);
         collateralType = collateralType_;
         authorizedAccounts[msg.sender] = 1;
         emit AddAuthorization(msg.sender);
@@ -691,7 +691,7 @@ contract FixedDiscountCollateralAuctionHouse {
         bids[id].auctionIncomeRecipient = auctionIncomeRecipient;
         bids[id].amountToRaise = amountToRaise;
 
-        cdpEngine.transferCollateral(collateralType, msg.sender, address(this), amountToSell);
+        safeEngine.transferCollateral(collateralType, msg.sender, address(this), amountToSell);
 
         emit StartAuction(
           id,
@@ -779,8 +779,8 @@ contract FixedDiscountCollateralAuctionHouse {
         bids[id].soldAmount = addUint256(bids[id].soldAmount, boughtCollateral);
 
         // transfer the bid to the income recipient and the collateral to the bidder
-        cdpEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, multiply(adjustedBid, RAY));
-        cdpEngine.transferCollateral(collateralType, address(this), msg.sender, boughtCollateral);
+        safeEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, multiply(adjustedBid, RAY));
+        safeEngine.transferCollateral(collateralType, address(this), msg.sender, boughtCollateral);
 
         // if the auction raised the whole amount, all collateral was sold or the auction expired,
         // send remaining collateral back to the forgone receiver
@@ -788,7 +788,7 @@ contract FixedDiscountCollateralAuctionHouse {
         bool soldAll        = either(bids[id].amountToRaise <= bids[id].raisedAmount, bids[id].amountToSell == bids[id].soldAmount);
         if (either(deadlinePassed, soldAll)) {
             uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
-            cdpEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
+            safeEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
             delete bids[id];
             emit SettleAuction(id, leftoverCollateral);
         }
@@ -805,7 +805,7 @@ contract FixedDiscountCollateralAuctionHouse {
           bids[id].auctionDeadline < now
         ), "FixedDiscountCollateralAuctionHouse/not-finished");
         uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
-        cdpEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
+        safeEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
         delete bids[id];
         emit SettleAuction(id, leftoverCollateral);
     }
@@ -816,7 +816,7 @@ contract FixedDiscountCollateralAuctionHouse {
     function terminateAuctionPrematurely(uint id) external isAuthorized {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
         uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
-        cdpEngine.transferCollateral(collateralType, address(this), msg.sender, subtract(bids[id].amountToSell, bids[id].soldAmount));
+        safeEngine.transferCollateral(collateralType, address(this), msg.sender, subtract(bids[id].amountToSell, bids[id].soldAmount));
         delete bids[id];
         emit TerminateAuctionPrematurely(id, msg.sender, leftoverCollateral);
     }

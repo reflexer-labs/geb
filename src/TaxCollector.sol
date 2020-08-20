@@ -15,7 +15,7 @@ pragma solidity ^0.6.7;
 
 import "./LinkedList.sol";
 
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function collateralTypes(bytes32) virtual public view returns (
         uint256 debtAmount,       // [wad]
         uint256 accumulatedRate   // [ray]
@@ -135,12 +135,12 @@ contract TaxCollector {
     // Linked list with tax receiver data
     LinkedList.List  internal secondaryReceiverList;
 
-    CDPEngineLike public cdpEngine;
+    SAFEEngineLike public safeEngine;
 
     // --- Init ---
-    constructor(address cdpEngine_) public {
+    constructor(address safeEngine_) public {
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine = CDPEngineLike(cdpEngine_);
+        safeEngine = SAFEEngineLike(safeEngine_);
         emit AddAuthorization(msg.sender);
     }
 
@@ -418,12 +418,12 @@ contract TaxCollector {
      */
     function taxManyOutcome(uint start, uint end) public view returns (bool ok, int rad) {
         require(both(start <= end, end < collateralList.length), "TaxCollector/invalid-indexes");
-        int  primaryReceiverBalance = -int(cdpEngine.coinBalance(primaryTaxReceiver));
+        int  primaryReceiverBalance = -int(safeEngine.coinBalance(primaryTaxReceiver));
         int  deltaRate;
         uint debtAmount;
         for (uint i = start; i <= end; i++) {
           if (now > collateralTypes[collateralList[i]].updateTime) {
-            (debtAmount, ) = cdpEngine.collateralTypes(collateralList[i]);
+            (debtAmount, ) = safeEngine.collateralTypes(collateralList[i]);
             (, deltaRate)  = taxSingleOutcome(collateralList[i]);
             rad = addition(rad, multiply(debtAmount, deltaRate));
           }
@@ -439,7 +439,7 @@ contract TaxCollector {
      * @param collateralType Collateral type to compute the taxation outcome for
      */
     function taxSingleOutcome(bytes32 collateralType) public view returns (uint, int) {
-        (, uint lastAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
+        (, uint lastAccumulatedRate) = safeEngine.collateralTypes(collateralType);
         uint newlyAccumulatedRate =
           rmultiply(
             rpow(
@@ -495,14 +495,14 @@ contract TaxCollector {
     function taxSingle(bytes32 collateralType) public returns (uint) {
         uint latestAccumulatedRate;
         if (now <= collateralTypes[collateralType].updateTime) {
-          (, latestAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
+          (, latestAccumulatedRate) = safeEngine.collateralTypes(collateralType);
           return latestAccumulatedRate;
         }
         (, int deltaRate) = taxSingleOutcome(collateralType);
         // Check how much debt has been generated for collateralType
-        (uint debtAmount, ) = cdpEngine.collateralTypes(collateralType);
+        (uint debtAmount, ) = safeEngine.collateralTypes(collateralType);
         splitTaxIncome(collateralType, debtAmount, deltaRate);
-        (, latestAccumulatedRate) = cdpEngine.collateralTypes(collateralType);
+        (, latestAccumulatedRate) = safeEngine.collateralTypes(collateralType);
         collateralTypes[collateralType].updateTime = now;
         emit CollectTax(collateralType, latestAccumulatedRate, deltaRate);
         return latestAccumulatedRate;
@@ -550,7 +550,7 @@ contract TaxCollector {
         int256 deltaRate
     ) internal {
         // Check how many coins the receiver has and negate the value
-        int256 coinBalance   = -int(cdpEngine.coinBalance(receiver));
+        int256 coinBalance   = -int(safeEngine.coinBalance(receiver));
         // Compute the % out of SF that should be allocated to the receiver
         int256 currentTaxCut = (receiver == primaryTaxReceiver) ?
           multiply(subtract(HUNDRED, secondaryReceiverAllotedTax[collateralType]), deltaRate) / int(HUNDRED) :
@@ -576,7 +576,7 @@ contract TaxCollector {
               )
             )
           ) {
-            cdpEngine.updateAccumulatedRate(collateralType, receiver, currentTaxCut);
+            safeEngine.updateAccumulatedRate(collateralType, receiver, currentTaxCut);
             emit DistributeTax(collateralType, receiver, currentTaxCut);
           }
        }

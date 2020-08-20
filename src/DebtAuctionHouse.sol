@@ -17,7 +17,7 @@
 
 pragma solidity ^0.6.7;
 
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function transferInternalCoins(address,address,uint) virtual external;
     function createUnbackedDebt(address,address,uint) virtual external;
 }
@@ -77,8 +77,8 @@ contract DebtAuctionHouse {
     // Bid data for each separate auction
     mapping (uint => Bid) public bids;
 
-    // CDP database
-    CDPEngineLike public cdpEngine;
+    // SAFE database
+    SAFEEngineLike public safeEngine;
     // Protocol token address
     TokenLike public protocolToken;
     // Accounting engine
@@ -122,9 +122,9 @@ contract DebtAuctionHouse {
     event DisableContract(address sender);
 
     // --- Init ---
-    constructor(address cdpEngine_, address protocolToken_) public {
+    constructor(address safeEngine_, address protocolToken_) public {
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine = CDPEngineLike(cdpEngine_);
+        safeEngine = SAFEEngineLike(safeEngine_);
         protocolToken = TokenLike(protocolToken_);
         contractEnabled = 1;
         emit AddAuthorization(msg.sender);
@@ -227,7 +227,7 @@ contract DebtAuctionHouse {
         require(amountToBuy <  bids[id].amountToSell, "DebtAuctionHouse/amount-bought-not-lower");
         require(multiply(bidDecrease, amountToBuy) <= multiply(bids[id].amountToSell, ONE), "DebtAuctionHouse/insufficient-decrease");
 
-        cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bid);
+        safeEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bid);
 
         // on first bid submitted, clear as much totalOnAuctionDebt as possible
         if (bids[id].bidExpiry == 0) {
@@ -270,7 +270,7 @@ contract DebtAuctionHouse {
     function terminateAuctionPrematurely(uint id) external {
         require(contractEnabled == 0, "DebtAuctionHouse/contract-still-enabled");
         require(bids[id].highBidder != address(0), "DebtAuctionHouse/high-bidder-not-set");
-        cdpEngine.createUnbackedDebt(accountingEngine, bids[id].highBidder, bids[id].bidAmount);
+        safeEngine.createUnbackedDebt(accountingEngine, bids[id].highBidder, bids[id].bidAmount);
         activeDebtAuctions = subtract(activeDebtAuctions, 1);
         emit TerminateAuctionPrematurely(id, msg.sender, bids[id].highBidder, bids[id].bidAmount, activeDebtAuctions);
         delete bids[id];

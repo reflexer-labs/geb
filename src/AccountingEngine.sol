@@ -30,13 +30,13 @@ abstract contract SurplusAuctionHouseLike {
     function contractEnabled() virtual public view returns (uint);
 }
 
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function coinBalance(address) virtual public view returns (uint);
     function debtBalance(address) virtual public view returns (uint);
     function settleDebt(uint256) virtual external;
     function transferInternalCoins(address,address,uint256) virtual external;
-    function approveCDPModification(address) virtual external;
-    function denyCDPModification(address) virtual external;
+    function approveSAFEModification(address) virtual external;
+    function denySAFEModification(address) virtual external;
 }
 
 abstract contract ProtocolTokenAuthorityLike {
@@ -72,8 +72,8 @@ contract AccountingEngine {
     }
 
     // --- Data ---
-    // CDP database
-    CDPEngineLike              public cdpEngine;
+    // SAFE database
+    SAFEEngineLike              public safeEngine;
     // Contract that handles auctions for surplus stability fees (sell coins for protocol tokens that are then burned)
     SurplusAuctionHouseLike    public surplusAuctionHouse;
     /**
@@ -137,15 +137,15 @@ contract AccountingEngine {
 
     // --- Init ---
     constructor(
-      address cdpEngine_,
+      address safeEngine_,
       address surplusAuctionHouse_,
       address debtAuctionHouse_
     ) public {
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine = CDPEngineLike(cdpEngine_);
+        safeEngine = SAFEEngineLike(safeEngine_);
         surplusAuctionHouse = SurplusAuctionHouseLike(surplusAuctionHouse_);
         debtAuctionHouse = DebtAuctionHouseLike(debtAuctionHouse_);
-        cdpEngine.approveCDPModification(surplusAuctionHouse_);
+        safeEngine.approveSAFEModification(surplusAuctionHouse_);
         lastSurplusAuctionTime = now;
         contractEnabled = 1;
         emit AddAuthorization(msg.sender);
@@ -186,9 +186,9 @@ contract AccountingEngine {
      */
     function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "surplusAuctionHouse") {
-            cdpEngine.denyCDPModification(address(surplusAuctionHouse));
+            safeEngine.denySAFEModification(address(surplusAuctionHouse));
             surplusAuctionHouse = SurplusAuctionHouseLike(data);
-            cdpEngine.approveCDPModification(data);
+            safeEngine.approveSAFEModification(data);
         }
         else if (parameter == "debtAuctionHouse") debtAuctionHouse = DebtAuctionHouseLike(data);
         else if (parameter == "postSettlementSurplusDrain") postSettlementSurplusDrain = data;
@@ -199,7 +199,7 @@ contract AccountingEngine {
 
     // --- Getters ---
     function unqueuedUnauctionedDebt() public view returns (uint256) {
-        return subtract(subtract(cdpEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt);
+        return subtract(subtract(safeEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt);
     }
 
     // --- Debt Queueing ---
@@ -233,10 +233,10 @@ contract AccountingEngine {
      * @param rad Amount of coins/debt to destroy (number with 45 decimals)
     **/
     function settleDebt(uint rad) external {
-        require(rad <= cdpEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
+        require(rad <= safeEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
         require(rad <= unqueuedUnauctionedDebt(), "AccountingEngine/insufficient-debt");
-        cdpEngine.settleDebt(rad);
-        emit SettleDebt(rad, cdpEngine.coinBalance(address(this)), cdpEngine.debtBalance(address(this)));
+        safeEngine.settleDebt(rad);
+        emit SettleDebt(rad, safeEngine.coinBalance(address(this)), safeEngine.debtBalance(address(this)));
     }
     /**
      * @notice Use surplus coins to destroy debt that is/was in a debt auction
@@ -244,10 +244,10 @@ contract AccountingEngine {
     **/
     function cancelAuctionedDebtWithSurplus(uint rad) external {
         require(rad <= totalOnAuctionDebt, "AccountingEngine/not-enough-debt-being-auctioned");
-        require(rad <= cdpEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
+        require(rad <= safeEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
         totalOnAuctionDebt = subtract(totalOnAuctionDebt, rad);
-        cdpEngine.settleDebt(rad);
-        emit CancelAuctionedDebtWithSurplus(rad, totalOnAuctionDebt, cdpEngine.coinBalance(address(this)), cdpEngine.debtBalance(address(this)));
+        safeEngine.settleDebt(rad);
+        emit CancelAuctionedDebtWithSurplus(rad, totalOnAuctionDebt, safeEngine.coinBalance(address(this)), safeEngine.debtBalance(address(this)));
     }
 
     // Debt auction
@@ -258,12 +258,12 @@ contract AccountingEngine {
     **/
     function auctionDebt() external returns (uint id) {
         require(debtAuctionBidSize <= unqueuedUnauctionedDebt(), "AccountingEngine/insufficient-debt");
-        require(cdpEngine.coinBalance(address(this)) == 0, "AccountingEngine/surplus-not-zero");
+        require(safeEngine.coinBalance(address(this)) == 0, "AccountingEngine/surplus-not-zero");
         require(debtAuctionHouse.protocolToken() != address(0), "AccountingEngine/debt-auction-house-null-prot");
         require(protocolTokenAuthority.authorizedAccounts(address(debtAuctionHouse)) == 1, "AccountingEngine/debt-auction-house-cannot-print-prot");
         totalOnAuctionDebt = addition(totalOnAuctionDebt, debtAuctionBidSize);
         id = debtAuctionHouse.startAuction(address(this), initialDebtAuctionMintedTokens, debtAuctionBidSize);
-        emit AuctionDebt(id, totalOnAuctionDebt, cdpEngine.debtBalance(address(this)));
+        emit AuctionDebt(id, totalOnAuctionDebt, safeEngine.debtBalance(address(this)));
     }
     // Surplus auction
     /**
@@ -277,8 +277,8 @@ contract AccountingEngine {
           "AccountingEngine/surplus-auction-delay-not-passed"
         );
         require(
-          cdpEngine.coinBalance(address(this)) >=
-          addition(addition(cdpEngine.debtBalance(address(this)), surplusAuctionAmountToSell), surplusBuffer),
+          safeEngine.coinBalance(address(this)) >=
+          addition(addition(safeEngine.debtBalance(address(this)), surplusAuctionAmountToSell), surplusBuffer),
           "AccountingEngine/insufficient-surplus"
         );
         require(
@@ -287,7 +287,7 @@ contract AccountingEngine {
         );
         lastSurplusAuctionTime = now;
         id = surplusAuctionHouse.startAuction(surplusAuctionAmountToSell, 0);
-        emit AuctionSurplus(id, lastSurplusAuctionTime, cdpEngine.coinBalance(address(this)));
+        emit AuctionSurplus(id, lastSurplusAuctionTime, safeEngine.coinBalance(address(this)));
     }
 
     /**
@@ -309,12 +309,12 @@ contract AccountingEngine {
         surplusAuctionHouse.disableContract();
         debtAuctionHouse.disableContract();
 
-        cdpEngine.settleDebt(minimum(cdpEngine.coinBalance(address(this)), cdpEngine.debtBalance(address(this))));
+        safeEngine.settleDebt(minimum(safeEngine.coinBalance(address(this)), safeEngine.debtBalance(address(this))));
         if (disableCooldown == 0) {
-          cdpEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, cdpEngine.coinBalance(address(this)));
+          safeEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, safeEngine.coinBalance(address(this)));
         }
 
-        emit DisableContract(disableTimestamp, disableCooldown, cdpEngine.coinBalance(address(this)), cdpEngine.debtBalance(address(this)));
+        emit DisableContract(disableTimestamp, disableCooldown, safeEngine.coinBalance(address(this)), safeEngine.debtBalance(address(this)));
     }
     /**
      * @notice Transfer any remaining surplus after the disable cooldown has passed
@@ -323,11 +323,11 @@ contract AccountingEngine {
     function transferPostSettlementSurplus() external isAuthorized {
         require(contractEnabled == 0, "AccountingEngine/still-enabled");
         require(addition(disableTimestamp, disableCooldown) <= now, "AccountingEngine/cooldown-not-passed");
-        cdpEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, cdpEngine.coinBalance(address(this)));
+        safeEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, safeEngine.coinBalance(address(this)));
         emit TransferPostSettlementSurplus(
           postSettlementSurplusDrain,
-          cdpEngine.coinBalance(address(this)),
-          cdpEngine.debtBalance(address(this))
+          safeEngine.coinBalance(address(this)),
+          safeEngine.debtBalance(address(this))
         );
     }
 }

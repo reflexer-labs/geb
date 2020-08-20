@@ -15,7 +15,7 @@
 
 pragma solidity ^0.6.7;
 
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function modifyParameters(bytes32, bytes32, uint) virtual external;
 }
 
@@ -54,16 +54,16 @@ contract OracleRelayer {
     struct CollateralType {
         // Usually an oracle security module that enforces delays to fresh price feeds
         OracleLike orcl;
-        // CRatio used to compute the 'safePrice' - the price used when generating debt in CDPEngine
+        // CRatio used to compute the 'safePrice' - the price used when generating debt in SAFEEngine
         uint256 safetyCRatio;
-        // CRatio used to compute the 'liquidationPrice' - the price used when liquidating CDPs
+        // CRatio used to compute the 'liquidationPrice' - the price used when liquidating SAFEs
         uint256 liquidationCRatio;
     }
 
     // Data about each collateral type
     mapping (bytes32 => CollateralType) public collateralTypes;
 
-    CDPEngineLike public cdpEngine;
+    SAFEEngineLike public safeEngine;
     // The force that changes the system users' incentives by changing the redemption price
     uint256 public redemptionRate;                                                            // [ray]
     // Last time when the redemption price was changed
@@ -98,9 +98,9 @@ contract OracleRelayer {
     );
 
     // --- Init ---
-    constructor(address cdpEngine_) public {
+    constructor(address safeEngine_) public {
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine  = CDPEngineLike(cdpEngine_);
+        safeEngine  = SAFEEngineLike(safeEngine_);
         _redemptionPrice = RAY;
         redemptionRate   = RAY;
         redemptionPriceUpdateTime  = now;
@@ -242,7 +242,7 @@ contract OracleRelayer {
 
     // --- Update value ---
     /**
-     * @notice Update the collateral price inside the system (inside CDPEngine)
+     * @notice Update the collateral price inside the system (inside SAFEEngine)
      * @param collateralType The collateral we want to update prices (safety and liquidation prices) for
      */
     function updateCollateralPrice(bytes32 collateralType) external {
@@ -252,8 +252,8 @@ contract OracleRelayer {
         uint256 safetyPrice_ = hasValidValue ? rdivide(rdivide(multiply(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].safetyCRatio) : 0;
         uint256 liquidationPrice_ = hasValidValue ? rdivide(rdivide(multiply(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].liquidationCRatio) : 0;
 
-        cdpEngine.modifyParameters(collateralType, "safetyPrice", safetyPrice_);
-        cdpEngine.modifyParameters(collateralType, "liquidationPrice", liquidationPrice_);
+        safeEngine.modifyParameters(collateralType, "safetyPrice", safetyPrice_);
+        safeEngine.modifyParameters(collateralType, "liquidationPrice", liquidationPrice_);
         emit UpdateCollateralPrice(collateralType, priceFeedValue, safetyPrice_, liquidationPrice_);
     }
 

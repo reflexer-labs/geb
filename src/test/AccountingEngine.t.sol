@@ -5,7 +5,7 @@ import {DSToken} from "ds-token/token.sol";
 import {DebtAuctionHouse as DAH} from './DebtAuctionHouse.t.sol';
 import {PreSettlementSurplusAuctionHouse as SAH_ONE} from "./SurplusAuctionHouse.t.sol";
 import {PostSettlementSurplusAuctionHouse as SAH_TWO} from "./SurplusAuctionHouse.t.sol";
-import {TestCDPEngine as CDPEngine} from './CDPEngine.t.sol';
+import {TestSAFEEngine as SAFEEngine} from './SAFEEngine.t.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
 import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
 import {CoinJoin} from '../BasicTokenAdapters.sol';
@@ -43,7 +43,7 @@ contract ProtocolTokenAuthority {
 contract AccountingEngineTest is DSTest {
     Hevm hevm;
 
-    CDPEngine  cdpEngine;
+    SAFEEngine  safeEngine;
     AccountingEngine  accountingEngine;
     DAH debtAuctionHouse;
     SAH_ONE surplusAuctionHouseOne;
@@ -56,14 +56,14 @@ contract AccountingEngineTest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        cdpEngine = new CDPEngine();
+        safeEngine = new SAFEEngine();
 
         protocolToken  = new Gem();
-        debtAuctionHouse = new DAH(address(cdpEngine), address(protocolToken));
-        surplusAuctionHouseOne = new SAH_ONE(address(cdpEngine), address(protocolToken));
+        debtAuctionHouse = new DAH(address(safeEngine), address(protocolToken));
+        surplusAuctionHouseOne = new SAH_ONE(address(safeEngine), address(protocolToken));
 
         accountingEngine = new AccountingEngine(
-          address(cdpEngine), address(surplusAuctionHouseOne), address(debtAuctionHouse)
+          address(safeEngine), address(surplusAuctionHouseOne), address(debtAuctionHouse)
         );
         surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
 
@@ -73,7 +73,7 @@ contract AccountingEngineTest is DSTest {
         accountingEngine.modifyParameters("debtAuctionBidSize", rad(100 ether));
         accountingEngine.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
 
-        cdpEngine.approveCDPModification(address(debtAuctionHouse));
+        safeEngine.approveSAFEModification(address(debtAuctionHouse));
 
         tokenAuthority = new ProtocolTokenAuthority();
         tokenAuthority.addAuthorization(address(debtAuctionHouse));
@@ -127,8 +127,8 @@ contract AccountingEngineTest is DSTest {
 
     function createUnbackedDebt(address who, uint wad) internal {
         accountingEngine.pushDebtToQueue(rad(wad));
-        cdpEngine.initializeCollateralType('');
-        cdpEngine.createUnbackedDebt(address(accountingEngine), who, rad(wad));
+        safeEngine.initializeCollateralType('');
+        safeEngine.createUnbackedDebt(address(accountingEngine), who, rad(wad));
     }
     function popDebtFromQueue(uint wad) internal {
         createUnbackedDebt(address(0), wad);  // create unbacked coins into the zero address
@@ -139,14 +139,14 @@ contract AccountingEngineTest is DSTest {
     }
 
     function test_change_auction_houses() public {
-        SAH_ONE newSAH_ONE = new SAH_ONE(address(cdpEngine), address(protocolToken));
-        DAH newDAH = new DAH(address(cdpEngine), address(protocolToken));
+        SAH_ONE newSAH_ONE = new SAH_ONE(address(safeEngine), address(protocolToken));
+        DAH newDAH = new DAH(address(safeEngine), address(protocolToken));
 
         newSAH_ONE.addAuthorization(address(accountingEngine));
         newDAH.addAuthorization(address(accountingEngine));
 
-        assertTrue(cdpEngine.canModifyCDP(address(accountingEngine), address(surplusAuctionHouseOne)));
-        assertTrue(!cdpEngine.canModifyCDP(address(accountingEngine), address(newSAH_ONE)));
+        assertTrue(safeEngine.canModifySAFE(address(accountingEngine), address(surplusAuctionHouseOne)));
+        assertTrue(!safeEngine.canModifySAFE(address(accountingEngine), address(newSAH_ONE)));
 
         accountingEngine.modifyParameters('surplusAuctionHouse', address(newSAH_ONE));
         accountingEngine.modifyParameters('debtAuctionHouse', address(newDAH));
@@ -154,8 +154,8 @@ contract AccountingEngineTest is DSTest {
         assertEq(address(accountingEngine.surplusAuctionHouse()), address(newSAH_ONE));
         assertEq(address(accountingEngine.debtAuctionHouse()), address(newDAH));
 
-        assertTrue(!cdpEngine.canModifyCDP(address(accountingEngine), address(surplusAuctionHouseOne)));
-        assertTrue(cdpEngine.canModifyCDP(address(accountingEngine), address(newSAH_ONE)));
+        assertTrue(!safeEngine.canModifySAFE(address(accountingEngine), address(surplusAuctionHouseOne)));
+        assertTrue(safeEngine.canModifySAFE(address(accountingEngine), address(newSAH_ONE)));
     }
 
     function test_popDebtFromQueue_delay() public {
@@ -190,7 +190,7 @@ contract AccountingEngineTest is DSTest {
     function test_no_debt_auction_pending_joy() public {
         popDebtFromQueue(200 ether);
 
-        cdpEngine.mint(address(accountingEngine), 100 ether);
+        safeEngine.mint(address(accountingEngine), 100 ether);
         assertTrue(!can_auction_debt() );
 
         settleDebt(100 ether);
@@ -198,18 +198,18 @@ contract AccountingEngineTest is DSTest {
     }
 
     function test_surplus_auction() public {
-        cdpEngine.mint(address(accountingEngine), 100 ether);
+        safeEngine.mint(address(accountingEngine), 100 ether);
         assertTrue( can_auctionSurplus() );
     }
 
     function test_settlement_auction_surplus() public {
         // Post settlement auction house setup
-        surplusAuctionHouseTwo = new SAH_TWO(address(cdpEngine), address(protocolToken));
+        surplusAuctionHouseTwo = new SAH_TWO(address(safeEngine), address(protocolToken));
         // Auctioneer setup
         postSettlementSurplusDrain = new SettlementSurplusAuctioneer(address(accountingEngine), address(surplusAuctionHouseTwo));
         surplusAuctionHouseTwo.addAuthorization(address(postSettlementSurplusDrain));
 
-        cdpEngine.mint(address(postSettlementSurplusDrain), 100 ether);
+        safeEngine.mint(address(postSettlementSurplusDrain), 100 ether);
         accountingEngine.disableContract();
         uint id = postSettlementSurplusDrain.auctionSurplus();
         assertEq(id, 1);
@@ -217,49 +217,49 @@ contract AccountingEngineTest is DSTest {
 
     function test_settlement_delay_transfer_surplus() public {
         // Post settlement auction house setup
-        surplusAuctionHouseTwo = new SAH_TWO(address(cdpEngine), address(protocolToken));
+        surplusAuctionHouseTwo = new SAH_TWO(address(safeEngine), address(protocolToken));
         // Auctioneer setup
         postSettlementSurplusDrain = new SettlementSurplusAuctioneer(address(accountingEngine), address(surplusAuctionHouseTwo));
         surplusAuctionHouseTwo.addAuthorization(address(postSettlementSurplusDrain));
 
         accountingEngine.modifyParameters("postSettlementSurplusDrain", address(postSettlementSurplusDrain));
-        cdpEngine.mint(address(accountingEngine), 100 ether);
+        safeEngine.mint(address(accountingEngine), 100 ether);
 
         accountingEngine.modifyParameters("disableCooldown", 1);
         accountingEngine.disableContract();
 
-        assertEq(cdpEngine.coinBalance(address(accountingEngine)), rad(100 ether));
-        assertEq(cdpEngine.coinBalance(address(postSettlementSurplusDrain)), 0);
+        assertEq(safeEngine.coinBalance(address(accountingEngine)), rad(100 ether));
+        assertEq(safeEngine.coinBalance(address(postSettlementSurplusDrain)), 0);
         hevm.warp(now + 1);
 
         accountingEngine.transferPostSettlementSurplus();
-        assertEq(cdpEngine.coinBalance(address(accountingEngine)), 0);
-        assertEq(cdpEngine.coinBalance(address(postSettlementSurplusDrain)), rad(100 ether));
+        assertEq(safeEngine.coinBalance(address(accountingEngine)), 0);
+        assertEq(safeEngine.coinBalance(address(postSettlementSurplusDrain)), rad(100 ether));
 
-        cdpEngine.mint(address(accountingEngine), 100 ether);
+        safeEngine.mint(address(accountingEngine), 100 ether);
         accountingEngine.transferPostSettlementSurplus();
-        assertEq(cdpEngine.coinBalance(address(accountingEngine)), 0);
-        assertEq(cdpEngine.coinBalance(address(postSettlementSurplusDrain)), rad(200 ether));
+        assertEq(safeEngine.coinBalance(address(accountingEngine)), 0);
+        assertEq(safeEngine.coinBalance(address(postSettlementSurplusDrain)), rad(200 ether));
     }
 
     function test_no_surplus_auction_pending_debt() public {
         accountingEngine.modifyParameters("surplusAuctionAmountToSell", uint256(0 ether));
         popDebtFromQueue(100 ether);
 
-        cdpEngine.mint(address(accountingEngine), 50 ether);
+        safeEngine.mint(address(accountingEngine), 50 ether);
         assertTrue(!can_auctionSurplus() );
     }
     function test_no_surplus_auction_nonzero_bad_debt() public {
         accountingEngine.modifyParameters("surplusAuctionAmountToSell", uint256(0 ether));
         popDebtFromQueue(100 ether);
-        cdpEngine.mint(address(accountingEngine), 50 ether);
+        safeEngine.mint(address(accountingEngine), 50 ether);
         assertTrue(!can_auctionSurplus() );
     }
     function test_no_surplus_auction_pending_debt_auction() public {
         popDebtFromQueue(100 ether);
         accountingEngine.debtAuctionHouse();
 
-        cdpEngine.mint(address(accountingEngine), 100 ether);
+        safeEngine.mint(address(accountingEngine), 100 ether);
 
         assertTrue(!can_auctionSurplus() );
     }
@@ -267,7 +267,7 @@ contract AccountingEngineTest is DSTest {
         popDebtFromQueue(100 ether);
         uint id = accountingEngine.auctionDebt();
 
-        cdpEngine.mint(address(this), 100 ether);
+        safeEngine.mint(address(this), 100 ether);
         debtAuctionHouse.decreaseSoldAmount(id, 0 ether, rad(100 ether));
 
         assertTrue(!can_auctionSurplus() );
@@ -275,7 +275,7 @@ contract AccountingEngineTest is DSTest {
     function test_no_surplus_after_good_debt_auction() public {
         popDebtFromQueue(100 ether);
         uint id = accountingEngine.auctionDebt();
-        cdpEngine.mint(address(this), 100 ether);
+        safeEngine.mint(address(this), 100 ether);
 
         debtAuctionHouse.decreaseSoldAmount(id, 0 ether, rad(100 ether));  // debt auction succeeds..
 
@@ -285,10 +285,10 @@ contract AccountingEngineTest is DSTest {
         popDebtFromQueue(100 ether);
         uint id = accountingEngine.auctionDebt();
 
-        cdpEngine.mint(address(this), 100 ether);
+        safeEngine.mint(address(this), 100 ether);
         assertTrue(try_decreaseSoldAmount(id, 2 ether, rad(100 ether)));
 
-        cdpEngine.mint(address(this), 100 ether);
+        safeEngine.mint(address(this), 100 ether);
         assertTrue(try_decreaseSoldAmount(id, 1 ether,  rad(100 ether)));
     }
 }

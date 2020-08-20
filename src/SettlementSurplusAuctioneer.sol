@@ -21,13 +21,13 @@ abstract contract AccountingEngineLike {
     function surplusAuctionDelay() virtual public view returns (uint);
     function surplusAuctionAmountToSell() virtual public view returns (uint);
     function surplusAuctionHouse() virtual public view returns (address);
-    function cdpEngine() virtual public view returns (address);
+    function safeEngine() virtual public view returns (address);
     function contractEnabled() virtual public view returns (uint);
 }
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function coinBalance(address) virtual public view returns (uint);
-    function approveCDPModification(address) virtual external;
-    function denyCDPModification(address) virtual external;
+    function approveSAFEModification(address) virtual external;
+    function denySAFEModification(address) virtual external;
 }
 abstract contract SurplusAuctionHouseLike {
     function startAuction(uint, uint) virtual public returns (uint);
@@ -62,7 +62,7 @@ contract SettlementSurplusAuctioneer {
 
     AccountingEngineLike    public accountingEngine;
     SurplusAuctionHouseLike public surplusAuctionHouse;
-    CDPEngineLike           public cdpEngine;
+    SAFEEngineLike           public safeEngine;
 
     uint256 public lastSurplusAuctionTime;
 
@@ -76,8 +76,8 @@ contract SettlementSurplusAuctioneer {
         authorizedAccounts[msg.sender] = 1;
         accountingEngine = AccountingEngineLike(accountingEngine_);
         surplusAuctionHouse = SurplusAuctionHouseLike(surplusAuctionHouse_);
-        cdpEngine = CDPEngineLike(address(accountingEngine.cdpEngine()));
-        cdpEngine.approveCDPModification(address(surplusAuctionHouse));
+        safeEngine = SAFEEngineLike(address(accountingEngine.safeEngine()));
+        safeEngine.approveSAFEModification(address(surplusAuctionHouse));
         emit AddAuthorization(msg.sender);
     }
 
@@ -96,9 +96,9 @@ contract SettlementSurplusAuctioneer {
         if (parameter == "accountingEngine") {
           accountingEngine = AccountingEngineLike(addr);
         } else if (parameter == "surplusAuctionHouse") {
-          cdpEngine.denyCDPModification(address(surplusAuctionHouse));
+          safeEngine.denySAFEModification(address(surplusAuctionHouse));
           surplusAuctionHouse = SurplusAuctionHouseLike(addr);
-          cdpEngine.approveCDPModification(address(surplusAuctionHouse));
+          safeEngine.approveSAFEModification(address(surplusAuctionHouse));
         }
         else revert("SettlementSurplusAuctioneer/modify-unrecognized-param");
         emit ModifyParameters(parameter, addr);
@@ -117,11 +117,11 @@ contract SettlementSurplusAuctioneer {
           "SettlementSurplusAuctioneer/surplus-auction-delay-not-passed"
         );
         lastSurplusAuctionTime = now;
-        uint amountToSell = (cdpEngine.coinBalance(address(this)) < accountingEngine.surplusAuctionAmountToSell()) ?
-          cdpEngine.coinBalance(address(this)) : accountingEngine.surplusAuctionAmountToSell();
+        uint amountToSell = (safeEngine.coinBalance(address(this)) < accountingEngine.surplusAuctionAmountToSell()) ?
+          safeEngine.coinBalance(address(this)) : accountingEngine.surplusAuctionAmountToSell();
         if (amountToSell > 0) {
           id = surplusAuctionHouse.startAuction(amountToSell, 0);
-          emit AuctionSurplus(id, lastSurplusAuctionTime, cdpEngine.coinBalance(address(this)));
+          emit AuctionSurplus(id, lastSurplusAuctionTime, safeEngine.coinBalance(address(this)));
         }
     }
 }
