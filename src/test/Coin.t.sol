@@ -21,7 +21,7 @@ import "ds-test/test.sol";
 import "ds-token/token.sol";
 
 import {Coin} from "../Coin.sol";
-import {CDPEngine} from '../CDPEngine.sol';
+import {SAFEEngine} from '../SAFEEngine.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
 import {BasicCollateralJoin} from '../BasicTokenAdapters.sol';
 import {OracleRelayer} from '../OracleRelayer.sol';
@@ -107,7 +107,7 @@ contract CoinTest is DSTest {
     uint constant initialBalanceThis = 1000;
     uint constant initialBalanceCal = 100;
 
-    CDPEngine cdpEngine;
+    SAFEEngine safeEngine;
     OracleRelayer oracleRelayer;
 
     BasicCollateralJoin collateralA;
@@ -147,34 +147,34 @@ contract CoinTest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        cdpEngine = new CDPEngine();
-        oracleRelayer = new OracleRelayer(address(cdpEngine));
-        cdpEngine.addAuthorization(address(oracleRelayer));
+        safeEngine = new SAFEEngine();
+        oracleRelayer = new OracleRelayer(address(safeEngine));
+        safeEngine.addAuthorization(address(oracleRelayer));
 
         gold = new DSToken("GEM");
         gold.mint(1000 ether);
-        cdpEngine.initializeCollateralType("gold");
+        safeEngine.initializeCollateralType("gold");
         goldFeed = new Feed(1 ether, true);
         oracleRelayer.modifyParameters("gold", "orcl", address(goldFeed));
         oracleRelayer.modifyParameters("gold", "safetyCRatio", 1000000000000000000000000000);
         oracleRelayer.modifyParameters("gold", "liquidationCRatio", 1000000000000000000000000000);
         oracleRelayer.updateCollateralPrice("gold");
-        collateralA = new BasicCollateralJoin(address(cdpEngine), "gold", address(gold));
+        collateralA = new BasicCollateralJoin(address(safeEngine), "gold", address(gold));
 
-        cdpEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
-        cdpEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
+        safeEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
+        safeEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
 
         gold.approve(address(collateralA));
-        gold.approve(address(cdpEngine));
+        gold.approve(address(safeEngine));
 
-        cdpEngine.addAuthorization(address(collateralA));
+        safeEngine.addAuthorization(address(collateralA));
 
         collateralA.join(address(this), 1000 ether);
 
         token = createToken();
 
         oracleRelayer.addAuthorization(address(token));
-        cdpEngine.addAuthorization(address(token));
+        safeEngine.addAuthorization(address(token));
 
         user1 = address(new TokenUser(token));
         user2 = address(new TokenUser(token));
@@ -185,23 +185,23 @@ contract CoinTest is DSTest {
 
         self = address(this);
 
-        cdpEngine.modifyCDPCollateralization("gold", self, self, self, 10 ether, 5 ether);
+        safeEngine.modifySAFECollateralization("gold", self, self, self, 10 ether, 5 ether);
     }
 
-    function tokenCollateral(bytes32 collateralType, address cdp) internal view returns (uint) {
-        return cdpEngine.tokenCollateral(collateralType, cdp);
+    function tokenCollateral(bytes32 collateralType, address safe) internal view returns (uint) {
+        return safeEngine.tokenCollateral(collateralType, safe);
     }
-    function lockedCollateral(bytes32 collateralType, address cdp) internal view returns (uint) {
-        (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.cdps(collateralType, cdp); generatedDebt_;
+    function lockedCollateral(bytes32 collateralType, address safe) internal view returns (uint) {
+        (uint lockedCollateral_, uint generatedDebt_) = safeEngine.safes(collateralType, safe); generatedDebt_;
         return lockedCollateral_;
     }
     function art(bytes32 collateralType, address urn) internal view returns (uint) {
-        (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.cdps(collateralType, urn); lockedCollateral_;
+        (uint lockedCollateral_, uint generatedDebt_) = safeEngine.safes(collateralType, urn); lockedCollateral_;
         return generatedDebt_;
     }
 
     function createToken() internal returns (Coin) {
-        return new Coin("Rai Reflex-Bond", "RAI", 99);
+        return new Coin("Rai", "RAI", 99);
     }
 
     function testSetup() public {
@@ -209,7 +209,7 @@ contract CoinTest is DSTest {
         assertEq(token.balanceOf(self), initialBalanceThis);
         assertEq(token.balanceOf(cal), initialBalanceCal);
         token.mint(self, 0);
-        (,,uint safetyPrice,,,) = cdpEngine.collateralTypes("gold");
+        (,,uint safetyPrice,,,) = safeEngine.collateralTypes("gold");
         assertEq(safetyPrice, ray(1 ether));
     }
 
@@ -373,7 +373,7 @@ contract CoinTest is DSTest {
     }
 
     function testDomain_Separator() public {
-        assertEq(token.DOMAIN_SEPARATOR(), 0xeace45279df01580efc495f589c7de57948ac856933b95a37a864ccfe9d68dae);
+        assertEq(token.DOMAIN_SEPARATOR(), 0x4fb23625389df668dff7ca91ebd65594b101fddfd2ebc53af05da2b1af6d8f76);
     }
 
     //TODO: remake with v,r,s for coin now that we changed the DOMAIN SEPARATOR because of the dai->coin renaming

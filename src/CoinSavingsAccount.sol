@@ -30,7 +30,7 @@ pragma solidity ^0.6.7;
    - `updateAccumulatedRate`: perform rate collection
 */
 
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function transferInternalCoins(address,address,uint256) virtual external;
     function createUnbackedDebt(address,address,uint256) virtual external;
 }
@@ -83,8 +83,8 @@ contract CoinSavingsAccount {
     // An index representing total accumulated rates
     uint256 public accumulatedRate;
 
-    // CDP database
-    CDPEngineLike public cdpEngine;
+    // SAFE database
+    SAFEEngineLike public safeEngine;
     // Accounting engine
     address public accountingEngine;
     // When accumulated rates were last updated
@@ -93,9 +93,9 @@ contract CoinSavingsAccount {
     uint256 public contractEnabled;
 
     // --- Init ---
-    constructor(address cdpEngine_) public {
+    constructor(address safeEngine_) public {
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine = CDPEngineLike(cdpEngine_);
+        safeEngine = SAFEEngineLike(safeEngine_);
         savingsRate = RAY;
         accumulatedRate = RAY;
         latestUpdateTime = now;
@@ -189,7 +189,7 @@ contract CoinSavingsAccount {
         uint accumulatedRate_ = subtract(newAccumulatedRate, accumulatedRate);
         accumulatedRate = newAccumulatedRate;
         latestUpdateTime = now;
-        cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), multiply(totalSavings, accumulatedRate_));
+        safeEngine.createUnbackedDebt(address(accountingEngine), address(this), multiply(totalSavings, accumulatedRate_));
         emit UpdateAccumulatedRate(newAccumulatedRate, multiply(totalSavings, accumulatedRate_));
     }
     /**
@@ -210,7 +210,7 @@ contract CoinSavingsAccount {
         require(now == latestUpdateTime, "CoinSavingsAccount/accumulation-time-not-updated");
         savings[msg.sender] = addition(savings[msg.sender], wad);
         totalSavings        = addition(totalSavings, wad);
-        cdpEngine.transferInternalCoins(msg.sender, address(this), multiply(accumulatedRate, wad));
+        safeEngine.transferInternalCoins(msg.sender, address(this), multiply(accumulatedRate, wad));
         emit Deposit(msg.sender, savings[msg.sender], totalSavings);
     }
     /**
@@ -221,7 +221,7 @@ contract CoinSavingsAccount {
     function withdraw(uint wad) external {
         savings[msg.sender] = subtract(savings[msg.sender], wad);
         totalSavings        = subtract(totalSavings, wad);
-        cdpEngine.transferInternalCoins(address(this), msg.sender, multiply(accumulatedRate, wad));
+        safeEngine.transferInternalCoins(address(this), msg.sender, multiply(accumulatedRate, wad));
         emit Withdraw(msg.sender, savings[msg.sender], totalSavings);
     }
 }

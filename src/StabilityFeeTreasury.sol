@@ -17,9 +17,9 @@
 
 pragma solidity ^0.6.7;
 
-abstract contract CDPEngineLike {
-    function approveCDPModification(address) virtual external;
-    function denyCDPModification(address) virtual external;
+abstract contract SAFEEngineLike {
+    function approveSAFEModification(address) virtual external;
+    function denySAFEModification(address) virtual external;
     function transferInternalCoins(address,address,uint) virtual external;
     function coinBalance(address) virtual public view returns (uint);
 }
@@ -84,7 +84,7 @@ contract StabilityFeeTreasury {
     mapping(address => Allowance) private allowance;
     mapping(address => mapping(uint => uint)) public pulledPerBlock;
 
-    CDPEngineLike   public cdpEngine;
+    SAFEEngineLike   public safeEngine;
     SystemCoinLike  public systemCoin;
     CoinJoinLike    public coinJoin;
 
@@ -105,14 +105,14 @@ contract StabilityFeeTreasury {
     }
 
     constructor(
-        address cdpEngine_,
+        address safeEngine_,
         address accountingEngine_,
         address coinJoin_
     ) public {
         require(address(CoinJoinLike(coinJoin_).systemCoin()) != address(0), "StabilityFeeTreasury/null-system-coin");
         require(accountingEngine_ != address(this), "StabilityFeeTreasury/accounting-engine-cannot-be-treasury");
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine                 = CDPEngineLike(cdpEngine_);
+        safeEngine                 = SAFEEngineLike(safeEngine_);
         accountingEngine          = accountingEngine_;
         coinJoin                  = CoinJoinLike(coinJoin_);
         systemCoin                = SystemCoinLike(coinJoin.systemCoin());
@@ -120,7 +120,7 @@ contract StabilityFeeTreasury {
         expensesMultiplier        = HUNDRED;
         contractEnabled           = 1;
         systemCoin.approve(address(coinJoin), uint(-1));
-        cdpEngine.approveCDPModification(address(coinJoin));
+        safeEngine.approveSAFEModification(address(coinJoin));
         emit AddAuthorization(msg.sender);
     }
 
@@ -199,7 +199,7 @@ contract StabilityFeeTreasury {
         if (systemCoin.balanceOf(address(this)) > 0) {
           coinJoin.join(address(this), systemCoin.balanceOf(address(this)));
         }
-        cdpEngine.transferInternalCoins(address(this), accountingEngine, cdpEngine.coinBalance(address(this)));
+        safeEngine.transferInternalCoins(address(this), accountingEngine, safeEngine.coinBalance(address(this)));
         emit DisableContract();
     }
 
@@ -211,7 +211,7 @@ contract StabilityFeeTreasury {
         assembly{ z := and(x, y)}
     }
     /**
-     * @notice Join all ERC20 system coins that the treasury has inside CDPEngine
+     * @notice Join all ERC20 system coins that the treasury has inside SAFEEngine
      */
     function joinAllCoins() internal {
         if (systemCoin.balanceOf(address(this)) > 0) {
@@ -256,10 +256,10 @@ contract StabilityFeeTreasury {
         require(account != address(0), "StabilityFeeTreasury/null-account");
 
         joinAllCoins();
-        require(cdpEngine.coinBalance(address(this)) >= rad, "StabilityFeeTreasury/not-enough-funds");
+        require(safeEngine.coinBalance(address(this)) >= rad, "StabilityFeeTreasury/not-enough-funds");
 
         expensesAccumulator = addition(expensesAccumulator, rad);
-        cdpEngine.transferInternalCoins(address(this), account, rad);
+        safeEngine.transferInternalCoins(address(this), account, rad);
         emit GiveFunds(account, rad, expensesAccumulator);
     }
     /**
@@ -268,7 +268,7 @@ contract StabilityFeeTreasury {
      * @param rad Amount of internal system coins to take from the account (a number with 45 decimals)
      */
     function takeFunds(address account, uint rad) external isAuthorized accountNotTreasury(account) {
-        cdpEngine.transferInternalCoins(account, address(this), rad);
+        safeEngine.transferInternalCoins(account, address(this), rad);
         emit TakeFunds(account, rad);
     }
 
@@ -293,14 +293,14 @@ contract StabilityFeeTreasury {
         pulledPerBlock[msg.sender][block.number] = addition(pulledPerBlock[msg.sender][block.number], multiply(wad, RAY));
 
         joinAllCoins();
-        require(cdpEngine.coinBalance(address(this)) >= multiply(wad, RAY), "StabilityFeeTreasury/not-enough-funds");
+        require(safeEngine.coinBalance(address(this)) >= multiply(wad, RAY), "StabilityFeeTreasury/not-enough-funds");
 
         // Update allowance and accumulator
         allowance[msg.sender].total = subtract(allowance[msg.sender].total, multiply(wad, RAY));
         expensesAccumulator         = addition(expensesAccumulator, multiply(wad, RAY));
 
         // Transfer money
-        cdpEngine.transferInternalCoins(address(this), dstAccount, multiply(wad, RAY));
+        safeEngine.transferInternalCoins(address(this), dstAccount, multiply(wad, RAY));
 
         emit PullFunds(msg.sender, dstAccount, token, multiply(wad, RAY), expensesAccumulator);
     }
@@ -329,11 +329,11 @@ contract StabilityFeeTreasury {
         // Join all coins in system
         joinAllCoins();
         // Check if we have too much money
-        if (cdpEngine.coinBalance(address(this)) > remainingFunds) {
+        if (safeEngine.coinBalance(address(this)) > remainingFunds) {
           // Make sure that we still keep min SF in treasury
-          uint fundsToTransfer = subtract(cdpEngine.coinBalance(address(this)), remainingFunds);
+          uint fundsToTransfer = subtract(safeEngine.coinBalance(address(this)), remainingFunds);
           // Transfer surplus to accounting engine
-          cdpEngine.transferInternalCoins(address(this), accountingEngine, fundsToTransfer);
+          safeEngine.transferInternalCoins(address(this), accountingEngine, fundsToTransfer);
           // Emit event
           emit TransferSurplusFunds(accountingEngine, fundsToTransfer);
         }

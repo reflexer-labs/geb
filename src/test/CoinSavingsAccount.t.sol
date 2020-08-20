@@ -20,7 +20,7 @@
 pragma solidity ^0.6.7;
 
 import "ds-test/test.sol";
-import {CDPEngine} from '../CDPEngine.sol';
+import {SAFEEngine} from '../SAFEEngine.sol';
 import {CoinSavingsAccount} from '../CoinSavingsAccount.sol';
 
 abstract contract Hevm {
@@ -30,7 +30,7 @@ abstract contract Hevm {
 contract CoinSavingsAccountTest is DSTest {
     Hevm hevm;
 
-    CDPEngine cdpEngine;
+    SAFEEngine safeEngine;
     CoinSavingsAccount coinSavingsAccount;
 
     address accountingEngine;
@@ -48,29 +48,29 @@ contract CoinSavingsAccountTest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        cdpEngine = new CDPEngine();
-        coinSavingsAccount = new CoinSavingsAccount(address(cdpEngine));
-        cdpEngine.addAuthorization(address(coinSavingsAccount));
+        safeEngine = new SAFEEngine();
+        coinSavingsAccount = new CoinSavingsAccount(address(safeEngine));
+        safeEngine.addAuthorization(address(coinSavingsAccount));
         self = address(this);
         coinSavingsAccountB = address(coinSavingsAccount);
 
         accountingEngine = address(bytes20("accountingEngine"));
         coinSavingsAccount.modifyParameters("accountingEngine", accountingEngine);
 
-        cdpEngine.createUnbackedDebt(self, self, rad(100 ether));
-        cdpEngine.approveCDPModification(address(coinSavingsAccount));
+        safeEngine.createUnbackedDebt(self, self, rad(100 ether));
+        safeEngine.approveSAFEModification(address(coinSavingsAccount));
     }
     function test_save_0d() public {
-        assertEq(cdpEngine.coinBalance(self), rad(100 ether));
+        assertEq(safeEngine.coinBalance(self), rad(100 ether));
 
         coinSavingsAccount.deposit(100 ether);
-        assertEq(wad(cdpEngine.coinBalance(self)), 0 ether);
+        assertEq(wad(safeEngine.coinBalance(self)), 0 ether);
         assertEq(coinSavingsAccount.savings(self), 100 ether);
 
         coinSavingsAccount.updateAccumulatedRate();
 
         coinSavingsAccount.withdraw(100 ether);
-        assertEq(wad(cdpEngine.coinBalance(self)), 100 ether);
+        assertEq(wad(safeEngine.coinBalance(self)), 100 ether);
     }
     function test_save_1d() public {
         coinSavingsAccount.deposit(100 ether);
@@ -79,19 +79,19 @@ contract CoinSavingsAccountTest is DSTest {
         coinSavingsAccount.updateAccumulatedRate();
         assertEq(coinSavingsAccount.savings(self), 100 ether);
         coinSavingsAccount.withdraw(100 ether);
-        assertEq(wad(cdpEngine.coinBalance(self)), 105 ether);
+        assertEq(wad(safeEngine.coinBalance(self)), 105 ether);
     }
     function test_update_rate_multi() public {
         coinSavingsAccount.deposit(100 ether);
         coinSavingsAccount.modifyParameters("savingsRate", uint(1000000564701133626865910626));  // 5% / day
         hevm.warp(now + 1 days);
         coinSavingsAccount.updateAccumulatedRate();
-        assertEq(wad(cdpEngine.coinBalance(coinSavingsAccountB)),   105 ether);
+        assertEq(wad(safeEngine.coinBalance(coinSavingsAccountB)),   105 ether);
         coinSavingsAccount.modifyParameters("savingsRate", uint(1000001103127689513476993127));  // 10% / day
         hevm.warp(now + 1 days);
         coinSavingsAccount.updateAccumulatedRate();
-        assertEq(wad(cdpEngine.debtBalance(accountingEngine)), 15.5 ether);
-        assertEq(wad(cdpEngine.coinBalance(coinSavingsAccountB)), 115.5 ether);
+        assertEq(wad(safeEngine.debtBalance(accountingEngine)), 15.5 ether);
+        assertEq(wad(safeEngine.coinBalance(coinSavingsAccountB)), 115.5 ether);
         assertEq(coinSavingsAccount.totalSavings(), 100   ether);
         assertEq(coinSavingsAccount.accumulatedRate() / 10 ** 9, 1.155 ether);
     }
@@ -115,14 +115,14 @@ contract CoinSavingsAccountTest is DSTest {
         hevm.warp(now + 1 days);
         coinSavingsAccount.updateAccumulatedRate();
         coinSavingsAccount.withdraw(50 ether);
-        assertEq(wad(cdpEngine.coinBalance(self)), 52.5 ether);
+        assertEq(wad(safeEngine.coinBalance(self)), 52.5 ether);
         assertEq(coinSavingsAccount.totalSavings(),          50.0 ether);
 
         coinSavingsAccount.modifyParameters("savingsRate", uint(1000001103127689513476993127));  // 10% / day
         hevm.warp(now + 1 days);
         coinSavingsAccount.updateAccumulatedRate();
         coinSavingsAccount.withdraw(50 ether);
-        assertEq(wad(cdpEngine.coinBalance(self)), 110.25 ether);
+        assertEq(wad(safeEngine.coinBalance(self)), 110.25 ether);
         assertEq(coinSavingsAccount.totalSavings(), 0);
     }
     function test_fresh_accumulatedRate() public {
@@ -135,7 +135,7 @@ contract CoinSavingsAccountTest is DSTest {
         assertEq(coinSavingsAccount.savings(self), 100 ether);
         coinSavingsAccount.withdraw(100 ether);
         // if we withdraw in the same transaction we should not earn interest
-        assertEq(wad(cdpEngine.coinBalance(self)), 100 ether);
+        assertEq(wad(safeEngine.coinBalance(self)), 100 ether);
     }
     function testFail_stale_accumulatedRate() public {
         coinSavingsAccount.modifyParameters("savingsRate", uint(1000000564701133626865910626));  // 5% / day

@@ -3,7 +3,7 @@ pragma solidity ^0.6.7;
 import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
 import {PreSettlementSurplusAuctionHouse, PostSettlementSurplusAuctionHouse} from "../SurplusAuctionHouse.sol";
-import "../CDPEngine.sol";
+import "../SAFEEngine.sol";
 import {CoinJoin} from '../BasicTokenAdapters.sol';
 import {Coin} from "../Coin.sol";
 
@@ -15,7 +15,7 @@ contract GuyPreSurplusAuction {
     PreSettlementSurplusAuctionHouse surplusAuctionHouse;
     constructor(PreSettlementSurplusAuctionHouse surplusAuctionHouse_) public {
         surplusAuctionHouse = surplusAuctionHouse_;
-        CDPEngine(address(surplusAuctionHouse.cdpEngine())).approveCDPModification(address(surplusAuctionHouse));
+        SAFEEngine(address(surplusAuctionHouse.safeEngine())).approveSAFEModification(address(surplusAuctionHouse));
         DSToken(address(surplusAuctionHouse.protocolToken())).approve(address(surplusAuctionHouse));
     }
     function increaseBidSize(uint id, uint amountToBuy, uint bid) public {
@@ -48,7 +48,7 @@ contract GuyPostSurplusAuction {
     PostSettlementSurplusAuctionHouse surplusAuctionHouse;
     constructor(PostSettlementSurplusAuctionHouse surplusAuctionHouse_) public {
         surplusAuctionHouse = surplusAuctionHouse_;
-        CDPEngine(address(surplusAuctionHouse.cdpEngine())).approveCDPModification(address(surplusAuctionHouse));
+        SAFEEngine(address(surplusAuctionHouse.safeEngine())).approveSAFEModification(address(surplusAuctionHouse));
         DSToken(address(surplusAuctionHouse.protocolToken())).approve(address(surplusAuctionHouse));
     }
     function increaseBidSize(uint id, uint amountToBuy, uint bid) public {
@@ -89,7 +89,7 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
     Hevm hevm;
 
     PreSettlementSurplusAuctionHouse surplusAuctionHouse;
-    CDPEngine cdpEngine;
+    SAFEEngine safeEngine;
     DSToken protocolToken;
 
     address ali;
@@ -99,18 +99,18 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        cdpEngine = new CDPEngine();
+        safeEngine = new SAFEEngine();
         protocolToken = new DSToken('');
 
-        surplusAuctionHouse = new PreSettlementSurplusAuctionHouse(address(cdpEngine), address(protocolToken));
+        surplusAuctionHouse = new PreSettlementSurplusAuctionHouse(address(safeEngine), address(protocolToken));
 
         ali = address(new GuyPreSurplusAuction(surplusAuctionHouse));
         bob = address(new GuyPreSurplusAuction(surplusAuctionHouse));
 
-        cdpEngine.approveCDPModification(address(surplusAuctionHouse));
+        safeEngine.approveSAFEModification(address(surplusAuctionHouse));
         protocolToken.approve(address(surplusAuctionHouse));
 
-        cdpEngine.createUnbackedDebt(address(this), address(this), 1000 ether);
+        safeEngine.createUnbackedDebt(address(this), address(this), 1000 ether);
 
         protocolToken.mint(1000 ether);
         protocolToken.setOwner(address(surplusAuctionHouse));
@@ -119,11 +119,11 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
         protocolToken.push(bob, 200 ether);
     }
     function test_start_auction() public {
-        assertEq(cdpEngine.coinBalance(address(this)), 1000 ether);
-        assertEq(cdpEngine.coinBalance(address(surplusAuctionHouse)), 0 ether);
+        assertEq(safeEngine.coinBalance(address(this)), 1000 ether);
+        assertEq(safeEngine.coinBalance(address(surplusAuctionHouse)), 0 ether);
         surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
-        assertEq(cdpEngine.coinBalance(address(this)),  900 ether);
-        assertEq(cdpEngine.coinBalance(address(surplusAuctionHouse)), 100 ether);
+        assertEq(safeEngine.coinBalance(address(this)),  900 ether);
+        assertEq(safeEngine.coinBalance(address(surplusAuctionHouse)), 100 ether);
     }
     function test_increase_bid_same_bidder() public {
         uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
@@ -135,7 +135,7 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
     function test_increaseBidSize() public {
         uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
         // amount to buy taken from creator
-        assertEq(cdpEngine.coinBalance(address(this)), 900 ether);
+        assertEq(safeEngine.coinBalance(address(this)), 900 ether);
 
         GuyPreSurplusAuction(ali).increaseBidSize(id, 100 ether, 1 ether);
         // bid taken from bidder
@@ -154,8 +154,8 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
         hevm.warp(now + 5 weeks);
         GuyPreSurplusAuction(bob).settleAuction(id);
         // high bidder gets the amount sold
-        assertEq(cdpEngine.coinBalance(address(surplusAuctionHouse)), 0 ether);
-        assertEq(cdpEngine.coinBalance(bob), 100 ether);
+        assertEq(safeEngine.coinBalance(address(surplusAuctionHouse)), 0 ether);
+        assertEq(safeEngine.coinBalance(bob), 100 ether);
         // income is burned
         assertEq(protocolToken.balanceOf(address(surplusAuctionHouse)), 0 ether);
     }
@@ -183,7 +183,7 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
     function testFail_terminate_prematurely() public {
         uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
         // amount to buy taken from creator
-        assertEq(cdpEngine.coinBalance(address(this)), 900 ether);
+        assertEq(safeEngine.coinBalance(address(this)), 900 ether);
 
         GuyPreSurplusAuction(ali).increaseBidSize(id, 100 ether, 1 ether);
         surplusAuctionHouse.terminateAuctionPrematurely(id);
@@ -191,7 +191,7 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
     function test_terminate_prematurely() public {
         uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
         // amount to buy taken from creator
-        assertEq(cdpEngine.coinBalance(address(this)), 900 ether);
+        assertEq(safeEngine.coinBalance(address(this)), 900 ether);
 
         GuyPreSurplusAuction(ali).increaseBidSize(id, 100 ether, 1 ether);
         // Shutdown
@@ -204,7 +204,7 @@ contract PostSettlementSurplusAuctionHouseTest is DSTest {
     Hevm hevm;
 
     PostSettlementSurplusAuctionHouse surplusAuctionHouse;
-    CDPEngine cdpEngine;
+    SAFEEngine safeEngine;
     DSToken protocolToken;
 
     address ali;
@@ -214,18 +214,18 @@ contract PostSettlementSurplusAuctionHouseTest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        cdpEngine = new CDPEngine();
+        safeEngine = new SAFEEngine();
         protocolToken = new DSToken('');
 
-        surplusAuctionHouse = new PostSettlementSurplusAuctionHouse(address(cdpEngine), address(protocolToken));
+        surplusAuctionHouse = new PostSettlementSurplusAuctionHouse(address(safeEngine), address(protocolToken));
 
         ali = address(new GuyPostSurplusAuction(surplusAuctionHouse));
         bob = address(new GuyPostSurplusAuction(surplusAuctionHouse));
 
-        cdpEngine.approveCDPModification(address(surplusAuctionHouse));
+        safeEngine.approveSAFEModification(address(surplusAuctionHouse));
         protocolToken.approve(address(surplusAuctionHouse));
 
-        cdpEngine.createUnbackedDebt(address(this), address(this), 1000 ether);
+        safeEngine.createUnbackedDebt(address(this), address(this), 1000 ether);
 
         protocolToken.mint(1000 ether);
         protocolToken.setOwner(address(surplusAuctionHouse));
@@ -234,11 +234,11 @@ contract PostSettlementSurplusAuctionHouseTest is DSTest {
         protocolToken.push(bob, 200 ether);
     }
     function test_start_auction() public {
-        assertEq(cdpEngine.coinBalance(address(this)), 1000 ether);
-        assertEq(cdpEngine.coinBalance(address(surplusAuctionHouse)), 0 ether);
+        assertEq(safeEngine.coinBalance(address(this)), 1000 ether);
+        assertEq(safeEngine.coinBalance(address(surplusAuctionHouse)), 0 ether);
         surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
-        assertEq(cdpEngine.coinBalance(address(this)),  900 ether);
-        assertEq(cdpEngine.coinBalance(address(surplusAuctionHouse)), 100 ether);
+        assertEq(safeEngine.coinBalance(address(this)),  900 ether);
+        assertEq(safeEngine.coinBalance(address(surplusAuctionHouse)), 100 ether);
     }
     function test_increase_bid_same_bidder() public {
         uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
@@ -250,7 +250,7 @@ contract PostSettlementSurplusAuctionHouseTest is DSTest {
     function test_increaseBidSize() public {
         uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
         // amount to buy taken from creator
-        assertEq(cdpEngine.coinBalance(address(this)), 900 ether);
+        assertEq(safeEngine.coinBalance(address(this)), 900 ether);
 
         GuyPostSurplusAuction(ali).increaseBidSize(id, 100 ether, 1 ether);
         // bid taken from bidder
@@ -269,8 +269,8 @@ contract PostSettlementSurplusAuctionHouseTest is DSTest {
         hevm.warp(now + 5 weeks);
         GuyPostSurplusAuction(bob).settleAuction(id);
         // high bidder gets the amount sold
-        assertEq(cdpEngine.coinBalance(address(surplusAuctionHouse)), 0 ether);
-        assertEq(cdpEngine.coinBalance(bob), 100 ether);
+        assertEq(safeEngine.coinBalance(address(surplusAuctionHouse)), 0 ether);
+        assertEq(safeEngine.coinBalance(bob), 100 ether);
         // income is burned
         assertEq(protocolToken.balanceOf(address(surplusAuctionHouse)), 0 ether);
     }

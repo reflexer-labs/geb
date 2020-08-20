@@ -26,26 +26,26 @@ abstract contract CollateralAuctionHouseLike {
       uint initialBid
     ) virtual public returns (uint);
 }
-abstract contract CDPSaviourLike {
-    function saveCDP(address,bytes32,address) virtual external returns (bool,uint256,uint256);
+abstract contract SAFESaviourLike {
+    function saveSAFE(address,bytes32,address) virtual external returns (bool,uint256,uint256);
 }
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function collateralTypes(bytes32) virtual public view returns (
-        uint256 debtAmount,        // wad
-        uint256 accumulatedRate,  // ray
-        uint256 safetyPrice,       // ray
-        uint256 debtCeiling,       // rad
-        uint256 debtFloor,         // rad
-        uint256 liquidationPrice   // ray
+        uint256 debtAmount,        // [wad]
+        uint256 accumulatedRate,   // [ray]
+        uint256 safetyPrice,       // [ray]
+        uint256 debtCeiling,       // [rad]
+        uint256 debtFloor,         // [rad]
+        uint256 liquidationPrice   // [ray]
     );
-    function cdps(bytes32,address) virtual public view returns (
-        uint256 lockedCollateral, // wad
-        uint256 generatedDebt     // wad
+    function safes(bytes32,address) virtual public view returns (
+        uint256 lockedCollateral,  // [wad]
+        uint256 generatedDebt      // [wad]
     );
-    function confiscateCDPCollateralAndDebt(bytes32,address,address,address,int,int) virtual external;
-    function canModifyCDP(address, address) virtual public view returns (bool);
-    function approveCDPModification(address) virtual external;
-    function denyCDPModification(address) virtual external;
+    function confiscateSAFECollateralAndDebt(bytes32,address,address,address,int,int) virtual external;
+    function canModifySAFE(address, address) virtual public view returns (bool);
+    function approveSAFEModification(address) virtual external;
+    function denySAFEModification(address) virtual external;
 }
 abstract contract AccountingEngineLike {
     function pushDebtToQueue(uint) virtual external;
@@ -78,58 +78,58 @@ contract LiquidationEngine {
         _;
     }
 
-    // --- CDP Saviours ---
-    // Contracts that can save CDPs from liquidation
-    mapping (address => uint) public cdpSaviours;
+    // --- SAFE Saviours ---
+    // Contracts that can save SAFEs from liquidation
+    mapping (address => uint) public safeSaviours;
     /**
-    * @notice Authed function to add contracts that can save CDPs from liquidation
-    * @param saviour CDP saviour contract to be whitelisted
+    * @notice Authed function to add contracts that can save SAFEs from liquidation
+    * @param saviour SAFE saviour contract to be whitelisted
     **/
-    function connectCDPSaviour(address saviour) external isAuthorized {
+    function connectSAFESaviour(address saviour) external isAuthorized {
         (bool ok, uint256 collateralAdded, uint256 liquidatorReward) =
-          CDPSaviourLike(saviour).saveCDP(address(this), "", address(0));
+          SAFESaviourLike(saviour).saveSAFE(address(this), "", address(0));
         require(ok, "LiquidationEngine/saviour-not-ok");
         require(both(collateralAdded == uint(-1), liquidatorReward == uint(-1)), "LiquidationEngine/invalid-amounts");
-        cdpSaviours[saviour] = 1;
-        emit ConnectCDPSaviour(saviour);
+        safeSaviours[saviour] = 1;
+        emit ConnectSAFESaviour(saviour);
     }
     /**
-    * @notice Governance used function to remove contracts that can save CDPs from liquidation
-    * @param saviour CDP saviour contract to be removed
+    * @notice Governance used function to remove contracts that can save SAFEs from liquidation
+    * @param saviour SAFE saviour contract to be removed
     **/
-    function disconnectCDPSaviour(address saviour) external isAuthorized {
-        cdpSaviours[saviour] = 0;
-        emit DisconnectCDPSaviour(saviour);
+    function disconnectSAFESaviour(address saviour) external isAuthorized {
+        safeSaviours[saviour] = 0;
+        emit DisconnectSAFESaviour(saviour);
     }
 
     // --- Data ---
     struct CollateralType {
         // Address of the collateral auction house handling liquidations for this collateral type
         address collateralAuctionHouse;
-        // Penalty applied to every liquidation involving this collateral type. Discourages CDP users from bidding on their own CDPs
-        uint256 liquidationPenalty; // [ray]
+        // Penalty applied to every liquidation involving this collateral type. Discourages SAFE users from bidding on their own SAFEs
+        uint256 liquidationPenalty;                                                                                                   // [ray]
         // Max amount of collateral to sell in one auction
-        uint256 collateralToSell;   // [wad]
+        uint256 collateralToSell;                                                                                                     // [wad]
     }
 
     // Collateral types included in the system
     mapping (bytes32 => CollateralType)              public collateralTypes;
-    // Saviour contract chosed for each CDP by its creator
-    mapping (bytes32 => mapping(address => address)) public chosenCDPSaviour;
-    // Mutex used to block against re-entrancy when 'liquidateCDP' passes execution to a saviour
+    // Saviour contract chosed for each SAFE by its creator
+    mapping (bytes32 => mapping(address => address)) public chosenSAFESaviour;
+    // Mutex used to block against re-entrancy when 'liquidateSAFE' passes execution to a saviour
     mapping (bytes32 => mapping(address => uint8))   public mutex;
 
     // Whether this contract is enabled
     uint256 public contractEnabled;
 
-    CDPEngineLike        public cdpEngine;
+    SAFEEngineLike        public safeEngine;
     AccountingEngineLike public accountingEngine;
 
     // --- Events ---
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
-    event ConnectCDPSaviour(address saviour);
-    event DisconnectCDPSaviour(address saviour);
+    event ConnectSAFESaviour(address saviour);
+    event DisconnectSAFESaviour(address saviour);
     event ModifyParameters(bytes32 parameter, address data);
     event ModifyParameters(
       bytes32 collateralType,
@@ -144,29 +144,29 @@ contract LiquidationEngine {
     event DisableContract();
     event Liquidate(
       bytes32 indexed collateralType,
-      address indexed cdp,
+      address indexed safe,
       uint256 collateralAmount,
       uint256 debtAmount,
       uint256 amountToRaise,
       address collateralAuctioneer,
       uint256 auctionId
     );
-    event SaveCDP(
+    event SaveSAFE(
       bytes32 indexed collateralType,
-      address indexed cdp,
+      address indexed safe,
       uint256 collateralAdded
     );
-    event FailedCDPSave(bytes failReason);
-    event ProtectCDP(
+    event FailedSAFESave(bytes failReason);
+    event ProtectSAFE(
       bytes32 collateralType,
-      address cdp,
+      address safe,
       address saviour
     );
 
     // --- Init ---
-    constructor(address cdpEngine_) public {
+    constructor(address safeEngine_) public {
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine = CDPEngineLike(cdpEngine_);
+        safeEngine = SAFEEngineLike(safeEngine_);
         contractEnabled = 1;
         emit AddAuthorization(msg.sender);
     }
@@ -232,9 +232,9 @@ contract LiquidationEngine {
         address data
     ) external isAuthorized {
         if (parameter == "collateralAuctionHouse") {
-            cdpEngine.denyCDPModification(collateralTypes[collateralType].collateralAuctionHouse);
+            safeEngine.denySAFEModification(collateralTypes[collateralType].collateralAuctionHouse);
             collateralTypes[collateralType].collateralAuctionHouse = data;
-            cdpEngine.approveCDPModification(data);
+            safeEngine.approveSAFEModification(data);
         }
         else revert("LiquidationEngine/modify-unrecognized-param");
         emit ModifyParameters(
@@ -251,82 +251,82 @@ contract LiquidationEngine {
         emit DisableContract();
     }
 
-    // --- CDP Liquidation ---
+    // --- SAFE Liquidation ---
     /**
-     * @notice Choose a saviour contract for your CDP
-     * @param collateralType The CDP's collateral type
-     * @param cdp The CDP's address
+     * @notice Choose a saviour contract for your SAFE
+     * @param collateralType The SAFE's collateral type
+     * @param safe The SAFE's address
      * @param saviour The chosen saviour
      */
-    function protectCDP(
+    function protectSAFE(
         bytes32 collateralType,
-        address cdp,
+        address safe,
         address saviour
     ) external {
-        require(cdpEngine.canModifyCDP(cdp, msg.sender), "LiquidationEngine/cannot-modify-this-cdp");
-        require(saviour == address(0) || cdpSaviours[saviour] == 1, "LiquidationEngine/saviour-not-authorized");
-        chosenCDPSaviour[collateralType][cdp] = saviour;
-        emit ProtectCDP(
+        require(safeEngine.canModifySAFE(safe, msg.sender), "LiquidationEngine/cannot-modify-this-safe");
+        require(saviour == address(0) || safeSaviours[saviour] == 1, "LiquidationEngine/saviour-not-authorized");
+        chosenSAFESaviour[collateralType][safe] = saviour;
+        emit ProtectSAFE(
             collateralType,
-            cdp,
+            safe,
             saviour
         );
     }
     /**
-     * @notice Liquidate a CDP
-     * @param collateralType The CDP's collateral type
-     * @param cdp The CDP's address
+     * @notice Liquidate a SAFE
+     * @param collateralType The SAFE's collateral type
+     * @param safe The SAFE's address
      */
-    function liquidateCDP(bytes32 collateralType, address cdp) external returns (uint auctionId) {
-        require(mutex[collateralType][cdp] == 0, "LiquidationEngine/non-null-mutex");
-        mutex[collateralType][cdp] = 1;
+    function liquidateSAFE(bytes32 collateralType, address safe) external returns (uint auctionId) {
+        require(mutex[collateralType][safe] == 0, "LiquidationEngine/non-null-mutex");
+        mutex[collateralType][safe] = 1;
 
-        (, uint accumulatedRate, , , , uint liquidationPrice) = cdpEngine.collateralTypes(collateralType);
-        (uint cdpCollateral, uint cdpDebt) = cdpEngine.cdps(collateralType, cdp);
+        (, uint accumulatedRate, , , , uint liquidationPrice) = safeEngine.collateralTypes(collateralType);
+        (uint safeCollateral, uint safeDebt) = safeEngine.safes(collateralType, safe);
 
         require(contractEnabled == 1, "LiquidationEngine/contract-not-enabled");
         require(both(
           liquidationPrice > 0,
-          multiply(cdpCollateral, liquidationPrice) < multiply(cdpDebt, accumulatedRate)
-        ), "LiquidationEngine/cdp-not-unsafe");
+          multiply(safeCollateral, liquidationPrice) < multiply(safeDebt, accumulatedRate)
+        ), "LiquidationEngine/safe-not-unsafe");
 
-        if (chosenCDPSaviour[collateralType][cdp] != address(0) &&
-            cdpSaviours[chosenCDPSaviour[collateralType][cdp]] == 1) {
-          try CDPSaviourLike(chosenCDPSaviour[collateralType][cdp]).saveCDP(msg.sender, collateralType, cdp)
+        if (chosenSAFESaviour[collateralType][safe] != address(0) &&
+            safeSaviours[chosenSAFESaviour[collateralType][safe]] == 1) {
+          try SAFESaviourLike(chosenSAFESaviour[collateralType][safe]).saveSAFE(msg.sender, collateralType, safe)
             returns (bool ok, uint256 collateralAdded, uint256) {
             if (both(ok, collateralAdded > 0)) {
-              emit SaveCDP(collateralType, cdp, collateralAdded);
+              emit SaveSAFE(collateralType, safe, collateralAdded);
             }
           } catch (bytes memory revertReason) {
-            emit FailedCDPSave(revertReason);
+            emit FailedSAFESave(revertReason);
           }
         }
 
-        (, accumulatedRate, , , , liquidationPrice) = cdpEngine.collateralTypes(collateralType);
-        (cdpCollateral, cdpDebt) = cdpEngine.cdps(collateralType, cdp);
+        (, accumulatedRate, , , , liquidationPrice) = safeEngine.collateralTypes(collateralType);
+        (safeCollateral, safeDebt) = safeEngine.safes(collateralType, safe);
 
-        if (both(liquidationPrice > 0, multiply(cdpCollateral, liquidationPrice) < multiply(cdpDebt, accumulatedRate))) {
-          uint collateralToSell = minimum(cdpCollateral, collateralTypes[collateralType].collateralToSell);
-          cdpDebt               = minimum(cdpDebt, multiply(collateralToSell, cdpDebt) / cdpCollateral);
+        if (both(liquidationPrice > 0, multiply(safeCollateral, liquidationPrice) < multiply(safeDebt, accumulatedRate))) {
+          uint collateralToSell = minimum(safeCollateral, collateralTypes[collateralType].collateralToSell);
+          safeDebt               = minimum(safeDebt, multiply(collateralToSell, safeDebt) / safeCollateral);
 
-          require(collateralToSell <= 2**255 && cdpDebt <= 2**255, "LiquidationEngine/overflow");
-          cdpEngine.confiscateCDPCollateralAndDebt(
-            collateralType, cdp, address(this), address(accountingEngine), -int(collateralToSell), -int(cdpDebt)
+          require(collateralToSell <= 2**255 && safeDebt <= 2**255, "LiquidationEngine/overflow");
+          safeEngine.confiscateSAFECollateralAndDebt(
+            collateralType, safe, address(this), address(accountingEngine), -int(collateralToSell), -int(safeDebt)
           );
 
-          accountingEngine.pushDebtToQueue(multiply(cdpDebt, accumulatedRate));
+          accountingEngine.pushDebtToQueue(multiply(safeDebt, accumulatedRate));
 
           auctionId = CollateralAuctionHouseLike(collateralTypes[collateralType].collateralAuctionHouse).startAuction(
-            { forgoneCollateralReceiver: cdp
+            { forgoneCollateralReceiver: safe
             , initialBidder: address(accountingEngine)
-            , amountToRaise: rmultiply(multiply(cdpDebt, accumulatedRate), collateralTypes[collateralType].liquidationPenalty)
+            , amountToRaise: rmultiply(multiply(safeDebt, accumulatedRate), collateralTypes[collateralType].liquidationPenalty)
             , collateralToSell: collateralToSell
             , initialBid: 0
            });
 
-          emit Liquidate(collateralType, cdp, collateralToSell, cdpDebt, multiply(cdpDebt, accumulatedRate), collateralTypes[collateralType].collateralAuctionHouse, auctionId);
+          emit Liquidate(collateralType, safe, collateralToSell, safeDebt, multiply(safeDebt, accumulatedRate), collateralTypes[collateralType].collateralAuctionHouse, auctionId);
         }
 
-        mutex[collateralType][cdp] = 0;
+        mutex[collateralType][safe] = 0;
     }
 }
