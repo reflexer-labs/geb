@@ -65,14 +65,14 @@ contract OracleRelayer {
 
     CDPEngineLike public cdpEngine;
     // The force that changes the system users' incentives by changing the redemption price
-    uint256 public redemptionRate;
+    uint256 public redemptionRate; // [ray]
     // Last time when the redemption price was changed
-    uint256 public redemptionPriceUpdateTime;
+    uint256 public redemptionPriceUpdateTime; // [unix epoch time]
     // Whether this contract is enabled
     uint256 public contractEnabled;
 
     // Virtual redemption price (not the most updated value)
-    uint256 internal _redemptionPrice;
+    uint256 internal _redemptionPrice; // [ray]
 
     // --- Events ---
     event AddAuthorization(address account);
