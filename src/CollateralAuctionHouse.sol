@@ -62,21 +62,21 @@ contract EnglishCollateralAuctionHouse {
     // --- Data ---
     struct Bid {
         // Bid size (how many coins are offered per collateral sold)
-        uint256 bidAmount; // [rad]
+        uint256 bidAmount;                                                                                            // [rad]
         // How much collateral is sold in an auction
-        uint256 amountToSell; // [wad]
+        uint256 amountToSell;                                                                                         // [wad]
         // Who the high bidder is
         address highBidder;
         // When the latest bid expires and the auction can be settled
-        uint48  bidExpiry; // [unix epoch time]
+        uint48  bidExpiry;                                                                                            // [unix epoch time]
         // Hard deadline for the auction after which no more bids can be placed
-        uint48  auctionDeadline; // [unix epoch time]
+        uint48  auctionDeadline;                                                                                      // [unix epoch time]
         // Who (which CDP) receives leftover collateral that is not sold in the auction; usually the liquidated CDP
         address forgoneCollateralReceiver;
         // Who receives the coins raised from the auction; usually the accounting engine
         address auctionIncomeRecipient;
         // Total/max amount of coins to raise
-        uint256 amountToRaise; // [rad]
+        uint256 amountToRaise;                                                                                        // [rad]
     }
 
     // Bid data for each separate auction
@@ -87,17 +87,17 @@ contract EnglishCollateralAuctionHouse {
     // Collateral type name
     bytes32       public collateralType;
 
-    uint256  constant ONE = 1.00E18; // [wad]
+    uint256  constant ONE = 1.00E18;                                                                                  // [wad]
     // Minimum bid increase compared to the last bid in order to take the new one in consideration
-    uint256  public   bidIncrease = 1.05E18; // [wad]
+    uint256  public   bidIncrease = 1.05E18;                                                                          // [wad]
     // How long the auction lasts after a new bid is submitted
-    uint48   public   bidDuration = 3 hours; // [seconds]
+    uint48   public   bidDuration = 3 hours;                                                                          // [seconds]
     // Total length of the auction
-    uint48   public   totalAuctionLength = 2 days; // [seconds]
+    uint48   public   totalAuctionLength = 2 days;                                                                    // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // Minimum mandatory size of the first bid compared to collateral price coming from the oracle
-    uint256  public bidToMarketPriceRatio; // [ray]
+      uint256  public bidToMarketPriceRatio;                                                                          // [ray]
 
     OracleRelayerLike public oracleRelayer;
     OracleLike        public osm;
@@ -181,9 +181,9 @@ contract EnglishCollateralAuctionHouse {
      * @notice Start a new collateral auction
      * @param forgoneCollateralReceiver Who receives leftover collateral that is not auctioned
      * @param auctionIncomeRecipient Who receives the amount raised in the auction
-     * @param amountToRaise Total amount of coins to raise [rad]
-     * @param amountToSell Total amount of collateral available to sell [wad]
-     * @param initialBid Initial bid size (usually zero in this implementation) [rad]
+     * @param amountToRaise Total amount of coins to raise (rad)
+     * @param amountToSell Total amount of collateral available to sell (wad)
+     * @param initialBid Initial bid size (usually zero in this implementation) (rad)
      */
     function startAuction(
         address forgoneCollateralReceiver,
@@ -230,8 +230,8 @@ contract EnglishCollateralAuctionHouse {
     /**
      * @notice First auction phase: submit a higher bid for the same amount of collateral
      * @param id ID of the auction you want to submit the bid for
-     * @param amountToBuy Amount of collateral to buy [wad]
-     * @param rad New bid submitted [rad]
+     * @param amountToBuy Amount of collateral to buy (wad)
+     * @param rad New bid submitted (rad)
      */
     function increaseBidSize(uint id, uint amountToBuy, uint rad) external {
         require(bids[id].highBidder != address(0), "EnglishCollateralAuctionHouse/high-bidder-not-set");
@@ -267,8 +267,8 @@ contract EnglishCollateralAuctionHouse {
      * @notice Second auction phase: decrease the collateral amount you're willing to receive in
      *         exchange for providing the same amount of coins as the winning bid
      * @param id ID of the auction for which you want to submit a new amount of collateral to buy
-     * @param amountToBuy Amount of collateral to buy (must be smaller than the previous proposed amount) [wad]
-     * @param rad New bid submitted; must be equal to the winning bid from the increaseBidSize phase [rad]
+     * @param amountToBuy Amount of collateral to buy (must be smaller than the previous proposed amount) (wad)
+     * @param rad New bid submitted; must be equal to the winning bid from the increaseBidSize phase (rad)
      */
     function decreaseSoldAmount(uint id, uint amountToBuy, uint rad) external {
         require(bids[id].highBidder != address(0), "EnglishCollateralAuctionHouse/high-bidder-not-set");
@@ -386,15 +386,15 @@ contract FixedDiscountCollateralAuctionHouse {
     // --- Data ---
     struct Bid {
         // System coins raised up until now
-        uint256 raisedAmount; // [rad]
+        uint256 raisedAmount;                                                                                         // [rad]
         // Amount of collateral that has been sold up until now
-        uint256 soldAmount; // [wad]
+        uint256 soldAmount;                                                                                           // [wad]
         // How much collateral is sold in an auction
-        uint256 amountToSell; // [wad]
+        uint256 amountToSell;                                                                                         // [wad]
         // Total/max amount of coins to raise
-        uint256 amountToRaise; // [rad]
+        uint256 amountToRaise;                                                                                        // [rad]
         // Hard deadline for the auction after which no more bids can be placed
-        uint48  auctionDeadline; // [unix epoch time]
+        uint48  auctionDeadline;                                                                                      // [unix epoch time]
         // Who (which CDP) receives leftover collateral that is not sold in the auction; usually the liquidated CDP
         address forgoneCollateralReceiver;
         // Who receives the coins raised from the auction; usually the accounting engine
@@ -410,23 +410,23 @@ contract FixedDiscountCollateralAuctionHouse {
     bytes32       public collateralType;
 
     // Minimum acceptable bid
-    uint256  public   minimumBid = 5 * WAD; // 5 system coins [wad]
+    uint256  public   minimumBid = 5 * WAD;                                                                           // [wad]
     // Total length of the auction
-    uint48   public   totalAuctionLength = 7 days; // [seconds]
+    uint48   public   totalAuctionLength = 7 days;                                                                    // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // Discount (compared to the system coin's current redemption price) at which collateral is being sold
-    uint256  public   discount = 0.95E18;                         // 5% discount [wad]
+    uint256  public   discount = 0.95E18;                         // 5% discount                                      // [wad]
     // Max lower bound deviation that the collateral median can have compared to the OSM price
-    uint256  public   lowerCollateralMedianDeviation = 0.90E18;   // 10% deviation [wad]
+    uint256  public   lowerCollateralMedianDeviation = 0.90E18;   // 10% deviation                                    // [wad]
     // Max upper bound deviation that the collateral median can have compared to the OSM price
-    uint256  public   upperCollateralMedianDeviation = 0.95E18;   // 5% deviation [wad]
+    uint256  public   upperCollateralMedianDeviation = 0.95E18;   // 5% deviation                                     // [wad]
     // Max lower bound deviation that the system coin oracle price feed can have compared to the OSM price
-    uint256  public   lowerSystemCoinMedianDeviation = WAD;       // 0% deviation [wad]
+    uint256  public   lowerSystemCoinMedianDeviation = WAD;       // 0% deviation                                     // [wad]
     // Max upper bound deviation that the collateral median can have compared to the OSM price
-    uint256  public   upperSystemCoinMedianDeviation = WAD;       // 0% deviation [wad]
+    uint256  public   upperSystemCoinMedianDeviation = WAD;       // 0% deviation                                     // [wad]
     // Min deviation for the system coin median result compared to the redemption price in order to take the median into account
-    uint256  public   minSystemCoinMedianDeviation   = 0.999E18;  // [wad]
+    uint256  public   minSystemCoinMedianDeviation   = 0.999E18;                                                      // [wad]
 
     OracleRelayerLike public oracleRelayer;
     OracleLike        public collateralOSM;
@@ -668,8 +668,8 @@ contract FixedDiscountCollateralAuctionHouse {
      * @notice Start a new collateral auction
      * @param forgoneCollateralReceiver Who receives leftover collateral that is not auctioned
      * @param auctionIncomeRecipient Who receives the amount raised in the auction
-     * @param amountToRaise Total amount of coins to raise [rad]
-     * @param amountToSell Total amount of collateral available to sell [wad]
+     * @param amountToRaise Total amount of coins to raise (rad)
+     * @param amountToSell Total amount of collateral available to sell (wad)
      * @param initialBid Unused
      */
     function startAuction(
@@ -707,7 +707,7 @@ contract FixedDiscountCollateralAuctionHouse {
     /**
      * @notice Calculate how much collateral someone would buy from an auction
      * @param id ID of the auction to buy collateral from
-     * @param wad New bid submitted [wad]
+     * @param wad New bid submitted
      */
     function getCollateralBought(uint id, uint wad) external returns (uint256) {
         if (either(
@@ -748,7 +748,7 @@ contract FixedDiscountCollateralAuctionHouse {
     /**
      * @notice Buy collateral from an auction at a fixed discount
      * @param id ID of the auction to buy collateral from
-     * @param wad New bid submitted [wad]
+     * @param wad New bid submitted
      */
     function buyCollateral(uint id, uint wad) external {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");

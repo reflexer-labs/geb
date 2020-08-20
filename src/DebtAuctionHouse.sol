@@ -63,15 +63,15 @@ contract DebtAuctionHouse {
     // --- Data ---
     struct Bid {
         // Bid size
-        uint256 bidAmount; // [rad]
+        uint256 bidAmount;                                                        // [rad]
         // How many protocol tokens are sold in an auction
-        uint256 amountToSell; // [wad]
+        uint256 amountToSell;                                                     // [wad]
         // Who the high bidder is
         address highBidder;
         // When the latest bid expires and the auction can be settled
-        uint48  bidExpiry; // [unix epoch time]
+        uint48  bidExpiry;                                                        // [unix epoch time]
         // Hard deadline for the auction after which no more bids can be placed
-        uint48  auctionDeadline; // [unix epoch time]
+        uint48  auctionDeadline;                                                  // [unix epoch time]
     }
 
     // Bid data for each separate auction
@@ -84,15 +84,15 @@ contract DebtAuctionHouse {
     // Accounting engine
     address public accountingEngine;
 
-    uint256  constant ONE = 1.00E18; // [wad]
+    uint256  constant ONE = 1.00E18;                                              // [wad]
     // Minimum bid increase compared to the last bid in order to take the new one in consideration
-    uint256  public   bidDecrease = 1.05E18; // [wad]
+    uint256  public   bidDecrease = 1.05E18;                                      // [wad]
     // Increase in protocol tokens sold in case an auction is restarted
-    uint256  public   amountSoldIncrease = 1.50E18; // [wad]
+    uint256  public   amountSoldIncrease = 1.50E18;                               // [wad]
     // How long the auction lasts after a new bid is submitted
-    uint48   public   bidDuration = 3 hours; // [seconds]
+    uint48   public   bidDuration = 3 hours;                                      // [seconds]
     // Total length of the auction
-    uint48   public   totalAuctionLength = 2 days; // [seconds]
+    uint48   public   totalAuctionLength = 2 days;                                // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // Accumulator for all debt auctions currently not settled
@@ -178,8 +178,8 @@ contract DebtAuctionHouse {
     /**
      * @notice Start a new debt auction
      * @param incomeReceiver Who receives the auction proceeds
-     * @param amountToSell Amount of protocol tokens to sell [wad]
-     * @param initialBid Initial bid size [rad]
+     * @param amountToSell Amount of protocol tokens to sell (wad)
+     * @param initialBid Initial bid size (rad)
      */
     function startAuction(
         address incomeReceiver,
@@ -214,8 +214,8 @@ contract DebtAuctionHouse {
      * @notice Decrease the protocol token amount you're willing to receive in
      *         exchange for providing the same amount of system coins being raised by the auction
      * @param id ID of the auction for which you want to submit a new bid
-     * @param amountToBuy Amount of protocol tokens to buy (must be smaller than the previous proposed amount) [wad]
-     * @param bid New system coin bid (must always equal the total amount raised by the auction) [rad]
+     * @param amountToBuy Amount of protocol tokens to buy (must be smaller than the previous proposed amount) (wad)
+     * @param bid New system coin bid (must always equal the total amount raised by the auction) (rad)
      */
     function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) external {
         require(contractEnabled == 1, "DebtAuctionHouse/contract-not-enabled");

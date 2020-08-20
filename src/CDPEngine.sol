@@ -76,7 +76,7 @@ contract CDPEngine {
         // Total debt issued for this specific collateral type
         uint256 debtAmount;        // [wad]
         // Accumulator for interest accrued on this collateral type
-        uint256 accumulatedRate;  // [ray]
+        uint256 accumulatedRate;   // [ray]
         // Floor price at which a CDP is allowed to generate debt
         uint256 safetyPrice;       // [ray]
         // Maximum amount of debt that can be generated with this collateral type
@@ -271,7 +271,7 @@ contract CDPEngine {
      * @notice Join/exit collateral into and and out of the system
      * @param collateralType Collateral type we join/exit
      * @param account Account that gets credited/debited
-     * @param wad Amount of collateral [wad]
+     * @param wad Amount of collateral
      */
     function modifyCollateralBalance(
         bytes32 collateralType,
@@ -286,7 +286,7 @@ contract CDPEngine {
      * @param collateralType Collateral type transferred
      * @param src Collateral source
      * @param dst Collateral destination
-     * @param wad Amount of collateral transferred [wad]
+     * @param wad Amount of collateral transferred
      */
     function transferCollateral(
         bytes32 collateralType,
@@ -303,7 +303,7 @@ contract CDPEngine {
      * @notice Transfer internal coins (does not affect external balances from Coin.sol)
      * @param src Coins source
      * @param dst Coins destination
-     * @param rad Amount of coins transferred [rad]
+     * @param rad Amount of coins transferred
      */
     function transferInternalCoins(address src, address dst, uint256 rad) external {
         require(canModifyCDP(src, msg.sender), "CDPEngine/not-allowed");
@@ -326,8 +326,8 @@ contract CDPEngine {
      * @param cdp Target CDP
      * @param collateralSource Account we take collateral from/put collateral into
      * @param debtDestination Account from which we credit/debit coins and debt
-     * @param deltaCollateral Amount of collateral added/extract from the CDP [wad]
-     * @param deltaDebt Amount of debt to generate/repay [wad]
+     * @param deltaCollateral Amount of collateral added/extract from the CDP (wad)
+     * @param deltaDebt Amount of debt to generate/repay (wad)
      */
     function modifyCDPCollateralization(
         bytes32 collateralType,
@@ -408,8 +408,8 @@ contract CDPEngine {
      * @param collateralType Collateral type transferred between CDPs
      * @param src Source CDP
      * @param dst Destination CDP
-     * @param deltaCollateral Amount of collateral to take/add into src and give/take from dst [wad]
-     * @param deltaDebt Amount of debt to take/add into src and give/take from dst [wad]
+     * @param deltaCollateral Amount of collateral to take/add into src and give/take from dst (wad)
+     * @param deltaDebt Amount of debt to take/add into src and give/take from dst (wad)
      */
     function transferCDPCollateralAndDebt(
         bytes32 collateralType,
@@ -462,8 +462,8 @@ contract CDPEngine {
      * @param cdp Target CDP
      * @param collateralCounterparty Who we take/give collateral to
      * @param debtCounterparty Who we take/give debt to
-     * @param deltaCollateral Amount of collateral taken/added into the CDP [wad]
-     * @param deltaDebt Amount of collateral taken/added into the CDP [wad]
+     * @param deltaCollateral Amount of collateral taken/added into the CDP (wad)
+     * @param deltaDebt Amount of collateral taken/added into the CDP (wad)
      */
     function confiscateCDPCollateralAndDebt(
         bytes32 collateralType,
@@ -509,7 +509,7 @@ contract CDPEngine {
     // --- Settlement ---
     /**
      * @notice Nullify an amount of coins with an equal amount of debt
-     * @param rad Amount of debt & coins to destroy [rad]
+     * @param rad Amount of debt & coins to destroy
      */
     function settleDebt(uint rad) external {
         address account       = msg.sender;
@@ -523,7 +523,7 @@ contract CDPEngine {
      * @notice Usually called by CoinSavingsAccount in order to create unbacked debt
      * @param debtDestination Usually AccountingEngine that can settle dent with surplus
      * @param coinDestination Usually CoinSavingsAccount who passes the new coins to depositors
-     * @param rad Amount of debt to create [rad]
+     * @param rad Amount of debt to create
      */
     function createUnbackedDebt(
         address debtDestination,

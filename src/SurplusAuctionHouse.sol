@@ -64,15 +64,15 @@ contract PreSettlementSurplusAuctionHouse {
     // --- Data ---
     struct Bid {
         // Bid size (how many protocol tokens are offered per system coins sold)
-        uint256 bidAmount; // [rad]
+        uint256 bidAmount;                                                            // [rad]
         // How many system coins are sold in an auction
-        uint256 amountToSell; // [wad]
+        uint256 amountToSell;                                                         // [wad]
         // Who the high bidder is
         address highBidder;
         // When the latest bid expires and the auction can be settled
-        uint48  bidExpiry; // [unix epoch time]
+        uint48  bidExpiry;                                                            // [unix epoch time]
         // Hard deadline for the auction after which no more bids can be placed
-        uint48  auctionDeadline; // [unix epoch time]
+        uint48  auctionDeadline;                                                      // [unix epoch time]
     }
 
     // Bid data for each separate auction
@@ -83,13 +83,13 @@ contract PreSettlementSurplusAuctionHouse {
     // Protocol token address
     TokenLike            public protocolToken;
 
-    uint256  constant ONE = 1.00E18; // [wad]
+    uint256  constant ONE = 1.00E18;                                                  // [wad]
     // Minimum bid increase compared to the last bid in order to take the new one in consideration
-    uint256  public   bidIncrease = 1.05E18; // [wad]
+    uint256  public   bidIncrease = 1.05E18;                                          // [wad]
     // How long the auction lasts after a new bid is submitted
-    uint48   public   bidDuration = 3 hours; // [seconds]
+    uint48   public   bidDuration = 3 hours;                                          // [seconds]
     // Total length of the auction
-    uint48   public   totalAuctionLength = 2 days; // [seconds]
+    uint48   public   totalAuctionLength = 2 days;                                    // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // Whether the contract is settled or not
@@ -148,8 +148,8 @@ contract PreSettlementSurplusAuctionHouse {
     // --- Auction ---
     /**
      * @notice Start a new surplus auction
-     * @param amountToSell Total amount of system coins to sell [wad]
-     * @param initialBid Initial protocol token bid [rad]
+     * @param amountToSell Total amount of system coins to sell (wad)
+     * @param initialBid Initial protocol token bid (rad)
      */
     function startAuction(uint amountToSell, uint initialBid) external isAuthorized returns (uint id) {
         require(contractEnabled == 1, "PreSettlementSurplusAuctionHouse/contract-not-enabled");
@@ -178,8 +178,8 @@ contract PreSettlementSurplusAuctionHouse {
     /**
      * @notice Submit a higher protocol token bid for the same amount of system coins
      * @param id ID of the auction you want to submit the bid for
-     * @param amountToBuy Amount of system coins to buy [wad]
-     * @param bid New bid submitted [rad]
+     * @param amountToBuy Amount of system coins to buy (wad)
+     * @param bid New bid submitted (rad)
      */
     function increaseBidSize(uint id, uint amountToBuy, uint bid) external {
         require(contractEnabled == 1, "PreSettlementSurplusAuctionHouse/contract-not-enabled");
@@ -265,15 +265,15 @@ contract PostSettlementSurplusAuctionHouse {
     // --- Data ---
     struct Bid {
         // Bid size (how many protocol tokens are offered per system coins sold)
-        uint256 bidAmount; // [rad]
+        uint256 bidAmount;                                                        // [rad]
         // How many system coins are sold in an auction
-        uint256 amountToSell; // [wad]
+        uint256 amountToSell;                                                     // [wad]
         // Who the high bidder is
         address highBidder;
         // When the latest bid expires and the auction can be settled
-        uint48  bidExpiry; // [unix epoch time]
+        uint48  bidExpiry;                                                        // [unix epoch time]
         // Hard deadline for the auction after which no more bids can be placed
-        uint48  auctionDeadline; // [unix epoch time]
+        uint48  auctionDeadline;                                                  // [unix epoch time]
     }
 
     // Bid data for each separate auction
@@ -284,13 +284,13 @@ contract PostSettlementSurplusAuctionHouse {
     // Protocol token address
     TokenLike            public protocolToken;
 
-    uint256  constant ONE = 1.00E18; // [wad]
+    uint256  constant ONE = 1.00E18;                                              // [wad]
     // Minimum bid increase compared to the last bid in order to take the new one in consideration
-    uint256  public   bidIncrease = 1.05E18; // [wad]
+    uint256  public   bidIncrease = 1.05E18;                                      // [wad]
     // How long the auction lasts after a new bid is submitted
-    uint48   public   bidDuration = 3 hours;  // [seconds]
+    uint48   public   bidDuration = 3 hours;                                      // [seconds]
     // Total length of the auction
-    uint48   public   totalAuctionLength = 2 days; // [seconds]
+    uint48   public   totalAuctionLength = 2 days;                                // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
 
@@ -344,8 +344,8 @@ contract PostSettlementSurplusAuctionHouse {
     // --- Auction ---
     /**
      * @notice Start a new surplus auction
-     * @param amountToSell Total amount of system coins to sell [wad]
-     * @param initialBid Initial protocol token bid [rad]
+     * @param amountToSell Total amount of system coins to sell (wad)
+     * @param initialBid Initial protocol token bid (rad)
      */
     function startAuction(uint amountToSell, uint initialBid) external isAuthorized returns (uint id) {
         require(auctionsStarted < uint(-1), "PostSettlementSurplusAuctionHouse/overflow");
@@ -373,8 +373,8 @@ contract PostSettlementSurplusAuctionHouse {
     /**
      * @notice Submit a higher protocol token bid for the same amount of system coins
      * @param id ID of the auction you want to submit the bid for
-     * @param amountToBuy Amount of system coins to buy [wad]
-     * @param bid New bid submitted [rad]
+     * @param amountToBuy Amount of system coins to buy (wad)
+     * @param bid New bid submitted (rad)
      */
     function increaseBidSize(uint id, uint amountToBuy, uint bid) external {
         require(bids[id].highBidder != address(0), "PostSettlementSurplusAuctionHouse/high-bidder-not-set");

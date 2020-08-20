@@ -31,16 +31,16 @@ abstract contract CDPSaviourLike {
 }
 abstract contract CDPEngineLike {
     function collateralTypes(bytes32) virtual public view returns (
-        uint256 debtAmount,        // wad
-        uint256 accumulatedRate,  // ray
-        uint256 safetyPrice,       // ray
-        uint256 debtCeiling,       // rad
-        uint256 debtFloor,         // rad
-        uint256 liquidationPrice   // ray
+        uint256 debtAmount,        // [wad]
+        uint256 accumulatedRate,   // [ray]
+        uint256 safetyPrice,       // [ray]
+        uint256 debtCeiling,       // [rad]
+        uint256 debtFloor,         // [rad]
+        uint256 liquidationPrice   // [ray]
     );
     function cdps(bytes32,address) virtual public view returns (
-        uint256 lockedCollateral, // wad
-        uint256 generatedDebt     // wad
+        uint256 lockedCollateral,  // [wad]
+        uint256 generatedDebt      // [wad]
     );
     function confiscateCDPCollateralAndDebt(bytes32,address,address,address,int,int) virtual external;
     function canModifyCDP(address, address) virtual public view returns (bool);
@@ -107,9 +107,9 @@ contract LiquidationEngine {
         // Address of the collateral auction house handling liquidations for this collateral type
         address collateralAuctionHouse;
         // Penalty applied to every liquidation involving this collateral type. Discourages CDP users from bidding on their own CDPs
-        uint256 liquidationPenalty; // [ray]
+        uint256 liquidationPenalty;                                                                                                   // [ray]
         // Max amount of collateral to sell in one auction
-        uint256 collateralToSell;   // [wad]
+        uint256 collateralToSell;                                                                                                     // [wad]
     }
 
     // Collateral types included in the system

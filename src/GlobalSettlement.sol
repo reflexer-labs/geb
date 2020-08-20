@@ -21,16 +21,16 @@ pragma solidity ^0.6.7;
 abstract contract CDPEngineLike {
     function coinBalance(address) virtual public view returns (uint256);
     function collateralTypes(bytes32) virtual public view returns (
-        uint256 debtAmount,        // wad
-        uint256 accumulatedRate,  // ray
-        uint256 safetyPrice,       // ray
-        uint256 debtCeiling,       // rad
-        uint256 debtFloor,         // rad
-        uint256 liquidationPrice   // ray
+        uint256 debtAmount,        // [wad]
+        uint256 accumulatedRate,   // [ray]
+        uint256 safetyPrice,       // [ray]
+        uint256 debtCeiling,       // [rad]
+        uint256 debtFloor,         // [rad]
+        uint256 liquidationPrice   // [ray]
     );
     function cdps(bytes32,address) virtual public view returns (
-        uint256 lockedCollateral, // wad
-        uint256 generatedDebt     // wad
+        uint256 lockedCollateral, // [wad]
+        uint256 generatedDebt     // [wad]
     );
     function globalDebt() virtual public returns (uint256);
     function transferInternalCoins(address src, address dst, uint256 rad) virtual external;
@@ -173,12 +173,12 @@ contract GlobalSettlement {
     uint256  public contractEnabled;
     uint256  public shutdownTime;
     uint256  public shutdownCooldown;
-    uint256  public outstandingCoinSupply; // [rad]
+    uint256  public outstandingCoinSupply;                                      // [rad]
 
-    mapping (bytes32 => uint256) public finalCoinPerCollateralPrice;   // [ray]
-    mapping (bytes32 => uint256) public collateralShortfall;           // [wad]
-    mapping (bytes32 => uint256) public collateralTotalDebt;           // [wad]
-    mapping (bytes32 => uint256) public collateralCashPrice;           // [ray]
+    mapping (bytes32 => uint256) public finalCoinPerCollateralPrice;            // [ray]
+    mapping (bytes32 => uint256) public collateralShortfall;                    // [wad]
+    mapping (bytes32 => uint256) public collateralTotalDebt;                    // [wad]
+    mapping (bytes32 => uint256) public collateralCashPrice;                    // [ray]
 
     mapping (address => uint256)                      public coinBag;           // [wad]
     mapping (bytes32 => mapping (address => uint256)) public coinsUsedToRedeem; // [wad]

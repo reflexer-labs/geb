@@ -18,7 +18,7 @@ import "./LinkedList.sol";
 abstract contract CDPEngineLike {
     function collateralTypes(bytes32) virtual public view returns (
         uint256 debtAmount,       // [wad]
-        uint256 accumulatedRate  // [ray]
+        uint256 accumulatedRate   // [ray]
     );
     function updateAccumulatedRate(bytes32,address,int) virtual external;
     function coinBalance(address) virtual public view returns (uint);
@@ -102,17 +102,17 @@ contract TaxCollector {
     // SF receiver
     struct TaxReceiver {
         // Whether this receiver can accept a negative rate (taking SF from it)
-        uint256 canTakeBackTax; // [bool]
+        uint256 canTakeBackTax;                                                 // [bool]
         // Percentage of SF allocated to this receiver
-        uint256 taxPercentage; // [ray%]
+        uint256 taxPercentage;                                                  // [ray%]
     }
 
     // Data about each collateral type
     mapping (bytes32 => CollateralType)                  public collateralTypes;
     // Percentage of each collateral's SF that goes to other addresses apart from the primary receiver
-    mapping (bytes32 => uint)                            public secondaryReceiverAllotedTax; // [%ray]
+    mapping (bytes32 => uint)                            public secondaryReceiverAllotedTax;              // [%ray]
     // Whether an address is already used for a tax receiver
-    mapping (address => uint256)                         public usedSecondaryReceiver; // [bool]
+    mapping (address => uint256)                         public usedSecondaryReceiver;                    // [bool]
     // Address associated to each tax receiver index
     mapping (uint256 => address)                         public secondaryReceiverAccounts;
     // How many collateral types send SF to a specific tax receiver
@@ -122,7 +122,7 @@ contract TaxCollector {
 
     address    public primaryTaxReceiver;
     // Base stability fee charged to all collateral types
-    uint256    public globalStabilityFee; // [ray%]
+    uint256    public globalStabilityFee;                                                                 // [ray%]
     // Number of secondary tax receivers ever added
     uint256    public secondaryReceiverNonce;
     // Max number of secondarytax receivers a collateral type can have
@@ -349,7 +349,7 @@ contract TaxCollector {
      * @notice Update a secondary tax receiver's data (add a new SF source or modify % of SF taken from a collateral type)
      * @param collateralType Collateral type that will give SF to the tax receiver
      * @param position Receiver's position in the tax receiver list
-     * @param taxPercentage Percentage of SF offered to the tax receiver // [ray%]
+     * @param taxPercentage Percentage of SF offered to the tax receiver (ray%)
      */
     function modifySecondaryReceiver(bytes32 collateralType, uint256 position, uint256 taxPercentage) internal {
         if (taxPercentage == 0) {
