@@ -758,15 +758,11 @@ contract FixedDiscountCollateralAuctionHouse {
         // bound max amount offered in exchange for collateral
         uint256 adjustedBid = wad;
         if (multiply(adjustedBid, RAY) > remainingToRaise) {
-            adjustedBid = remainingToRaise / RAY;
+            adjustedBid = addUint256(remainingToRaise / RAY, WAD);
         }
 
         // update amount raised
         bids[id].raisedAmount = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
-
-        // cannot leave a dusty auction
-        remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
-        require(either(remainingToRaise == 0, remainingToRaise >= RAY), "FixedDiscountCollateralAuctionHouse/dusty-auction");
 
         // check that the collateral osm doesn't return an invalid value
         (uint256 collateralOsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getTokenPrices();
