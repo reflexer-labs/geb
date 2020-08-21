@@ -73,7 +73,7 @@ contract AccountingEngine {
 
     // --- Data ---
     // SAFE database
-    SAFEEngineLike              public safeEngine;
+    SAFEEngineLike             public safeEngine;
     // Contract that handles auctions for surplus stability fees (sell coins for protocol tokens that are then burned)
     SurplusAuctionHouseLike    public surplusAuctionHouse;
     /**

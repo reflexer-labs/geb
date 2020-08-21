@@ -244,26 +244,35 @@ contract SaveSAFETest is DSTest {
     }
 
     function liquidateSAFE() internal {
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(10 ether));
-        safeEngine.modifySAFECollateralization("gold", me, me, me, 40 ether, 100 ether);
-
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
-        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
-
-        liquidationEngine.modifyParameters("gold", "collateralToSell", 50 ether);
+        uint256 MAX_COLLATERAL_TO_SELL = uint256(-1) / 10 ** 27;
+        liquidationEngine.modifyParameters("gold", "collateralToSell", MAX_COLLATERAL_TO_SELL);
         liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
+
+        safeEngine.modifyParameters("globalDebtCeiling", rad(300000 ether));
+        safeEngine.modifyParameters("gold", "debtCeiling", rad(300000 ether));
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(5 ether));
+        safeEngine.modifySAFECollateralization("gold", me, me, me, 10 ether, 50 ether);
+
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2 ether));      // now unsafe
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));
 
         uint auction = liquidationEngine.liquidateSAFE("gold", address(this));
         assertEq(auction, 1);
     }
     function liquidateSavedSAFE() internal {
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(10 ether));
-        safeEngine.modifySAFECollateralization("gold", me, me, me, 10 ether, 100 ether);
-
-        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(8 ether));  // now unsafe
-
-        liquidationEngine.modifyParameters("gold", "collateralToSell", 50 ether);
+        uint256 MAX_COLLATERAL_TO_SELL = uint256(-1) / 10 ** 27;
+        liquidationEngine.modifyParameters("gold", "collateralToSell", MAX_COLLATERAL_TO_SELL);
         liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
+
+        safeEngine.modifyParameters("globalDebtCeiling", rad(300000 ether));
+        safeEngine.modifyParameters("gold", "debtCeiling", rad(300000 ether));
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(5 ether));
+        safeEngine.modifySAFECollateralization("gold", me, me, me, 10 ether, 50 ether);
+
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2 ether));      // now unsafe
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));
 
         uint auction = liquidationEngine.liquidateSAFE("gold", address(this));
         assertEq(auction, 0);
@@ -292,8 +301,6 @@ contract SaveSAFETest is DSTest {
         liquidateSAFE();
     }
     function test_liquidate_genuine_saviour() public {
-        safeEngine.modifyParameters("gold", "safetyPrice", ray(5 ether));
-
         GenuineSaviour saviour = new GenuineSaviour(address(safeEngine), address(liquidationEngine));
         liquidationEngine.connectSAFESaviour(address(saviour));
         liquidationEngine.protectSAFE("gold", me, address(saviour));
