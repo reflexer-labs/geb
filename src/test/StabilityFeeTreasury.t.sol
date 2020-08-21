@@ -21,7 +21,7 @@ pragma solidity ^0.6.7;
 import "ds-test/test.sol";
 
 import {Coin} from '../Coin.sol';
-import {CDPEngine} from '../CDPEngine.sol';
+import {SAFEEngine} from '../SAFEEngine.sol';
 import {StabilityFeeTreasury} from '../StabilityFeeTreasury.sol';
 import {CoinJoin} from '../BasicTokenAdapters.sol';
 
@@ -30,8 +30,8 @@ abstract contract Hevm {
 }
 
 contract Usr {
-    function approveCDPModification(address cdpEngine, address lad) external {
-        CDPEngine(cdpEngine).approveCDPModification(lad);
+    function approveSAFEModification(address safeEngine, address lad) external {
+        SAFEEngine(safeEngine).approveSAFEModification(lad);
     }
     function giveFunds(address stabilityFeeTreasury, address lad, uint rad) external {
         StabilityFeeTreasury(stabilityFeeTreasury).giveFunds(lad, rad);
@@ -50,7 +50,7 @@ contract Usr {
 contract StabilityFeeTreasuryTest is DSTest {
     Hevm hevm;
 
-    CDPEngine cdpEngine;
+    SAFEEngine safeEngine;
     StabilityFeeTreasury stabilityFeeTreasury;
 
     Coin systemCoin;
@@ -77,32 +77,32 @@ contract StabilityFeeTreasuryTest is DSTest {
 
         usr = new Usr();
 
-        cdpEngine  = new CDPEngine();
+        safeEngine  = new SAFEEngine();
         systemCoin = new Coin("Coin", "COIN", 99);
-        systemCoinA = new CoinJoin(address(cdpEngine), address(systemCoin));
-        stabilityFeeTreasury = new StabilityFeeTreasury(address(cdpEngine), alice, address(systemCoinA));
+        systemCoinA = new CoinJoin(address(safeEngine), address(systemCoin));
+        stabilityFeeTreasury = new StabilityFeeTreasury(address(safeEngine), alice, address(systemCoinA));
 
         systemCoin.addAuthorization(address(systemCoinA));
         stabilityFeeTreasury.addAuthorization(address(systemCoinA));
 
-        cdpEngine.createUnbackedDebt(bob, address(stabilityFeeTreasury), rad(200 ether));
-        cdpEngine.createUnbackedDebt(bob, address(this), rad(100 ether));
+        safeEngine.createUnbackedDebt(bob, address(stabilityFeeTreasury), rad(200 ether));
+        safeEngine.createUnbackedDebt(bob, address(this), rad(100 ether));
 
-        cdpEngine.approveCDPModification(address(systemCoinA));
+        safeEngine.approveSAFEModification(address(systemCoinA));
         systemCoinA.exit(address(this), 100 ether);
 
-        usr.approveCDPModification(address(cdpEngine), address(stabilityFeeTreasury));
+        usr.approveSAFEModification(address(safeEngine), address(stabilityFeeTreasury));
     }
 
     function test_setup() public {
         assertEq(stabilityFeeTreasury.surplusTransferDelay(), 0);
-        assertEq(address(stabilityFeeTreasury.cdpEngine()), address(cdpEngine));
+        assertEq(address(stabilityFeeTreasury.safeEngine()), address(safeEngine));
         assertEq(address(stabilityFeeTreasury.accountingEngine()), alice);
         assertEq(stabilityFeeTreasury.latestSurplusTransferTime(), now);
         assertEq(stabilityFeeTreasury.expensesMultiplier(), HUNDRED);
         assertEq(systemCoin.balanceOf(address(this)), 100 ether);
-        assertEq(cdpEngine.coinBalance(address(alice)), 0);
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(200 ether));
+        assertEq(safeEngine.coinBalance(address(alice)), 0);
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(200 ether));
     }
     function test_modify_accounting_engine() public {
         stabilityFeeTreasury.modifyParameters("accountingEngine", bob);
@@ -121,8 +121,8 @@ contract StabilityFeeTreasuryTest is DSTest {
         stabilityFeeTreasury.transferSurplusFunds();
         assertEq(stabilityFeeTreasury.accumulatorTag(), 0);
         assertEq(stabilityFeeTreasury.latestSurplusTransferTime(), now);
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), 0);
-        assertEq(cdpEngine.coinBalance(address(alice)), rad(200 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), 0);
+        assertEq(safeEngine.coinBalance(address(alice)), rad(200 ether));
     }
     function test_transferSurplusFunds_no_expenses_with_minimumFundsRequired() public {
         stabilityFeeTreasury.modifyParameters("treasuryCapacity", rad(50 ether));
@@ -131,8 +131,8 @@ contract StabilityFeeTreasuryTest is DSTest {
         stabilityFeeTreasury.transferSurplusFunds();
         assertEq(stabilityFeeTreasury.accumulatorTag(), 0);
         assertEq(stabilityFeeTreasury.latestSurplusTransferTime(), now);
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(50 ether));
-        assertEq(cdpEngine.coinBalance(address(alice)), rad(150 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(50 ether));
+        assertEq(safeEngine.coinBalance(address(alice)), rad(150 ether));
     }
     function test_transferSurplusFunds_no_expenses_both_internal_and_external_coins() public {
         assertEq(stabilityFeeTreasury.treasuryCapacity(), 0);
@@ -144,8 +144,8 @@ contract StabilityFeeTreasuryTest is DSTest {
         hevm.warp(now + 1 seconds);
         stabilityFeeTreasury.transferSurplusFunds();
         assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), 0);
-        assertEq(cdpEngine.coinBalance(address(alice)), rad(201 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), 0);
+        assertEq(safeEngine.coinBalance(address(alice)), rad(201 ether));
     }
     function test_transferSurplusFunds_no_expenses_with_minimumFundsRequired_both_internal_and_external_coins() public {
         stabilityFeeTreasury.modifyParameters("treasuryCapacity", rad(50 ether));
@@ -159,8 +159,8 @@ contract StabilityFeeTreasuryTest is DSTest {
         hevm.warp(now + 1 seconds);
         stabilityFeeTreasury.transferSurplusFunds();
         assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(50 ether));
-        assertEq(cdpEngine.coinBalance(address(alice)), rad(151 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(50 ether));
+        assertEq(safeEngine.coinBalance(address(alice)), rad(151 ether));
     }
     function test_setTotalAllowance() public {
         stabilityFeeTreasury.setTotalAllowance(alice, 10 ether);
@@ -182,14 +182,14 @@ contract StabilityFeeTreasuryTest is DSTest {
         usr.takeFunds(address(stabilityFeeTreasury), address(usr), rad(2 ether));
     }
     function test_give_take() public {
-        assertEq(cdpEngine.coinBalance(address(usr)), 0);
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(200 ether));
+        assertEq(safeEngine.coinBalance(address(usr)), 0);
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(200 ether));
         stabilityFeeTreasury.giveFunds(address(usr), rad(5 ether));
-        assertEq(cdpEngine.coinBalance(address(usr)), rad(5 ether));
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(195 ether));
+        assertEq(safeEngine.coinBalance(address(usr)), rad(5 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(195 ether));
         stabilityFeeTreasury.takeFunds(address(usr), rad(2 ether));
-        assertEq(cdpEngine.coinBalance(address(usr)), rad(3 ether));
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(197 ether));
+        assertEq(safeEngine.coinBalance(address(usr)), rad(3 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(197 ether));
         assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(5 ether));
     }
     function testFail_pull_above_setTotalAllowance() public {
@@ -219,8 +219,8 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(total, rad(9 ether));
         assertEq(systemCoin.balanceOf(address(usr)), 0);
         assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
-        assertEq(cdpEngine.coinBalance(address(usr)), rad(1 ether));
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(199 ether));
+        assertEq(safeEngine.coinBalance(address(usr)), rad(1 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(199 ether));
         assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(1 ether));
     }
     function testFail_pull_funds_to_treasury_no_block_limit() public {
@@ -236,8 +236,8 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(stabilityFeeTreasury.pulledPerBlock(address(usr), block.number), rad(0.9 ether));
         assertEq(systemCoin.balanceOf(address(usr)), 0);
         assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
-        assertEq(cdpEngine.coinBalance(address(usr)), rad(0.9 ether));
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(199.1 ether));
+        assertEq(safeEngine.coinBalance(address(usr)), rad(0.9 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(199.1 ether));
         assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(0.9 ether));
     }
     function testFail_pull_funds_above_block_limit() public {
@@ -255,12 +255,12 @@ contract StabilityFeeTreasuryTest is DSTest {
         stabilityFeeTreasury.giveFunds(alice, rad(40 ether));
         hevm.warp(now + 10 minutes);
         stabilityFeeTreasury.transferSurplusFunds();
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(40 ether));
-        assertEq(cdpEngine.coinBalance(address(alice)), rad(160 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(address(alice)), rad(160 ether));
         hevm.warp(now + 10 minutes);
         stabilityFeeTreasury.transferSurplusFunds();
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), 0);
-        assertEq(cdpEngine.coinBalance(address(alice)), rad(200 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), 0);
+        assertEq(safeEngine.coinBalance(address(alice)), rad(200 ether));
     }
     function test_transferSurplusFunds_after_expenses_with_treasuryCapacity_and_minimumFundsRequired() public {
         stabilityFeeTreasury.modifyParameters("treasuryCapacity", rad(30 ether));
@@ -269,11 +269,11 @@ contract StabilityFeeTreasuryTest is DSTest {
         stabilityFeeTreasury.giveFunds(alice, rad(40 ether));
         hevm.warp(now + 10 minutes);
         stabilityFeeTreasury.transferSurplusFunds();
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(40 ether));
-        assertEq(cdpEngine.coinBalance(address(alice)), rad(160 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(address(alice)), rad(160 ether));
         hevm.warp(now + 10 minutes);
         stabilityFeeTreasury.transferSurplusFunds();
-        assertEq(cdpEngine.coinBalance(address(stabilityFeeTreasury)), rad(10 ether));
-        assertEq(cdpEngine.coinBalance(address(alice)), rad(190 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(10 ether));
+        assertEq(safeEngine.coinBalance(address(alice)), rad(190 ether));
     }
 }

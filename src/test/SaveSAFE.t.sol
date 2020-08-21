@@ -4,7 +4,7 @@ pragma experimental ABIEncoderV2;
 import "ds-test/test.sol";
 import "ds-token/token.sol";
 
-import {CDPEngine} from '../CDPEngine.sol';
+import {SAFEEngine} from '../SAFEEngine.sol';
 import {LiquidationEngine} from '../LiquidationEngine.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
 import {TaxCollector} from '../TaxCollector.sol';
@@ -37,7 +37,7 @@ contract Feed {
     }
 }
 
-contract TestCDPEngine is CDPEngine {
+contract TestSAFEEngine is SAFEEngine {
     uint256 constant RAY = 10 ** 27;
 
     constructor() public {}
@@ -52,14 +52,14 @@ contract TestCDPEngine is CDPEngine {
 }
 
 contract TestAccountingEngine is AccountingEngine {
-    constructor(address cdpEngine, address surplusAuctionHouse, address debtAuctionHouse)
-        public AccountingEngine(cdpEngine, surplusAuctionHouse, debtAuctionHouse) {}
+    constructor(address safeEngine, address surplusAuctionHouse, address debtAuctionHouse)
+        public AccountingEngine(safeEngine, surplusAuctionHouse, debtAuctionHouse) {}
 
     function totalDeficit() public view returns (uint) {
-        return cdpEngine.debtBalance(address(this));
+        return safeEngine.debtBalance(address(this));
     }
     function totalSurplus() public view returns (uint) {
-        return cdpEngine.coinBalance(address(this));
+        return safeEngine.coinBalance(address(this));
     }
     function preAuctionDebt() public view returns (uint) {
         return subtract(subtract(totalDeficit(), totalQueuedDebt), totalOnAuctionDebt);
@@ -74,7 +74,7 @@ contract RevertableSaviour {
         liquidationEngine = liquidationEngine_;
     }
 
-    function saveCDP(address liquidator,bytes32,address) public returns (bool,uint256,uint256) {
+    function saveSAFE(address liquidator,bytes32,address) public returns (bool,uint256,uint256) {
         if (liquidator == liquidationEngine) {
           return (true, uint(-1), uint(-1));
         }
@@ -87,7 +87,7 @@ contract MissingFunctionSaviour {
     }
 }
 contract FaultyReturnableSaviour {
-    function saveCDP(address,bytes32,address) public returns (bool,uint256) {
+    function saveSAFE(address,bytes32,address) public returns (bool,uint256) {
         return (true, 1);
     }
 }
@@ -98,40 +98,40 @@ contract ReentrantSaviour {
         liquidationEngine = liquidationEngine_;
     }
 
-    function saveCDP(address liquidator,bytes32 collateralType,address cdp) public returns (bool,uint256,uint256) {
+    function saveSAFE(address liquidator,bytes32 collateralType,address safe) public returns (bool,uint256,uint256) {
         if (liquidator == liquidationEngine) {
           return (true, uint(-1), uint(-1));
         }
         else {
-          LiquidationEngine(msg.sender).liquidateCDP(collateralType, cdp);
+          LiquidationEngine(msg.sender).liquidateSAFE(collateralType, safe);
           return (true, 1, 1);
         }
     }
 }
 contract GenuineSaviour {
-    address cdpEngine;
+    address safeEngine;
     address liquidationEngine;
 
-    constructor(address cdpEngine_, address liquidationEngine_) public {
-        cdpEngine = cdpEngine_;
+    constructor(address safeEngine_, address liquidationEngine_) public {
+        safeEngine = safeEngine_;
         liquidationEngine = liquidationEngine_;
     }
 
-    function saveCDP(address liquidator, bytes32 collateralType, address cdp) public returns (bool,uint256,uint256) {
+    function saveSAFE(address liquidator, bytes32 collateralType, address safe) public returns (bool,uint256,uint256) {
         if (liquidator == liquidationEngine) {
           return (true, uint(-1), uint(-1));
         }
         else {
-          CDPEngine(cdpEngine).modifyCDPCollateralization(collateralType, cdp, address(this), cdp, 10900 ether, 0);
+          SAFEEngine(safeEngine).modifySAFECollateralization(collateralType, safe, address(this), safe, 10900 ether, 0);
           return (true, 10900 ether, 0);
         }
     }
 }
 
-contract SaveCDPTest is DSTest {
+contract SaveSAFETest is DSTest {
     Hevm hevm;
 
-    TestCDPEngine cdpEngine;
+    TestSAFEEngine safeEngine;
     TestAccountingEngine accountingEngine;
     LiquidationEngine liquidationEngine;
     DSToken gold;
@@ -147,19 +147,19 @@ contract SaveCDPTest is DSTest {
 
     address me;
 
-    function try_modifyCDPCollateralization(
+    function try_modifySAFECollateralization(
       bytes32 collateralType, int lockedCollateral, int generatedDebt
     ) public returns (bool ok) {
-        string memory sig = "modifyCDPCollateralization(bytes32,address,address,address,int256,int256)";
+        string memory sig = "modifySAFECollateralization(bytes32,address,address,address,int256,int256)";
         address self = address(this);
-        (ok,) = address(cdpEngine).call(
+        (ok,) = address(safeEngine).call(
           abi.encodeWithSignature(sig, collateralType, self, self, self, lockedCollateral, generatedDebt)
         );
     }
 
-    function try_liquidate(bytes32 collateralType, address cdp) public returns (bool ok) {
-        string memory sig = "liquidateCDP(bytes32,address)";
-        (ok,) = address(liquidationEngine).call(abi.encodeWithSignature(sig, collateralType, cdp));
+    function try_liquidate(bytes32 collateralType, address safe) public returns (bool ok) {
+        string memory sig = "liquidateSAFE(bytes32,address)";
+        (ok,) = address(liquidationEngine).call(abi.encodeWithSignature(sig, collateralType, safe));
     }
 
     function ray(uint wad) internal pure returns (uint) {
@@ -169,15 +169,15 @@ contract SaveCDPTest is DSTest {
         return wad * 10 ** 27;
     }
 
-    function tokenCollateral(bytes32 collateralType, address cdp) internal view returns (uint) {
-        return cdpEngine.tokenCollateral(collateralType, cdp);
+    function tokenCollateral(bytes32 collateralType, address safe) internal view returns (uint) {
+        return safeEngine.tokenCollateral(collateralType, safe);
     }
-    function lockedCollateral(bytes32 collateralType, address cdp) internal view returns (uint) {
-        (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.cdps(collateralType, cdp); generatedDebt_;
+    function lockedCollateral(bytes32 collateralType, address safe) internal view returns (uint) {
+        (uint lockedCollateral_, uint generatedDebt_) = safeEngine.safes(collateralType, safe); generatedDebt_;
         return lockedCollateral_;
     }
-    function generatedDebt(bytes32 collateralType, address cdp) internal view returns (uint) {
-        (uint lockedCollateral_, uint generatedDebt_) = cdpEngine.cdps(collateralType, cdp); lockedCollateral_;
+    function generatedDebt(bytes32 collateralType, address safe) internal view returns (uint) {
+        (uint lockedCollateral_, uint generatedDebt_) = safeEngine.safes(collateralType, safe); lockedCollateral_;
         return generatedDebt_;
     }
 
@@ -188,125 +188,125 @@ contract SaveCDPTest is DSTest {
         protocolToken = new DSToken('GOV');
         protocolToken.mint(100 ether);
 
-        cdpEngine = new TestCDPEngine();
-        cdpEngine = cdpEngine;
+        safeEngine = new TestSAFEEngine();
+        safeEngine = safeEngine;
 
-        surplusAuctionHouse = new PostSettlementSurplusAuctionHouse(address(cdpEngine), address(protocolToken));
-        debtAuctionHouse = new DebtAuctionHouse(address(cdpEngine), address(protocolToken));
+        surplusAuctionHouse = new PostSettlementSurplusAuctionHouse(address(safeEngine), address(protocolToken));
+        debtAuctionHouse = new DebtAuctionHouse(address(safeEngine), address(protocolToken));
 
         accountingEngine = new TestAccountingEngine(
-          address(cdpEngine), address(surplusAuctionHouse), address(debtAuctionHouse)
+          address(safeEngine), address(surplusAuctionHouse), address(debtAuctionHouse)
         );
         surplusAuctionHouse.addAuthorization(address(accountingEngine));
         debtAuctionHouse.addAuthorization(address(accountingEngine));
         debtAuctionHouse.modifyParameters("accountingEngine", address(accountingEngine));
-        cdpEngine.addAuthorization(address(accountingEngine));
+        safeEngine.addAuthorization(address(accountingEngine));
 
-        taxCollector = new TaxCollector(address(cdpEngine));
+        taxCollector = new TaxCollector(address(safeEngine));
         taxCollector.initializeCollateralType("gold");
         taxCollector.modifyParameters("primaryTaxReceiver", address(accountingEngine));
-        cdpEngine.addAuthorization(address(taxCollector));
+        safeEngine.addAuthorization(address(taxCollector));
 
-        liquidationEngine = new LiquidationEngine(address(cdpEngine));
+        liquidationEngine = new LiquidationEngine(address(safeEngine));
         liquidationEngine.modifyParameters("accountingEngine", address(accountingEngine));
-        cdpEngine.addAuthorization(address(liquidationEngine));
+        safeEngine.addAuthorization(address(liquidationEngine));
         accountingEngine.addAuthorization(address(liquidationEngine));
 
         gold = new DSToken("GEM");
         gold.mint(1000 ether);
 
-        cdpEngine.initializeCollateralType("gold");
-        collateralA = new BasicCollateralJoin(address(cdpEngine), "gold", address(gold));
-        cdpEngine.addAuthorization(address(collateralA));
+        safeEngine.initializeCollateralType("gold");
+        collateralA = new BasicCollateralJoin(address(safeEngine), "gold", address(gold));
+        safeEngine.addAuthorization(address(collateralA));
         gold.approve(address(collateralA));
         collateralA.join(address(this), 1000 ether);
 
-        cdpEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
-        cdpEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
-        cdpEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
-        collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(cdpEngine), "gold");
-        collateralAuctionHouse.modifyParameters("oracleRelayer", address(new OracleRelayer(address(cdpEngine))));
+        safeEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
+        safeEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
+        safeEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
+        collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(safeEngine), "gold");
+        collateralAuctionHouse.modifyParameters("oracleRelayer", address(new OracleRelayer(address(safeEngine))));
         collateralAuctionHouse.modifyParameters("osm", address(new Feed(uint256(1), true)));
         collateralAuctionHouse.addAuthorization(address(liquidationEngine));
         liquidationEngine.modifyParameters("gold", "collateralAuctionHouse", address(collateralAuctionHouse));
         liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1 ether));
 
-        cdpEngine.addAuthorization(address(collateralAuctionHouse));
-        cdpEngine.addAuthorization(address(surplusAuctionHouse));
-        cdpEngine.addAuthorization(address(debtAuctionHouse));
+        safeEngine.addAuthorization(address(collateralAuctionHouse));
+        safeEngine.addAuthorization(address(surplusAuctionHouse));
+        safeEngine.addAuthorization(address(debtAuctionHouse));
 
-        cdpEngine.approveCDPModification(address(collateralAuctionHouse));
-        cdpEngine.approveCDPModification(address(debtAuctionHouse));
-        gold.approve(address(cdpEngine));
+        safeEngine.approveSAFEModification(address(collateralAuctionHouse));
+        safeEngine.approveSAFEModification(address(debtAuctionHouse));
+        gold.approve(address(safeEngine));
         protocolToken.approve(address(surplusAuctionHouse));
 
         me = address(this);
     }
 
-    function liquidateCDP() internal {
-        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(10 ether));
-        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 40 ether, 100 ether);
+    function liquidateSAFE() internal {
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(10 ether));
+        safeEngine.modifySAFECollateralization("gold", me, me, me, 40 ether, 100 ether);
 
-        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
-        cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
 
         liquidationEngine.modifyParameters("gold", "collateralToSell", 50 ether);
         liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
 
-        uint auction = liquidationEngine.liquidateCDP("gold", address(this));
+        uint auction = liquidationEngine.liquidateSAFE("gold", address(this));
         assertEq(auction, 1);
     }
-    function liquidateSavedCDP() internal {
-        cdpEngine.modifyParameters("gold", 'safetyPrice', ray(10 ether));
-        cdpEngine.modifyCDPCollateralization("gold", me, me, me, 10 ether, 100 ether);
+    function liquidateSavedSAFE() internal {
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(10 ether));
+        safeEngine.modifySAFECollateralization("gold", me, me, me, 10 ether, 100 ether);
 
-        cdpEngine.modifyParameters("gold", 'liquidationPrice', ray(8 ether));  // now unsafe
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(8 ether));  // now unsafe
 
         liquidationEngine.modifyParameters("gold", "collateralToSell", 50 ether);
         liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
 
-        uint auction = liquidationEngine.liquidateCDP("gold", address(this));
+        uint auction = liquidationEngine.liquidateSAFE("gold", address(this));
         assertEq(auction, 0);
     }
 
     function test_revertable_saviour() public {
         RevertableSaviour saviour = new RevertableSaviour(address(liquidationEngine));
-        liquidationEngine.connectCDPSaviour(address(saviour));
-        liquidationEngine.protectCDP("gold", me, address(saviour));
-        assertTrue(liquidationEngine.chosenCDPSaviour("gold", me) == address(saviour));
-        liquidateCDP();
+        liquidationEngine.connectSAFESaviour(address(saviour));
+        liquidationEngine.protectSAFE("gold", me, address(saviour));
+        assertTrue(liquidationEngine.chosenSAFESaviour("gold", me) == address(saviour));
+        liquidateSAFE();
     }
     function testFail_missing_function_saviour() public {
         MissingFunctionSaviour saviour = new MissingFunctionSaviour();
-        liquidationEngine.connectCDPSaviour(address(saviour));
+        liquidationEngine.connectSAFESaviour(address(saviour));
     }
     function testFail_faulty_returnable_function_saviour() public {
         FaultyReturnableSaviour saviour = new FaultyReturnableSaviour();
-        liquidationEngine.connectCDPSaviour(address(saviour));
+        liquidationEngine.connectSAFESaviour(address(saviour));
     }
     function test_liquidate_reentrant_saviour() public {
         ReentrantSaviour saviour = new ReentrantSaviour(address(liquidationEngine));
-        liquidationEngine.connectCDPSaviour(address(saviour));
-        liquidationEngine.protectCDP("gold", me, address(saviour));
-        assertTrue(liquidationEngine.chosenCDPSaviour("gold", me) == address(saviour));
-        liquidateCDP();
+        liquidationEngine.connectSAFESaviour(address(saviour));
+        liquidationEngine.protectSAFE("gold", me, address(saviour));
+        assertTrue(liquidationEngine.chosenSAFESaviour("gold", me) == address(saviour));
+        liquidateSAFE();
     }
     function test_liquidate_genuine_saviour() public {
-        cdpEngine.modifyParameters("gold", "safetyPrice", ray(5 ether));
+        safeEngine.modifyParameters("gold", "safetyPrice", ray(5 ether));
 
-        GenuineSaviour saviour = new GenuineSaviour(address(cdpEngine), address(liquidationEngine));
-        liquidationEngine.connectCDPSaviour(address(saviour));
-        liquidationEngine.protectCDP("gold", me, address(saviour));
-        cdpEngine.approveCDPModification(address(saviour));
-        assertTrue(liquidationEngine.chosenCDPSaviour("gold", me) == address(saviour));
+        GenuineSaviour saviour = new GenuineSaviour(address(safeEngine), address(liquidationEngine));
+        liquidationEngine.connectSAFESaviour(address(saviour));
+        liquidationEngine.protectSAFE("gold", me, address(saviour));
+        safeEngine.approveSAFEModification(address(saviour));
+        assertTrue(liquidationEngine.chosenSAFESaviour("gold", me) == address(saviour));
 
         gold.mint(10000 ether);
         collateralA.join(address(this), 10000 ether);
-        cdpEngine.transferCollateral("gold", me, address(saviour), 10900 ether);
+        safeEngine.transferCollateral("gold", me, address(saviour), 10900 ether);
 
-        liquidateSavedCDP();
+        liquidateSavedSAFE();
 
-        (uint256 lockedCollateral, ) = cdpEngine.cdps("gold", me);
+        (uint256 lockedCollateral, ) = safeEngine.safes("gold", me);
         assertEq(lockedCollateral, 10910 ether);
     }
 }
