@@ -3,7 +3,7 @@ pragma solidity ^0.6.7;
 import {DSTest}  from "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
 import "../DebtAuctionHouse.sol";
-import "../CDPEngine.sol";
+import "../SAFEEngine.sol";
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
@@ -13,7 +13,7 @@ contract Guy {
     DebtAuctionHouse debtAuctionHouse;
     constructor(DebtAuctionHouse debtAuctionHouse_) public {
         debtAuctionHouse = debtAuctionHouse_;
-        CDPEngine(address(debtAuctionHouse.cdpEngine())).approveCDPModification(address(debtAuctionHouse));
+        SAFEEngine(address(debtAuctionHouse.safeEngine())).approveSAFEModification(address(debtAuctionHouse));
         DSToken(address(debtAuctionHouse.protocolToken())).approve(address(debtAuctionHouse));
     }
     function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) public {
@@ -61,12 +61,12 @@ contract Gal {
     }
 }
 
-contract CDPEnginish is DSToken('') {
+contract SAFEEnginish is DSToken('') {
     uint constant ONE = 10 ** 27;
     function transferInternalCoins(address src, address dst, uint rad) public {
         super.transferFrom(src, dst, rad);
     }
-    function approveCDPModification(address usr) public {
+    function approveSAFEModification(address usr) public {
          super.approve(usr);
     }
     function coin(address usr) public view returns (uint) {
@@ -78,7 +78,7 @@ contract DebtAuctionHouseTest is DSTest {
     Hevm hevm;
 
     DebtAuctionHouse debtAuctionHouse;
-    CDPEngine cdpEngine;
+    SAFEEngine safeEngine;
     DSToken protocolToken;
 
     address ali;
@@ -91,10 +91,10 @@ contract DebtAuctionHouseTest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        cdpEngine = new CDPEngine();
+        safeEngine = new SAFEEngine();
         protocolToken = new DSToken('');
 
-        debtAuctionHouse = new DebtAuctionHouse(address(cdpEngine), address(protocolToken));
+        debtAuctionHouse = new DebtAuctionHouse(address(safeEngine), address(protocolToken));
 
         ali = address(new Guy(debtAuctionHouse));
         bob = address(new Guy(debtAuctionHouse));
@@ -104,23 +104,23 @@ contract DebtAuctionHouseTest is DSTest {
         debtAuctionHouse.addAuthorization(accountingEngine);
         debtAuctionHouse.removeAuthorization(address(this));
 
-        cdpEngine.approveCDPModification(address(debtAuctionHouse));
-        cdpEngine.addAuthorization(address(debtAuctionHouse));
+        safeEngine.approveSAFEModification(address(debtAuctionHouse));
+        safeEngine.addAuthorization(address(debtAuctionHouse));
         protocolToken.approve(address(debtAuctionHouse));
 
-        cdpEngine.createUnbackedDebt(address(this), address(this), 1000 ether);
+        safeEngine.createUnbackedDebt(address(this), address(this), 1000 ether);
 
-        cdpEngine.transferInternalCoins(address(this), ali, 200 ether);
-        cdpEngine.transferInternalCoins(address(this), bob, 200 ether);
+        safeEngine.transferInternalCoins(address(this), ali, 200 ether);
+        safeEngine.transferInternalCoins(address(this), bob, 200 ether);
     }
 
     function test_startAuction() public {
-        assertEq(cdpEngine.coinBalance(accountingEngine), 0);
+        assertEq(safeEngine.coinBalance(accountingEngine), 0);
         assertEq(protocolToken.balanceOf(accountingEngine), 0 ether);
         uint id = Gal(accountingEngine).startAuction(debtAuctionHouse, /*amountToSell*/ 200 ether, /*bid*/ 5000 ether);
         assertEq(debtAuctionHouse.activeDebtAuctions(), id);
         // no value transferred
-        assertEq(cdpEngine.coinBalance(accountingEngine), 0);
+        assertEq(safeEngine.coinBalance(accountingEngine), 0);
         assertEq(protocolToken.balanceOf(accountingEngine), 0 ether);
         // auction created with appropriate values
         assertEq(debtAuctionHouse.auctionsStarted(), id);
@@ -136,18 +136,18 @@ contract DebtAuctionHouseTest is DSTest {
 
         Guy(ali).decreaseSoldAmount(id, 100 ether, 10 ether);
         // bid taken from bidder
-        assertEq(cdpEngine.coinBalance(ali), 190 ether);
+        assertEq(safeEngine.coinBalance(ali), 190 ether);
         // accountingEngine receives payment
-        assertEq(cdpEngine.coinBalance(accountingEngine),  10 ether);
+        assertEq(safeEngine.coinBalance(accountingEngine),  10 ether);
         assertEq(Gal(accountingEngine).totalOnAuctionDebt(), 0 ether);
 
         Guy(bob).decreaseSoldAmount(id, 80 ether, 10 ether);
         // bid taken from bidder
-        assertEq(cdpEngine.coinBalance(bob), 190 ether);
+        assertEq(safeEngine.coinBalance(bob), 190 ether);
         // prev bidder refunded
-        assertEq(cdpEngine.coinBalance(ali), 200 ether);
+        assertEq(safeEngine.coinBalance(ali), 200 ether);
         // accountingEngine receives no more
-        assertEq(cdpEngine.coinBalance(accountingEngine), 10 ether);
+        assertEq(safeEngine.coinBalance(accountingEngine), 10 ether);
 
         hevm.warp(now + 5 weeks);
         assertEq(protocolToken.totalSupply(),  0 ether);
@@ -162,25 +162,25 @@ contract DebtAuctionHouseTest is DSTest {
     }
     function test_dent_totalOnAuctionDebt_less_than_bid() public {
         uint id = Gal(accountingEngine).startAuction(debtAuctionHouse, /*amountToSell*/ 200 ether, /*bid*/ 10 ether);
-        assertEq(cdpEngine.coinBalance(accountingEngine),  0 ether);
+        assertEq(safeEngine.coinBalance(accountingEngine),  0 ether);
 
         Gal(accountingEngine).cancelAuctionedDebtWithSurplus(1 ether);
         assertEq(Gal(accountingEngine).totalOnAuctionDebt(), 9 ether);
 
         Guy(ali).decreaseSoldAmount(id, 100 ether, 10 ether);
         // bid taken from bidder
-        assertEq(cdpEngine.coinBalance(ali), 190 ether);
+        assertEq(safeEngine.coinBalance(ali), 190 ether);
         // accountingEngine receives payment
-        assertEq(cdpEngine.coinBalance(accountingEngine),   10 ether);
+        assertEq(safeEngine.coinBalance(accountingEngine),   10 ether);
         assertEq(Gal(accountingEngine).totalOnAuctionDebt(), 0 ether);
 
         Guy(bob).decreaseSoldAmount(id, 80 ether, 10 ether);
         // bid taken from bidder
-        assertEq(cdpEngine.coinBalance(bob), 190 ether);
+        assertEq(safeEngine.coinBalance(bob), 190 ether);
         // prev bidder refunded
-        assertEq(cdpEngine.coinBalance(ali), 200 ether);
+        assertEq(safeEngine.coinBalance(ali), 200 ether);
         // accountingEngine receives no more
-        assertEq(cdpEngine.coinBalance(accountingEngine), 10 ether);
+        assertEq(safeEngine.coinBalance(accountingEngine), 10 ether);
 
         hevm.warp(now + 5 weeks);
         assertEq(protocolToken.totalSupply(),  0 ether);
@@ -232,19 +232,19 @@ contract DebtAuctionHouseTest is DSTest {
         uint id = Gal(accountingEngine).startAuction(debtAuctionHouse, /*amountToSell*/ 200 ether, /*bid*/ 10 ether);
 
         // confrim initial state expectations
-        assertEq(cdpEngine.coinBalance(ali), 200 ether);
-        assertEq(cdpEngine.coinBalance(bob), 200 ether);
-        assertEq(cdpEngine.coinBalance(accountingEngine), 0);
-        assertEq(cdpEngine.debtBalance(accountingEngine), 0);
+        assertEq(safeEngine.coinBalance(ali), 200 ether);
+        assertEq(safeEngine.coinBalance(bob), 200 ether);
+        assertEq(safeEngine.coinBalance(accountingEngine), 0);
+        assertEq(safeEngine.debtBalance(accountingEngine), 0);
 
         Guy(ali).decreaseSoldAmount(id, 100 ether, 10 ether);
         Guy(bob).decreaseSoldAmount(id, 80 ether, 10 ether);
 
         // confirm the proper state updates have occurred
-        assertEq(cdpEngine.coinBalance(ali), 200 ether);  // ali's coin balance is unchanged
-        assertEq(cdpEngine.coinBalance(bob), 190 ether);
-        assertEq(cdpEngine.coinBalance(accountingEngine),  10 ether);
-        assertEq(cdpEngine.debtBalance(address(this)), 1000 ether);
+        assertEq(safeEngine.coinBalance(ali), 200 ether);  // ali's coin balance is unchanged
+        assertEq(safeEngine.coinBalance(bob), 190 ether);
+        assertEq(safeEngine.coinBalance(accountingEngine),  10 ether);
+        assertEq(safeEngine.debtBalance(address(this)), 1000 ether);
 
         Gal(accountingEngine).disableContract(debtAuctionHouse);
         debtAuctionHouse.terminateAuctionPrematurely(id);
@@ -252,10 +252,10 @@ contract DebtAuctionHouseTest is DSTest {
         // deleted auction from the accounting engine
         assertEq(debtAuctionHouse.activeDebtAuctions(), 0);
         // confirm final state
-        assertEq(cdpEngine.coinBalance(ali), 200 ether);
-        assertEq(cdpEngine.coinBalance(bob), 200 ether);  // bob's bid has been refunded
-        assertEq(cdpEngine.coinBalance(accountingEngine),  10 ether);
-        assertEq(cdpEngine.debtBalance(accountingEngine),  10 ether);  // sin assigned to caller of disableContract()
+        assertEq(safeEngine.coinBalance(ali), 200 ether);
+        assertEq(safeEngine.coinBalance(bob), 200 ether);  // bob's bid has been refunded
+        assertEq(safeEngine.coinBalance(accountingEngine),  10 ether);
+        assertEq(safeEngine.debtBalance(accountingEngine),  10 ether);  // sin assigned to caller of disableContract()
         (uint256 _bid, uint256 _amountToSell, address _guy, uint48 _bidExpiry, uint48 _end) = debtAuctionHouse.bids(id);
         assertEq(_bid, 0);
         assertEq(_amountToSell, 0);
@@ -271,10 +271,10 @@ contract DebtAuctionHouseTest is DSTest {
         uint id = Gal(accountingEngine).startAuction(debtAuctionHouse, /*amountToSell*/ 200 ether, /*bid*/ 10 ether);
 
         // confrim initial state expectations
-        assertEq(cdpEngine.coinBalance(ali), 200 ether);
-        assertEq(cdpEngine.coinBalance(bob), 200 ether);
-        assertEq(cdpEngine.coinBalance(accountingEngine), 0);
-        assertEq(cdpEngine.debtBalance(accountingEngine), 0);
+        assertEq(safeEngine.coinBalance(ali), 200 ether);
+        assertEq(safeEngine.coinBalance(bob), 200 ether);
+        assertEq(safeEngine.coinBalance(accountingEngine), 0);
+        assertEq(safeEngine.debtBalance(accountingEngine), 0);
 
         Gal(accountingEngine).disableContract(debtAuctionHouse);
         debtAuctionHouse.terminateAuctionPrematurely(id);
@@ -282,10 +282,10 @@ contract DebtAuctionHouseTest is DSTest {
         // deleted auction from the accounting engine
         assertEq(debtAuctionHouse.activeDebtAuctions(), 0);
         // confirm final state
-        assertEq(cdpEngine.coinBalance(ali), 200 ether);
-        assertEq(cdpEngine.coinBalance(bob), 200 ether);
-        assertEq(cdpEngine.coinBalance(accountingEngine),  10 ether);
-        assertEq(cdpEngine.debtBalance(accountingEngine),  10 ether);  // sin assigned to caller of disableContract()
+        assertEq(safeEngine.coinBalance(ali), 200 ether);
+        assertEq(safeEngine.coinBalance(bob), 200 ether);
+        assertEq(safeEngine.coinBalance(accountingEngine),  10 ether);
+        assertEq(safeEngine.debtBalance(accountingEngine),  10 ether);  // sin assigned to caller of disableContract()
         (uint256 _bid, uint256 _amountToSell, address _guy, uint48 _bidExpiry, uint48 _end) = debtAuctionHouse.bids(id);
         assertEq(_bid, 0);
         assertEq(_amountToSell, 0);

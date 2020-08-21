@@ -17,7 +17,7 @@
 
 pragma solidity ^0.6.7;
 
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function transferInternalCoins(address,address,uint) virtual external;
     function createUnbackedDebt(address,address,uint) virtual external;
 }
@@ -63,36 +63,36 @@ contract DebtAuctionHouse {
     // --- Data ---
     struct Bid {
         // Bid size
-        uint256 bidAmount;
+        uint256 bidAmount;                                                        // [rad]
         // How many protocol tokens are sold in an auction
-        uint256 amountToSell;
+        uint256 amountToSell;                                                     // [wad]
         // Who the high bidder is
         address highBidder;
         // When the latest bid expires and the auction can be settled
-        uint48  bidExpiry;
+        uint48  bidExpiry;                                                        // [unix epoch time]
         // Hard deadline for the auction after which no more bids can be placed
-        uint48  auctionDeadline;
+        uint48  auctionDeadline;                                                  // [unix epoch time]
     }
 
     // Bid data for each separate auction
     mapping (uint => Bid) public bids;
 
-    // CDP database
-    CDPEngineLike public cdpEngine;
+    // SAFE database
+    SAFEEngineLike public safeEngine;
     // Protocol token address
     TokenLike public protocolToken;
     // Accounting engine
     address public accountingEngine;
 
-    uint256  constant ONE = 1.00E18;
+    uint256  constant ONE = 1.00E18;                                              // [wad]
     // Minimum bid increase compared to the last bid in order to take the new one in consideration
-    uint256  public   bidDecrease = 1.05E18;
+    uint256  public   bidDecrease = 1.05E18;                                      // [wad]
     // Increase in protocol tokens sold in case an auction is restarted
-    uint256  public   amountSoldIncrease = 1.50E18;
+    uint256  public   amountSoldIncrease = 1.50E18;                               // [wad]
     // How long the auction lasts after a new bid is submitted
-    uint48   public   bidDuration = 3 hours;
+    uint48   public   bidDuration = 3 hours;                                      // [seconds]
     // Total length of the auction
-    uint48   public   totalAuctionLength = 2 days;
+    uint48   public   totalAuctionLength = 2 days;                                // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // Accumulator for all debt auctions currently not settled
@@ -122,9 +122,9 @@ contract DebtAuctionHouse {
     event DisableContract(address sender);
 
     // --- Init ---
-    constructor(address cdpEngine_, address protocolToken_) public {
+    constructor(address safeEngine_, address protocolToken_) public {
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine = CDPEngineLike(cdpEngine_);
+        safeEngine = SAFEEngineLike(safeEngine_);
         protocolToken = TokenLike(protocolToken_);
         contractEnabled = 1;
         emit AddAuthorization(msg.sender);
@@ -178,8 +178,8 @@ contract DebtAuctionHouse {
     /**
      * @notice Start a new debt auction
      * @param incomeReceiver Who receives the auction proceeds
-     * @param amountToSell Amount of protocol tokens to sell
-     * @param initialBid Initial bid size
+     * @param amountToSell Amount of protocol tokens to sell (wad)
+     * @param initialBid Initial bid size (rad)
      */
     function startAuction(
         address incomeReceiver,
@@ -214,8 +214,8 @@ contract DebtAuctionHouse {
      * @notice Decrease the protocol token amount you're willing to receive in
      *         exchange for providing the same amount of system coins being raised by the auction
      * @param id ID of the auction for which you want to submit a new bid
-     * @param amountToBuy Amount of protocol tokens to buy (must be smaller than the previous proposed amount)
-     * @param bid New system coin bid (must always equal the total amount raised by the auction)
+     * @param amountToBuy Amount of protocol tokens to buy (must be smaller than the previous proposed amount) (wad)
+     * @param bid New system coin bid (must always equal the total amount raised by the auction) (rad)
      */
     function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) external {
         require(contractEnabled == 1, "DebtAuctionHouse/contract-not-enabled");
@@ -227,7 +227,7 @@ contract DebtAuctionHouse {
         require(amountToBuy <  bids[id].amountToSell, "DebtAuctionHouse/amount-bought-not-lower");
         require(multiply(bidDecrease, amountToBuy) <= multiply(bids[id].amountToSell, ONE), "DebtAuctionHouse/insufficient-decrease");
 
-        cdpEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bid);
+        safeEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bid);
 
         // on first bid submitted, clear as much totalOnAuctionDebt as possible
         if (bids[id].bidExpiry == 0) {
@@ -270,7 +270,7 @@ contract DebtAuctionHouse {
     function terminateAuctionPrematurely(uint id) external {
         require(contractEnabled == 0, "DebtAuctionHouse/contract-still-enabled");
         require(bids[id].highBidder != address(0), "DebtAuctionHouse/high-bidder-not-set");
-        cdpEngine.createUnbackedDebt(accountingEngine, bids[id].highBidder, bids[id].bidAmount);
+        safeEngine.createUnbackedDebt(accountingEngine, bids[id].highBidder, bids[id].bidAmount);
         activeDebtAuctions = subtract(activeDebtAuctions, 1);
         emit TerminateAuctionPrematurely(id, msg.sender, bids[id].highBidder, bids[id].bidAmount, activeDebtAuctions);
         delete bids[id];
