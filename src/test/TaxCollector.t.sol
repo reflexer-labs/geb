@@ -4,13 +4,13 @@ pragma experimental ABIEncoderV2;
 import "ds-test/test.sol";
 
 import {TaxCollector} from "../TaxCollector.sol";
-import {CDPEngine} from "../CDPEngine.sol";
+import {SAFEEngine} from "../SAFEEngine.sol";
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
 }
 
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function collateralTypes(bytes32) virtual public view returns (
         uint256 debtAmount,
         uint256 accumulatedRate,
@@ -24,7 +24,7 @@ abstract contract CDPEngineLike {
 contract TaxCollectorTest is DSTest {
     Hevm hevm;
     TaxCollector taxCollector;
-    CDPEngine cdpEngine;
+    SAFEEngine safeEngine;
 
     function ray(uint wad_) internal pure returns (uint) {
         return wad_ * 10 ** 9;
@@ -43,13 +43,13 @@ contract TaxCollectorTest is DSTest {
         return updateTime_;
     }
     function debtAmount(bytes32 collateralType) internal view returns (uint debtAmountV) {
-        (debtAmountV,,,,,) = CDPEngineLike(address(cdpEngine)).collateralTypes(collateralType);
+        (debtAmountV,,,,,) = SAFEEngineLike(address(safeEngine)).collateralTypes(collateralType);
     }
     function accumulatedRate(bytes32 collateralType) internal view returns (uint accumulatedRateV) {
-        (, accumulatedRateV,,,,) = CDPEngineLike(address(cdpEngine)).collateralTypes(collateralType);
+        (, accumulatedRateV,,,,) = SAFEEngineLike(address(safeEngine)).collateralTypes(collateralType);
     }
     function debtCeiling(bytes32 collateralType) internal view returns (uint debtCeilingV) {
-        (,,, debtCeilingV,,) = CDPEngineLike(address(cdpEngine)).collateralTypes(collateralType);
+        (,,, debtCeilingV,,) = SAFEEngineLike(address(safeEngine)).collateralTypes(collateralType);
     }
 
     address ali  = address(bytes20("ali"));
@@ -60,20 +60,20 @@ contract TaxCollectorTest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        cdpEngine  = new CDPEngine();
-        taxCollector = new TaxCollector(address(cdpEngine));
-        cdpEngine.addAuthorization(address(taxCollector));
-        cdpEngine.initializeCollateralType("i");
+        safeEngine  = new SAFEEngine();
+        taxCollector = new TaxCollector(address(safeEngine));
+        safeEngine.addAuthorization(address(taxCollector));
+        safeEngine.initializeCollateralType("i");
 
         draw("i", 100 ether);
     }
     function draw(bytes32 collateralType, uint coin) internal {
-        cdpEngine.modifyParameters("globalDebtCeiling", cdpEngine.globalDebtCeiling() + rad(coin));
-        cdpEngine.modifyParameters(collateralType, "debtCeiling", debtCeiling(collateralType) + rad(coin));
-        cdpEngine.modifyParameters(collateralType, "safetyPrice", 10 ** 27 * 10000 ether);
+        safeEngine.modifyParameters("globalDebtCeiling", safeEngine.globalDebtCeiling() + rad(coin));
+        safeEngine.modifyParameters(collateralType, "debtCeiling", debtCeiling(collateralType) + rad(coin));
+        safeEngine.modifyParameters(collateralType, "safetyPrice", 10 ** 27 * 10000 ether);
         address self = address(this);
-        cdpEngine.modifyCollateralBalance(collateralType, self,  10 ** 27 * 1 ether);
-        cdpEngine.modifyCDPCollateralization(collateralType, self, self, self, int(1 ether), int(coin));
+        safeEngine.modifyCollateralBalance(collateralType, self,  10 ** 27 * 1 ether);
+        safeEngine.modifySAFECollateralization(collateralType, self, self, self, int(1 ether), int(coin));
     }
     function test_collect_tax_setup() public {
         hevm.warp(0);
@@ -108,9 +108,9 @@ contract TaxCollectorTest is DSTest {
     function test_collect_tax_0d() public {
         taxCollector.initializeCollateralType("i");
         taxCollector.modifyParameters("i", "stabilityFee", 1000000564701133626865910626);  // 5% / day
-        assertEq(cdpEngine.coinBalance(ali), rad(0 ether));
+        assertEq(safeEngine.coinBalance(ali), rad(0 ether));
         taxCollector.taxSingle("i");
-        assertEq(cdpEngine.coinBalance(ali), rad(0 ether));
+        assertEq(safeEngine.coinBalance(ali), rad(0 ether));
     }
     function test_collect_tax_1d() public {
         taxCollector.initializeCollateralType("i");
@@ -118,9 +118,9 @@ contract TaxCollectorTest is DSTest {
 
         taxCollector.modifyParameters("i", "stabilityFee", 1000000564701133626865910626);  // 5% / day
         hevm.warp(now + 1 days);
-        assertEq(wad(cdpEngine.coinBalance(ali)), 0 ether);
+        assertEq(wad(safeEngine.coinBalance(ali)), 0 ether);
         taxCollector.taxSingle("i");
-        assertEq(wad(cdpEngine.coinBalance(ali)), 5 ether);
+        assertEq(wad(safeEngine.coinBalance(ali)), 5 ether);
     }
     function test_collect_tax_2d() public {
         taxCollector.initializeCollateralType("i");
@@ -128,9 +128,9 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("i", "stabilityFee", 1000000564701133626865910626);  // 5% / day
 
         hevm.warp(now + 2 days);
-        assertEq(wad(cdpEngine.coinBalance(ali)), 0 ether);
+        assertEq(wad(safeEngine.coinBalance(ali)), 0 ether);
         taxCollector.taxSingle("i");
-        assertEq(wad(cdpEngine.coinBalance(ali)), 10.25 ether);
+        assertEq(wad(safeEngine.coinBalance(ali)), 10.25 ether);
     }
     function test_collect_tax_3d() public {
         taxCollector.initializeCollateralType("i");
@@ -138,9 +138,9 @@ contract TaxCollectorTest is DSTest {
 
         taxCollector.modifyParameters("i", "stabilityFee", 1000000564701133626865910626);  // 5% / day
         hevm.warp(now + 3 days);
-        assertEq(wad(cdpEngine.coinBalance(ali)), 0 ether);
+        assertEq(wad(safeEngine.coinBalance(ali)), 0 ether);
         taxCollector.taxSingle("i");
-        assertEq(wad(cdpEngine.coinBalance(ali)), 15.7625 ether);
+        assertEq(wad(safeEngine.coinBalance(ali)), 15.7625 ether);
     }
     function test_collect_tax_negative_3d() public {
         taxCollector.initializeCollateralType("i");
@@ -148,11 +148,11 @@ contract TaxCollectorTest is DSTest {
 
         taxCollector.modifyParameters("i", "stabilityFee", 999999706969857929985428567);  // -2.5% / day
         hevm.warp(now + 3 days);
-        assertEq(wad(cdpEngine.coinBalance(address(this))), 100 ether);
-        cdpEngine.transferInternalCoins(address(this), ali, rad(100 ether));
-        assertEq(wad(cdpEngine.coinBalance(ali)), 100 ether);
+        assertEq(wad(safeEngine.coinBalance(address(this))), 100 ether);
+        safeEngine.transferInternalCoins(address(this), ali, rad(100 ether));
+        assertEq(wad(safeEngine.coinBalance(ali)), 100 ether);
         taxCollector.taxSingle("i");
-        assertEq(wad(cdpEngine.coinBalance(ali)), 92.6859375 ether);
+        assertEq(wad(safeEngine.coinBalance(ali)), 92.6859375 ether);
     }
 
     function test_collect_tax_multi() public {
@@ -162,16 +162,16 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("i", "stabilityFee", 1000000564701133626865910626);  // 5% / day
         hevm.warp(now + 1 days);
         taxCollector.taxSingle("i");
-        assertEq(wad(cdpEngine.coinBalance(ali)), 5 ether);
+        assertEq(wad(safeEngine.coinBalance(ali)), 5 ether);
         taxCollector.modifyParameters("i", "stabilityFee", 1000001103127689513476993127);  // 10% / day
         hevm.warp(now + 1 days);
         taxCollector.taxSingle("i");
-        assertEq(wad(cdpEngine.coinBalance(ali)),  15.5 ether);
-        assertEq(wad(cdpEngine.globalDebt()),     115.5 ether);
+        assertEq(wad(safeEngine.coinBalance(ali)),  15.5 ether);
+        assertEq(wad(safeEngine.globalDebt()),     115.5 ether);
         assertEq(accumulatedRate("i") / 10 ** 9, 1.155 ether);
     }
     function test_collect_tax_global_stability_fee() public {
-        cdpEngine.initializeCollateralType("j");
+        safeEngine.initializeCollateralType("j");
         draw("j", 100 ether);
 
         taxCollector.initializeCollateralType("i");
@@ -183,10 +183,10 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("globalStabilityFee",  uint(50000000000000000000000000)); // 5% / second
         hevm.warp(now + 1);
         taxCollector.taxSingle("i");
-        assertEq(wad(cdpEngine.coinBalance(ali)), 10 ether);
+        assertEq(wad(safeEngine.coinBalance(ali)), 10 ether);
     }
     function test_collect_tax_all_positive() public {
-        cdpEngine.initializeCollateralType("j");
+        safeEngine.initializeCollateralType("j");
         draw("j", 100 ether);
 
         taxCollector.initializeCollateralType("i");
@@ -200,7 +200,7 @@ contract TaxCollectorTest is DSTest {
         hevm.warp(now + 1);
         taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
 
-        assertEq(wad(cdpEngine.coinBalance(ali)), 18 ether);
+        assertEq(wad(safeEngine.coinBalance(ali)), 18 ether);
 
         (, uint updatedTime) = taxCollector.collateralTypes("i");
         assertEq(updatedTime, now);
@@ -210,7 +210,7 @@ contract TaxCollectorTest is DSTest {
         assertTrue(taxCollector.collectedManyTax(0, 1));
     }
     function test_collect_tax_all_some_negative() public {
-        cdpEngine.initializeCollateralType("j");
+        safeEngine.initializeCollateralType("j");
         draw("j", 100 ether);
 
         taxCollector.initializeCollateralType("i");
@@ -222,10 +222,10 @@ contract TaxCollectorTest is DSTest {
 
         hevm.warp(now + 10);
         taxCollector.taxSingle("i");
-        assertEq(wad(cdpEngine.coinBalance(ali)), 62889462677744140625);
+        assertEq(wad(safeEngine.coinBalance(ali)), 62889462677744140625);
 
         taxCollector.taxSingle("j");
-        assertEq(wad(cdpEngine.coinBalance(ali)), 0);
+        assertEq(wad(safeEngine.coinBalance(ali)), 0);
 
         (, uint updatedTime) = taxCollector.collateralTypes("i");
         assertEq(updatedTime, now);
@@ -383,7 +383,7 @@ contract TaxCollectorTest is DSTest {
     function test_multi_collateral_types_receivers() public {
         taxCollector.modifyParameters("maxSecondaryReceivers", 1);
 
-        cdpEngine.initializeCollateralType("j");
+        safeEngine.initializeCollateralType("j");
         draw("j", 100 ether);
         taxCollector.initializeCollateralType("j");
 
@@ -441,13 +441,13 @@ contract TaxCollectorTest is DSTest {
         taxCollector.taxSingle("i");
         assertEq(taxCollector.latestSecondaryReceiver(), 2);
 
-        assertEq(wad(cdpEngine.coinBalance(ali)), 9433419401661621093);
-        assertEq(wad(cdpEngine.coinBalance(bob)), 25155785071097656250);
-        assertEq(wad(cdpEngine.coinBalance(char)), 28300258204984863281);
+        assertEq(wad(safeEngine.coinBalance(ali)), 9433419401661621093);
+        assertEq(wad(safeEngine.coinBalance(bob)), 25155785071097656250);
+        assertEq(wad(safeEngine.coinBalance(char)), 28300258204984863281);
 
-        assertEq(wad(cdpEngine.coinBalance(ali)) * ray(100 ether) / uint(currentRates), 1499999999999999999880);
-        assertEq(wad(cdpEngine.coinBalance(bob)) * ray(100 ether) / uint(currentRates), 4000000000000000000000);
-        assertEq(wad(cdpEngine.coinBalance(char)) * ray(100 ether) / uint(currentRates), 4499999999999999999960);
+        assertEq(wad(safeEngine.coinBalance(ali)) * ray(100 ether) / uint(currentRates), 1499999999999999999880);
+        assertEq(wad(safeEngine.coinBalance(bob)) * ray(100 ether) / uint(currentRates), 4000000000000000000000);
+        assertEq(wad(safeEngine.coinBalance(char)) * ray(100 ether) / uint(currentRates), 4499999999999999999960);
     }
     function test_add_secondaryTaxReceivers_multi_collateral_types_collect_tax_positive() public {
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
@@ -456,7 +456,7 @@ contract TaxCollectorTest is DSTest {
         taxCollector.initializeCollateralType("i");
         taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
 
-        cdpEngine.initializeCollateralType("j");
+        safeEngine.initializeCollateralType("j");
         draw("j", 100 ether);
         taxCollector.initializeCollateralType("j");
         taxCollector.modifyParameters("j", "stabilityFee", 1050000000000000000000000000);
@@ -467,9 +467,9 @@ contract TaxCollectorTest is DSTest {
         hevm.warp(now + 10);
         taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
 
-        assertEq(wad(cdpEngine.coinBalance(ali)), 72322882079405761718);
-        assertEq(wad(cdpEngine.coinBalance(bob)), 25155785071097656250);
-        assertEq(wad(cdpEngine.coinBalance(char)), 28300258204984863281);
+        assertEq(wad(safeEngine.coinBalance(ali)), 72322882079405761718);
+        assertEq(wad(safeEngine.coinBalance(bob)), 25155785071097656250);
+        assertEq(wad(safeEngine.coinBalance(char)), 28300258204984863281);
 
         taxCollector.modifyParameters("j", 1, ray(25 ether), bob);
         taxCollector.modifyParameters("j", 2, ray(33 ether), char);
@@ -477,9 +477,9 @@ contract TaxCollectorTest is DSTest {
         hevm.warp(now + 10);
         taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
 
-        assertEq(wad(cdpEngine.coinBalance(ali)), 130713857546323549197);
-        assertEq(wad(cdpEngine.coinBalance(bob)), 91741985164951273550);
-        assertEq(wad(cdpEngine.coinBalance(char)), 108203698317609204041);
+        assertEq(wad(safeEngine.coinBalance(ali)), 130713857546323549197);
+        assertEq(wad(safeEngine.coinBalance(bob)), 91741985164951273550);
+        assertEq(wad(safeEngine.coinBalance(char)), 108203698317609204041);
 
         assertEq(taxCollector.secondaryReceiverAllotedTax("i"), ray(85 ether));
         assertEq(taxCollector.latestSecondaryReceiver(), 2);
@@ -523,9 +523,9 @@ contract TaxCollectorTest is DSTest {
         hevm.warp(now + 5);
         taxCollector.taxSingle("i");
 
-        assertEq(wad(cdpEngine.coinBalance(ali)), 23483932812500000000);
-        assertEq(wad(cdpEngine.coinBalance(bob)), 1381407812500000000);
-        assertEq(wad(cdpEngine.coinBalance(char)), 2762815625000000000);
+        assertEq(wad(safeEngine.coinBalance(ali)), 23483932812500000000);
+        assertEq(wad(safeEngine.coinBalance(bob)), 1381407812500000000);
+        assertEq(wad(safeEngine.coinBalance(char)), 2762815625000000000);
 
         taxCollector.modifyParameters("i", "stabilityFee", 900000000000000000000000000);
         taxCollector.modifyParameters("i", 1, ray(10 ether), bob);
@@ -534,15 +534,15 @@ contract TaxCollectorTest is DSTest {
         hevm.warp(now + 5);
         taxCollector.taxSingle("i");
 
-        assertEq(wad(cdpEngine.coinBalance(ali)), 0);
-        assertEq(wad(cdpEngine.coinBalance(bob)), 0);
-        assertEq(wad(cdpEngine.coinBalance(char)), 0);
+        assertEq(wad(safeEngine.coinBalance(ali)), 0);
+        assertEq(wad(safeEngine.coinBalance(bob)), 0);
+        assertEq(wad(safeEngine.coinBalance(char)), 0);
     }
     function test_add_secondaryTaxReceivers_multi_collateral_types_toggle_collect_tax_negative() public {
         taxCollector.initializeCollateralType("i");
         taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
 
-        cdpEngine.initializeCollateralType("j");
+        safeEngine.initializeCollateralType("j");
         draw("j", 100 ether);
         taxCollector.initializeCollateralType("j");
         taxCollector.modifyParameters("j", "stabilityFee", 1050000000000000000000000000);
@@ -567,9 +567,9 @@ contract TaxCollectorTest is DSTest {
         hevm.warp(now + 5);
         taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
 
-        assertEq(wad(cdpEngine.coinBalance(ali)), 0);
-        assertEq(wad(cdpEngine.coinBalance(bob)), 0);
-        assertEq(wad(cdpEngine.coinBalance(char)), 0);
+        assertEq(wad(safeEngine.coinBalance(ali)), 0);
+        assertEq(wad(safeEngine.coinBalance(bob)), 0);
+        assertEq(wad(safeEngine.coinBalance(char)), 0);
     }
     function test_add_secondaryTaxReceivers_no_toggle_collect_tax_negative() public {
         // Setup
@@ -584,9 +584,9 @@ contract TaxCollectorTest is DSTest {
         hevm.warp(now + 5);
         taxCollector.taxSingle("i");
 
-        assertEq(wad(cdpEngine.coinBalance(ali)), 23483932812500000000);
-        assertEq(wad(cdpEngine.coinBalance(bob)), 1381407812500000000);
-        assertEq(wad(cdpEngine.coinBalance(char)), 2762815625000000000);
+        assertEq(wad(safeEngine.coinBalance(ali)), 23483932812500000000);
+        assertEq(wad(safeEngine.coinBalance(bob)), 1381407812500000000);
+        assertEq(wad(safeEngine.coinBalance(char)), 2762815625000000000);
 
         taxCollector.modifyParameters("i", "stabilityFee", 900000000000000000000000000);
         taxCollector.modifyParameters("i", 1, ray(10 ether), bob);
@@ -595,12 +595,12 @@ contract TaxCollectorTest is DSTest {
         hevm.warp(now + 5);
         taxCollector.taxSingle("i");
 
-        assertEq(wad(cdpEngine.coinBalance(ali)), 0);
-        assertEq(wad(cdpEngine.coinBalance(bob)), 1381407812500000000);
-        assertEq(wad(cdpEngine.coinBalance(char)), 2762815625000000000);
+        assertEq(wad(safeEngine.coinBalance(ali)), 0);
+        assertEq(wad(safeEngine.coinBalance(bob)), 1381407812500000000);
+        assertEq(wad(safeEngine.coinBalance(char)), 2762815625000000000);
     }
     function test_collectedManyTax() public {
-        cdpEngine.initializeCollateralType("j");
+        safeEngine.initializeCollateralType("j");
         draw("j", 100 ether);
 
         taxCollector.initializeCollateralType("i");
@@ -630,7 +630,7 @@ contract TaxCollectorTest is DSTest {
         taxCollector.modifyParameters("i", "stabilityFee", 1);
     }
     function test_taxManyOutcome_all_untaxed_positive_rates() public {
-        cdpEngine.initializeCollateralType("j");
+        safeEngine.initializeCollateralType("j");
         draw("i", 100 ether);
         draw("j", 100 ether);
 
@@ -648,7 +648,7 @@ contract TaxCollectorTest is DSTest {
         assertEq(uint(rad), 28 * 10 ** 45);
     }
     function test_taxManyOutcome_some_untaxed_positive_rates() public {
-        cdpEngine.initializeCollateralType("j");
+        safeEngine.initializeCollateralType("j");
         draw("i", 100 ether);
         draw("j", 100 ether);
 
@@ -667,7 +667,7 @@ contract TaxCollectorTest is DSTest {
         assertEq(uint(rad), 8 * 10 ** 45);
     }
     function test_taxManyOutcome_all_untaxed_negative_rates() public {
-        cdpEngine.initializeCollateralType("j");
+        safeEngine.initializeCollateralType("j");
         draw("i", 100 ether);
         draw("j", 100 ether);
 
@@ -684,7 +684,7 @@ contract TaxCollectorTest is DSTest {
         assertEq(rad, -17 * 10 ** 45);
     }
     function test_taxManyOutcome_all_untaxed_mixed_rates() public {
-        cdpEngine.initializeCollateralType("j");
+        safeEngine.initializeCollateralType("j");
         draw("j", 100 ether);
 
         taxCollector.initializeCollateralType("i");

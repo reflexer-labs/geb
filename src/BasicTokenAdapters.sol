@@ -28,14 +28,14 @@ abstract contract DSTokenLike {
     function burn(address,uint) virtual external;
 }
 
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function modifyCollateralBalance(bytes32,address,int) virtual external;
     function transferInternalCoins(address,address,uint) virtual external;
 }
 
 /*
-    Here we provide *adapters* to connect the CDPEngine to arbitrary external
-    token implementations, creating a bounded context for the CDPEngine. The
+    Here we provide *adapters* to connect the SAFEEngine to arbitrary external
+    token implementations, creating a bounded context for the SAFEEngine. The
     adapters here are provided as working examples:
       - `BasicCollateralJoin`: For well behaved ERC20 tokens, with simple transfer semantics.
       - `ETHJoin`: For native Ether.
@@ -76,8 +76,8 @@ contract BasicCollateralJoin {
         _;
     }
 
-    // CDP database
-    CDPEngineLike  public cdpEngine;
+    // SAFE database
+    SAFEEngineLike  public safeEngine;
     // Collateral type name
     bytes32        public collateralType;
     // Actual collateral token contract
@@ -94,10 +94,10 @@ contract BasicCollateralJoin {
     event Join(address sender, address account, uint wad);
     event Exit(address sender, address account, uint wad);
 
-    constructor(address cdpEngine_, bytes32 collateralType_, address collateral_) public {
+    constructor(address safeEngine_, bytes32 collateralType_, address collateral_) public {
         authorizedAccounts[msg.sender] = 1;
         contractEnabled = 1;
-        cdpEngine       = CDPEngineLike(cdpEngine_);
+        safeEngine       = SAFEEngineLike(safeEngine_);
         collateralType  = collateralType_;
         collateral      = CollateralLike(collateral_);
         decimals        = collateral.decimals();
@@ -121,7 +121,7 @@ contract BasicCollateralJoin {
     function join(address account, uint wad) external {
         require(contractEnabled == 1, "BasicCollateralJoin/contract-not-enabled");
         require(int(wad) >= 0, "BasicCollateralJoin/overflow");
-        cdpEngine.modifyCollateralBalance(collateralType, account, int(wad));
+        safeEngine.modifyCollateralBalance(collateralType, account, int(wad));
         require(collateral.transferFrom(msg.sender, address(this), wad), "BasicCollateralJoin/failed-transfer");
         emit Join(msg.sender, account, wad);
     }
@@ -135,7 +135,7 @@ contract BasicCollateralJoin {
     **/
     function exit(address account, uint wad) external {
         require(wad <= 2 ** 255, "BasicCollateralJoin/overflow");
-        cdpEngine.modifyCollateralBalance(collateralType, msg.sender, -int(wad));
+        safeEngine.modifyCollateralBalance(collateralType, msg.sender, -int(wad));
         require(collateral.transfer(account, wad), "BasicCollateralJoin/failed-transfer");
         emit Exit(msg.sender, account, wad);
     }
@@ -168,8 +168,8 @@ contract ETHJoin {
         _;
     }
 
-    // CDP database
-    CDPEngineLike public cdpEngine;
+    // SAFE database
+    SAFEEngineLike public safeEngine;
     // Collateral type name
     bytes32       public collateralType;
     // Whether this contract is enabled or not
@@ -184,10 +184,10 @@ contract ETHJoin {
     event Join(address sender, address account, uint wad);
     event Exit(address sender, address account, uint wad);
 
-    constructor(address cdpEngine_, bytes32 collateralType_) public {
+    constructor(address safeEngine_, bytes32 collateralType_) public {
         authorizedAccounts[msg.sender] = 1;
         contractEnabled                = 1;
-        cdpEngine                      = CDPEngineLike(cdpEngine_);
+        safeEngine                      = SAFEEngineLike(safeEngine_);
         collateralType                 = collateralType_;
         decimals                       = 18;
         emit AddAuthorization(msg.sender);
@@ -206,7 +206,7 @@ contract ETHJoin {
     function join(address account) external payable {
         require(contractEnabled == 1, "ETHJoin/contract-not-enabled");
         require(int(msg.value) >= 0, "ETHJoin/overflow");
-        cdpEngine.modifyCollateralBalance(collateralType, account, int(msg.value));
+        safeEngine.modifyCollateralBalance(collateralType, account, int(msg.value));
         emit Join(msg.sender, account, msg.value);
     }
     /**
@@ -215,7 +215,7 @@ contract ETHJoin {
     **/
     function exit(address payable account, uint wad) external {
         require(int(wad) >= 0, "ETHJoin/overflow");
-        cdpEngine.modifyCollateralBalance(collateralType, msg.sender, -int(wad));
+        safeEngine.modifyCollateralBalance(collateralType, msg.sender, -int(wad));
         emit Exit(msg.sender, account, wad);
         account.transfer(wad);
     }
@@ -248,8 +248,8 @@ contract CoinJoin {
         _;
     }
 
-    // CDP database
-    CDPEngineLike public cdpEngine;
+    // SAFE database
+    SAFEEngineLike public safeEngine;
     // Coin created by the system; this is the external, ERC-20 representation, not the internal 'coinBalance'
     DSTokenLike   public systemCoin;
     // Whether this contract is enabled or not
@@ -264,10 +264,10 @@ contract CoinJoin {
     event Join(address sender, address account, uint wad);
     event Exit(address sender, address account, uint wad);
 
-    constructor(address cdpEngine_, address systemCoin_) public {
+    constructor(address safeEngine_, address systemCoin_) public {
         authorizedAccounts[msg.sender] = 1;
         contractEnabled                = 1;
-        cdpEngine                      = CDPEngineLike(cdpEngine_);
+        safeEngine                      = SAFEEngineLike(safeEngine_);
         systemCoin                     = DSTokenLike(systemCoin_);
         decimals                       = 18;
         emit AddAuthorization(msg.sender);
@@ -291,7 +291,7 @@ contract CoinJoin {
     * @param wad Amount of external coins to join (18 decimal number)
     **/
     function join(address account, uint wad) external {
-        cdpEngine.transferInternalCoins(address(this), account, multiply(RAY, wad));
+        safeEngine.transferInternalCoins(address(this), account, multiply(RAY, wad));
         systemCoin.burn(msg.sender, wad);
         emit Join(msg.sender, account, wad);
     }
@@ -305,7 +305,7 @@ contract CoinJoin {
     **/
     function exit(address account, uint wad) external {
         require(contractEnabled == 1, "CoinJoin/contract-not-enabled");
-        cdpEngine.transferInternalCoins(msg.sender, address(this), multiply(RAY, wad));
+        safeEngine.transferInternalCoins(msg.sender, address(this), multiply(RAY, wad));
         systemCoin.mint(account, wad);
         emit Exit(msg.sender, account, wad);
     }

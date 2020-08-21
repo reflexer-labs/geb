@@ -18,25 +18,25 @@
 
 pragma solidity ^0.6.7;
 
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function coinBalance(address) virtual public view returns (uint256);
     function collateralTypes(bytes32) virtual public view returns (
-        uint256 debtAmount,        // wad
-        uint256 accumulatedRate,  // ray
-        uint256 safetyPrice,       // ray
-        uint256 debtCeiling,       // rad
-        uint256 debtFloor,         // rad
-        uint256 liquidationPrice   // ray
+        uint256 debtAmount,        // [wad]
+        uint256 accumulatedRate,   // [ray]
+        uint256 safetyPrice,       // [ray]
+        uint256 debtCeiling,       // [rad]
+        uint256 debtFloor,         // [rad]
+        uint256 liquidationPrice   // [ray]
     );
-    function cdps(bytes32,address) virtual public view returns (
-        uint256 lockedCollateral, // wad
-        uint256 generatedDebt     // wad
+    function safes(bytes32,address) virtual public view returns (
+        uint256 lockedCollateral, // [wad]
+        uint256 generatedDebt     // [wad]
     );
     function globalDebt() virtual public returns (uint256);
     function transferInternalCoins(address src, address dst, uint256 rad) virtual external;
-    function approveCDPModification(address) virtual external;
+    function approveSAFEModification(address) virtual external;
     function transferCollateral(bytes32 collateralType, address src, address dst, uint256 wad) virtual external;
-    function confiscateCDPCollateralAndDebt(bytes32 collateralType, address cdp, address collateralSource, address debtDestination, int256 deltaCollateral, int256 deltaDebt) virtual external;
+    function confiscateSAFECollateralAndDebt(bytes32 collateralType, address safe, address collateralSource, address debtDestination, int256 deltaCollateral, int256 deltaDebt) virtual external;
     function createUnbackedDebt(address debtDestination, address coinDestination, uint256 rad) virtual external;
     function disableContract() virtual external;
 }
@@ -89,12 +89,12 @@ abstract contract OracleRelayerLike {
        - set the final price for each collateralType, reading off the price feed
     We must process some system state before it is possible to calculate
     the final coin / collateral price. In particular, we need to determine:
-      a. `collateralShortfall` (considers under-collateralised CDPs)
+      a. `collateralShortfall` (considers under-collateralised SAFEs)
       b. `outstandingCoinSupply` (after including system surplus / deficit)
-    We determine (a) by processing all under-collateralised CDPs with
-    `processCDP`
-    3. `processCDP(collateralType, cdp)`:
-       - cancels CDP debt
+    We determine (a) by processing all under-collateralised SAFEs with
+    `processSAFE`
+    3. `processSAFE(collateralType, safe)`:
+       - cancels SAFE debt
        - any excess collateral remains
        - backing collateral taken
     We determine (b) by processing ongoing coin generating processes,
@@ -119,18 +119,18 @@ abstract contract OracleRelayerLike {
     settlement but option (ii), `fastTrackAuction`, will speed it up. Both options
     are available in this implementation, with `fastTrackAuction` being enabled on a
     per-auction basis.
-    When a CDP has been processed and has no debt remaining, the
+    When a SAFE has been processed and has no debt remaining, the
     remaining collateral can be removed.
     5. `freeCollateral(collateralType)`:
-        - remove collateral from the caller's CDP
+        - remove collateral from the caller's SAFE
         - owner can call as needed
     After the processing period has elapsed, we enable calculation of
     the final price for each collateral type.
     6. `setOutstandingCoinSupply()`:
        - only callable after processing time period elapsed
-       - assumption that all under-collateralised CDPs are processed
+       - assumption that all under-collateralised SAFEs are processed
        - fixes the total outstanding supply of coin
-       - may also require extra CDP processing to cover system surplus
+       - may also require extra SAFE processing to cover system surplus
     7. `calculateCashPrice(collateralType)`:
         - calculate `collateralCashPrice`
         - adjusts `collateralCashPrice` in the case of deficit / surplus
@@ -142,7 +142,7 @@ abstract contract OracleRelayerLike {
     8. `prepareCoinsForRedeeming(coinAmount)`:
         - put some coins into a bag in order to 'redeemCollateral'. The bigger the bag, the more collateral the user can claim.
     9. `redeemCollateral(collateralType, collateralAmount)`:
-        - exchange some coin from your bag for gems from a specific collateral type
+        - exchange some coin from your bag for tokens from a specific collateral type
         - the amount of collateral available to redeem is limited by how big your bag is
 */
 
@@ -163,7 +163,7 @@ contract GlobalSettlement {
     }
 
     // --- Data ---
-    CDPEngineLike            public cdpEngine;
+    SAFEEngineLike            public safeEngine;
     LiquidationEngineLike    public liquidationEngine;
     AccountingEngineLike     public accountingEngine;
     OracleRelayerLike        public oracleRelayer;
@@ -173,12 +173,12 @@ contract GlobalSettlement {
     uint256  public contractEnabled;
     uint256  public shutdownTime;
     uint256  public shutdownCooldown;
-    uint256  public outstandingCoinSupply; // [rad]
+    uint256  public outstandingCoinSupply;                                      // [rad]
 
-    mapping (bytes32 => uint256) public finalCoinPerCollateralPrice;   // [ray]
-    mapping (bytes32 => uint256) public collateralShortfall;           // [wad]
-    mapping (bytes32 => uint256) public collateralTotalDebt;           // [wad]
-    mapping (bytes32 => uint256) public collateralCashPrice;           // [ray]
+    mapping (bytes32 => uint256) public finalCoinPerCollateralPrice;            // [ray]
+    mapping (bytes32 => uint256) public collateralShortfall;                    // [wad]
+    mapping (bytes32 => uint256) public collateralTotalDebt;                    // [wad]
+    mapping (bytes32 => uint256) public collateralCashPrice;                    // [ray]
 
     mapping (address => uint256)                      public coinBag;           // [wad]
     mapping (bytes32 => mapping (address => uint256)) public coinsUsedToRedeem; // [wad]
@@ -191,7 +191,7 @@ contract GlobalSettlement {
     event ShutdownSystem();
     event FreezeCollateralType(bytes32 collateralType, uint finalCoinPerCollateralPrice);
     event FastTrackAuction(bytes32 collateralType, uint256 auctionId, uint256 collateralTotalDebt);
-    event ProcessCDP(bytes32 collateralType, address cdp, uint256 collateralShortfall);
+    event ProcessSAFE(bytes32 collateralType, address safe, uint256 collateralShortfall);
     event FreeCollateral(bytes32 collateralType, address sender, int collateralAmount);
     event SetOutstandingCoinSupply(uint256 outstandingCoinSupply);
     event CalculateCashPrice(bytes32 collateralType, uint collateralCashPrice);
@@ -234,7 +234,7 @@ contract GlobalSettlement {
     // --- Administration ---
     function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         require(contractEnabled == 1, "GlobalSettlement/contract-not-enabled");
-        if (parameter == "cdpEngine") cdpEngine = CDPEngineLike(data);
+        if (parameter == "safeEngine") safeEngine = SAFEEngineLike(data);
         else if (parameter == "liquidationEngine") liquidationEngine = LiquidationEngineLike(data);
         else if (parameter == "accountingEngine") accountingEngine = AccountingEngineLike(data);
         else if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
@@ -255,7 +255,7 @@ contract GlobalSettlement {
         require(contractEnabled == 1, "GlobalSettlement/contract-not-enabled");
         contractEnabled = 0;
         shutdownTime = now;
-        cdpEngine.disableContract();
+        safeEngine.disableContract();
         liquidationEngine.disableContract();
         // treasury must be disabled before AccountingEngine so that all surplus is gathered in one place
         if (address(stabilityFeeTreasury) != address(0)) {
@@ -272,7 +272,7 @@ contract GlobalSettlement {
     function freezeCollateralType(bytes32 collateralType) external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         require(finalCoinPerCollateralPrice[collateralType] == 0, "GlobalSettlement/final-collateral-price-already-defined");
-        (collateralTotalDebt[collateralType],,,,,) = cdpEngine.collateralTypes(collateralType);
+        (collateralTotalDebt[collateralType],,,,,) = safeEngine.collateralTypes(collateralType);
         (OracleLike orcl,,) = oracleRelayer.collateralTypes(collateralType);
         // redemptionPrice is a ray, orcl returns a wad
         finalCoinPerCollateralPrice[collateralType] = wdivide(oracleRelayer.redemptionPrice(), uint(orcl.read()));
@@ -283,76 +283,76 @@ contract GlobalSettlement {
 
         (address auctionHouse_,,) = liquidationEngine.collateralTypes(collateralType);
         CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
-        (, uint accumulatedRate,,,,) = cdpEngine.collateralTypes(collateralType);
+        (, uint accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
 
         uint bidAmount                    = collateralAuctionHouse.bidAmount(auctionId);
         uint collateralToSell             = collateralAuctionHouse.remainingAmountToSell(auctionId);
         address forgoneCollateralReceiver = collateralAuctionHouse.forgoneCollateralReceiver(auctionId);
         uint amountToRaise                = collateralAuctionHouse.amountToRaise(auctionId);
 
-        cdpEngine.createUnbackedDebt(address(accountingEngine), address(accountingEngine), amountToRaise);
-        cdpEngine.createUnbackedDebt(address(accountingEngine), address(this), bidAmount);
-        cdpEngine.approveCDPModification(address(collateralAuctionHouse));
+        safeEngine.createUnbackedDebt(address(accountingEngine), address(accountingEngine), amountToRaise);
+        safeEngine.createUnbackedDebt(address(accountingEngine), address(this), bidAmount);
+        safeEngine.approveSAFEModification(address(collateralAuctionHouse));
         collateralAuctionHouse.terminateAuctionPrematurely(auctionId);
 
         uint debt_ = amountToRaise / accumulatedRate;
         collateralTotalDebt[collateralType] = addition(collateralTotalDebt[collateralType], debt_);
         require(int(collateralToSell) >= 0 && int(debt_) >= 0, "GlobalSettlement/overflow");
-        cdpEngine.confiscateCDPCollateralAndDebt(collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int(collateralToSell), int(debt_));
+        safeEngine.confiscateSAFECollateralAndDebt(collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int(collateralToSell), int(debt_));
         emit FastTrackAuction(collateralType, auctionId, collateralTotalDebt[collateralType]);
     }
-    function processCDP(bytes32 collateralType, address cdp) external {
+    function processSAFE(bytes32 collateralType, address safe) external {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
-        (, uint accumulatedRate,,,,) = cdpEngine.collateralTypes(collateralType);
-        (uint cdpCollateral, uint cdpDebt) = cdpEngine.cdps(collateralType, cdp);
+        (, uint accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
+        (uint safeCollateral, uint safeDebt) = safeEngine.safes(collateralType, safe);
 
-        uint amountOwed = rmultiply(rmultiply(cdpDebt, accumulatedRate), finalCoinPerCollateralPrice[collateralType]);
-        uint minCollateral = minimum(cdpCollateral, amountOwed);
+        uint amountOwed = rmultiply(rmultiply(safeDebt, accumulatedRate), finalCoinPerCollateralPrice[collateralType]);
+        uint minCollateral = minimum(safeCollateral, amountOwed);
         collateralShortfall[collateralType] = addition(
             collateralShortfall[collateralType],
             subtract(amountOwed, minCollateral)
         );
 
-        require(minCollateral <= 2**255 && cdpDebt <= 2**255, "GlobalSettlement/overflow");
-        cdpEngine.confiscateCDPCollateralAndDebt(
+        require(minCollateral <= 2**255 && safeDebt <= 2**255, "GlobalSettlement/overflow");
+        safeEngine.confiscateSAFECollateralAndDebt(
             collateralType,
-            cdp,
+            safe,
             address(this),
             address(accountingEngine),
             -int(minCollateral),
-            -int(cdpDebt)
+            -int(safeDebt)
         );
 
-        emit ProcessCDP(collateralType, cdp, collateralShortfall[collateralType]);
+        emit ProcessSAFE(collateralType, safe, collateralShortfall[collateralType]);
     }
     function freeCollateral(bytes32 collateralType) external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
-        (uint cdpCollateral, uint cdpDebt) = cdpEngine.cdps(collateralType, msg.sender);
-        require(cdpDebt == 0, "GlobalSettlement/art-not-zero");
-        require(cdpCollateral <= 2**255, "GlobalSettlement/overflow");
-        cdpEngine.confiscateCDPCollateralAndDebt(
+        (uint safeCollateral, uint safeDebt) = safeEngine.safes(collateralType, msg.sender);
+        require(safeDebt == 0, "GlobalSettlement/art-not-zero");
+        require(safeCollateral <= 2**255, "GlobalSettlement/overflow");
+        safeEngine.confiscateSAFECollateralAndDebt(
           collateralType,
           msg.sender,
           msg.sender,
           address(accountingEngine),
-          -int(cdpCollateral),
+          -int(safeCollateral),
           0
         );
-        emit FreeCollateral(collateralType, msg.sender, -int(cdpCollateral));
+        emit FreeCollateral(collateralType, msg.sender, -int(safeCollateral));
     }
     function setOutstandingCoinSupply() external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         require(outstandingCoinSupply == 0, "GlobalSettlement/outstanding-coin-supply-not-zero");
-        require(cdpEngine.coinBalance(address(accountingEngine)) == 0, "GlobalSettlement/surplus-not-zero");
+        require(safeEngine.coinBalance(address(accountingEngine)) == 0, "GlobalSettlement/surplus-not-zero");
         require(now >= addition(shutdownTime, shutdownCooldown), "GlobalSettlement/shutdown-cooldown-not-finished");
-        outstandingCoinSupply = cdpEngine.globalDebt();
+        outstandingCoinSupply = safeEngine.globalDebt();
         emit SetOutstandingCoinSupply(outstandingCoinSupply);
     }
     function calculateCashPrice(bytes32 collateralType) external {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
         require(collateralCashPrice[collateralType] == 0, "GlobalSettlement/collateral-cash-price-already-defined");
 
-        (, uint accumulatedRate,,,,) = cdpEngine.collateralTypes(collateralType);
+        (, uint accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
         uint256 redemptionAdjustedDebt = rmultiply(
           rmultiply(collateralTotalDebt[collateralType], accumulatedRate), finalCoinPerCollateralPrice[collateralType]
         );
@@ -363,14 +363,14 @@ contract GlobalSettlement {
     }
     function prepareCoinsForRedeeming(uint256 coinAmount) external {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
-        cdpEngine.transferInternalCoins(msg.sender, address(accountingEngine), multiply(coinAmount, RAY));
+        safeEngine.transferInternalCoins(msg.sender, address(accountingEngine), multiply(coinAmount, RAY));
         coinBag[msg.sender] = addition(coinBag[msg.sender], coinAmount);
         emit PrepareCoinsForRedeeming(msg.sender, coinBag[msg.sender]);
     }
     function redeemCollateral(bytes32 collateralType, uint coinsAmount) external {
         require(collateralCashPrice[collateralType] != 0, "GlobalSettlement/collateral-cash-price-not-defined");
         uint collateralAmount = rmultiply(coinsAmount, collateralCashPrice[collateralType]);
-        cdpEngine.transferCollateral(
+        safeEngine.transferCollateral(
           collateralType,
           address(this),
           msg.sender,

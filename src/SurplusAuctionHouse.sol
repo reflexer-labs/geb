@@ -17,11 +17,11 @@
 
 pragma solidity ^0.6.7;
 
-abstract contract CDPEngineLike {
+abstract contract SAFEEngineLike {
     function transferInternalCoins(address,address,uint) virtual external;
     function coinBalance(address) virtual external view returns (uint);
-    function approveCDPModification(address) virtual external;
-    function denyCDPModification(address) virtual external;
+    function approveSAFEModification(address) virtual external;
+    function denySAFEModification(address) virtual external;
 }
 abstract contract TokenLike {
     function approve(address, uint) virtual public returns (bool);
@@ -64,32 +64,32 @@ contract PreSettlementSurplusAuctionHouse {
     // --- Data ---
     struct Bid {
         // Bid size (how many protocol tokens are offered per system coins sold)
-        uint256 bidAmount; // [rad]
+        uint256 bidAmount;                                                            // [rad]
         // How many system coins are sold in an auction
-        uint256 amountToSell; // [wad]
+        uint256 amountToSell;                                                         // [wad]
         // Who the high bidder is
         address highBidder;
         // When the latest bid expires and the auction can be settled
-        uint48  bidExpiry; // [unix epoch time]
+        uint48  bidExpiry;                                                            // [unix epoch time]
         // Hard deadline for the auction after which no more bids can be placed
-        uint48  auctionDeadline; // [unix epoch time]
+        uint48  auctionDeadline;                                                      // [unix epoch time]
     }
 
     // Bid data for each separate auction
     mapping (uint => Bid) public bids;
 
-    // CDP database
-    CDPEngineLike        public cdpEngine;
+    // SAFE database
+    SAFEEngineLike        public safeEngine;
     // Protocol token address
     TokenLike            public protocolToken;
 
-    uint256  constant ONE = 1.00E18; // [wad]
+    uint256  constant ONE = 1.00E18;                                                  // [wad]
     // Minimum bid increase compared to the last bid in order to take the new one in consideration
-    uint256  public   bidIncrease = 1.05E18; // [wad]
+    uint256  public   bidIncrease = 1.05E18;                                          // [wad]
     // How long the auction lasts after a new bid is submitted
-    uint48   public   bidDuration = 3 hours; // [seconds]
+    uint48   public   bidDuration = 3 hours;                                          // [seconds]
     // Total length of the auction
-    uint48   public   totalAuctionLength = 2 days; // [seconds]
+    uint48   public   totalAuctionLength = 2 days;                                    // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // Whether the contract is settled or not
@@ -115,9 +115,9 @@ contract PreSettlementSurplusAuctionHouse {
     event TerminateAuctionPrematurely(uint id, address sender, address highBidder, uint bidAmount);
 
     // --- Init ---
-    constructor(address cdpEngine_, address protocolToken_) public {
+    constructor(address safeEngine_, address protocolToken_) public {
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine = CDPEngineLike(cdpEngine_);
+        safeEngine = SAFEEngineLike(safeEngine_);
         protocolToken = TokenLike(protocolToken_);
         contractEnabled = 1;
         emit AddAuthorization(msg.sender);
@@ -148,8 +148,8 @@ contract PreSettlementSurplusAuctionHouse {
     // --- Auction ---
     /**
      * @notice Start a new surplus auction
-     * @param amountToSell Total amount of system coins to sell [wad]
-     * @param initialBid Initial protocol token bid [rad]
+     * @param amountToSell Total amount of system coins to sell (wad)
+     * @param initialBid Initial protocol token bid (rad)
      */
     function startAuction(uint amountToSell, uint initialBid) external isAuthorized returns (uint id) {
         require(contractEnabled == 1, "PreSettlementSurplusAuctionHouse/contract-not-enabled");
@@ -161,7 +161,7 @@ contract PreSettlementSurplusAuctionHouse {
         bids[id].highBidder = msg.sender;
         bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
 
-        cdpEngine.transferInternalCoins(msg.sender, address(this), amountToSell);
+        safeEngine.transferInternalCoins(msg.sender, address(this), amountToSell);
 
         emit StartAuction(id, auctionsStarted, amountToSell, initialBid, bids[id].auctionDeadline);
     }
@@ -178,8 +178,8 @@ contract PreSettlementSurplusAuctionHouse {
     /**
      * @notice Submit a higher protocol token bid for the same amount of system coins
      * @param id ID of the auction you want to submit the bid for
-     * @param amountToBuy Amount of system coins to buy [wad]
-     * @param bid New bid submitted [rad]
+     * @param amountToBuy Amount of system coins to buy (wad)
+     * @param bid New bid submitted (rad)
      */
     function increaseBidSize(uint id, uint amountToBuy, uint bid) external {
         require(contractEnabled == 1, "PreSettlementSurplusAuctionHouse/contract-not-enabled");
@@ -209,7 +209,7 @@ contract PreSettlementSurplusAuctionHouse {
     function settleAuction(uint id) external {
         require(contractEnabled == 1, "PreSettlementSurplusAuctionHouse/contract-not-enabled");
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "PreSettlementSurplusAuctionHouse/not-finished");
-        cdpEngine.transferInternalCoins(address(this), bids[id].highBidder, bids[id].amountToSell);
+        safeEngine.transferInternalCoins(address(this), bids[id].highBidder, bids[id].amountToSell);
         protocolToken.burn(address(this), bids[id].bidAmount);
         delete bids[id];
         emit SettleAuction(id);
@@ -219,7 +219,7 @@ contract PreSettlementSurplusAuctionHouse {
     **/
     function disableContract() external isAuthorized {
         contractEnabled = 0;
-        cdpEngine.transferInternalCoins(address(this), msg.sender, cdpEngine.coinBalance(address(this)));
+        safeEngine.transferInternalCoins(address(this), msg.sender, safeEngine.coinBalance(address(this)));
         emit DisableContract();
     }
     /**
@@ -265,32 +265,32 @@ contract PostSettlementSurplusAuctionHouse {
     // --- Data ---
     struct Bid {
         // Bid size (how many protocol tokens are offered per system coins sold)
-        uint256 bidAmount; // [rad]
+        uint256 bidAmount;                                                        // [rad]
         // How many system coins are sold in an auction
-        uint256 amountToSell; // [wad]
+        uint256 amountToSell;                                                     // [wad]
         // Who the high bidder is
         address highBidder;
         // When the latest bid expires and the auction can be settled
-        uint48  bidExpiry; // [unix epoch time]
+        uint48  bidExpiry;                                                        // [unix epoch time]
         // Hard deadline for the auction after which no more bids can be placed
-        uint48  auctionDeadline; // [unix epoch time]
+        uint48  auctionDeadline;                                                  // [unix epoch time]
     }
 
     // Bid data for each separate auction
     mapping (uint => Bid) public bids;
 
-    // CDP database
-    CDPEngineLike        public cdpEngine;
+    // SAFE database
+    SAFEEngineLike        public safeEngine;
     // Protocol token address
     TokenLike            public protocolToken;
 
-    uint256  constant ONE = 1.00E18; // [wad]
+    uint256  constant ONE = 1.00E18;                                              // [wad]
     // Minimum bid increase compared to the last bid in order to take the new one in consideration
-    uint256  public   bidIncrease = 1.05E18; // [wad]
+    uint256  public   bidIncrease = 1.05E18;                                      // [wad]
     // How long the auction lasts after a new bid is submitted
-    uint48   public   bidDuration = 3 hours;  // [seconds]
+    uint48   public   bidDuration = 3 hours;                                      // [seconds]
     // Total length of the auction
-    uint48   public   totalAuctionLength = 2 days; // [seconds]
+    uint48   public   totalAuctionLength = 2 days;                                // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
 
@@ -312,9 +312,9 @@ contract PostSettlementSurplusAuctionHouse {
     event SettleAuction(uint id);
 
     // --- Init ---
-    constructor(address cdpEngine_, address protocolToken_) public {
+    constructor(address safeEngine_, address protocolToken_) public {
         authorizedAccounts[msg.sender] = 1;
-        cdpEngine = CDPEngineLike(cdpEngine_);
+        safeEngine = SAFEEngineLike(safeEngine_);
         protocolToken = TokenLike(protocolToken_);
         emit AddAuthorization(msg.sender);
     }
@@ -344,8 +344,8 @@ contract PostSettlementSurplusAuctionHouse {
     // --- Auction ---
     /**
      * @notice Start a new surplus auction
-     * @param amountToSell Total amount of system coins to sell [wad]
-     * @param initialBid Initial protocol token bid [rad]
+     * @param amountToSell Total amount of system coins to sell (wad)
+     * @param initialBid Initial protocol token bid (rad)
      */
     function startAuction(uint amountToSell, uint initialBid) external isAuthorized returns (uint id) {
         require(auctionsStarted < uint(-1), "PostSettlementSurplusAuctionHouse/overflow");
@@ -356,7 +356,7 @@ contract PostSettlementSurplusAuctionHouse {
         bids[id].highBidder = msg.sender;
         bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
 
-        cdpEngine.transferInternalCoins(msg.sender, address(this), amountToSell);
+        safeEngine.transferInternalCoins(msg.sender, address(this), amountToSell);
 
         emit StartAuction(id, auctionsStarted, amountToSell, initialBid, bids[id].auctionDeadline);
     }
@@ -373,8 +373,8 @@ contract PostSettlementSurplusAuctionHouse {
     /**
      * @notice Submit a higher protocol token bid for the same amount of system coins
      * @param id ID of the auction you want to submit the bid for
-     * @param amountToBuy Amount of system coins to buy [wad]
-     * @param bid New bid submitted [rad]
+     * @param amountToBuy Amount of system coins to buy (wad)
+     * @param bid New bid submitted (rad)
      */
     function increaseBidSize(uint id, uint amountToBuy, uint bid) external {
         require(bids[id].highBidder != address(0), "PostSettlementSurplusAuctionHouse/high-bidder-not-set");
@@ -402,7 +402,7 @@ contract PostSettlementSurplusAuctionHouse {
      */
     function settleAuction(uint id) external {
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "PostSettlementSurplusAuctionHouse/not-finished");
-        cdpEngine.transferInternalCoins(address(this), bids[id].highBidder, bids[id].amountToSell);
+        safeEngine.transferInternalCoins(address(this), bids[id].highBidder, bids[id].amountToSell);
         protocolToken.burn(address(this), bids[id].bidAmount);
         delete bids[id];
         emit SettleAuction(id);
