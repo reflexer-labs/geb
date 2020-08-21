@@ -109,7 +109,7 @@ contract LiquidationEngine {
         // Penalty applied to every liquidation involving this collateral type. Discourages SAFE users from bidding on their own SAFEs
         uint256 liquidationPenalty;                                                                                                   // [ray]
         // Max amount of collateral to sell in one auction
-        uint256 collateralToSell;                                                                                                     // [wad]
+        uint256 collateralToSell;                                                                                                     // [rad]
     }
 
     // Collateral types included in the system
@@ -172,7 +172,8 @@ contract LiquidationEngine {
     }
 
     // --- Math ---
-    uint constant RAY = 10 ** 27;
+    uint256 constant RAY = 10 ** 27;
+    uint256 constant MAX_COLLATERAL_TO_SELL = uint256(-1) / RAY;
 
     function multiply(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
@@ -212,7 +213,10 @@ contract LiquidationEngine {
         uint data
     ) external isAuthorized {
         if (parameter == "liquidationPenalty") collateralTypes[collateralType].liquidationPenalty = data;
-        else if (parameter == "collateralToSell") collateralTypes[collateralType].collateralToSell = data;
+        else if (parameter == "collateralToSell") {
+          require(data <= MAX_COLLATERAL_TO_SELL, "LiquidationEngine/collateral-to-sell-overflow");
+          collateralTypes[collateralType].collateralToSell = data;
+        }
         else revert("LiquidationEngine/modify-unrecognized-param");
         emit ModifyParameters(
           collateralType,
@@ -306,25 +310,32 @@ contract LiquidationEngine {
         (safeCollateral, safeDebt) = safeEngine.safes(collateralType, safe);
 
         if (both(liquidationPrice > 0, multiply(safeCollateral, liquidationPrice) < multiply(safeDebt, accumulatedRate))) {
-          uint collateralToSell = minimum(safeCollateral, collateralTypes[collateralType].collateralToSell);
-          safeDebt               = minimum(safeDebt, multiply(collateralToSell, safeDebt) / safeCollateral);
+          CollateralType memory collateralData = collateralTypes[collateralType];
 
-          require(collateralToSell <= 2**255 && safeDebt <= 2**255, "LiquidationEngine/overflow");
+          uint limitAdjustedDebt = minimum(
+            safeDebt,
+            multiply(collateralData.collateralToSell, RAY) / accumulatedRate / collateralData.liquidationPenalty
+          );
+          uint collateralToSell = minimum(safeCollateral, multiply(safeCollateral, limitAdjustedDebt) / safeDebt);
+
+          require(collateralToSell <= 2**255 && limitAdjustedDebt <= 2**255, "LiquidationEngine/collateral-or-debt-overflow");
           safeEngine.confiscateSAFECollateralAndDebt(
-            collateralType, safe, address(this), address(accountingEngine), -int(collateralToSell), -int(safeDebt)
+            collateralType, safe, address(this), address(accountingEngine), -int(collateralToSell), -int(limitAdjustedDebt)
           );
 
-          accountingEngine.pushDebtToQueue(multiply(safeDebt, accumulatedRate));
+          accountingEngine.pushDebtToQueue(multiply(limitAdjustedDebt, accumulatedRate));
 
-          auctionId = CollateralAuctionHouseLike(collateralTypes[collateralType].collateralAuctionHouse).startAuction(
+          uint amountToRaise_ = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / RAY;
+
+          auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
             { forgoneCollateralReceiver: safe
             , initialBidder: address(accountingEngine)
-            , amountToRaise: rmultiply(multiply(safeDebt, accumulatedRate), collateralTypes[collateralType].liquidationPenalty)
+            , amountToRaise: amountToRaise_
             , collateralToSell: collateralToSell
             , initialBid: 0
            });
 
-          emit Liquidate(collateralType, safe, collateralToSell, safeDebt, multiply(safeDebt, accumulatedRate), collateralTypes[collateralType].collateralAuctionHouse, auctionId);
+          emit Liquidate(collateralType, safe, collateralToSell, limitAdjustedDebt, multiply(limitAdjustedDebt, accumulatedRate), collateralData.collateralAuctionHouse, auctionId);
         }
 
         mutex[collateralType][safe] = 0;
