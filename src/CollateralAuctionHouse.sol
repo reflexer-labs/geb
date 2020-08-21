@@ -194,6 +194,7 @@ contract EnglishCollateralAuctionHouse {
     ) public isAuthorized returns (uint id)
     {
         require(auctionsStarted < uint(-1), "EnglishCollateralAuctionHouse/overflow");
+        require(amountToSell > 0, "EnglishCollateralAuctionHouse/null-amount-sold");
         id = ++auctionsStarted;
 
         bids[id].bidAmount = initialBid;

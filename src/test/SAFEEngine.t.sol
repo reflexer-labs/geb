@@ -17,6 +17,7 @@ import {PostSettlementSurplusAuctionHouse} from './SurplusAuctionHouse.t.sol';
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
+    function store(address,bytes32,bytes32) virtual external;
 }
 
 contract Feed {
@@ -667,145 +668,196 @@ contract LiquidationTest is DSTest {
         me = address(this);
     }
 
-    function test_liquidate_under_collateral_to_sell_threshold() public {
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(10 ether));
-        safeEngine.modifySAFECollateralization("gold", me, me, me, 40 ether, 100 ether);
+    function test_set_collateral_to_sell() public {
+        liquidationEngine.modifyParameters("gold", "collateralToSell", rad(115792 ether));
+        (,, uint256 collateralToSell) = liquidationEngine.collateralTypes("gold");
+        assertEq(collateralToSell, rad(115792 ether));
+    }
+    function testFail_collateralToSell_too_large() public {
+        liquidationEngine.modifyParameters("gold", "collateralToSell", uint256(-1) / 10 ** 27 + 1);
+    }
+    function test_liquidate_max_collateralToSell() public {
+        uint256 MAX_COLLATERAL_TO_SELL = uint256(-1) / 10 ** 27;
+        liquidationEngine.modifyParameters("gold", "collateralToSell", MAX_COLLATERAL_TO_SELL);
 
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
-        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
+        safeEngine.modifyParameters("globalDebtCeiling", rad(300000 ether));
+        safeEngine.modifyParameters("gold", "debtCeiling", rad(300000 ether));
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(205 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(205 ether));
+        safeEngine.modifySAFECollateralization("gold", me, me, me, 1000 ether, 200000 ether);
 
-        liquidationEngine.modifyParameters("gold", "collateralToSell", 50 ether);
-        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2 ether));      // now unsafe
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));
 
         uint auction = liquidationEngine.liquidateSAFE("gold", address(this));
-        // the full SAFE is liquidated
-        assertEq(lockedCollateral("gold", address(this)), 0);
-        assertEq(generatedDebt("gold", address(this)), 0);
-        // all debt goes to the accounting engine
-        assertEq(accountingEngine.totalDeficit(), rad(100 ether));
-        // auction is for all collateral
-        (, uint lot,,,,,, uint tab) = EnglishCollateralAuctionHouseLike(address(collateralAuctionHouse)).bids(auction);
-        assertEq(lot,        40 ether);
-        assertEq(tab,   rad(110 ether));
+        (,,,,,,, uint256 amountToRaise) = collateralAuctionHouse.bids(auction);
+        assertEq(amountToRaise, MAX_COLLATERAL_TO_SELL / 10 ** 27 * 10 ** 27);
     }
-    function test_liquidate_over_collateral_to_sell_threshold() public {
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
-        safeEngine.modifySAFECollateralization("gold", me, me, me, 40 ether, 100 ether);
-        // tag=4, mat=2
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
-        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
+    function testFail_liquidate_forced_over_max_collateralToSell() public {
+        uint256 MAX_COLLATERAL_TO_SELL = uint256(-1) / 10 ** 27;
+        hevm.store(
+            address(liquidationEngine),
+            bytes32(uint256(keccak256(abi.encode(bytes32("gold"), uint256(1)))) + 2),
+            bytes32(MAX_COLLATERAL_TO_SELL + 1)
+        );
 
-        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
-        liquidationEngine.modifyParameters("gold", "collateralToSell", 30 ether);
+        safeEngine.modifyParameters("globalDebtCeiling", rad(300000 ether));
+        safeEngine.modifyParameters("gold", "debtCeiling", rad(300000 ether));
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(205 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(205 ether));
+        safeEngine.modifySAFECollateralization("gold", me, me, me, 1000 ether, 200000 ether);
+
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2 ether));      // now unsafe
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));
 
         uint auction = liquidationEngine.liquidateSAFE("gold", address(this));
-        // the SAFE is partially liquidated
-        assertEq(lockedCollateral("gold", address(this)), 10 ether);
-        assertEq(generatedDebt("gold", address(this)), 25 ether);
-        // a fraction of the debt goes to the accounting engine
-        assertEq(accountingEngine.totalDeficit(), rad(75 ether));
-        // auction is for a fraction of the collateral
-        (, uint lot,,,,,, uint tab) = EnglishCollateralAuctionHouseLike(address(collateralAuctionHouse)).bids(auction);
-        assertEq(lot,       30 ether);
-        assertEq(tab,   rad(82.5 ether));
+        assertEq(auction, 1);
     }
-
-    function test_liquidate_safetyPrice_when_liquidation_price_set() public {
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
-        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(10 ether));
+    function test_liquidate_under_collateralToSell() public {
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2.5 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2.5 ether));
 
         safeEngine.modifySAFECollateralization("gold", me, me, me, 40 ether, 100 ether);
 
         safeEngine.modifyParameters("gold", 'safetyPrice', ray(2 ether));
-        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(4 ether));
-
-        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
-        liquidationEngine.modifyParameters("gold", "collateralToSell", 30 ether);
-
-        assertTrue(!try_liquidate("gold", address(this)));
-
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
         safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));
 
-        assertTrue(try_liquidate("gold", address(this)));
-    }
+        liquidationEngine.modifyParameters("gold", "collateralToSell", rad(111 ether));
+        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
 
-    function test_happy_liquidateSAFE() public {
-        // safetyPrice = tag / (par . mat)
-        // tag=5, mat=2
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
+        uint auction = liquidationEngine.liquidateSAFE("gold", address(this));
+        // the full SAFE is liquidated
+        (uint lockedCollateral, uint generatedDebt) = safeEngine.safes("gold", address(this));
+        assertEq(lockedCollateral, 0);
+        assertEq(generatedDebt, 0);
+        // all debt goes to the accounting engine
+        assertEq(accountingEngine.totalQueuedDebt(), rad(100 ether));
+        // auction is for all collateral
+        (,uint amountToSell,,,,,, uint256 amountToRaise) = collateralAuctionHouse.bids(auction);
+        assertEq(amountToSell, 40 ether);
+        assertEq(amountToRaise, rad(110 ether));
+    }
+    function test_liquidate_over_collateralToSell() public {
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2.5 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2.5 ether));
+
         safeEngine.modifySAFECollateralization("gold", me, me, me, 40 ether, 100 ether);
 
-        // tag=4, mat=2
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
-        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));
 
-        assertEq(lockedCollateral("gold", address(this)),  40 ether);
-        assertEq(generatedDebt("gold", address(this)), 100 ether);
-        assertEq(accountingEngine.preAuctionDebt(), 0 ether);
-        assertEq(tokenCollateral("gold", address(this)), 960 ether);
+        liquidationEngine.modifyParameters("gold", "collateralToSell", rad(82.5 ether));
+        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
 
-        liquidationEngine.modifyParameters("gold", "collateralToSell", 100 ether);  // => liquidate everything
         uint auction = liquidationEngine.liquidateSAFE("gold", address(this));
-        assertEq(lockedCollateral("gold", address(this)), 0);
-        assertEq(generatedDebt("gold", address(this)), 0);
+        // the SAFE is partially liquidated
+        (uint lockedCollateral, uint generatedDebt) = safeEngine.safes("gold", address(this));
+        assertEq(lockedCollateral, 10 ether);
+        assertEq(generatedDebt, 25 ether);
+        // all debt goes to the accounting engine
+        assertEq(accountingEngine.totalQueuedDebt(), rad(75 ether));
+        // auction is for all collateral
+        (,uint amountToSell,,,,,, uint256 amountToRaise) = collateralAuctionHouse.bids(auction);
+        assertEq(amountToSell, 30 ether);
+        assertEq(amountToRaise, rad(82.5 ether));
+    }
+    function test_liquidate_happy_safe() public {
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2.5 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2.5 ether));
+
+        safeEngine.modifySAFECollateralization("gold", me, me, me, 40 ether, 100 ether);
+
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));
+
+        (uint lockedCollateral, uint generatedDebt) = safeEngine.safes("gold", address(this));
+        assertEq(lockedCollateral, 40 ether);
+        assertEq(generatedDebt, 100 ether);
+        assertEq(accountingEngine.totalQueuedDebt(), 0);
+        assertEq(safeEngine.tokenCollateral("gold", address(this)), 960 ether);
+
+        liquidationEngine.modifyParameters("gold", "collateralToSell", rad(200 ether));  // => liquidate everything
+        uint auction = liquidationEngine.liquidateSAFE("gold", address(this));
+        (lockedCollateral, generatedDebt) = safeEngine.safes("gold", address(this));
+        assertEq(lockedCollateral, 0);
+        assertEq(generatedDebt, 0);
         assertEq(accountingEngine.debtQueue(now), rad(100 ether));
-        assertEq(tokenCollateral("gold", address(this)), 960 ether);
+        assertEq(safeEngine.tokenCollateral("gold", address(this)), 960 ether);
 
         assertEq(safeEngine.coinBalance(address(accountingEngine)), 0 ether);
         collateralAuctionHouse.increaseBidSize(auction, 40 ether, rad(1 ether));
         collateralAuctionHouse.increaseBidSize(auction, 40 ether, rad(100 ether));
 
         assertEq(safeEngine.coinBalance(address(this)), 0 ether);
-        assertEq(tokenCollateral("gold", address(this)), 960 ether);
-        safeEngine.mint(address(this), 100 ether);  // magically mint some coins for bidding
-        collateralAuctionHouse.decreaseSoldAmount(auction, 38 ether,  rad(100 ether));
-        assertEq(safeEngine.balanceOf(address(this)), 100 ether);
-        assertEq(tokenCollateral("gold", address(this)), 962 ether);
-        assertEq(tokenCollateral("gold", address(this)), 962 ether);
+        assertEq(safeEngine.tokenCollateral("gold", address(this)), 960 ether);
+
+        safeEngine.mint(address(this), 100 ether);  // magic up some system coins for bidding
+        collateralAuctionHouse.decreaseSoldAmount(auction, 38 ether, rad(100 ether));
+        assertEq(safeEngine.coinBalance(address(accountingEngine)), rad(100 ether));
+        assertEq(safeEngine.tokenCollateral("gold", address(this)), 962 ether);
         assertEq(accountingEngine.debtQueue(now), rad(100 ether));
 
         hevm.warp(now + 4 hours);
         collateralAuctionHouse.settleAuction(auction);
-        assertEq(safeEngine.balanceOf(address(accountingEngine)),  100 ether);
+        assertEq(safeEngine.coinBalance(address(accountingEngine)), rad(100 ether));
     }
+    function test_liquidate_when_system_deficit() public {
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2.5 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2.5 ether));
 
-    function test_debt_auctioned_liquidateSAFE() public {
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(5 ether));
         safeEngine.modifySAFECollateralization("gold", me, me, me, 40 ether, 100 ether);
-        safeEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
-        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));  // now unsafe
 
-        liquidationEngine.modifyParameters("gold", "collateralToSell", 100 ether);  // => liquidate everything
-        assertEq(accountingEngine.debtQueue(now), rad(  0 ether));
-        liquidationEngine.liquidateSAFE("gold", address(this));
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2 ether));
+
+        liquidationEngine.modifyParameters("gold", "collateralToSell", rad(200 ether));  // => liquidate everything
+        assertEq(accountingEngine.debtQueue(now), rad(0 ether));
+        uint auction = liquidationEngine.liquidateSAFE("gold", address(this));
         assertEq(accountingEngine.debtQueue(now), rad(100 ether));
 
         assertEq(accountingEngine.totalQueuedDebt(), rad(100 ether));
         accountingEngine.popDebtFromQueue(now);
         assertEq(accountingEngine.totalQueuedDebt(), rad(  0 ether));
-        assertEq(accountingEngine.preAuctionDebt(), rad(100 ether));
+        assertEq(accountingEngine.unqueuedUnauctionedDebt(), rad(100 ether));
         assertEq(accountingEngine.totalSurplus(), rad(  0 ether));
         assertEq(accountingEngine.totalOnAuctionDebt(), rad(  0 ether));
 
         accountingEngine.modifyParameters("debtAuctionBidSize", rad(10 ether));
         accountingEngine.modifyParameters("initialDebtAuctionMintedTokens", 2000 ether);
         uint f1 = accountingEngine.auctionDebt();
-        assertEq(debtAuctionHouse.activeDebtAuctions(), f1);
-        assertEq(accountingEngine.preAuctionDebt(), rad(90 ether));
+        assertEq(accountingEngine.unqueuedUnauctionedDebt(),  rad(90 ether));
         assertEq(accountingEngine.totalSurplus(),  rad( 0 ether));
         assertEq(accountingEngine.totalOnAuctionDebt(),  rad(10 ether));
         debtAuctionHouse.decreaseSoldAmount(f1, 1000 ether, rad(10 ether));
-        assertEq(accountingEngine.preAuctionDebt(), rad(90 ether));
-        assertEq(accountingEngine.totalSurplus(), rad( 0 ether));
+        assertEq(accountingEngine.unqueuedUnauctionedDebt(), rad(90 ether));
+        assertEq(accountingEngine.totalSurplus(),  rad( 0 ether));
         assertEq(accountingEngine.totalOnAuctionDebt(), rad( 0 ether));
 
         assertEq(protocolToken.balanceOf(address(this)),  100 ether);
         hevm.warp(now + 4 hours);
         protocolToken.setOwner(address(debtAuctionHouse));
         debtAuctionHouse.settleAuction(f1);
-        assertEq(debtAuctionHouse.activeDebtAuctions(), 0);
         assertEq(protocolToken.balanceOf(address(this)), 1100 ether);
+    }
+    function test_liquidate_when_system_surplus() public {
+        // get some surplus
+        safeEngine.mint(address(accountingEngine), 100 ether);
+        assertEq(safeEngine.coinBalance(address(accountingEngine)),  100 ether);
+        assertEq(protocolToken.balanceOf(address(this)), 100 ether);
+
+        accountingEngine.modifyParameters("bump", rad(100 ether));
+        assertEq(accountingEngine.unqueuedUnauctionedDebt(), 0 ether);
+        assertEq(accountingEngine.totalOnAuctionDebt(), 0 ether);
+        uint id = accountingEngine.auctionSurplus();
+
+        assertEq(safeEngine.coinBalance(address(this)),   0 ether);
+        assertEq(protocolToken.balanceOf(address(this)), 100 ether);
+        surplusAuctionHouse.increaseBidSize(id, rad(100 ether), 10 ether);
+        hevm.warp(now + 4 hours);
+        protocolToken.setOwner(address(surplusAuctionHouse));
+        surplusAuctionHouse.settleAuction(id);
+        assertEq(safeEngine.coinBalance(address(this)), 100 ether);
+        assertEq(protocolToken.balanceOf(address(this)), 90 ether);
     }
 }
 
