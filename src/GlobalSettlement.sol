@@ -43,8 +43,8 @@ abstract contract SAFEEngineLike {
 abstract contract LiquidationEngineLike {
     function collateralTypes(bytes32) virtual public view returns (
         address collateralAuctionHouse,
-        uint256 liquidationPenalty, // [ray]
-        uint256 collateralToSel     // [wad]
+        uint256 liquidationPenalty,     // [wad]
+        uint256 liquidationQuantity     // [rad]
     );
     function disableContract() virtual external;
 }
@@ -281,7 +281,7 @@ contract GlobalSettlement {
     function fastTrackAuction(bytes32 collateralType, uint256 auctionId) external {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
 
-        (address auctionHouse_,,) = liquidationEngine.collateralTypes(collateralType);
+        (address auctionHouse_,,)    = liquidationEngine.collateralTypes(collateralType);
         CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
         (, uint accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
 

@@ -107,14 +107,14 @@ contract LiquidationEngine {
         // Address of the collateral auction house handling liquidations for this collateral type
         address collateralAuctionHouse;
         // Penalty applied to every liquidation involving this collateral type. Discourages SAFE users from bidding on their own SAFEs
-        uint256 liquidationPenalty;                                                                                                   // [ray]
-        // Max amount of collateral to sell in one auction
-        uint256 collateralToSell;                                                                                                     // [rad]
+        uint256 liquidationPenalty;                                                                                                   // [wad]
+        // Max amount of system coins to request in one auction
+        uint256 liquidationQuantity;                                                                                                  // [rad]
     }
 
     // Collateral types included in the system
     mapping (bytes32 => CollateralType)              public collateralTypes;
-    // Saviour contract chosed for each SAFE by its creator
+    // Saviour contract chosen for each SAFE by its creator
     mapping (bytes32 => mapping(address => address)) public chosenSAFESaviour;
     // Mutex used to block against re-entrancy when 'liquidateSAFE' passes execution to a saviour
     mapping (bytes32 => mapping(address => uint8))   public mutex;
@@ -172,8 +172,9 @@ contract LiquidationEngine {
     }
 
     // --- Math ---
+    uint256 constant WAD = 10 ** 18;
     uint256 constant RAY = 10 ** 27;
-    uint256 constant MAX_COLLATERAL_TO_SELL = uint256(-1) / RAY;
+    uint256 constant MAX_LIQUIDATION_QUANTITY = uint256(-1) / RAY;
 
     function multiply(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
@@ -213,9 +214,9 @@ contract LiquidationEngine {
         uint data
     ) external isAuthorized {
         if (parameter == "liquidationPenalty") collateralTypes[collateralType].liquidationPenalty = data;
-        else if (parameter == "collateralToSell") {
-          require(data <= MAX_COLLATERAL_TO_SELL, "LiquidationEngine/collateral-to-sell-overflow");
-          collateralTypes[collateralType].collateralToSell = data;
+        else if (parameter == "liquidationQuantity") {
+          require(data <= MAX_LIQUIDATION_QUANTITY, "LiquidationEngine/collateral-to-sell-overflow");
+          collateralTypes[collateralType].liquidationQuantity = data;
         }
         else revert("LiquidationEngine/modify-unrecognized-param");
         emit ModifyParameters(
@@ -314,7 +315,7 @@ contract LiquidationEngine {
 
           uint limitAdjustedDebt = minimum(
             safeDebt,
-            multiply(collateralData.collateralToSell, RAY) / accumulatedRate / collateralData.liquidationPenalty
+            multiply(collateralData.liquidationQuantity, WAD) / accumulatedRate / collateralData.liquidationPenalty
           );
           uint collateralToSell = minimum(safeCollateral, multiply(safeCollateral, limitAdjustedDebt) / safeDebt);
 
@@ -325,7 +326,7 @@ contract LiquidationEngine {
 
           accountingEngine.pushDebtToQueue(multiply(limitAdjustedDebt, accumulatedRate));
 
-          uint amountToRaise_ = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / RAY;
+          uint amountToRaise_ = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
 
           auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
             { forgoneCollateralReceiver: safe

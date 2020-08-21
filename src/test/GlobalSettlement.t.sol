@@ -235,8 +235,8 @@ contract GlobalSettlementTest is DSTest {
 
         // Start with English auction house
         liquidationEngine.modifyParameters(name, "collateralAuctionHouse", address(englishCollateralAuctionHouse));
-        liquidationEngine.modifyParameters(name, "liquidationPenalty", ray(1 ether));
-        liquidationEngine.modifyParameters(name, "collateralToSell", rad(15 ether));
+        liquidationEngine.modifyParameters(name, "liquidationPenalty", 1 ether);
+        liquidationEngine.modifyParameters(name, "liquidationQuantity", uint(-1) / ray(1 ether));
 
         collateralTypes[name].oracleSecurityModule = oracleOSM;
         collateralTypes[name].collateral = newCollateral;

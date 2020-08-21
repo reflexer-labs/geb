@@ -229,7 +229,7 @@ contract SaveSAFETest is DSTest {
         collateralAuctionHouse.modifyParameters("osm", address(new Feed(uint256(1), true)));
         collateralAuctionHouse.addAuthorization(address(liquidationEngine));
         liquidationEngine.modifyParameters("gold", "collateralAuctionHouse", address(collateralAuctionHouse));
-        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1 ether));
+        liquidationEngine.modifyParameters("gold", "liquidationPenalty", 1 ether);
 
         safeEngine.addAuthorization(address(collateralAuctionHouse));
         safeEngine.addAuthorization(address(surplusAuctionHouse));
@@ -244,9 +244,9 @@ contract SaveSAFETest is DSTest {
     }
 
     function liquidateSAFE() internal {
-        uint256 MAX_COLLATERAL_TO_SELL = uint256(-1) / 10 ** 27;
-        liquidationEngine.modifyParameters("gold", "collateralToSell", MAX_COLLATERAL_TO_SELL);
-        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
+        uint256 MAX_LIQUIDATION_QUANTITY = uint256(-1) / 10 ** 27;
+        liquidationEngine.modifyParameters("gold", "liquidationQuantity", MAX_LIQUIDATION_QUANTITY);
+        liquidationEngine.modifyParameters("gold", "liquidationPenalty", 1.1 ether);
 
         safeEngine.modifyParameters("globalDebtCeiling", rad(300000 ether));
         safeEngine.modifyParameters("gold", "debtCeiling", rad(300000 ether));
@@ -261,9 +261,9 @@ contract SaveSAFETest is DSTest {
         assertEq(auction, 1);
     }
     function liquidateSavedSAFE() internal {
-        uint256 MAX_COLLATERAL_TO_SELL = uint256(-1) / 10 ** 27;
-        liquidationEngine.modifyParameters("gold", "collateralToSell", MAX_COLLATERAL_TO_SELL);
-        liquidationEngine.modifyParameters("gold", "liquidationPenalty", ray(1.1 ether));
+        uint256 MAX_LIQUIDATION_QUANTITY = uint256(-1) / 10 ** 27;
+        liquidationEngine.modifyParameters("gold", "liquidationQuantity", MAX_LIQUIDATION_QUANTITY);
+        liquidationEngine.modifyParameters("gold", "liquidationPenalty", 1.1 ether);
 
         safeEngine.modifyParameters("globalDebtCeiling", rad(300000 ether));
         safeEngine.modifyParameters("gold", "debtCeiling", rad(300000 ether));
