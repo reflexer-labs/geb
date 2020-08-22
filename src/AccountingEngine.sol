@@ -91,18 +91,17 @@ contract AccountingEngine {
       this queue and either settle it with surplus that came from collateral auctions or with debt auctions
       that print protocol tokens
     **/
-    mapping (uint256 => uint256) public debtQueue;
+    mapping (uint256 => uint256) public debtQueue;          // [unix timestamp => rad]
     // Total debt in the queue (that the system tries to cover with collateral auctions)
     uint256 public totalQueuedDebt;                         // [rad]
     // Total debt being auctioned in DebtAuctionHouse (printing protocol tokens for coins that will settle the debt)
     uint256 public totalOnAuctionDebt;                      // [rad]
-
     // When the last surplus auction was triggered; enforces a delay in case we use DEX surplus auctions
-    uint256 public lastSurplusAuctionTime;
+    uint256 public lastSurplusAuctionTime;                  // [unix timestamp]
     // Delay between surplus auctions
-    uint256 public surplusAuctionDelay;
+    uint256 public surplusAuctionDelay;                     // [seconds]
     // Delay after which debt can be popped from debtQueue
-    uint256 public popDebtDelay;
+    uint256 public popDebtDelay;                            // [seconds]
     // Amount of protocol tokens to be minted post-auction
     uint256 public initialDebtAuctionMintedTokens;          // [wad]
     // Amount of debt sold in one debt auction (initial coin bid for initialDebtAuctionMintedTokens protocol tokens)
@@ -114,9 +113,9 @@ contract AccountingEngine {
     uint256 public surplusBuffer;                           // [rad]
 
     // Time to wait (post settlement) until any remaining surpluscan be transferred to the settlement auctioneer
-    uint256 public disableCooldown;
+    uint256 public disableCooldown;                         // [seconds]
     // When the contract was disabled
-    uint256 public disableTimestamp;
+    uint256 public disableTimestamp;                        // [unix timestamp]
 
     // Whether this contract is enabled or not
     uint256 public contractEnabled;

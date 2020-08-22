@@ -217,7 +217,7 @@ contract GlobalSettlementTest is DSTest {
 
         safeEngine.addAuthorization(address(collateralA));
 
-        EnglishCollateralAuctionHouse englishCollateralAuctionHouse = new EnglishCollateralAuctionHouse(address(safeEngine), name);
+        EnglishCollateralAuctionHouse englishCollateralAuctionHouse = new EnglishCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), name);
         englishCollateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
         // bidToMarketPriceRatio is zero so feed price is irrelevant
         englishCollateralAuctionHouse.modifyParameters("osm", address(new Feed(bytes32(uint256(200 ether)), true)));
@@ -226,7 +226,7 @@ contract GlobalSettlementTest is DSTest {
         englishCollateralAuctionHouse.addAuthorization(address(liquidationEngine));
 
         FixedDiscountCollateralAuctionHouse fixedDiscountCollateralAuctionHouse =
-          new FixedDiscountCollateralAuctionHouse(address(safeEngine), name);
+          new FixedDiscountCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), name);
         fixedDiscountCollateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
         fixedDiscountCollateralAuctionHouse.modifyParameters("collateralOSM", address(new Feed(bytes32(uint256(200 ether)), true)));
         safeEngine.approveSAFEModification(address(fixedDiscountCollateralAuctionHouse));
@@ -234,6 +234,9 @@ contract GlobalSettlementTest is DSTest {
         fixedDiscountCollateralAuctionHouse.addAuthorization(address(liquidationEngine));
 
         // Start with English auction house
+        liquidationEngine.addAuthorization(address(englishCollateralAuctionHouse));
+        liquidationEngine.addAuthorization(address(fixedDiscountCollateralAuctionHouse));
+
         liquidationEngine.modifyParameters(name, "collateralAuctionHouse", address(englishCollateralAuctionHouse));
         liquidationEngine.modifyParameters(name, "liquidationPenalty", 1 ether);
         liquidationEngine.modifyParameters(name, "liquidationQuantity", uint(-1) / ray(1 ether));

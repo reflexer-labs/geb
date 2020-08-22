@@ -27,6 +27,9 @@ abstract contract OracleRelayerLike {
 abstract contract OracleLike {
     function getResultWithValidity() virtual public returns (uint256, bool);
 }
+abstract contract LiquidationEngineLike {
+    function removeCoinsFromAuction(uint) virtual public;
+}
 
 /*
    This thing lets you (English) auction some collateral for a given amount of system coins
@@ -99,8 +102,9 @@ contract EnglishCollateralAuctionHouse {
     // Minimum mandatory size of the first bid compared to collateral price coming from the oracle
       uint256  public bidToMarketPriceRatio;                                                                          // [ray]
 
-    OracleRelayerLike public oracleRelayer;
-    OracleLike        public osm;
+    OracleRelayerLike     public oracleRelayer;
+    OracleLike            public osm;
+    LiquidationEngineLike public liquidationEngine;
 
     bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("COLLATERAL");
     bytes32 public constant AUCTION_TYPE       = bytes32("ENGLISH");
@@ -127,8 +131,9 @@ contract EnglishCollateralAuctionHouse {
     event TerminateAuctionPrematurely(uint id, address sender, uint bidAmount, uint collateralAmount);
 
     // --- Init ---
-    constructor(address safeEngine_, bytes32 collateralType_) public {
+    constructor(address safeEngine_, address liquidationEngine_, bytes32 collateralType_) public {
         safeEngine = SAFEEngineLike(safeEngine_);
+        liquidationEngine = LiquidationEngineLike(liquidationEngine_);
         collateralType = collateralType_;
         authorizedAccounts[msg.sender] = 1;
         emit AddAuthorization(msg.sender);
@@ -172,6 +177,7 @@ contract EnglishCollateralAuctionHouse {
     function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
         else if (parameter == "osm") osm = OracleLike(data);
+        else if (parameter == "liquidationEngine") liquidationEngine = LiquidationEngineLike(data);
         else revert("EnglishCollateralAuctionHouse/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
     }
@@ -304,6 +310,7 @@ contract EnglishCollateralAuctionHouse {
     function settleAuction(uint id) external {
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "EnglishCollateralAuctionHouse/not-finished");
         safeEngine.transferCollateral(collateralType, address(this), bids[id].highBidder, bids[id].amountToSell);
+        liquidationEngine.removeCoinsFromAuction(bids[id].amountToRaise);
         delete bids[id];
         emit SettleAuction(id);
     }
@@ -315,6 +322,7 @@ contract EnglishCollateralAuctionHouse {
     function terminateAuctionPrematurely(uint id) external isAuthorized {
         require(bids[id].highBidder != address(0), "EnglishCollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidAmount < bids[id].amountToRaise, "EnglishCollateralAuctionHouse/already-decreasing-sold-amount");
+        liquidationEngine.removeCoinsFromAuction(bids[id].amountToRaise);
         safeEngine.transferCollateral(collateralType, address(this), msg.sender, bids[id].amountToSell);
         safeEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bids[id].bidAmount);
         emit TerminateAuctionPrematurely(id, msg.sender, bids[id].bidAmount, bids[id].amountToSell);
@@ -429,10 +437,11 @@ contract FixedDiscountCollateralAuctionHouse {
     // Min deviation for the system coin median result compared to the redemption price in order to take the median into account
     uint256  public   minSystemCoinMedianDeviation   = 0.999E18;                                                      // [wad]
 
-    OracleRelayerLike public oracleRelayer;
-    OracleLike        public collateralOSM;
-    OracleLike        public collateralMedian;
-    OracleLike        public systemCoinOracle;
+    OracleRelayerLike     public oracleRelayer;
+    OracleLike            public collateralOSM;
+    OracleLike            public collateralMedian;
+    OracleLike            public systemCoinOracle;
+    LiquidationEngineLike public liquidationEngine;
 
     bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("COLLATERAL");
     bytes32 public constant AUCTION_TYPE       = bytes32("FIXED_DISCOUNT");
@@ -457,8 +466,9 @@ contract FixedDiscountCollateralAuctionHouse {
     event TerminateAuctionPrematurely(uint id, address sender, uint collateralAmount);
 
     // --- Init ---
-    constructor(address safeEngine_, bytes32 collateralType_) public {
+    constructor(address safeEngine_, address liquidationEngine_, bytes32 collateralType_) public {
         safeEngine = SAFEEngineLike(safeEngine_);
+        liquidationEngine = LiquidationEngineLike(liquidationEngine_);
         collateralType = collateralType_;
         authorizedAccounts[msg.sender] = 1;
         emit AddAuthorization(msg.sender);
@@ -553,6 +563,7 @@ contract FixedDiscountCollateralAuctionHouse {
         else if (parameter == "collateralOSM") collateralOSM = OracleLike(data);
         else if (parameter == "collateralMedian") collateralMedian = OracleLike(data);
         else if (parameter == "systemCoinOracle") systemCoinOracle = OracleLike(data);
+        else if (parameter == "liquidationEngine") liquidationEngine = LiquidationEngineLike(data);
         else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
     }
@@ -789,6 +800,7 @@ contract FixedDiscountCollateralAuctionHouse {
         bool soldAll        = either(bids[id].amountToRaise <= bids[id].raisedAmount, bids[id].amountToSell == bids[id].soldAmount);
         if (either(deadlinePassed, soldAll)) {
             uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
+            liquidationEngine.removeCoinsFromAuction(bids[id].amountToRaise);
             safeEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
             delete bids[id];
             emit SettleAuction(id, leftoverCollateral);
@@ -806,6 +818,7 @@ contract FixedDiscountCollateralAuctionHouse {
           bids[id].auctionDeadline < now
         ), "FixedDiscountCollateralAuctionHouse/not-finished");
         uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
+        liquidationEngine.removeCoinsFromAuction(bids[id].amountToRaise);
         safeEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
         delete bids[id];
         emit SettleAuction(id, leftoverCollateral);
@@ -817,6 +830,7 @@ contract FixedDiscountCollateralAuctionHouse {
     function terminateAuctionPrematurely(uint id) external isAuthorized {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
         uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
+        liquidationEngine.removeCoinsFromAuction(bids[id].amountToRaise);
         safeEngine.transferCollateral(collateralType, address(this), msg.sender, subtract(bids[id].amountToSell, bids[id].soldAmount));
         delete bids[id];
         emit TerminateAuctionPrematurely(id, msg.sender, leftoverCollateral);

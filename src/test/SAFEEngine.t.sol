@@ -644,10 +644,13 @@ contract LiquidationTest is DSTest {
         safeEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
         safeEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
         safeEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
-        collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(safeEngine), "gold");
+
+        collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), "gold");
         collateralAuctionHouse.modifyParameters("oracleRelayer", address(new OracleRelayer(address(safeEngine))));
         collateralAuctionHouse.modifyParameters("osm", address(new Feed(uint256(1), true)));
         collateralAuctionHouse.addAuthorization(address(liquidationEngine));
+
+        liquidationEngine.addAuthorization(address(collateralAuctionHouse));
         liquidationEngine.modifyParameters("gold", "collateralAuctionHouse", address(collateralAuctionHouse));
         liquidationEngine.modifyParameters("gold", "liquidationPenalty", 1 ether);
 
@@ -672,6 +675,10 @@ contract LiquidationTest is DSTest {
         liquidationEngine.modifyParameters("gold", "liquidationQuantity", rad(115792 ether));
         (,, uint256 liquidationQuantity) = liquidationEngine.collateralTypes("gold");
         assertEq(liquidationQuantity, rad(115792 ether));
+    }
+    function test_set_auction_system_coin_limit() public {
+        liquidationEngine.modifyParameters("onAuctionSystemCoinLimit", rad(1));
+        assertEq(liquidationEngine.onAuctionSystemCoinLimit(), rad(1));
     }
     function testFail_liquidation_quantity_too_large() public {
         liquidationEngine.modifyParameters("gold", "liquidationQuantity", uint256(-1) / 10 ** 27 + 1);
@@ -842,7 +849,7 @@ contract LiquidationTest is DSTest {
     function test_liquidate_when_system_surplus() public {
         // get some surplus
         safeEngine.mint(address(accountingEngine), 100 ether);
-        assertEq(safeEngine.coinBalance(address(accountingEngine)),  100 ether);
+        assertEq(safeEngine.coinBalance(address(accountingEngine)), rad(100 ether));
         assertEq(protocolToken.balanceOf(address(this)), 100 ether);
 
         accountingEngine.modifyParameters("surplusAuctionAmountToSell", rad(100 ether));
@@ -856,9 +863,10 @@ contract LiquidationTest is DSTest {
         hevm.warp(now + 4 hours);
         protocolToken.setOwner(address(surplusAuctionHouse));
         surplusAuctionHouse.settleAuction(id);
-        assertEq(safeEngine.coinBalance(address(this)), 100 ether);
+        assertEq(safeEngine.coinBalance(address(this)), rad(100 ether));
         assertEq(protocolToken.balanceOf(address(this)), 90 ether);
     }
+    
 }
 
 contract AccumulateRatesTest is DSTest {

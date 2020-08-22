@@ -224,10 +224,13 @@ contract SaveSAFETest is DSTest {
         safeEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
         safeEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
         safeEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
-        collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(safeEngine), "gold");
+
+        collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), "gold");
         collateralAuctionHouse.modifyParameters("oracleRelayer", address(new OracleRelayer(address(safeEngine))));
         collateralAuctionHouse.modifyParameters("osm", address(new Feed(uint256(1), true)));
         collateralAuctionHouse.addAuthorization(address(liquidationEngine));
+
+        liquidationEngine.addAuthorization(address(collateralAuctionHouse));
         liquidationEngine.modifyParameters("gold", "collateralAuctionHouse", address(collateralAuctionHouse));
         liquidationEngine.modifyParameters("gold", "liquidationPenalty", 1 ether);
 
@@ -315,5 +318,7 @@ contract SaveSAFETest is DSTest {
 
         (uint256 lockedCollateral, ) = safeEngine.safes("gold", me);
         assertEq(lockedCollateral, 10910 ether);
+
+        assertEq(liquidationEngine.currentOnAuctionSystemCoins(), 0);
     }
 }
