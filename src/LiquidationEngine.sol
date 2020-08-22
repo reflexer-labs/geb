@@ -119,10 +119,14 @@ contract LiquidationEngine {
     // Mutex used to block against re-entrancy when 'liquidateSAFE' passes execution to a saviour
     mapping (bytes32 => mapping(address => uint8))   public mutex;
 
+    // Max amount of system coins that can be on liquidation at any time
+    uint256 public onAuctionSystemCoinLimit;                                // [rad]
+    // Current amount of system coins out for liquidation
+    uint256 public currentOnAuctionSystemCoins;                             // [rad]
     // Whether this contract is enabled
     uint256 public contractEnabled;
 
-    SAFEEngineLike        public safeEngine;
+    SAFEEngineLike       public safeEngine;
     AccountingEngineLike public accountingEngine;
 
     // --- Events ---
@@ -130,6 +134,8 @@ contract LiquidationEngine {
     event RemoveAuthorization(address account);
     event ConnectSAFESaviour(address saviour);
     event DisconnectSAFESaviour(address saviour);
+    event UpdateCurrentOnAuctionSystemCoins(uint currentOnAuctionSystemCoins);
+    event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
     event ModifyParameters(
       bytes32 collateralType,
@@ -167,8 +173,10 @@ contract LiquidationEngine {
     constructor(address safeEngine_) public {
         authorizedAccounts[msg.sender] = 1;
         safeEngine = SAFEEngineLike(safeEngine_);
+        onAuctionSystemCoinLimit = uint(-1);
         contractEnabled = 1;
         emit AddAuthorization(msg.sender);
+        emit ModifyParameters("onAuctionSystemCoinLimit", uint(-1));
     }
 
     // --- Math ---
@@ -176,6 +184,12 @@ contract LiquidationEngine {
     uint256 constant RAY = 10 ** 27;
     uint256 constant MAX_LIQUIDATION_QUANTITY = uint256(-1) / RAY;
 
+    function addition(uint x, uint y) internal pure returns (uint z) {
+        require((z = x + y) >= x);
+    }
+    function subtract(uint x, uint y) internal pure returns (uint z) {
+        require((z = x - y) <= x);
+    }
     function multiply(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
@@ -192,6 +206,16 @@ contract LiquidationEngine {
     }
 
     // --- Administration ---
+    /*
+    * @notice Modify uint256 parameters
+    * @param paramter The name of the parameter modified
+    * @param data Value for the new parameter
+    */
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
+        if (parameter == "onAuctionSystemCoinLimit") onAuctionSystemCoinLimit = data;
+        else revert("LiquidationEngine/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
+    }
     /**
      * @notice Modify contract integrations
      * @param parameter The name of the parameter modified
@@ -215,7 +239,7 @@ contract LiquidationEngine {
     ) external isAuthorized {
         if (parameter == "liquidationPenalty") collateralTypes[collateralType].liquidationPenalty = data;
         else if (parameter == "liquidationQuantity") {
-          require(data <= MAX_LIQUIDATION_QUANTITY, "LiquidationEngine/collateral-to-sell-overflow");
+          require(data <= MAX_LIQUIDATION_QUANTITY, "LiquidationEngine/liquidation-quantity-overflow");
           collateralTypes[collateralType].liquidationQuantity = data;
         }
         else revert("LiquidationEngine/modify-unrecognized-param");
@@ -268,7 +292,7 @@ contract LiquidationEngine {
         address safe,
         address saviour
     ) external {
-        require(safeEngine.canModifySAFE(safe, msg.sender), "LiquidationEngine/cannot-modify-this-safe");
+        require(safeEngine.canModifySAFE(safe, msg.sender), "LiquidationEngine/cannot-modify-safe");
         require(saviour == address(0) || safeSaviours[saviour] == 1, "LiquidationEngine/saviour-not-authorized");
         chosenSAFESaviour[collateralType][safe] = saviour;
         emit ProtectSAFE(
@@ -286,7 +310,7 @@ contract LiquidationEngine {
         require(mutex[collateralType][safe] == 0, "LiquidationEngine/non-null-mutex");
         mutex[collateralType][safe] = 1;
 
-        (, uint accumulatedRate, , , , uint liquidationPrice) = safeEngine.collateralTypes(collateralType);
+        (, uint accumulatedRate, , , uint debtFloor, uint liquidationPrice) = safeEngine.collateralTypes(collateralType);
         (uint safeCollateral, uint safeDebt) = safeEngine.safes(collateralType, safe);
 
         require(contractEnabled == 1, "LiquidationEngine/contract-not-enabled");
@@ -294,6 +318,11 @@ contract LiquidationEngine {
           liquidationPrice > 0,
           multiply(safeCollateral, liquidationPrice) < multiply(safeDebt, accumulatedRate)
         ), "LiquidationEngine/safe-not-unsafe");
+        require(
+          both(currentOnAuctionSystemCoins < onAuctionSystemCoinLimit,
+          subtract(onAuctionSystemCoinLimit, currentOnAuctionSystemCoins) >= debtFloor),
+          "LiquidationEngine/liquidation-limit-hit"
+        );
 
         if (chosenSAFESaviour[collateralType][safe] != address(0) &&
             safeSaviours[chosenSAFESaviour[collateralType][safe]] == 1) {
@@ -315,30 +344,41 @@ contract LiquidationEngine {
 
           uint limitAdjustedDebt = minimum(
             safeDebt,
-            multiply(collateralData.liquidationQuantity, WAD) / accumulatedRate / collateralData.liquidationPenalty
+            multiply(minimum(collateralData.liquidationQuantity, subtract(onAuctionSystemCoinLimit, currentOnAuctionSystemCoins)), WAD) / accumulatedRate / collateralData.liquidationPenalty
           );
+          require(limitAdjustedDebt > 0, "LiquidationEngine/null-auction");
+
           uint collateralToSell = minimum(safeCollateral, multiply(safeCollateral, limitAdjustedDebt) / safeDebt);
 
           require(collateralToSell <= 2**255 && limitAdjustedDebt <= 2**255, "LiquidationEngine/collateral-or-debt-overflow");
+          // This can leave the SAFE with generatedDebt < debtFloor
           safeEngine.confiscateSAFECollateralAndDebt(
             collateralType, safe, address(this), address(accountingEngine), -int(collateralToSell), -int(limitAdjustedDebt)
           );
-
           accountingEngine.pushDebtToQueue(multiply(limitAdjustedDebt, accumulatedRate));
 
-          uint amountToRaise_ = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
+          {
+            uint amountToRaise_         = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
+            currentOnAuctionSystemCoins = addition(currentOnAuctionSystemCoins, amountToRaise_);
 
-          auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
-            { forgoneCollateralReceiver: safe
-            , initialBidder: address(accountingEngine)
-            , amountToRaise: amountToRaise_
-            , collateralToSell: collateralToSell
-            , initialBid: 0
-           });
+            auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
+              { forgoneCollateralReceiver: safe
+              , initialBidder: address(accountingEngine)
+              , amountToRaise: amountToRaise_
+              , collateralToSell: collateralToSell
+              , initialBid: 0
+             });
+
+             emit UpdateCurrentOnAuctionSystemCoins(currentOnAuctionSystemCoins);
+          }
 
           emit Liquidate(collateralType, safe, collateralToSell, limitAdjustedDebt, multiply(limitAdjustedDebt, accumulatedRate), collateralData.collateralAuctionHouse, auctionId);
         }
 
         mutex[collateralType][safe] = 0;
+    }
+    function removeCoinsFromAuction(uint rad) public isAuthorized {
+        currentOnAuctionSystemCoins = subtract(currentOnAuctionSystemCoins, rad);
+        emit UpdateCurrentOnAuctionSystemCoins(currentOnAuctionSystemCoins);
     }
 }
