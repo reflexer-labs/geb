@@ -402,7 +402,7 @@ contract FixedDiscountCollateralAuctionHouse {
         uint256 amountToSell;                                                                                         // [wad]
         // Total/max amount of coins to raise
         uint256 amountToRaise;                                                                                        // [rad]
-        // Timestamp after which the auction can be settled
+        // Duration of time after which the auction can be settled
         uint48  auctionDeadline;                                                                                      // [unix epoch time]
         // Who (which SAFE) receives leftover collateral that is not sold in the auction; usually the liquidated SAFE
         address forgoneCollateralReceiver;
