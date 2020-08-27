@@ -84,7 +84,7 @@ contract StabilityFeeTreasury {
     mapping(address => Allowance) private allowance;
     mapping(address => mapping(uint => uint)) public pulledPerBlock;
 
-    SAFEEngineLike   public safeEngine;
+    SAFEEngineLike  public safeEngine;
     SystemCoinLike  public systemCoin;
     CoinJoinLike    public coinJoin;
 
@@ -112,7 +112,7 @@ contract StabilityFeeTreasury {
         require(address(CoinJoinLike(coinJoin_).systemCoin()) != address(0), "StabilityFeeTreasury/null-system-coin");
         require(accountingEngine_ != address(this), "StabilityFeeTreasury/accounting-engine-cannot-be-treasury");
         authorizedAccounts[msg.sender] = 1;
-        safeEngine                 = SAFEEngineLike(safeEngine_);
+        safeEngine                = SAFEEngineLike(safeEngine_);
         accountingEngine          = accountingEngine_;
         coinJoin                  = CoinJoinLike(coinJoin_);
         systemCoin                = SystemCoinLike(coinJoin.systemCoin());
