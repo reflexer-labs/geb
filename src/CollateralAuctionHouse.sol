@@ -402,7 +402,7 @@ contract FixedDiscountCollateralAuctionHouse {
         uint256 amountToSell;                                                                                         // [wad]
         // Total/max amount of coins to raise
         uint256 amountToRaise;                                                                                        // [rad]
-        // Hard deadline for the auction after which no more bids can be placed
+        // Timestamp after which the auction can be settled
         uint48  auctionDeadline;                                                                                      // [unix epoch time]
         // Who (which SAFE) receives leftover collateral that is not sold in the auction; usually the liquidated SAFE
         address forgoneCollateralReceiver;
@@ -768,7 +768,7 @@ contract FixedDiscountCollateralAuctionHouse {
 
         uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
 
-        // bound max amount offered in exchange for collateral
+        // bound max amount offered in exchange for collateral (in case someone offers more than it's necessary)
         uint256 adjustedBid = wad;
         if (multiply(adjustedBid, RAY) > remainingToRaise) {
             adjustedBid = addUint256(remainingToRaise / RAY, WAD);
@@ -794,19 +794,19 @@ contract FixedDiscountCollateralAuctionHouse {
         safeEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, multiply(adjustedBid, RAY));
         safeEngine.transferCollateral(collateralType, address(this), msg.sender, boughtCollateral);
 
-        // if the auction raised the whole amount, all collateral was sold or the auction expired,
+        // Emit the buy event
+        emit BuyCollateral(id, wad, boughtCollateral);
+
+        // if the auction raised the whole amount or all collateral was sold,
         // send remaining collateral back to the forgone receiver
-        bool deadlinePassed = bids[id].auctionDeadline < now;
-        bool soldAll        = either(bids[id].amountToRaise <= bids[id].raisedAmount, bids[id].amountToSell == bids[id].soldAmount);
-        if (either(deadlinePassed, soldAll)) {
+        bool soldAll = either(bids[id].amountToRaise <= bids[id].raisedAmount, bids[id].amountToSell == bids[id].soldAmount);
+        if (soldAll) {
             uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
             liquidationEngine.removeCoinsFromAuction(bids[id].amountToRaise);
             safeEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
             delete bids[id];
             emit SettleAuction(id, leftoverCollateral);
         }
-
-        emit BuyCollateral(id, wad, boughtCollateral);
     }
     /**
      * @notice Settle/finish an auction
