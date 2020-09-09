@@ -645,7 +645,7 @@ contract FixedDiscountCollateralAuctionHouse {
         uint256 systemCoinPriceFeedValue,
         uint256 customDiscount
     ) public returns (uint256) {
-        // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
+        // calculate the collateral price in relation to the latest system coin price and apply the discount
         return wmultiply(
           rdivide(getFinalBaseCollateralPrice(collateralOSMPriceFeedValue, collateralMedianPriceFeedValue), systemCoinPriceFeedValue),
           customDiscount
@@ -658,8 +658,8 @@ contract FixedDiscountCollateralAuctionHouse {
         uint256 systemCoinPriceFeedValue,
         uint256 adjustedBid
     ) private returns (uint256) {
-        // calculate the collateral price in relation to the latest system coin redemption price and apply the discount
-        uint256 discountedRedemptionCollateralPrice =
+        // calculate the collateral price in relation to the latest system coin price and apply the discount
+        uint256 discountedCollateralPrice =
           getDiscountedCollateralPrice(
             collateralOSMPriceFeedValue,
             collateralMedianPriceFeedValue,
@@ -667,7 +667,7 @@ contract FixedDiscountCollateralAuctionHouse {
             discount
           );
         // calculate the amount of collateral bought
-        uint256 boughtCollateral = wdivide(adjustedBid, discountedRedemptionCollateralPrice);
+        uint256 boughtCollateral = wdivide(adjustedBid, discountedCollateralPrice);
         // if the calculated collateral amount exceeds the amount still up for sale, adjust it to the remaining amount
         boughtCollateral = (boughtCollateral > subtract(bids[id].amountToSell, bids[id].soldAmount)) ?
                            subtract(bids[id].amountToSell, bids[id].soldAmount) : boughtCollateral;
@@ -721,41 +721,41 @@ contract FixedDiscountCollateralAuctionHouse {
      * @param id ID of the auction to buy collateral from
      * @param wad New bid submitted
      */
-    function getCollateralBought(uint id, uint wad) external returns (uint256) {
+    function getCollateralBought(uint id, uint wad) external returns (uint256, uint256) {
         if (either(
           either(bids[id].amountToSell == 0, bids[id].amountToRaise == 0),
-          wad == 0
+          either(wad == 0, wad < minimumBid)
         )) {
-          return 0;
+          return (0, wad);
         }
 
-	      uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
+        uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
 
         // bound max amount offered in exchange for collateral
         uint256 adjustedBid = wad;
         if (multiply(adjustedBid, RAY) > remainingToRaise) {
-            adjustedBid = remainingToRaise / RAY;
+            adjustedBid = addUint256(remainingToRaise / RAY, WAD);
         }
 
       	uint256 totalRaised = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
       	remainingToRaise    = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
       	if (both(remainingToRaise > 0, remainingToRaise < RAY)) {
-      	    return 0;
+      	    return (0, adjustedBid);
       	}
 
         // check that the oracle doesn't return an invalid value
         (uint256 collateralOsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getTokenPrices();
         if (collateralOsmPriceFeedValue == 0) {
-          return 0;
+          return (0, adjustedBid);
         }
 
-        return getBoughtCollateral(
+        return (getBoughtCollateral(
           id,
           collateralOsmPriceFeedValue,
           getCollateralMedianPrice(),
           systemCoinPriceFeedValue,
           adjustedBid
-        );
+        ), adjustedBid);
     }
     /**
      * @notice Buy collateral from an auction at a fixed discount
@@ -795,7 +795,7 @@ contract FixedDiscountCollateralAuctionHouse {
         safeEngine.transferCollateral(collateralType, address(this), msg.sender, boughtCollateral);
 
         // Emit the buy event
-        emit BuyCollateral(id, wad, boughtCollateral);
+        emit BuyCollateral(id, adjustedBid, boughtCollateral);
 
         // if the auction raised the whole amount or all collateral was sold,
         // send remaining collateral back to the forgone receiver
