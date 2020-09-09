@@ -178,7 +178,10 @@ contract OracleRelayer {
     function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         require(data > 0, "OracleRelayer/null-data");
-        if (parameter == "redemptionPrice") _redemptionPrice = data;
+        if (parameter == "redemptionPrice") {
+          require(data > 0, "OracleRelayer/null-redemption-price");
+          _redemptionPrice = data;
+        }
         else if (parameter == "redemptionRate") {
           require(now == redemptionPriceUpdateTime, "OracleRelayer/redemption-price-not-updated");
           redemptionRate = data;
