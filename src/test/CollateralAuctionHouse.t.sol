@@ -622,7 +622,13 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       });
 
         assertEq(collateralAuctionHouse.getDiscountedCollateralPrice(200 ether, 0, oracleRelayer.redemptionPrice(), 0.95E18), 95 ether);
-        assertEq(collateralAuctionHouse.getCollateralBought(id, 50 * WAD), 526315789473684210);
+
+        (uint collateralBought, uint adjustedBid) =
+          collateralAuctionHouse.getCollateralBought(id, 50 * WAD);
+
+        assertEq(collateralBought, 526315789473684210);
+        assertEq(adjustedBid, 50 * WAD);
+
         Guy(ali).buyCollateral(id, 50 * WAD);
         assertEq(liquidationEngine.currentOnAuctionSystemCoins(), rad(950 ether));
 

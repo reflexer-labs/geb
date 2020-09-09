@@ -227,6 +227,7 @@ contract OracleRelayer {
           rpower(redemptionRate, subtract(now, redemptionPriceUpdateTime), RAY),
           _redemptionPrice
         );
+        if (_redemptionPrice == 0) _redemptionPrice = 1;
         redemptionPriceUpdateTime = now;
         emit UpdateRedemptionPrice(_redemptionPrice);
         // Return updated redemption price

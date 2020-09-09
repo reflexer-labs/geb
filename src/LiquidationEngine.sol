@@ -336,6 +336,12 @@ contract LiquidationEngine {
           }
         }
 
+        // Checks that the saviour didn't take collateral or add more debt to the SAFE
+        {
+          (uint newSafeCollateral, uint newSafeDebt) = safeEngine.safes(collateralType, safe);
+          require(both(newSafeCollateral >= safeCollateral, newSafeDebt <= safeDebt), "LiquidationEngine/invalid-saviour-safe-operation");
+        }
+
         (, accumulatedRate, , , , liquidationPrice) = safeEngine.collateralTypes(collateralType);
         (safeCollateral, safeDebt) = safeEngine.safes(collateralType, safe);
 
@@ -346,11 +352,10 @@ contract LiquidationEngine {
             safeDebt,
             multiply(minimum(collateralData.liquidationQuantity, subtract(onAuctionSystemCoinLimit, currentOnAuctionSystemCoins)), WAD) / accumulatedRate / collateralData.liquidationPenalty
           );
-          require(limitAdjustedDebt > 0, "LiquidationEngine/null-auction");
-
           uint collateralToSell = minimum(safeCollateral, multiply(safeCollateral, limitAdjustedDebt) / safeDebt);
 
-          require(collateralToSell <= 2**255 && limitAdjustedDebt <= 2**255, "LiquidationEngine/collateral-or-debt-overflow");
+          require(both(limitAdjustedDebt > 0, collateralToSell > 0), "LiquidationEngine/null-auction");
+          require(both(collateralToSell <= 2**255, limitAdjustedDebt <= 2**255), "LiquidationEngine/collateral-or-debt-overflow");
           // This can leave the SAFE with generatedDebt < debtFloor
           safeEngine.confiscateSAFECollateralAndDebt(
             collateralType, safe, address(this), address(accountingEngine), -int(collateralToSell), -int(limitAdjustedDebt)
