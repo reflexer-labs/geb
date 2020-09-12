@@ -64,15 +64,19 @@ contract OracleRelayer {
     mapping (bytes32 => CollateralType) public collateralTypes;
 
     SAFEEngineLike public safeEngine;
+
+    // Whether this contract is enabled
+    uint256 public contractEnabled;
+    // Virtual redemption price (not the most updated value)
+    uint256 internal _redemptionPrice;                                                        // [ray]
     // The force that changes the system users' incentives by changing the redemption price
     uint256 public redemptionRate;                                                            // [ray]
     // Last time when the redemption price was changed
     uint256 public redemptionPriceUpdateTime;                                                 // [unix epoch time]
-    // Whether this contract is enabled
-    uint256 public contractEnabled;
-
-    // Virtual redemption price (not the most updated value)
-    uint256 internal _redemptionPrice;                                                        // [ray]
+    // Upper bound for the per-second redemption rate
+    uint256 public redemptionRateUpperBound;                                                  // [ray]
+    // Lower bound for the per-second redemption rate
+    uint256 public redemptionRateLowerBound;                                                  // [ray]
 
     // --- Events ---
     event AddAuthorization(address account);
@@ -100,15 +104,18 @@ contract OracleRelayer {
     // --- Init ---
     constructor(address safeEngine_) public {
         authorizedAccounts[msg.sender] = 1;
-        safeEngine  = SAFEEngineLike(safeEngine_);
-        _redemptionPrice = RAY;
-        redemptionRate   = RAY;
+        safeEngine                 = SAFEEngineLike(safeEngine_);
+        _redemptionPrice           = RAY;
+        redemptionRate             = RAY;
         redemptionPriceUpdateTime  = now;
-        contractEnabled = 1;
+        redemptionRateUpperBound   = RAY * WAD;
+        redemptionRateLowerBound   = 1;
+        contractEnabled            = 1;
         emit AddAuthorization(msg.sender);
     }
 
     // --- Math ---
+    uint constant WAD = 10 ** 18;
     uint constant RAY = 10 ** 27;
 
     function subtract(uint x, uint y) internal pure returns (uint z) {
@@ -184,7 +191,21 @@ contract OracleRelayer {
         }
         else if (parameter == "redemptionRate") {
           require(now == redemptionPriceUpdateTime, "OracleRelayer/redemption-price-not-updated");
-          redemptionRate = data;
+          uint256 adjustedRate = data;
+          if (data > redemptionRateUpperBound) {
+            adjustedRate = redemptionRateUpperBound;
+          } else if (data < redemptionRateLowerBound) {
+            adjustedRate = redemptionRateLowerBound;
+          }
+          redemptionRate = adjustedRate;
+        }
+        else if (parameter == "redemptionRateUpperBound") {
+          require(data > RAY, "OracleRelayer/invalid-redemption-rate-upper-bound");
+          redemptionRateUpperBound = data;
+        }
+        else if (parameter == "redemptionRateLowerBound") {
+          require(data < RAY, "OracleRelayer/invalid-redemption-rate-lower-bound");
+          redemptionRateLowerBound = data;
         }
         else revert("OracleRelayer/modify-unrecognized-param");
         emit ModifyParameters(
