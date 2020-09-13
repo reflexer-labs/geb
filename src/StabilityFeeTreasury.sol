@@ -258,7 +258,10 @@ contract StabilityFeeTreasury {
         joinAllCoins();
         require(safeEngine.coinBalance(address(this)) >= rad, "StabilityFeeTreasury/not-enough-funds");
 
-        expensesAccumulator = addition(expensesAccumulator, rad);
+        if (account != accountingEngine) {
+          expensesAccumulator = addition(expensesAccumulator, rad);
+        }
+
         safeEngine.transferInternalCoins(address(this), account, rad);
         emit GiveFunds(account, rad, expensesAccumulator);
     }
@@ -284,6 +287,7 @@ contract StabilityFeeTreasury {
     function pullFunds(address dstAccount, address token, uint wad) external accountNotTreasury(dstAccount) {
 	      require(allowance[msg.sender].total >= wad, "StabilityFeeTreasury/not-allowed");
         require(dstAccount != address(0), "StabilityFeeTreasury/null-dst");
+        require(dstAccount != accountingEngine, "StabilityFeeTreasury/dst-cannot-be-accounting");
         require(wad > 0, "StabilityFeeTreasury/null-transfer-amount");
         require(token == address(systemCoin), "StabilityFeeTreasury/token-unavailable");
         if (allowance[msg.sender].perBlock > 0) {
