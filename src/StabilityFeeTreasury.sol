@@ -258,7 +258,10 @@ contract StabilityFeeTreasury {
         joinAllCoins();
         require(safeEngine.coinBalance(address(this)) >= rad, "StabilityFeeTreasury/not-enough-funds");
 
-        expensesAccumulator = addition(expensesAccumulator, rad);
+        if (account != accountingEngine) {
+          expensesAccumulator = addition(expensesAccumulator, rad);
+        }
+
         safeEngine.transferInternalCoins(address(this), account, rad);
         emit GiveFunds(account, rad, expensesAccumulator);
     }
