@@ -223,9 +223,11 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(199 ether));
         assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(1 ether));
     }
-    function testFail_pull_funds_to_treasury_no_block_limit() public {
+    function test_pull_funds_to_treasury_no_block_limit() public {
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(20 ether));
         stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(address(stabilityFeeTreasury), address(stabilityFeeTreasury), address(stabilityFeeTreasury.systemCoin()), 1 ether);
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(20 ether));
     }
     function test_pull_funds_under_block_limit() public {
         stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));

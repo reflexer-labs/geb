@@ -339,7 +339,7 @@ contract LiquidationEngine {
         // Checks that the saviour didn't take collateral or add more debt to the SAFE
         {
           (uint newSafeCollateral, uint newSafeDebt) = safeEngine.safes(collateralType, safe);
-          require(both(newSafeCollateral >= safeCollateral, newSafeDebt <= safeDebt), "LiquidationEngine/invalid-saviour-safe-operation");
+          require(both(newSafeCollateral >= safeCollateral, newSafeDebt <= safeDebt), "LiquidationEngine/invalid-safe-saviour-operation");
         }
 
         (, accumulatedRate, , , , liquidationPrice) = safeEngine.collateralTypes(collateralType);

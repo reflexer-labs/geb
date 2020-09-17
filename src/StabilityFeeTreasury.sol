@@ -284,7 +284,8 @@ contract StabilityFeeTreasury {
      * @param wad Amount of system coins (SF) to transfer (expressed as an 18 decimal number but the contract will transfer
               internal system coins that have 45 decimals)
      */
-    function pullFunds(address dstAccount, address token, uint wad) external accountNotTreasury(dstAccount) {
+    function pullFunds(address dstAccount, address token, uint wad) external {
+        if (dstAccount == address(this)) return;
 	      require(allowance[msg.sender].total >= wad, "StabilityFeeTreasury/not-allowed");
         require(dstAccount != address(0), "StabilityFeeTreasury/null-dst");
         require(dstAccount != accountingEngine, "StabilityFeeTreasury/dst-cannot-be-accounting");
