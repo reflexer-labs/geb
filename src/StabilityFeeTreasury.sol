@@ -282,7 +282,7 @@ contract StabilityFeeTreasury {
      * @param token Address of the token to transfer (in this case it must be the address of the ERC20 system coin).
      *              Used only to adhere to a standard for automated, on-chain treasuries
      * @param wad Amount of system coins (SF) to transfer (expressed as an 18 decimal number but the contract will transfer
-              internal system coins that have 18 decimals)
+              internal system coins that have 45 decimals)
      */
     function pullFunds(address dstAccount, address token, uint wad) external accountNotTreasury(dstAccount) {
 	      require(allowance[msg.sender].total >= wad, "StabilityFeeTreasury/not-allowed");
