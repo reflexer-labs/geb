@@ -259,8 +259,9 @@ contract DebtAuctionHouse {
     * @notice Disable the auction house (usually called by the AccountingEngine)
     */
     function disableContract() external isAuthorized {
-        contractEnabled = 0;
-        accountingEngine = msg.sender;
+        contractEnabled    = 0;
+        accountingEngine   = msg.sender;
+        activeDebtAuctions = 0;
         emit DisableContract(msg.sender);
     }
     /**
@@ -271,7 +272,6 @@ contract DebtAuctionHouse {
         require(contractEnabled == 0, "DebtAuctionHouse/contract-still-enabled");
         require(bids[id].highBidder != address(0), "DebtAuctionHouse/high-bidder-not-set");
         safeEngine.createUnbackedDebt(accountingEngine, bids[id].highBidder, bids[id].bidAmount);
-        activeDebtAuctions = subtract(activeDebtAuctions, 1);
         emit TerminateAuctionPrematurely(id, msg.sender, bids[id].highBidder, bids[id].bidAmount, activeDebtAuctions);
         delete bids[id];
     }

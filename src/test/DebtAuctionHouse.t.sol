@@ -247,6 +247,7 @@ contract DebtAuctionHouseTest is DSTest {
         assertEq(safeEngine.debtBalance(address(this)), 1000 ether);
 
         Gal(accountingEngine).disableContract(debtAuctionHouse);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), 0);
         debtAuctionHouse.terminateAuctionPrematurely(id);
 
         // deleted auction from the accounting engine

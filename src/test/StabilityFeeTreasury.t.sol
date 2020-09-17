@@ -251,18 +251,26 @@ contract StabilityFeeTreasuryTest is DSTest {
         stabilityFeeTreasury.transferSurplusFunds();
     }
     function test_transferSurplusFunds_after_expenses() public {
+        address charlie = address(0x12345);
+        stabilityFeeTreasury.modifyParameters("accountingEngine", charlie);
+
         stabilityFeeTreasury.modifyParameters("surplusTransferDelay", 10 minutes);
         stabilityFeeTreasury.giveFunds(alice, rad(40 ether));
         hevm.warp(now + 10 minutes);
         stabilityFeeTreasury.transferSurplusFunds();
         assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(40 ether));
-        assertEq(safeEngine.coinBalance(address(alice)), rad(160 ether));
+        assertEq(safeEngine.coinBalance(address(alice)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(address(charlie)), rad(120 ether));
         hevm.warp(now + 10 minutes);
         stabilityFeeTreasury.transferSurplusFunds();
         assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), 0);
-        assertEq(safeEngine.coinBalance(address(alice)), rad(200 ether));
+        assertEq(safeEngine.coinBalance(address(alice)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(address(charlie)), rad(160 ether));
     }
     function test_transferSurplusFunds_after_expenses_with_treasuryCapacity_and_minimumFundsRequired() public {
+        address charlie = address(0x12345);
+        stabilityFeeTreasury.modifyParameters("accountingEngine", charlie);
+
         stabilityFeeTreasury.modifyParameters("treasuryCapacity", rad(30 ether));
         stabilityFeeTreasury.modifyParameters("minimumFundsRequired", rad(10 ether));
         stabilityFeeTreasury.modifyParameters("surplusTransferDelay", 10 minutes);
@@ -270,10 +278,12 @@ contract StabilityFeeTreasuryTest is DSTest {
         hevm.warp(now + 10 minutes);
         stabilityFeeTreasury.transferSurplusFunds();
         assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(40 ether));
-        assertEq(safeEngine.coinBalance(address(alice)), rad(160 ether));
+        assertEq(safeEngine.coinBalance(address(alice)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(address(charlie)), rad(120 ether));
         hevm.warp(now + 10 minutes);
         stabilityFeeTreasury.transferSurplusFunds();
         assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(10 ether));
-        assertEq(safeEngine.coinBalance(address(alice)), rad(190 ether));
+        assertEq(safeEngine.coinBalance(address(alice)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(address(charlie)), rad(150 ether));
     }
 }
