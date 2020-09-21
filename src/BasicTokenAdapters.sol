@@ -284,7 +284,7 @@ contract CoinJoin {
         require(y == 0 || (z = x * y) / y == x);
     }
     /**
-    * @notice Join reflex-bonds/pegged-coins in the system
+    * @notice Join system coins in the system
     * @dev Exited coins have 18 decimals but inside the system they have 45 (rad) decimals.
            When we join, the amount (wad) is multiplied by 10**27 (ray)
     * @param account Account that will receive the joined coins
@@ -296,7 +296,7 @@ contract CoinJoin {
         emit Join(msg.sender, account, wad);
     }
     /**
-    * @notice Exit reflex-bonds/pegged-coins from the system and inside 'Coin.sol'
+    * @notice Exit system coins from the system and inside 'Coin.sol'
     * @dev Inside the system, coins have 45 (rad) decimals but outside they have 18 decimals (wad).
            When we exit, we specify a wad amount of coins and then the contract automatically multiplies
            wad by 10**27 to move the correct 45 decimal coin amount to this adapter
