@@ -99,8 +99,6 @@ contract EnglishCollateralAuctionHouse {
     uint48   public   totalAuctionLength = 2 days;                                                                    // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
-    // Minimum mandatory size of the first bid compared to collateral price coming from the oracle
-      uint256  public bidToMarketPriceRatio;                                                                          // [ray]
 
     OracleRelayerLike     public oracleRelayer;
     OracleLike            public osm;
@@ -165,7 +163,6 @@ contract EnglishCollateralAuctionHouse {
         if (parameter == "bidIncrease") bidIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
-        else if (parameter == "bidToMarketPriceRatio") bidToMarketPriceRatio = data;
         else revert("EnglishCollateralAuctionHouse/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
     }
@@ -249,15 +246,6 @@ contract EnglishCollateralAuctionHouse {
         require(rad <= bids[id].amountToRaise, "EnglishCollateralAuctionHouse/higher-than-amount-to-raise");
         require(rad >  bids[id].bidAmount, "EnglishCollateralAuctionHouse/new-bid-not-higher");
         require(multiply(rad, ONE) >= multiply(bidIncrease, bids[id].bidAmount) || rad == bids[id].amountToRaise, "EnglishCollateralAuctionHouse/insufficient-increase");
-
-        // check for first bid only
-        if (bids[id].bidAmount == 0) {
-            (uint256 priceFeedValue, bool hasValidValue) = osm.getResultWithValidity();
-            if (hasValidValue) {
-                uint256 redemptionPrice = oracleRelayer.redemptionPrice();
-                require(rad >= multiply(wmultiply(rdivide(uint256(priceFeedValue), redemptionPrice), amountToBuy), bidToMarketPriceRatio), "EnglishCollateralAuctionHouse/first-bid-too-low");
-            }
-        }
 
         if (msg.sender != bids[id].highBidder) {
             safeEngine.transferInternalCoins(msg.sender, bids[id].highBidder, bids[id].bidAmount);

@@ -261,56 +261,6 @@ contract EnglishCollateralAuctionHouseTest is DSTest {
         // auctionIncomeRecipient receives payment
         assertEq(safeEngine.coin_balance(auctionIncomeRecipient),   1 ether);
     }
-    function test_increase_bid_size_nonzero_bid_to_market_ratio() public {
-        safeEngine.mint(ali, 200 * 10**45 - 200 ether);
-        collateralAuctionHouse.modifyParameters("bidToMarketPriceRatio", 5 * 10**26); // one half
-        osm.set_val(200 ether);
-        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
-                                                      , amountToRaise: 150 * 10**45
-                                                      , forgoneCollateralReceiver: safeAuctioned
-                                                      , auctionIncomeRecipient: auctionIncomeRecipient
-                                                      , initialBid: 0
-                                                      });
-        Guy(ali).increaseBidSize(id, 1 ether, 100 * 10**45);
-    }
-    function testFail_increase_bid_size_nonzero_bid_to_market_ratio() public {
-        safeEngine.mint(ali, 200 * 10**45 - 200 ether);
-        collateralAuctionHouse.modifyParameters("bidToMarketPriceRatio", 5 * 10**26); // one half
-        osm.set_val(200 ether);
-        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
-                                                      , amountToRaise: 150 * 10**45
-                                                      , forgoneCollateralReceiver: safeAuctioned
-                                                      , auctionIncomeRecipient: auctionIncomeRecipient
-                                                      , initialBid: 0
-                                                      });
-        Guy(ali).increaseBidSize(id, 1 ether, 100 * 10**45 - 1);
-    }
-    function test_increase_bid_size_nonzero_bid_to_market_ratio_nonzero_redemptionPrice() public {
-        safeEngine.mint(ali, 200 * 10**45 - 200 ether);
-        collateralAuctionHouse.modifyParameters("bidToMarketPriceRatio", 5 * 10**26); // one half
-        oracleRelayer.modifyParameters("redemptionPrice", 2 * 10**27); // 2 REF per RAI
-        osm.set_val(200 ether);
-        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
-                                                      , amountToRaise: 75 * 10**45
-                                                      , forgoneCollateralReceiver: safeAuctioned
-                                                      , auctionIncomeRecipient: auctionIncomeRecipient
-                                                      , initialBid: 0
-                                                      });
-        Guy(ali).increaseBidSize(id, 1 ether, 50 * 10**45);
-    }
-    function testFail_increase_bid_size_nonzero_bid_to_market_ratio_nonzero_redemptionPrice() public {
-        safeEngine.mint(ali, 200 * 10**45 - 200 ether);
-        collateralAuctionHouse.modifyParameters("bidToMarketPriceRatio", 5 * 10**26); // one half
-        oracleRelayer.modifyParameters("redemptionPrice", 2 * 10**27); // 2 REF per RAI
-        osm.set_val(200 ether);
-        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
-                                                      , amountToRaise: 75 * 10**45
-                                                      , forgoneCollateralReceiver: safeAuctioned
-                                                      , auctionIncomeRecipient: auctionIncomeRecipient
-                                                      , initialBid: 0
-                                                      });
-        Guy(ali).increaseBidSize(id, 1 ether, 50 * 10**45 - 1);
-    }
     function test_decrease_sold() public {
         uint id = collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                                       , amountToRaise: 50 ether
