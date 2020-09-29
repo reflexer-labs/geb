@@ -79,7 +79,7 @@ contract PreSettlementSurplusAuctionHouse {
     mapping (uint => Bid) public bids;
 
     // SAFE database
-    SAFEEngineLike        public safeEngine;
+    SAFEEngineLike       public safeEngine;
     // Protocol token address
     TokenLike            public protocolToken;
 

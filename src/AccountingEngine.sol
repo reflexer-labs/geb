@@ -322,6 +322,7 @@ contract AccountingEngine {
     function transferPostSettlementSurplus() external isAuthorized {
         require(contractEnabled == 0, "AccountingEngine/still-enabled");
         require(addition(disableTimestamp, disableCooldown) <= now, "AccountingEngine/cooldown-not-passed");
+        safeEngine.settleDebt(minimum(safeEngine.coinBalance(address(this)), safeEngine.debtBalance(address(this))));
         safeEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, safeEngine.coinBalance(address(this)));
         emit TransferPostSettlementSurplus(
           postSettlementSurplusDrain,
