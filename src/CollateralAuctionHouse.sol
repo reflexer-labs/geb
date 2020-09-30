@@ -100,8 +100,6 @@ contract EnglishCollateralAuctionHouse {
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
 
-    OracleRelayerLike     public oracleRelayer;
-    OracleLike            public osm;
     LiquidationEngineLike public liquidationEngine;
 
     bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("COLLATERAL");
@@ -167,14 +165,12 @@ contract EnglishCollateralAuctionHouse {
         emit ModifyParameters(parameter, data);
     }
     /**
-     * @notice Modify oracle related integrations
-     * @param parameter The name of the oracle contract modified
-     * @param data New address for the oracle contract
+     * @notice Modify the address of an integrated contract
+     * @param parameter The name of the contract whose address we modify
+     * @param data New contract address
      */
     function modifyParameters(bytes32 parameter, address data) external isAuthorized {
-        if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
-        else if (parameter == "osm") osm = OracleLike(data);
-        else if (parameter == "liquidationEngine") liquidationEngine = LiquidationEngineLike(data);
+        if (parameter == "liquidationEngine") liquidationEngine = LiquidationEngineLike(data);
         else revert("EnglishCollateralAuctionHouse/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
     }

@@ -226,8 +226,6 @@ contract SaveSAFETest is DSTest {
         safeEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
 
         collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), "gold");
-        collateralAuctionHouse.modifyParameters("oracleRelayer", address(new OracleRelayer(address(safeEngine))));
-        collateralAuctionHouse.modifyParameters("osm", address(new Feed(uint256(1), true)));
         collateralAuctionHouse.addAuthorization(address(liquidationEngine));
 
         liquidationEngine.addAuthorization(address(collateralAuctionHouse));

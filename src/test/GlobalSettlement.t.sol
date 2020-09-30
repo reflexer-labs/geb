@@ -218,9 +218,6 @@ contract GlobalSettlementTest is DSTest {
         safeEngine.addAuthorization(address(collateralA));
 
         EnglishCollateralAuctionHouse englishCollateralAuctionHouse = new EnglishCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), name);
-        englishCollateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
-        // bidToMarketPriceRatio is zero so feed price is irrelevant
-        englishCollateralAuctionHouse.modifyParameters("osm", address(new Feed(bytes32(uint256(200 ether)), true)));
         safeEngine.approveSAFEModification(address(englishCollateralAuctionHouse));
         englishCollateralAuctionHouse.addAuthorization(address(globalSettlement));
         englishCollateralAuctionHouse.addAuthorization(address(liquidationEngine));

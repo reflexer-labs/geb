@@ -148,8 +148,6 @@ contract EnglishCollateralAuctionHouseTest is DSTest {
     DummyLiquidationEngine liquidationEngine;
     SAFEEngine_ safeEngine;
     EnglishCollateralAuctionHouse collateralAuctionHouse;
-    OracleRelayer oracleRelayer;
-    Feed    osm;
 
     address ali;
     address bob;
@@ -167,12 +165,6 @@ contract EnglishCollateralAuctionHouseTest is DSTest {
 
         liquidationEngine = new DummyLiquidationEngine(rad(1000 ether));
         collateralAuctionHouse = new EnglishCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), "collateralType");
-
-        oracleRelayer = new OracleRelayer(address(safeEngine));
-        collateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
-
-        osm = new Feed(0, true);
-        collateralAuctionHouse.modifyParameters("osm", address(osm));
 
         ali = address(new Guy(collateralAuctionHouse, FixedDiscountCollateralAuctionHouse(address(0))));
         bob = address(new Guy(collateralAuctionHouse, FixedDiscountCollateralAuctionHouse(address(0))));
