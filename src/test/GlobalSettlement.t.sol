@@ -45,7 +45,7 @@ contract DSThing is DSAuth, DSNote, DSMath {
     }
 }
 
-contract DummyOSM is DSThing {
+contract DummyFSM is DSThing {
     bool validPrice;
     uint price;
     function getResultWithValidity() public view returns (uint256, bool) {
@@ -135,7 +135,7 @@ contract GlobalSettlementTest is DSTest {
     CoinJoin systemCoinA;
 
     struct CollateralType {
-        DummyOSM oracleSecurityModule;
+        DummyFSM oracleSecurityModule;
         DSToken collateral;
         BasicCollateralJoin collateralA;
         EnglishCollateralAuctionHouse englishCollateralAuctionHouse;
@@ -197,13 +197,13 @@ contract GlobalSettlementTest is DSTest {
         DSToken newCollateral = new DSToken(name);
         newCollateral.mint(20 ether);
 
-        DummyOSM oracleOSM = new DummyOSM();
-        oracleRelayer.modifyParameters(name, "orcl", address(oracleOSM));
+        DummyFSM oracleFSM = new DummyFSM();
+        oracleRelayer.modifyParameters(name, "orcl", address(oracleFSM));
         oracleRelayer.modifyParameters(name, "safetyCRatio", ray(1.5 ether));
         oracleRelayer.modifyParameters(name, "liquidationCRatio", ray(1.5 ether));
 
         // initial collateral price of 5
-        oracleOSM.updateCollateralPrice(bytes32(5 * WAD));
+        oracleFSM.updateCollateralPrice(bytes32(5 * WAD));
 
         safeEngine.initializeCollateralType(name);
         BasicCollateralJoin collateralA = new BasicCollateralJoin(address(safeEngine), name, address(newCollateral));
@@ -225,7 +225,7 @@ contract GlobalSettlementTest is DSTest {
         FixedDiscountCollateralAuctionHouse fixedDiscountCollateralAuctionHouse =
           new FixedDiscountCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), name);
         fixedDiscountCollateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
-        fixedDiscountCollateralAuctionHouse.modifyParameters("collateralOSM", address(new Feed(bytes32(uint256(200 ether)), true)));
+        fixedDiscountCollateralAuctionHouse.modifyParameters("collateralFSM", address(new Feed(bytes32(uint256(200 ether)), true)));
         safeEngine.approveSAFEModification(address(fixedDiscountCollateralAuctionHouse));
         fixedDiscountCollateralAuctionHouse.addAuthorization(address(globalSettlement));
         fixedDiscountCollateralAuctionHouse.addAuthorization(address(liquidationEngine));
@@ -238,7 +238,7 @@ contract GlobalSettlementTest is DSTest {
         liquidationEngine.modifyParameters(name, "liquidationPenalty", 1 ether);
         liquidationEngine.modifyParameters(name, "liquidationQuantity", uint(-1) / ray(1 ether));
 
-        collateralTypes[name].oracleSecurityModule = oracleOSM;
+        collateralTypes[name].oracleSecurityModule = oracleFSM;
         collateralTypes[name].collateral = newCollateral;
         collateralTypes[name].collateralA = collateralA;
         collateralTypes[name].englishCollateralAuctionHouse = englishCollateralAuctionHouse;
