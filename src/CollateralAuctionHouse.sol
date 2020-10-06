@@ -404,8 +404,8 @@ contract FixedDiscountCollateralAuctionHouse {
 
     // Minimum acceptable bid
     uint256  public   minimumBid = 5 * WAD;                                                                           // [wad]
-    // Total length of the auction
-    uint48   public   totalAuctionLength = 7 days;                                                                    // [seconds]
+    // Total length of the auction. Kept to adhere to the same interface as the English auction but redundant and will probably be removed
+    uint48   public   totalAuctionLength = 10 * 365 * 24 * 3600;                                                      // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // Discount (compared to the system coin's current redemption price) at which collateral is being sold
