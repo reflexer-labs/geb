@@ -328,7 +328,7 @@ contract GlobalSettlementTest is DSTest {
         assertEq(accountingEngine.debtAuctionHouse().contractEnabled(), 0);
         assertEq(accountingEngine.surplusAuctionHouse().contractEnabled(), 0);
     }
-    function test_shutdown_savings_account_and_rate_setter_set_v2() public {
+    function test_shutdown_savings_account_and_rate_setter_set() public {
         globalSettlement.modifyParameters("coinSavingsAccount", address(coinSavingsAccount));
         globalSettlement.modifyParameters("stabilityFeeTreasury", address(stabilityFeeTreasury));
         assertEq(globalSettlement.contractEnabled(), 1);
@@ -721,6 +721,57 @@ contract GlobalSettlementTest is DSTest {
         assertEq(balanceOf("gold", address(gold.collateralA)), 0);
     }
 
+    function test_shutdown_process_safe_has_bug() public {
+        CollateralType memory gold = init_collateral("gold");
+
+        Usr ali = new Usr(safeEngine, globalSettlement);
+        Usr bob = new Usr(safeEngine, globalSettlement);
+        Usr charlie = new Usr(safeEngine, globalSettlement);
+
+        // make a SAFE:
+        address safe1 = address(ali);
+        gold.collateralA.join(safe1, 10 ether);
+        ali.modifySAFECollateralization("gold", safe1, safe1, safe1, 10 ether, 15 ether);
+
+        // transfer coins
+        ali.transferInternalCoins(address(ali), address(charlie), rad(2 ether));
+
+        // global checks:
+        assertEq(safeEngine.globalDebt(), rad(15 ether));
+        assertEq(safeEngine.globalUnbackedDebt(), 0);
+
+        globalSettlement.shutdownSystem();
+        globalSettlement.freezeCollateralType("gold");
+
+        // local checks:
+        assertEq(globalSettlement.finalCoinPerCollateralPrice("gold"), ray(0.2 ether));
+        assertEq(generatedDebt("gold", safe1), 15 ether);
+        assertEq(lockedCollateral("gold", safe1), 10 ether);
+        assertEq(safeEngine.debtBalance(address(accountingEngine)), 0);
+
+        // global checks:
+        assertEq(safeEngine.globalDebt(), rad(15 ether));
+        assertEq(safeEngine.globalUnbackedDebt(), 0);
+
+        // transfer the remaining surplus with transferPostSettlementSurplus and continue the settlement process
+        hevm.warp(now + 1 hours);
+        accountingEngine.transferPostSettlementSurplus();
+        assertEq(globalSettlement.outstandingCoinSupply(), 0);
+        globalSettlement.setOutstandingCoinSupply();
+
+        // finish processing
+        globalSettlement.calculateCashPrice("gold");
+        assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
+
+        // checks
+        assertEq(safeEngine.tokenCollateral("gold", address(globalSettlement)), 0);
+        assertEq(tokenCollateral("gold", address(ali)), 0);
+        assertEq(tokenCollateral("gold", address(charlie)), 0);
+
+        charlie.approveSAFEModification(address(globalSettlement));
+        assertEq(safeEngine.coinBalance(address(charlie)), rad(2 ether));
+    }
+
     function test_shutdown_overcollateralized_surplus_smaller_redemption() public {
         CollateralType memory gold = init_collateral("gold");
 
@@ -789,21 +840,21 @@ contract GlobalSettlementTest is DSTest {
         ali.redeemCollateral("gold", 11 ether);
         charlie.redeemCollateral("gold", 2 ether);
 
-        assertEq(safeEngine.globalDebt(), rad(15 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(15 ether));
+        assertEq(safeEngine.globalDebt(), rad(13 ether));
+        assertEq(safeEngine.globalUnbackedDebt(), rad(13 ether));
 
         // local checks:
         assertEq(coinBalance(safe1), 0);
-        assertEq(tokenCollateral("gold", safe1), 1100000000000000000);
+        assertEq(tokenCollateral("gold", safe1), 1269230769230769230);
         ali.exit(gold.collateralA, address(this), tokenCollateral("gold", safe1));
 
-        assertEq(tokenCollateral("gold", address(charlie)), 200000000000000000);
+        assertEq(tokenCollateral("gold", address(charlie)), 230769230769230769);
         charlie.exit(gold.collateralA, address(this), tokenCollateral("gold", address(charlie)));
 
-        assertEq(tokenCollateral("gold", address(globalSettlement)), 0.2 ether);
-        assertEq(balanceOf("gold", address(gold.collateralA)), 0.2 ether);
+        assertEq(tokenCollateral("gold", address(globalSettlement)), 1);
+        assertEq(balanceOf("gold", address(gold.collateralA)), 1);
 
-        assertEq(coinBalance(address(postSettlementSurplusDrain)), 2 ether);
+        assertEq(coinBalance(address(postSettlementSurplusDrain)), 0);
     }
 
     function test_shutdown_overcollateralized_surplus_bigger_redemption() public {
@@ -874,21 +925,21 @@ contract GlobalSettlementTest is DSTest {
         ali.redeemCollateral("gold", 11 ether);
         charlie.redeemCollateral("gold", 2 ether);
 
-        assertEq(safeEngine.globalDebt(), rad(15 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(15 ether));
+        assertEq(safeEngine.globalDebt(), rad(13 ether));
+        assertEq(safeEngine.globalUnbackedDebt(), rad(13 ether));
 
         // local checks:
         assertEq(coinBalance(safe1), 0);
-        assertEq(tokenCollateral("gold", safe1), 4400000000000000000);
+        assertEq(tokenCollateral("gold", safe1), 5076923076923076923);
         ali.exit(gold.collateralA, address(this), tokenCollateral("gold", safe1));
 
-        assertEq(tokenCollateral("gold", address(charlie)), 800000000000000000);
+        assertEq(tokenCollateral("gold", address(charlie)), 923076923076923076);
         charlie.exit(gold.collateralA, address(this), tokenCollateral("gold", address(charlie)));
 
-        assertEq(tokenCollateral("gold", address(globalSettlement)), 0.8 ether);
-        assertEq(balanceOf("gold", address(gold.collateralA)), 0.8 ether);
+        assertEq(tokenCollateral("gold", address(globalSettlement)), 1);
+        assertEq(balanceOf("gold", address(gold.collateralA)), 1);
 
-        assertEq(coinBalance(address(postSettlementSurplusDrain)), 2 ether);
+        assertEq(coinBalance(address(postSettlementSurplusDrain)), 0);
     }
 
     // -- Scenario where there is one over-collateralised SAFE
@@ -905,7 +956,7 @@ contract GlobalSettlementTest is DSTest {
         gold.collateralA.join(safe1, 10 ether);
         ali.modifySAFECollateralization("gold", safe1, safe1, safe1, 10 ether, 15 ether);
 
-        // alive gives one coin to the accountingEngine, creating surplus
+        // alice gives one coin to the accountingEngine, creating surplus
         ali.transferInternalCoins(address(ali), address(accountingEngine), rad(1 ether));
         assertEq(safeEngine.coinBalance(address(accountingEngine)), rad(1 ether));
 
@@ -943,8 +994,8 @@ contract GlobalSettlementTest is DSTest {
         ali.exit(gold.collateralA, address(this), 2.5 ether);
 
         hevm.warp(now + 1 hours);
-        // balance the accountingEngine
-        // accountingEngine.settleDebt(rad(1 ether));
+        // balance the accountingEngine using transferPostSettlementSurplus
+        accountingEngine.transferPostSettlementSurplus();
         globalSettlement.setOutstandingCoinSupply();
         globalSettlement.calculateCashPrice("gold");
         assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
@@ -955,8 +1006,8 @@ contract GlobalSettlementTest is DSTest {
         accountingEngine.settleDebt(rad(14 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(4 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(4 ether));
+        assertEq(safeEngine.globalDebt(), rad(3 ether));
+        assertEq(safeEngine.globalUnbackedDebt(), rad(3 ether));
 
         ali.redeemCollateral("gold", 14 ether);
 
@@ -972,8 +1023,8 @@ contract GlobalSettlementTest is DSTest {
         accountingEngine.settleDebt(rad(3 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(1 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(1 ether));
+        assertEq(safeEngine.globalDebt(), 0);
+        assertEq(safeEngine.globalUnbackedDebt(), 0);
 
         bob.redeemCollateral("gold", 3 ether);
 
@@ -983,10 +1034,10 @@ contract GlobalSettlementTest is DSTest {
         bob.exit(gold.collateralA, address(this), uint(rmultiply(fix, 3 ether)));
 
         // nothing left in the GlobalSettlement
-        assertEq(tokenCollateral("gold", address(globalSettlement)), 472222222222222223);
-        assertEq(balanceOf("gold", address(gold.collateralA)), 472222222222222223);
+        assertEq(tokenCollateral("gold", address(globalSettlement)), 0);
+        assertEq(balanceOf("gold", address(gold.collateralA)), 0);
 
-        assertEq(coinBalance(address(postSettlementSurplusDrain)), 1 ether);
+        assertEq(coinBalance(address(postSettlementSurplusDrain)), 0);
     }
 
     // -- Scenario where there is one over-collateralised and one

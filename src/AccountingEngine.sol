@@ -312,17 +312,16 @@ contract AccountingEngine {
         debtAuctionHouse.disableContract();
 
         safeEngine.settleDebt(minimum(safeEngine.coinBalance(address(this)), safeEngine.debtBalance(address(this))));
-        if (disableCooldown == 0) {
-          safeEngine.transferInternalCoins(address(this), postSettlementSurplusDrain, safeEngine.coinBalance(address(this)));
-        }
 
         emit DisableContract(disableTimestamp, disableCooldown, safeEngine.coinBalance(address(this)), safeEngine.debtBalance(address(this)));
     }
     /**
-     * @notice Transfer any remaining surplus after the disable cooldown has passed
+     * @notice Transfer any remaining surplus after the disable cooldown has passed. Meant to be a backup in case GlobalSettlement.processSAFE
+               has a bug, governance doesn't have power over the system and there's still surplus left in the AccountingEngine
+               which then blocks GlobalSettlement.setOutstandingCoinSupply.
      * @dev Transfer any remaining surplus after disableCooldown seconds have passed since disabling the contract
     **/
-    function transferPostSettlementSurplus() external isAuthorized {
+    function transferPostSettlementSurplus() external {
         require(contractEnabled == 0, "AccountingEngine/still-enabled");
         require(addition(disableTimestamp, disableCooldown) <= now, "AccountingEngine/cooldown-not-passed");
         safeEngine.settleDebt(minimum(safeEngine.coinBalance(address(this)), safeEngine.debtBalance(address(this))));

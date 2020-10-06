@@ -25,7 +25,7 @@ abstract contract OracleRelayerLike {
     function redemptionPrice() virtual public returns (uint256);
 }
 abstract contract OracleLike {
-    function getResultWithValidity() virtual public returns (uint256, bool);
+    function getResultWithValidity() virtual public view returns (uint256, bool);
 }
 abstract contract LiquidationEngineLike {
     function removeCoinsFromAuction(uint) virtual public;
@@ -408,6 +408,8 @@ contract FixedDiscountCollateralAuctionHouse {
     uint48   public   totalAuctionLength = 10 * 365 * 24 * 3600;                                                      // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
+    // The last read redemption price
+    uint256  public   lastReadRedemptionPrice;
     // Discount (compared to the system coin's current redemption price) at which collateral is being sold
     uint256  public   discount = 0.95E18;                         // 5% discount                                      // [wad]
     // Max lower bound deviation that the collateral median can have compared to the FSM price
@@ -553,7 +555,7 @@ contract FixedDiscountCollateralAuctionHouse {
     }
 
     // --- Auction Utils ---
-    function getCollateralMedianPrice() private returns (uint256 priceFeed) {
+    function getCollateralMedianPrice() public view returns (uint256 priceFeed) {
         if (address(collateralMedian) == address(0)) return 0;
 
         // wrapped call toward the collateral median
@@ -564,7 +566,7 @@ contract FixedDiscountCollateralAuctionHouse {
           }
         } catch (bytes memory revertReason) {}
     }
-    function getSystemCoinPrice() private returns (uint256 priceFeed) {
+    function getSystemCoinPrice() public view returns (uint256 priceFeed) {
         if (address(systemCoinOracle) == address(0)) return 0;
 
         // wrapped call toward the system coin oracle
@@ -575,25 +577,26 @@ contract FixedDiscountCollateralAuctionHouse {
           }
         } catch (bytes memory revertReason) {}
     }
-    function getSystemCoinFloorDeviatedPrice(uint256 redemptionPrice) private returns (uint256 floorPrice) {
+    function getSystemCoinFloorDeviatedPrice(uint256 redemptionPrice) public view returns (uint256 floorPrice) {
         uint256 minFloorDeviatedPrice = wmultiply(redemptionPrice, minSystemCoinMedianDeviation);
         floorPrice = wmultiply(redemptionPrice, lowerSystemCoinMedianDeviation);
         floorPrice = (floorPrice <= minFloorDeviatedPrice) ? floorPrice : redemptionPrice;
     }
-    function getSystemCoinCeilingDeviatedPrice(uint256 redemptionPrice) private returns (uint256 ceilingPrice) {
+    function getSystemCoinCeilingDeviatedPrice(uint256 redemptionPrice) public view returns (uint256 ceilingPrice) {
         uint256 minCeilingDeviatedPrice = wmultiply(redemptionPrice, subtract(2 * WAD, minSystemCoinMedianDeviation));
         ceilingPrice = wmultiply(redemptionPrice, subtract(2 * WAD, upperSystemCoinMedianDeviation));
         ceilingPrice = (ceilingPrice >= minCeilingDeviatedPrice) ? ceilingPrice : redemptionPrice;
     }
-    function getTokenPrices() private returns (uint256, uint256) {
+    function getTokenPrices(uint systemCoinRedemptionPrice) public view returns (uint256, uint256) {
+        require(systemCoinRedemptionPrice > 0, "FixedDiscountCollateralAuctionHouse/invalid-redemption-price-provided");
         (uint256 collateralFsmPriceFeedValue, bool collateralFsmHasValidValue) = collateralFSM.getResultWithValidity();
         if (!collateralFsmHasValidValue) {
           return (0, 0);
         }
 
-        uint256 systemCoinAdjustedPrice = oracleRelayer.redemptionPrice();
-
+        uint256 systemCoinAdjustedPrice  = systemCoinRedemptionPrice;
         uint256 systemCoinPriceFeedValue = getSystemCoinPrice();
+
         if (systemCoinPriceFeedValue > 0) {
           uint256 floorPrice   = getSystemCoinFloorDeviatedPrice(systemCoinAdjustedPrice);
           uint256 ceilingPrice = getSystemCoinCeilingDeviatedPrice(systemCoinAdjustedPrice);
@@ -610,7 +613,7 @@ contract FixedDiscountCollateralAuctionHouse {
     function getFinalBaseCollateralPrice(
         uint256 collateralFsmPriceFeedValue,
         uint256 collateralMedianPriceFeedValue
-    ) private view returns (uint256) {
+    ) public view returns (uint256) {
         uint256 floorPrice   = wmultiply(collateralFsmPriceFeedValue, lowerCollateralMedianDeviation);
         uint256 ceilingPrice = wmultiply(collateralFsmPriceFeedValue, subtract(2 * WAD, upperCollateralMedianDeviation));
 
@@ -628,7 +631,7 @@ contract FixedDiscountCollateralAuctionHouse {
         uint256 collateralMedianPriceFeedValue,
         uint256 systemCoinPriceFeedValue,
         uint256 customDiscount
-    ) public returns (uint256) {
+    ) public view returns (uint256) {
         // calculate the collateral price in relation to the latest system coin price and apply the discount
         return wmultiply(
           rdivide(getFinalBaseCollateralPrice(collateralFsmPriceFeedValue, collateralMedianPriceFeedValue), systemCoinPriceFeedValue),
@@ -641,7 +644,7 @@ contract FixedDiscountCollateralAuctionHouse {
         uint256 collateralMedianPriceFeedValue,
         uint256 systemCoinPriceFeedValue,
         uint256 adjustedBid
-    ) private returns (uint256) {
+    ) private view returns (uint256) {
         // calculate the collateral price in relation to the latest system coin price and apply the discount
         uint256 discountedCollateralPrice =
           getDiscountedCollateralPrice(
@@ -701,7 +704,49 @@ contract FixedDiscountCollateralAuctionHouse {
         );
     }
     /**
-     * @notice Calculate how much collateral someone would buy from an auction
+     * @notice Calculate how much collateral someone would buy from an auction using the last read redemption price
+     * @param id ID of the auction to buy collateral from
+     * @param wad New bid submitted
+     */
+    function getApproximateCollateralBought(uint id, uint wad) external view returns (uint256, uint256) {
+        if (lastReadRedemptionPrice == 0) return (0, wad);
+        if (either(
+          either(bids[id].amountToSell == 0, bids[id].amountToRaise == 0),
+          either(wad == 0, wad < minimumBid)
+        )) {
+          return (0, wad);
+        }
+
+        uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
+
+        // bound max amount offered in exchange for collateral
+        uint256 adjustedBid = wad;
+        if (multiply(adjustedBid, RAY) > remainingToRaise) {
+            adjustedBid = addUint256(remainingToRaise / RAY, WAD);
+        }
+
+      	uint256 totalRaised = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
+      	remainingToRaise    = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
+      	if (both(remainingToRaise > 0, remainingToRaise < RAY)) {
+      	    return (0, adjustedBid);
+      	}
+
+        // check that the oracle doesn't return an invalid value
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getTokenPrices(lastReadRedemptionPrice);
+        if (collateralFsmPriceFeedValue == 0) {
+          return (0, adjustedBid);
+        }
+
+        return (getBoughtCollateral(
+          id,
+          collateralFsmPriceFeedValue,
+          getCollateralMedianPrice(),
+          systemCoinPriceFeedValue,
+          adjustedBid
+        ), adjustedBid);
+    }
+    /**
+     * @notice Calculate how much collateral someone would buy from an auction using the latest redemption price fetched from the OracleRelayer
      * @param id ID of the auction to buy collateral from
      * @param wad New bid submitted
      */
@@ -727,8 +772,11 @@ contract FixedDiscountCollateralAuctionHouse {
       	    return (0, adjustedBid);
       	}
 
+        // Read the redemption price
+        lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
+
         // check that the oracle doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getTokenPrices();
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getTokenPrices(lastReadRedemptionPrice);
         if (collateralFsmPriceFeedValue == 0) {
           return (0, adjustedBid);
         }
@@ -744,7 +792,7 @@ contract FixedDiscountCollateralAuctionHouse {
     /**
      * @notice Buy collateral from an auction at a fixed discount
      * @param id ID of the auction to buy collateral from
-     * @param wad New bid submitted
+     * @param wad New bid submitted (as a WAD which has 18 decimals)
      */
     function buyCollateral(uint id, uint wad) external {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
@@ -761,8 +809,11 @@ contract FixedDiscountCollateralAuctionHouse {
         // update amount raised
         bids[id].raisedAmount = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
 
+        // Read the redemption price
+        lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
+
         // check that the collateral FSM doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getTokenPrices();
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getTokenPrices(lastReadRedemptionPrice);
         require(collateralFsmPriceFeedValue > 0, "FixedDiscountCollateralAuctionHouse/collateral-fsm-invalid-value");
 
         // get the amount of collateral bought
