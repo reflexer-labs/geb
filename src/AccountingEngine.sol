@@ -26,6 +26,7 @@ abstract contract DebtAuctionHouseLike {
 
 abstract contract SurplusAuctionHouseLike {
     function startAuction(uint, uint) virtual public returns (uint);
+    function protocolToken() virtual public view returns (address);
     function disableContract() virtual external;
     function contractEnabled() virtual public view returns (uint);
 }
@@ -264,6 +265,7 @@ contract AccountingEngine {
         id = debtAuctionHouse.startAuction(address(this), initialDebtAuctionMintedTokens, debtAuctionBidSize);
         emit AuctionDebt(id, totalOnAuctionDebt, safeEngine.debtBalance(address(this)));
     }
+
     // Surplus auction
     /**
      * @notice Start a surplus auction
@@ -284,6 +286,7 @@ contract AccountingEngine {
           unqueuedUnauctionedDebt() == 0,
           "AccountingEngine/debt-not-zero"
         );
+        require(surplusAuctionHouse.protocolToken() != address(0), "AccountingEngine/surplus-auction-house-null-prot");
         lastSurplusAuctionTime = now;
         id = surplusAuctionHouse.startAuction(surplusAuctionAmountToSell, 0);
         emit AuctionSurplus(id, lastSurplusAuctionTime, safeEngine.coinBalance(address(this)));

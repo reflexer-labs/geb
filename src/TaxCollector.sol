@@ -473,6 +473,7 @@ contract TaxCollector {
      * @notice Check if a tax receiver is at a certain position in the list
      */
     function isSecondaryReceiver(uint256 _receiver) public view returns (bool) {
+        if (_receiver == 0) return false;
         return secondaryReceiverList.isNode(_receiver);
     }
 
