@@ -566,7 +566,7 @@ contract FixedDiscountCollateralAuctionHouse {
           }
         } catch (bytes memory revertReason) {}
     }
-    function getSystemCoinPrice() public view returns (uint256 priceFeed) {
+    function getSystemCoinMarketPrice() public view returns (uint256 priceFeed) {
         if (address(systemCoinOracle) == address(0)) return 0;
 
         // wrapped call toward the system coin oracle
@@ -587,7 +587,7 @@ contract FixedDiscountCollateralAuctionHouse {
         ceilingPrice = wmultiply(redemptionPrice, subtract(2 * WAD, upperSystemCoinMedianDeviation));
         ceilingPrice = (ceilingPrice >= minCeilingDeviatedPrice) ? ceilingPrice : redemptionPrice;
     }
-    function getTokenPrices(uint systemCoinRedemptionPrice) public view returns (uint256, uint256) {
+    function getFinalTokenPrices(uint systemCoinRedemptionPrice) public view returns (uint256, uint256) {
         require(systemCoinRedemptionPrice > 0, "FixedDiscountCollateralAuctionHouse/invalid-redemption-price-provided");
         (uint256 collateralFsmPriceFeedValue, bool collateralFsmHasValidValue) = collateralFSM.getResultWithValidity();
         if (!collateralFsmHasValidValue) {
@@ -595,7 +595,7 @@ contract FixedDiscountCollateralAuctionHouse {
         }
 
         uint256 systemCoinAdjustedPrice  = systemCoinRedemptionPrice;
-        uint256 systemCoinPriceFeedValue = getSystemCoinPrice();
+        uint256 systemCoinPriceFeedValue = getSystemCoinMarketPrice();
 
         if (systemCoinPriceFeedValue > 0) {
           uint256 floorPrice   = getSystemCoinFloorDeviatedPrice(systemCoinAdjustedPrice);
@@ -732,7 +732,7 @@ contract FixedDiscountCollateralAuctionHouse {
       	}
 
         // check that the oracle doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getTokenPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getFinalTokenPrices(lastReadRedemptionPrice);
         if (collateralFsmPriceFeedValue == 0) {
           return (0, adjustedBid);
         }
@@ -776,7 +776,7 @@ contract FixedDiscountCollateralAuctionHouse {
         lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
 
         // check that the oracle doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getTokenPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getFinalTokenPrices(lastReadRedemptionPrice);
         if (collateralFsmPriceFeedValue == 0) {
           return (0, adjustedBid);
         }
@@ -796,9 +796,9 @@ contract FixedDiscountCollateralAuctionHouse {
      */
     function buyCollateral(uint id, uint wad) external {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
-        require(both(wad > 0, wad >= minimumBid), "FixedDiscountCollateralAuctionHouse/invalid-bid");
 
         uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
+        require(both(wad > 0, wad >= minimum(minimumBid, remainingToRaise / RAY)), "FixedDiscountCollateralAuctionHouse/invalid-bid");
 
         // bound max amount offered in exchange for collateral (in case someone offers more than it's necessary)
         uint256 adjustedBid = wad;
@@ -813,7 +813,7 @@ contract FixedDiscountCollateralAuctionHouse {
         lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
 
         // check that the collateral FSM doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getTokenPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getFinalTokenPrices(lastReadRedemptionPrice);
         require(collateralFsmPriceFeedValue > 0, "FixedDiscountCollateralAuctionHouse/collateral-fsm-invalid-value");
 
         // get the amount of collateral bought

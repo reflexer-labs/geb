@@ -521,8 +521,8 @@ contract SAFEEngine {
     }
     /**
      * @notice Usually called by CoinSavingsAccount in order to create unbacked debt
-     * @param debtDestination Usually AccountingEngine that can settle dent with surplus
-     * @param coinDestination Usually CoinSavingsAccount who passes the new coins to depositors
+     * @param debtDestination Usually AccountingEngine that can settle debt with surplus
+     * @param coinDestination Usually CoinSavingsAccount that passes the new coins to depositors
      * @param rad Amount of debt to create
      */
     function createUnbackedDebt(

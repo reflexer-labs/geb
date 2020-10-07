@@ -698,7 +698,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
                                                       , initialBid: 0
                                                       });
         Guy(ali).buyCollateral(id, 49.99E18);
-        Guy(ali).buyCollateral(id, 5 * WAD);
+        Guy(ali).buyCollateral(id, 0.01E18);
 
         (uint raisedAmount, uint soldAmount, uint amountToSell, uint amountToRaise, , , ) = collateralAuctionHouse.bids(id);
         assertEq(raisedAmount, 0);
@@ -706,10 +706,10 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         assertEq(amountToSell, 0);
         assertEq(amountToRaise, 0);
 
-        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 51 * RAD);
+        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 50 * RAD);
         assertEq(safeEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 0);
-        assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 268421052631578946);
-        assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 1 ether - 268421052631578946);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 263157894736842104);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 1 ether - 263157894736842104);
     }
     function test_big_discount_buy() public {
         oracleRelayer.modifyParameters("redemptionPrice", RAY);
