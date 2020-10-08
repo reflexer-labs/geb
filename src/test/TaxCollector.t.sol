@@ -449,6 +449,19 @@ contract TaxCollectorTest is DSTest {
         assertEq(wad(safeEngine.coinBalance(bob)) * ray(100 ether) / uint(currentRates), 4000000000000000000000);
         assertEq(wad(safeEngine.coinBalance(char)) * ray(100 ether) / uint(currentRates), 4499999999999999999960);
     }
+    function testFail_tax_when_safe_engine_is_disabled() public {
+        taxCollector.initializeCollateralType("i");
+        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
+
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
+        taxCollector.modifyParameters("maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters("i", 1, ray(40 ether), bob);
+        taxCollector.modifyParameters("i", 2, ray(45 ether), char);
+
+        safeEngine.disableContract();
+        hevm.warp(now + 10);
+        taxCollector.taxSingle("i");
+    }
     function test_add_secondaryTaxReceivers_multi_collateral_types_collect_tax_positive() public {
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
         taxCollector.modifyParameters("maxSecondaryReceivers", 2);
