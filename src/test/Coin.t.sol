@@ -208,23 +208,22 @@ contract CoinTest is DSTest {
         assertEq(oracleRelayer.redemptionPrice(), 10 ** 27);
         assertEq(token.balanceOf(self), initialBalanceThis);
         assertEq(token.balanceOf(cal), initialBalanceCal);
+        assertEq(token.changeData(), 1);
+        assertEq(token.chainId(), 99);
+        assertEq(keccak256(abi.encodePacked(token.version())), keccak256(abi.encodePacked("1")));
         token.mint(self, 0);
         (,,uint safetyPrice,,,) = safeEngine.collateralTypes("gold");
         assertEq(safetyPrice, ray(1 ether));
     }
-
     function testSetupPrecondition() public {
         assertEq(token.balanceOf(self), initialBalanceThis);
     }
-
     function testTransferCost() public logs_gas {
         token.transfer(address(0), 10);
     }
-
     function testAllowanceStartsAtZero() public logs_gas {
         assertEq(token.allowance(user1, user2), 0);
     }
-
     function testValidTransfers() public logs_gas {
         uint sentAmount = 250;
         emit log_named_address("token11111", address(token));
@@ -232,18 +231,15 @@ contract CoinTest is DSTest {
         assertEq(token.balanceOf(user2), sentAmount);
         assertEq(token.balanceOf(self), initialBalanceThis - sentAmount);
     }
-
     function testFailWrongAccountTransfers() public logs_gas {
         uint sentAmount = 250;
         token.transferFrom(user2, self, sentAmount);
     }
-
     function testFailInsufficientFundsTransfers() public logs_gas {
         uint sentAmount = 250;
         token.transfer(user1, initialBalanceThis - sentAmount);
         token.transfer(user2, sentAmount + 1);
     }
-
     function testApproveSetsAllowance() public logs_gas {
         emit log_named_address("Test", self);
         emit log_named_address("Token", address(token));
@@ -252,7 +248,6 @@ contract CoinTest is DSTest {
         token.approve(user2, 25);
         assertEq(token.allowance(self, user2), 25);
     }
-
     function testChargesAmountApproved() public logs_gas {
         uint amountApproved = 20;
         token.approve(user2, amountApproved);
@@ -296,7 +291,6 @@ contract CoinTest is DSTest {
         token.addAuthorization(user1);
         TokenUser(user1).doMint(user2, 10);
     }
-
     function testBurn() public {
         uint burnAmount = 10;
         token.burn(address(this), burnAmount);
@@ -327,7 +321,6 @@ contract CoinTest is DSTest {
         TokenUser(user2).doApprove(user1);
         TokenUser(user1).doBurn(user2, 10);
     }
-
     function testFailUntrustedTransferFrom() public {
         assertEq(token.allowance(self, user2), 0);
         TokenUser(user1).doTransferFrom(self, user2, 200);
@@ -367,18 +360,32 @@ contract CoinTest is DSTest {
         //used for signature generation testing
         assertEq(address(token), address(0xD9ced1c2A058f4d60e392f6DA2898594138B5ac0));
     }
+    function testRenamings() public {
+        token.setName("Prai");
+        assertEq(keccak256(abi.encodePacked(token.name())), keccak256(abi.encodePacked("Prai")));
 
+        token.setSymbol("PRAI");
+        assertEq(keccak256(abi.encodePacked(token.symbol())), keccak256(abi.encodePacked("PRAI")));
+    }
+    function testFailChangeNameAfterGivingUpRights() public {
+        token.modifyParameters("changeData", 0);
+        token.setName("Prai");
+    }
+    function testFailChangeSymbolAfterGivingUpRights() public {
+        token.modifyParameters("changeData", 0);
+        token.setSymbol("PRAI");
+    }
     function testTypehash() public {
         assertEq(token.PERMIT_TYPEHASH(), 0xea2aa0a1be11a07ed86d755c93467f4f82362b452371d1ba94d1715123511acb);
     }
-
     function testDomain_Separator() public {
-        assertEq(token.DOMAIN_SEPARATOR(), 0x4fb23625389df668dff7ca91ebd65594b101fddfd2ebc53af05da2b1af6d8f76);
+        assertEq(token.DOMAIN_SEPARATOR(), 0x1576d2c0f97e759a98c7210a09e7ed97b4141206f1886ffbccaa7a67c67d3b94);
     }
 
     //TODO: remake with v,r,s for coin now that we changed the DOMAIN SEPARATOR because of the dai->coin renaming
 
     // function testPermit() public {
+    //     token.modifyParameters("changeData", 0);
     //     assertEq(token.nonces(cal), 0);
     //     assertEq(token.allowance(cal, del), 0);
     //     token.permit(cal, del, 0, 0, true, v, r, s);
@@ -387,6 +394,7 @@ contract CoinTest is DSTest {
     // }
 
     function testFailPermitAddress0() public {
+        token.modifyParameters("changeData", 0);
         v = 0;
         token.permit(address(0), del, 0, 0, true, v, r, s);
     }
@@ -394,6 +402,7 @@ contract CoinTest is DSTest {
     //TODO: remake with _v,_r,_s for coin now that we changed the DOMAIN SEPARATOR because of the dai->coin renaming
 
     // function testPermitWithExpiry() public {
+    //     token.modifyParameters("changeData", 0);
     //     assertEq(now, 604411200);
     //     token.permit(cal, del, 0, 604411200 + 1 hours, true, _v, _r, _s);
     //     assertEq(token.allowance(cal, del),uint(-1));
@@ -401,12 +410,13 @@ contract CoinTest is DSTest {
     // }
 
     function testFailPermitWithExpiry() public {
+        token.modifyParameters("changeData", 0);
         hevm.warp(now + 2 hours);
         assertEq(now, 604411200 + 2 hours);
         token.permit(cal, del, 0, 1, true, _v, _r, _s);
     }
-
     function testFailReplay() public {
+        token.modifyParameters("changeData", 0);
         token.permit(cal, del, 0, 0, true, v, r, s);
         token.permit(cal, del, 0, 0, true, v, r, s);
     }

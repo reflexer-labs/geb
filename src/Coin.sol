@@ -31,14 +31,21 @@ contract Coin {
         _;
     }
 
+    modifier canChangeData() {
+        require(changeData == 1, "Coin/cannot-change-namings");
+        _;
+    }
+
     // --- ERC20 Data ---
     string  public name;
     string  public symbol;
-    string  public version;
+    string  public version = "1";
 
     uint8   public constant decimals = 18;
 
+    uint256 public chainId;
     uint256 public totalSupply;
+    uint256 public changeData;
 
     mapping (address => uint)                      public balanceOf;
     mapping (address => mapping (address => uint)) public allowance;
@@ -49,6 +56,7 @@ contract Coin {
     event RemoveAuthorization(address account);
     event Approval(address indexed src, address indexed guy, uint amount);
     event Transfer(address indexed src, address indexed dst, uint amount);
+    event ModifyParameters(bytes32 parameter, uint data);
 
     // --- Math ---
     function addition(uint x, uint y) internal pure returns (uint z) {
@@ -69,8 +77,10 @@ contract Coin {
         uint256 chainId_
       ) public {
         authorizedAccounts[msg.sender] = 1;
-        name     = name_;
-        symbol   = symbol_;
+        name          = name_;
+        symbol        = symbol_;
+        changeData    = 1;
+        chainId       = chainId_;
         DOMAIN_SEPARATOR = keccak256(abi.encode(
             keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
             keccak256(bytes(name)),
@@ -79,6 +89,31 @@ contract Coin {
             address(this)
         ));
         emit AddAuthorization(msg.sender);
+        emit ModifyParameters("changeData", 1);
+    }
+
+    // --- Administration ---
+    function modifyParameters(bytes32 parameter, uint data) external isAuthorized canChangeData {
+        if (parameter == "changeData") {
+          changeData = data;
+        }
+        else revert("Coin/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
+    }
+
+    // --- Naming ---
+    function setName(string calldata name_) external isAuthorized canChangeData {
+        name             = name_;
+        DOMAIN_SEPARATOR = keccak256(abi.encode(
+            keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+            keccak256(bytes(name)),
+            keccak256(bytes(version)),
+            chainId,
+            address(this)
+        ));
+    }
+    function setSymbol(string calldata symbol_) external isAuthorized canChangeData {
+        symbol = symbol_;
     }
 
     // --- Token ---
@@ -142,6 +177,7 @@ contract Coin {
         bytes32 s
     ) external
     {
+        require(changeData != 1, "Coin/can-still-change-namings");
         bytes32 digest =
             keccak256(abi.encodePacked(
                 "\x19\x01",
