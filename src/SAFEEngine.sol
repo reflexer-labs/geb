@@ -104,6 +104,8 @@ contract SAFEEngine {
     // Amount of debt held by an account. Coins & debt are like matter and antimatter. They nullify each other
     mapping (address => uint)                       public debtBalance;      // [rad]
 
+    // Total amount of debt that a single safe can generate
+    uint256 public safeDebtCeiling;      // [wad]
     // Total amount of debt (coins) currently issued
     uint256  public globalDebt;          // [rad]
     // 'Bad' debt that's not covered by collateral
@@ -177,8 +179,10 @@ contract SAFEEngine {
     // --- Init ---
     constructor() public {
         authorizedAccounts[msg.sender] = 1;
+        safeDebtCeiling = uint(-1);
         contractEnabled = 1;
         emit AddAuthorization(msg.sender);
+        emit ModifyParameters("safeDebtCeiling", uint(-1));
     }
 
     // --- Math ---
@@ -236,6 +240,7 @@ contract SAFEEngine {
     function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
         require(contractEnabled == 1, "SAFEEngine/contract-not-enabled");
         if (parameter == "globalDebtCeiling") globalDebtCeiling = data;
+        else if (parameter == "safeDebtCeiling") safeDebtCeiling = data;
         else revert("SAFEEngine/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
     }
@@ -347,7 +352,7 @@ contract SAFEEngine {
 
         safeData.lockedCollateral      = addition(safeData.lockedCollateral, deltaCollateral);
         safeData.generatedDebt         = addition(safeData.generatedDebt, deltaDebt);
-        collateralTypeData.debtAmount = addition(collateralTypeData.debtAmount, deltaDebt);
+        collateralTypeData.debtAmount  = addition(collateralTypeData.debtAmount, deltaDebt);
 
         int deltaAdjustedDebt = multiply(collateralTypeData.accumulatedRate, deltaDebt);
         uint totalDebtIssued  = multiply(collateralTypeData.accumulatedRate, safeData.generatedDebt);
@@ -380,6 +385,11 @@ contract SAFEEngine {
 
         // safe has no debt, or a non-dusty amount
         require(either(safeData.generatedDebt == 0, totalDebtIssued >= collateralTypeData.debtFloor), "SAFEEngine/dust");
+
+        // safe didn't go above the safe debt limit
+        if (deltaDebt > 0) {
+          require(safeData.generatedDebt <= safeDebtCeiling, "SAFEEngine/above-debt-limit");
+        }
 
         tokenCollateral[collateralType][collateralSource] =
           subtract(tokenCollateral[collateralType][collateralSource], deltaCollateral);

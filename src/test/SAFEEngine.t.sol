@@ -19,6 +19,9 @@ abstract contract Hevm {
     function warp(uint256) virtual public;
     function store(address,bytes32,bytes32) virtual external;
 }
+abstract contract HevmWarped {
+    function warp(uint256) virtual public;
+}
 
 contract Feed {
     bytes32 public price;
@@ -385,6 +388,151 @@ contract ModifySAFECollateralizationTest is DSTest {
         assertTrue(!try_modifySAFECollateralization("gold", 0 ether, -5 ether));
         assertTrue( try_modifySAFECollateralization("gold", 0 ether, -6 ether));
     }
+}
+
+contract SAFEDebtLimitTest is DSTest {
+  Hevm hevm;
+
+  TestSAFEEngine safeEngine;
+  DSToken gold;
+  DSToken stable;
+  TaxCollector taxCollector;
+
+  BasicCollateralJoin collateralA;
+  address me;
+
+  uint constant RAY = 10 ** 27;
+
+  function try_modifySAFECollateralization(bytes32 collateralType, int collateralToDeposit, int generatedDebt) public returns (bool ok) {
+      string memory sig = "modifySAFECollateralization(bytes32,address,address,address,int256,int256)";
+      address self = address(this);
+      (ok,) = address(safeEngine).call(abi.encodeWithSignature(sig, collateralType, self, self, self, collateralToDeposit, generatedDebt));
+  }
+
+  function try_transferSAFECollateralAndDebt(bytes32 collateralType, address dst, int deltaCollateral, int deltaDebt) public returns (bool ok) {
+      string memory sig = "transferSAFECollateralAndDebt(bytes32,address,address,int256,int256)";
+      address self = address(this);
+      (ok,) = address(safeEngine).call(abi.encodeWithSignature(sig, collateralType, self, dst, deltaCollateral, deltaDebt));
+  }
+
+  function ray(uint wad) internal pure returns (uint) {
+      return wad * 10 ** 9;
+  }
+  function rad(uint wad) internal pure returns (uint) {
+      return wad * 10 ** 27;
+  }
+
+  function setUp() public {
+      hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
+      hevm.warp(604411200);
+
+      safeEngine = new TestSAFEEngine();
+
+      gold = new DSToken("GEM");
+      gold.mint(1000 ether);
+
+      safeEngine.initializeCollateralType("gold");
+
+      collateralA = new BasicCollateralJoin(address(safeEngine), "gold", address(gold));
+
+      safeEngine.modifyParameters("gold", "safetyPrice",    ray(1 ether));
+      safeEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));
+      safeEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
+
+      taxCollector = new TaxCollector(address(safeEngine));
+      taxCollector.initializeCollateralType("gold");
+      taxCollector.modifyParameters("primaryTaxReceiver", address(0x1234));
+      taxCollector.modifyParameters("gold", "stabilityFee", 1000000564701133626865910626);  // 5% / day
+      safeEngine.addAuthorization(address(taxCollector));
+
+      gold.approve(address(collateralA));
+      gold.approve(address(safeEngine));
+
+      safeEngine.addAuthorization(address(safeEngine));
+      safeEngine.addAuthorization(address(collateralA));
+
+      collateralA.join(address(this), 1000 ether);
+
+      safeEngine.modifyParameters("gold", 'debtCeiling', rad(10 ether));
+      safeEngine.modifyParameters('safeDebtCeiling', 5 ether);
+
+      me = address(this);
+  }
+
+  function tokenCollateral(bytes32 collateralType, address safe) internal view returns (uint) {
+      return safeEngine.tokenCollateral(collateralType, safe);
+  }
+  function lockedCollateral(bytes32 collateralType, address safe) internal view returns (uint) {
+      (uint lockedCollateral_, uint generatedDebt_) =
+        safeEngine.safes(collateralType, safe); generatedDebt_;
+      return lockedCollateral_;
+  }
+  function generatedDebt(bytes32 collateralType, address safe) internal view returns (uint) {
+      (uint lockedCollateral_, uint generatedDebt_) =
+        safeEngine.safes(collateralType, safe); lockedCollateral_;
+      return generatedDebt_;
+  }
+
+  function test_setup() public {
+      assertEq(gold.balanceOf(address(collateralA)), 1000 ether);
+      assertEq(tokenCollateral("gold", address(this)), 1000 ether);
+      assertEq(safeEngine.safeDebtCeiling(), 5 ether);
+  }
+  function testFail_generate_debt_above_safe_limit() public {
+      Usr ali = new Usr(safeEngine);
+      address a = address(ali);
+
+      safeEngine.addAuthorization(a);
+      safeEngine.modifyCollateralBalance("gold", a, int(rad(20 ether)));
+
+      ali.modifySAFECollateralization("gold", a, a, a, 10 ether, 7 ether);
+  }
+  function testFail_generate_debt_above_collateral_ceiling_but_below_safe_limit() public {
+      safeEngine.modifyParameters("gold", 'debtCeiling', rad(4 ether));
+      assertTrue(try_modifySAFECollateralization("gold", 10 ether, 4.5 ether));
+  }
+  function test_repay_debt() public {
+      Usr ali = new Usr(safeEngine);
+      address a = address(ali);
+
+      safeEngine.addAuthorization(a);
+      safeEngine.modifyCollateralBalance("gold", a, int(rad(20 ether)));
+
+      ali.modifySAFECollateralization("gold", a, a, a, 10 ether, 5 ether);
+      ali.modifySAFECollateralization("gold", a, a, a, 0, -5 ether);
+  }
+  function test_tax_and_repay_debt() public {
+      Usr ali = new Usr(safeEngine);
+      address a = address(ali);
+
+      safeEngine.addAuthorization(a);
+      safeEngine.modifyCollateralBalance("gold", a, int(rad(20 ether)));
+
+      ali.modifySAFECollateralization("gold", a, a, a, 10 ether, 5 ether);
+
+      hevm.warp(now + 1 days);
+      taxCollector.taxSingle("gold");
+
+      ali.modifySAFECollateralization("gold", a, a, a, 0, -4 ether);
+  }
+  function test_change_safe_limit_and_modify_cratio() public {
+      Usr ali = new Usr(safeEngine);
+      address a = address(ali);
+
+      safeEngine.addAuthorization(a);
+      safeEngine.modifyCollateralBalance("gold", a, int(rad(20 ether)));
+
+      ali.modifySAFECollateralization("gold", a, a, a, 10 ether, 5 ether);
+
+      safeEngine.modifyParameters('safeDebtCeiling', 4 ether);
+
+      assertTrue(!try_modifySAFECollateralization("gold", 0, 2 ether));
+      ali.modifySAFECollateralization("gold", a, a, a, 0, -1 ether);
+      assertTrue(!try_modifySAFECollateralization("gold", 0, 2 ether));
+
+      safeEngine.modifyParameters('safeDebtCeiling', uint(-1));
+      ali.modifySAFECollateralization("gold", a, a, a, 0, 4 ether);
+  }
 }
 
 contract JoinTest is DSTest {
