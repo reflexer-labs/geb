@@ -1,10 +1,12 @@
 os:
   - linux
 language: nix
+nix: 2.3.6
 before_install:
   - nix-env -iA nixpkgs.cachix
+  - echo "trusted-users = root travis" | sudo tee -a /etc/nix/nix.conf && sudo pkill nix-daemon
   - cachix use maker
   - git clone --recursive https://github.com/dapphub/dapptools $HOME/.dapp/dapptools
-  - nix-env -f https://github.com/makerdao/makerpkgs/tarball/master -iA dappPkgsVersions.seth-0_8_4.dapp
+  - nix-env -f https://github.com/makerdao/makerpkgs/tarball/master -iA dappPkgsVersions.hevm-0_41_0.dapp
 script:
-  - nix-shell --pure --run 'dapp test'
+  - dapp --use solc:0.6.7 test
