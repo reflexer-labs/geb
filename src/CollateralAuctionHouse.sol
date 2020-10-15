@@ -404,8 +404,8 @@ contract FixedDiscountCollateralAuctionHouse {
 
     // Minimum acceptable bid
     uint256  public   minimumBid = 5 * WAD;                                                                           // [wad]
-    // Total length of the auction. Kept to adhere to the same interface as the English auction but redundant and will probably be removed
-    uint48   public   totalAuctionLength = 10 * 365 * 24 * 3600;                                                      // [seconds]
+    // Total length of the auction. Kept to adhere to the same interface as the English auction but redundant
+    uint48   public   totalAuctionLength = uint48(-1);                                                                // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
     // The last read redemption price
@@ -532,9 +532,6 @@ contract FixedDiscountCollateralAuctionHouse {
         }
         else if (parameter == "minimumBid") {
             minimumBid = data;
-        }
-        else if (parameter == "totalAuctionLength") {
-            totalAuctionLength = uint48(data);
         }
         else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
@@ -684,7 +681,7 @@ contract FixedDiscountCollateralAuctionHouse {
         require(amountToRaise >= RAY, "FixedDiscountCollateralAuctionHouse/dusty-auction");
         id = ++auctionsStarted;
 
-        bids[id].auctionDeadline = addUint48(uint48(now), uint48(totalAuctionLength));
+        bids[id].auctionDeadline = uint48(-1);
         bids[id].amountToSell = amountToSell;
         bids[id].forgoneCollateralReceiver = forgoneCollateralReceiver;
         bids[id].auctionIncomeRecipient = auctionIncomeRecipient;
@@ -832,12 +829,18 @@ contract FixedDiscountCollateralAuctionHouse {
         // Emit the buy event
         emit BuyCollateral(id, adjustedBid, boughtCollateral);
 
-        // if the auction raised the whole amount or all collateral was sold,
-        // send remaining collateral back to the forgone receiver
+        // Remove coins from the liquidation buffer
         bool soldAll = either(bids[id].amountToRaise <= bids[id].raisedAmount, bids[id].amountToSell == bids[id].soldAmount);
         if (soldAll) {
+          liquidationEngine.removeCoinsFromAuction(remainingToRaise);
+        } else {
+          liquidationEngine.removeCoinsFromAuction(multiply(adjustedBid, RAY));
+        }
+
+        // If the auction raised the whole amount or all collateral was sold,
+        // send remaining collateral back to the forgone receiver
+        if (soldAll) {
             uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
-            liquidationEngine.removeCoinsFromAuction(bids[id].amountToRaise);
             safeEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
             delete bids[id];
             emit SettleAuction(id, leftoverCollateral);
@@ -848,15 +851,7 @@ contract FixedDiscountCollateralAuctionHouse {
      * @param id ID of the auction to settle
      */
     function settleAuction(uint id) external {
-        require(both(
-          both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0),
-          bids[id].auctionDeadline < now
-        ), "FixedDiscountCollateralAuctionHouse/not-finished");
-        uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
-        liquidationEngine.removeCoinsFromAuction(bids[id].amountToRaise);
-        safeEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, leftoverCollateral);
-        delete bids[id];
-        emit SettleAuction(id, leftoverCollateral);
+        return;
     }
     /**
      * @notice Terminate an auction prematurely. Usually called by Global Settlement.
@@ -865,8 +860,8 @@ contract FixedDiscountCollateralAuctionHouse {
     function terminateAuctionPrematurely(uint id) external isAuthorized {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
         uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
-        liquidationEngine.removeCoinsFromAuction(bids[id].amountToRaise);
-        safeEngine.transferCollateral(collateralType, address(this), msg.sender, subtract(bids[id].amountToSell, bids[id].soldAmount));
+        liquidationEngine.removeCoinsFromAuction(subtract(bids[id].amountToRaise, bids[id].raisedAmount));
+        safeEngine.transferCollateral(collateralType, address(this), msg.sender, leftoverCollateral);
         delete bids[id];
         emit TerminateAuctionPrematurely(id, msg.sender, leftoverCollateral);
     }
