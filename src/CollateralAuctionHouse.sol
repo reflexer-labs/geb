@@ -800,7 +800,7 @@ contract FixedDiscountCollateralAuctionHouse {
         // bound max amount offered in exchange for collateral (in case someone offers more than it's necessary)
         uint256 adjustedBid = wad;
         if (multiply(adjustedBid, RAY) > remainingToRaise) {
-            adjustedBid = addUint256(remainingToRaise / RAY, WAD);
+            adjustedBid = addUint256(remainingToRaise / RAY, 1);
         }
 
         // update amount raised

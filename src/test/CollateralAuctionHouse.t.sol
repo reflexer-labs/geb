@@ -678,7 +678,7 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         assertEq(amountToSell, 0);
         assertEq(amountToRaise, 0);
 
-        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 100999999999999999999000000000000000000000000000);
+        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 100000000000000000000000000000000000000000000000);
         assertEq(safeEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 0);
         assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 0.5 ether);
         assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 0);
@@ -735,10 +735,10 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         assertEq(amountToSell, 0);
         assertEq(amountToRaise, 0);
 
-        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 51 * RAD);
+        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 50000000000000000001000000000000000000000000000);
         assertEq(safeEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 0);
-        assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 268421052631578946);
-        assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 1 ether - 268421052631578946);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 263157894736842104);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 1 ether - 263157894736842104);
     }
     function test_buyCollateral_liquidation_starts_with_zero_on_auction() public {
         liquidationEngine = new DummyLiquidationEngine(50000000000000000000000000000000000000000001234);
@@ -768,10 +768,10 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         assertEq(amountToSell, 0);
         assertEq(amountToRaise, 0);
 
-        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 51 * RAD);
+        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 50000000000000000001000000000000000000000000000);
         assertEq(safeEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 0);
-        assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 268421052631578946);
-        assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 1 ether - 268421052631578946);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 263157894736842104);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 1 ether - 263157894736842104);
     }
     function test_big_discount_buy() public {
         oracleRelayer.modifyParameters("redemptionPrice", RAY);
