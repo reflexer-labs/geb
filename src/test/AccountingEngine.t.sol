@@ -21,6 +21,12 @@ contract Gem {
     }
 }
 
+contract User {
+    function popDebtFromQueue(address accountingEngine, uint timestamp) public {
+        AccountingEngine(accountingEngine).popDebtFromQueue(timestamp);
+    }
+}
+
 contract ProtocolTokenAuthority {
     mapping (address => uint) public authorizedAccounts;
 
@@ -52,9 +58,13 @@ contract AccountingEngineTest is DSTest {
     Gem  protocolToken;
     ProtocolTokenAuthority tokenAuthority;
 
+    User alice;
+
     function setUp() public {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
+
+        alice = new User();
 
         safeEngine = new SAFEEngine();
 
@@ -133,6 +143,7 @@ contract AccountingEngineTest is DSTest {
     function popDebtFromQueue(uint wad) internal {
         createUnbackedDebt(address(0), wad);  // create unbacked coins into the zero address
         accountingEngine.popDebtFromQueue(now);
+        assertEq(accountingEngine.debtPoppers(now), address(this));
     }
     function settleDebt(uint wad) internal {
         accountingEngine.settleDebt(rad(wad));
@@ -195,6 +206,12 @@ contract AccountingEngineTest is DSTest {
 
         settleDebt(100 ether);
         assertTrue( can_auction_debt() );
+    }
+
+    function test_pop_debt_after_being_popped() public {
+        popDebtFromQueue(100 ether);
+        alice.popDebtFromQueue(address(accountingEngine), now);
+        assertEq(accountingEngine.debtPoppers(now), address(this));
     }
 
     function test_surplus_auction() public {

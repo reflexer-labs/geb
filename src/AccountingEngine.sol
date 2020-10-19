@@ -93,6 +93,8 @@ contract AccountingEngine {
       that print protocol tokens
     **/
     mapping (uint256 => uint256) public debtQueue;          // [unix timestamp => rad]
+    // Addresses that popped debt out of the queue
+    mapping (uint256 => address) public debtPoppers;        // [unix timestamp => address]
     // Total debt in the queue (that the system tries to cover with collateral auctions)
     uint256 public totalQueuedDebt;                         // [rad]
     // Total debt being auctioned in DebtAuctionHouse (printing protocol tokens for coins that will settle the debt)
@@ -222,8 +224,11 @@ contract AccountingEngine {
     function popDebtFromQueue(uint debtBlockTimestamp) external {
         require(addition(debtBlockTimestamp, popDebtDelay) <= now, "AccountingEngine/pop-debt-delay-not-passed");
         totalQueuedDebt = subtract(totalQueuedDebt, debtQueue[debtBlockTimestamp]);
+        if (debtQueue[debtBlockTimestamp] > 0) {
+          debtPoppers[debtBlockTimestamp] = msg.sender;
+        }
+        emit PopDebtFromQueue(now, debtQueue[debtBlockTimestamp], totalQueuedDebt);
         debtQueue[debtBlockTimestamp] = 0;
-        emit PopDebtFromQueue(now, debtQueue[now], totalQueuedDebt);
     }
 
     // Debt settlement
