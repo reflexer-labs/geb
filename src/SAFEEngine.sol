@@ -158,7 +158,7 @@ contract SAFEEngine {
         int deltaDebt,
         uint globalUnbackedDebt
     );
-    event SettleDebt(uint rad, uint debtBalance, uint coinBalance, uint globalUnbackedDebt, uint globalDebt);
+    event SettleDebt(address account, uint rad, uint debtBalance, uint coinBalance, uint globalUnbackedDebt, uint globalDebt);
     event CreateUnbackedDebt(
         address debtDestination,
         address coinDestination,
@@ -527,7 +527,7 @@ contract SAFEEngine {
         coinBalance[account]  = subtract(coinBalance[account], rad);
         globalUnbackedDebt    = subtract(globalUnbackedDebt, rad);
         globalDebt            = subtract(globalDebt, rad);
-        emit SettleDebt(rad, debtBalance[account], coinBalance[account], globalUnbackedDebt, globalDebt);
+        emit SettleDebt(account, rad, debtBalance[account], coinBalance[account], globalUnbackedDebt, globalDebt);
     }
     /**
      * @notice Usually called by CoinSavingsAccount in order to create unbacked debt
