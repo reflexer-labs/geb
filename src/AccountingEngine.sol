@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.6.7;
+pragma solidity 0.6.7;
 
 abstract contract DebtAuctionHouseLike {
     function startAuction(address incomeReceiver, uint256 amountToSell, uint256 initialBid) virtual public returns (uint256);
@@ -170,7 +170,7 @@ contract AccountingEngine {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         if (parameter == "surplusAuctionDelay") surplusAuctionDelay = data;
         else if (parameter == "popDebtDelay") popDebtDelay = data;
         else if (parameter == "surplusAuctionAmountToSell") surplusAuctionAmountToSell = data;
@@ -211,7 +211,7 @@ contract AccountingEngine {
      *      and gather surplus
      * @param debtBlock Amount of debt to push
      */
-    function pushDebtToQueue(uint debtBlock) external isAuthorized {
+    function pushDebtToQueue(uint256 debtBlock) external isAuthorized {
         debtQueue[now] = addition(debtQueue[now], debtBlock);
         totalQueuedDebt = addition(totalQueuedDebt, debtBlock);
         emit PushDebtToQueue(now, debtQueue[now], totalQueuedDebt);
@@ -221,7 +221,7 @@ contract AccountingEngine {
      *         added there
      * @param debtBlockTimestamp Timestamp of the block of debt that should be popped out
      */
-    function popDebtFromQueue(uint debtBlockTimestamp) external {
+    function popDebtFromQueue(uint256 debtBlockTimestamp) external {
         require(addition(debtBlockTimestamp, popDebtDelay) <= now, "AccountingEngine/pop-debt-delay-not-passed");
         totalQueuedDebt = subtract(totalQueuedDebt, debtQueue[debtBlockTimestamp]);
         if (debtQueue[debtBlockTimestamp] > 0) {
@@ -237,7 +237,7 @@ contract AccountingEngine {
      * @dev We can only destroy debt that is not locked in the queue and also not in a debt auction
      * @param rad Amount of coins/debt to destroy (number with 45 decimals)
     **/
-    function settleDebt(uint rad) public {
+    function settleDebt(uint256 rad) public {
         require(rad <= safeEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
         require(rad <= unqueuedUnauctionedDebt(), "AccountingEngine/insufficient-debt");
         safeEngine.settleDebt(rad);
@@ -247,7 +247,7 @@ contract AccountingEngine {
      * @notice Use surplus coins to destroy debt that is/was in a debt auction
      * @param rad Amount of coins/debt to destroy (number with 45 decimals)
     **/
-    function cancelAuctionedDebtWithSurplus(uint rad) external {
+    function cancelAuctionedDebtWithSurplus(uint256 rad) external {
         require(rad <= totalOnAuctionDebt, "AccountingEngine/not-enough-debt-being-auctioned");
         require(rad <= safeEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
         totalOnAuctionDebt = subtract(totalOnAuctionDebt, rad);
@@ -261,7 +261,7 @@ contract AccountingEngine {
      *         system can accumulate surplus)
      * @dev We can only auction debt that is not already being auctioned and is not locked in the debt queue
     **/
-    function auctionDebt() external returns (uint id) {
+    function auctionDebt() external returns (uint256 id) {
         require(debtAuctionBidSize <= unqueuedUnauctionedDebt(), "AccountingEngine/insufficient-debt");
         settleDebt(safeEngine.coinBalance(address(this)));
         require(safeEngine.coinBalance(address(this)) == 0, "AccountingEngine/surplus-not-zero");
