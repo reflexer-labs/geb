@@ -198,14 +198,14 @@ contract AccountingEngineTest is DSTest {
         assertTrue(!can_auction_debt() );
     }
 
-    function test_no_debt_auction_pending_joy() public {
+    function test_no_debt_auction_pending_surplus() public {
         popDebtFromQueue(200 ether);
 
         safeEngine.mint(address(accountingEngine), 100 ether);
-        assertTrue(!can_auction_debt() );
+        assertTrue(can_auction_debt());
 
         settleDebt(100 ether);
-        assertTrue( can_auction_debt() );
+        assertTrue(can_auction_debt());
     }
 
     function test_pop_debt_after_being_popped() public {

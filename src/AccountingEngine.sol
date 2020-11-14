@@ -237,7 +237,7 @@ contract AccountingEngine {
      * @dev We can only destroy debt that is not locked in the queue and also not in a debt auction
      * @param rad Amount of coins/debt to destroy (number with 45 decimals)
     **/
-    function settleDebt(uint rad) external {
+    function settleDebt(uint rad) public {
         require(rad <= safeEngine.coinBalance(address(this)), "AccountingEngine/insufficient-surplus");
         require(rad <= unqueuedUnauctionedDebt(), "AccountingEngine/insufficient-debt");
         safeEngine.settleDebt(rad);
@@ -263,6 +263,7 @@ contract AccountingEngine {
     **/
     function auctionDebt() external returns (uint id) {
         require(debtAuctionBidSize <= unqueuedUnauctionedDebt(), "AccountingEngine/insufficient-debt");
+        settleDebt(safeEngine.coinBalance(address(this)));
         require(safeEngine.coinBalance(address(this)) == 0, "AccountingEngine/surplus-not-zero");
         require(debtAuctionHouse.protocolToken() != address(0), "AccountingEngine/debt-auction-house-null-prot");
         require(protocolTokenAuthority.authorizedAccounts(address(debtAuctionHouse)) == 1, "AccountingEngine/debt-auction-house-cannot-print-prot");
