@@ -1,4 +1,4 @@
-pragma solidity ^0.6.7;
+pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";

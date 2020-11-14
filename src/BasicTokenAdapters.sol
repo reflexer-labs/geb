@@ -15,22 +15,22 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.6.7;
+pragma solidity 0.6.7;
 
 abstract contract CollateralLike {
-    function decimals() virtual public view returns (uint);
-    function transfer(address,uint) virtual public returns (bool);
-    function transferFrom(address,address,uint) virtual public returns (bool);
+    function decimals() virtual public view returns (uint256);
+    function transfer(address,uint256) virtual public returns (bool);
+    function transferFrom(address,address,uint256) virtual public returns (bool);
 }
 
 abstract contract DSTokenLike {
-    function mint(address,uint) virtual external;
-    function burn(address,uint) virtual external;
+    function mint(address,uint256) virtual external;
+    function burn(address,uint256) virtual external;
 }
 
 abstract contract SAFEEngineLike {
-    function modifyCollateralBalance(bytes32,address,int) virtual external;
-    function transferInternalCoins(address,address,uint) virtual external;
+    function modifyCollateralBalance(bytes32,address,int256) virtual external;
+    function transferInternalCoins(address,address,uint256) virtual external;
 }
 
 /*
@@ -51,7 +51,7 @@ abstract contract SAFEEngineLike {
 
 contract BasicCollateralJoin {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to

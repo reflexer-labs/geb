@@ -13,7 +13,7 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-pragma solidity ^0.6.7;
+pragma solidity 0.6.7;
 
 abstract contract SAFEEngineLike {
     function modifyParameters(bytes32, bytes32, uint) virtual external;
