@@ -226,9 +226,11 @@ contract GlobalSettlement {
         z = multiply(x, y) / RAY;
     }
     function rdivide(uint x, uint y) internal pure returns (uint z) {
+        require(y > 0, "GlobalSettlement/division-by-zero");
         z = multiply(x, RAY) / y;
     }
     function wdivide(uint x, uint y) internal pure returns (uint z) {
+        require(y > 0, "GlobalSettlement/division-by-zero");
         z = multiply(x, WAD) / y;
     }
 

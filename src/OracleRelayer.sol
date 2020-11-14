@@ -126,10 +126,10 @@ contract OracleRelayer {
         require(y == 0 || (z = x * y) / y == x);
     }
     function rmultiply(uint x, uint y) internal pure returns (uint z) {
-        // alsites rounds down
         z = multiply(x, y) / RAY;
     }
     function rdivide(uint x, uint y) internal pure returns (uint z) {
+        require(y > 0, "OracleRelayer/division-by-zero");
         z = multiply(x, RAY) / y;
     }
     function rpower(uint x, uint n, uint base) internal pure returns (uint z) {
