@@ -185,7 +185,7 @@ contract SaveSAFETest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        protocolToken = new DSToken('GOV');
+        protocolToken = new DSToken('GOV', 'GOV');
         protocolToken.mint(100 ether);
 
         safeEngine = new TestSAFEEngine();
@@ -212,7 +212,7 @@ contract SaveSAFETest is DSTest {
         safeEngine.addAuthorization(address(liquidationEngine));
         accountingEngine.addAuthorization(address(liquidationEngine));
 
-        gold = new DSToken("GEM");
+        gold = new DSToken("GEM", "GEM");
         gold.mint(1000 ether);
 
         safeEngine.initializeCollateralType("gold");

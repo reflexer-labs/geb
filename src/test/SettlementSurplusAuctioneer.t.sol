@@ -51,7 +51,7 @@ contract SettlementSurplusAuctioneerTest is DSTest {
 
         safeEngine = new SAFEEngine();
         accountingEngine = new AccountingEngine();
-        protocolToken = new DSToken('');
+        protocolToken = new DSToken('', '');
 
         accountingEngine.modifyParameters("safeEngine", address(safeEngine));
         accountingEngine.modifyParameters("surplusAuctionAmountToSell", 100 ether * 10 ** 9);

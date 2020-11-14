@@ -59,6 +59,7 @@ abstract contract CoinSavingsAccountLike {
 }
 abstract contract CollateralAuctionHouseLike {
     function bidAmount(uint id) virtual public view returns (uint256);
+    function raisedAmount(uint id) virtual public view returns (uint256);
     function remainingAmountToSell(uint id) virtual public view returns (uint256);
     function forgoneCollateralReceiver(uint id) virtual public view returns (address);
     function amountToRaise(uint id) virtual public view returns (uint256);
@@ -286,16 +287,17 @@ contract GlobalSettlement {
         (, uint accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
 
         uint bidAmount                    = collateralAuctionHouse.bidAmount(auctionId);
+        uint raisedAmount                 = collateralAuctionHouse.raisedAmount(auctionId);
         uint collateralToSell             = collateralAuctionHouse.remainingAmountToSell(auctionId);
         address forgoneCollateralReceiver = collateralAuctionHouse.forgoneCollateralReceiver(auctionId);
         uint amountToRaise                = collateralAuctionHouse.amountToRaise(auctionId);
 
-        safeEngine.createUnbackedDebt(address(accountingEngine), address(accountingEngine), amountToRaise);
+        safeEngine.createUnbackedDebt(address(accountingEngine), address(accountingEngine), subtract(amountToRaise, raisedAmount));
         safeEngine.createUnbackedDebt(address(accountingEngine), address(this), bidAmount);
         safeEngine.approveSAFEModification(address(collateralAuctionHouse));
         collateralAuctionHouse.terminateAuctionPrematurely(auctionId);
 
-        uint debt_ = amountToRaise / accumulatedRate;
+        uint debt_ = subtract(amountToRaise, raisedAmount) / accumulatedRate;
         collateralTotalDebt[collateralType] = addition(collateralTotalDebt[collateralType], debt_);
         require(int(collateralToSell) >= 0 && int(debt_) >= 0, "GlobalSettlement/overflow");
         safeEngine.confiscateSAFECollateralAndDebt(collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int(collateralToSell), int(debt_));

@@ -61,7 +61,7 @@ contract Gal {
     }
 }
 
-contract SAFEEnginish is DSToken('') {
+contract SAFEEnginish is DSToken('', '') {
     uint constant ONE = 10 ** 27;
     function transferInternalCoins(address src, address dst, uint rad) public {
         super.transferFrom(src, dst, rad);
@@ -92,7 +92,7 @@ contract DebtAuctionHouseTest is DSTest {
         hevm.warp(604411200);
 
         safeEngine = new SAFEEngine();
-        protocolToken = new DSToken('');
+        protocolToken = new DSToken('', '');
 
         debtAuctionHouse = new DebtAuctionHouse(address(safeEngine), address(protocolToken));
 
