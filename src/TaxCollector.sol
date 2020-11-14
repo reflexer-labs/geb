@@ -550,6 +550,7 @@ contract TaxCollector {
         uint256 debtAmount,
         int256 deltaRate
     ) internal {
+        require(safeEngine.coinBalance(receiver) < 2**255, "TaxCollector/coin-balance-does-not-fit-into-int");
         // Check how many coins the receiver has and negate the value
         int256 coinBalance   = -int(safeEngine.coinBalance(receiver));
         // Compute the % out of SF that should be allocated to the receiver
