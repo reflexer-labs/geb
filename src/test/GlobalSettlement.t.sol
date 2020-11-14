@@ -616,7 +616,7 @@ contract GlobalSettlementTest is DSTest {
 
         // local checks:
         assertEq(generatedDebt("gold", safe1), 0);
-        assertEq(lockedCollateral("gold", safe1), 6973684210526315790);
+        assertEq(lockedCollateral("gold", safe1), 7973684210526315790);
         assertEq(safeEngine.debtBalance(address(accountingEngine)), rad(20 ether));
 
         // balance the accountingEngine
@@ -628,8 +628,8 @@ contract GlobalSettlementTest is DSTest {
         // SAFE closing
         ali.freeCollateral("gold");
         assertEq(lockedCollateral("gold", safe1), 0);
-        assertEq(tokenCollateral("gold", safe1), 6973684210526315790);
-        ali.exit(gold.collateralA, address(this), 6973684210526315790);
+        assertEq(tokenCollateral("gold", safe1), 7973684210526315790);
+        ali.exit(gold.collateralA, address(this), 7973684210526315790);
 
         hevm.warp(now + 1 hours);
         globalSettlement.setOutstandingCoinSupply();
@@ -649,8 +649,8 @@ contract GlobalSettlementTest is DSTest {
 
         // local checks:
         assertEq(coinBalance(safe1), 0);
-        assertEq(tokenCollateral("gold", safe1), 3000000000000000000);
-        ali.exit(gold.collateralA, address(this), 3000000000000000000);
+        assertEq(tokenCollateral("gold", safe1), 2000000000000000000);
+        ali.exit(gold.collateralA, address(this), 2000000000000000000);
         gold.collateralA.exit(address(this), 26315789473684210);
 
         assertEq(tokenCollateral("gold", address(globalSettlement)), 0);

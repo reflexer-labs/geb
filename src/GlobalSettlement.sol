@@ -297,7 +297,7 @@ contract GlobalSettlement {
         safeEngine.approveSAFEModification(address(collateralAuctionHouse));
         collateralAuctionHouse.terminateAuctionPrematurely(auctionId);
 
-        uint debt_ = amountToRaise / accumulatedRate;
+        uint debt_ = subtract(amountToRaise, raisedAmount) / accumulatedRate;
         collateralTotalDebt[collateralType] = addition(collateralTotalDebt[collateralType], debt_);
         require(int(collateralToSell) >= 0 && int(debt_) >= 0, "GlobalSettlement/overflow");
         safeEngine.confiscateSAFECollateralAndDebt(collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int(collateralToSell), int(debt_));
