@@ -170,7 +170,7 @@ contract ModifySAFECollateralizationTest is DSTest {
     function setUp() public {
         safeEngine = new TestSAFEEngine();
 
-        gold = new DSToken("GEM");
+        gold = new DSToken("GEM", '');
         gold.mint(1000 ether);
 
         safeEngine.initializeCollateralType("gold");
@@ -428,7 +428,7 @@ contract SAFEDebtLimitTest is DSTest {
 
       safeEngine = new TestSAFEEngine();
 
-      gold = new DSToken("GEM");
+      gold = new DSToken("GEM", '');
       gold.mint(1000 ether);
 
       safeEngine.initializeCollateralType("gold");
@@ -550,14 +550,14 @@ contract JoinTest is DSTest {
         safeEngine = new TestSAFEEngine();
         safeEngine.initializeCollateralType("ETH");
 
-        collateral  = new DSToken("Gem");
+        collateral  = new DSToken("Gem", 'Gem');
         collateralA = new BasicCollateralJoin(address(safeEngine), "collateral", address(collateral));
         safeEngine.addAuthorization(address(collateralA));
 
         ethA = new ETHJoin(address(safeEngine), "ETH");
         safeEngine.addAuthorization(address(ethA));
 
-        coin  = new DSToken("Coin");
+        coin  = new DSToken("Coin", 'Coin');
         coinA = new CoinJoin(address(safeEngine), address(coin));
         safeEngine.addAuthorization(address(coinA));
         coin.setOwner(address(coinA));
@@ -753,7 +753,7 @@ contract LiquidationTest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        protocolToken = new DSToken('GOV');
+        protocolToken = new DSToken('GOV', '');
         protocolToken.mint(100 ether);
 
         safeEngine = new TestSAFEEngine();
@@ -780,7 +780,7 @@ contract LiquidationTest is DSTest {
         safeEngine.addAuthorization(address(liquidationEngine));
         accountingEngine.addAuthorization(address(liquidationEngine));
 
-        gold = new DSToken("GEM");
+        gold = new DSToken("GEM", '');
         gold.mint(1000 ether);
 
         safeEngine.initializeCollateralType("gold");

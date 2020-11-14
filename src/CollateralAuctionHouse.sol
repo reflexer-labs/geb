@@ -323,6 +323,9 @@ contract EnglishCollateralAuctionHouse {
     function forgoneCollateralReceiver(uint id) public view returns (address) {
         return bids[id].forgoneCollateralReceiver;
     }
+    function raisedAmount(uint id) public view returns (uint256) {
+        return 0;
+    }
     function amountToRaise(uint id) public view returns (uint256) {
         return bids[id].amountToRaise;
     }
@@ -875,6 +878,9 @@ contract FixedDiscountCollateralAuctionHouse {
     }
     function forgoneCollateralReceiver(uint id) public view returns (address) {
         return bids[id].forgoneCollateralReceiver;
+    }
+    function raisedAmount(uint id) public view returns (uint256) {
+        return bids[id].raisedAmount;
     }
     function amountToRaise(uint id) public view returns (uint256) {
         return bids[id].amountToRaise;

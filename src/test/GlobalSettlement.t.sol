@@ -193,37 +193,38 @@ contract GlobalSettlementTest is DSTest {
         return collateralTypes[collateralType].collateral.balanceOf(usr);
     }
 
-    function init_collateral(bytes32 name) internal returns (CollateralType memory) {
-        DSToken newCollateral = new DSToken(name);
+    function init_collateral(string memory name, bytes32 encodedName) internal returns (CollateralType memory) {
+        DSToken newCollateral = new DSToken(name, name);
         newCollateral.mint(20 ether);
 
         DummyFSM oracleFSM = new DummyFSM();
-        oracleRelayer.modifyParameters(name, "orcl", address(oracleFSM));
-        oracleRelayer.modifyParameters(name, "safetyCRatio", ray(1.5 ether));
-        oracleRelayer.modifyParameters(name, "liquidationCRatio", ray(1.5 ether));
+        oracleRelayer.modifyParameters(encodedName, "orcl", address(oracleFSM));
+        oracleRelayer.modifyParameters(encodedName, "safetyCRatio", ray(1.5 ether));
+        oracleRelayer.modifyParameters(encodedName, "liquidationCRatio", ray(1.5 ether));
 
         // initial collateral price of 5
         oracleFSM.updateCollateralPrice(bytes32(5 * WAD));
 
-        safeEngine.initializeCollateralType(name);
-        BasicCollateralJoin collateralA = new BasicCollateralJoin(address(safeEngine), name, address(newCollateral));
+        safeEngine.initializeCollateralType(encodedName);
+        BasicCollateralJoin collateralA = new BasicCollateralJoin(address(safeEngine), encodedName, address(newCollateral));
 
-        safeEngine.modifyParameters(name, "safetyPrice", ray(3 ether));
-        safeEngine.modifyParameters(name, "liquidationPrice", ray(3 ether));
-        safeEngine.modifyParameters(name, "debtCeiling", rad(1000 ether));
+        safeEngine.modifyParameters(encodedName, "safetyPrice", ray(3 ether));
+        safeEngine.modifyParameters(encodedName, "liquidationPrice", ray(3 ether));
+        safeEngine.modifyParameters(encodedName, "debtCeiling", rad(1000 ether));
 
         newCollateral.approve(address(collateralA));
         newCollateral.approve(address(safeEngine));
 
         safeEngine.addAuthorization(address(collateralA));
 
-        EnglishCollateralAuctionHouse englishCollateralAuctionHouse = new EnglishCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), name);
+        EnglishCollateralAuctionHouse englishCollateralAuctionHouse =
+          new EnglishCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), encodedName);
         safeEngine.approveSAFEModification(address(englishCollateralAuctionHouse));
         englishCollateralAuctionHouse.addAuthorization(address(globalSettlement));
         englishCollateralAuctionHouse.addAuthorization(address(liquidationEngine));
 
         FixedDiscountCollateralAuctionHouse fixedDiscountCollateralAuctionHouse =
-          new FixedDiscountCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), name);
+          new FixedDiscountCollateralAuctionHouse(address(safeEngine), address(liquidationEngine), encodedName);
         fixedDiscountCollateralAuctionHouse.modifyParameters("oracleRelayer", address(oracleRelayer));
         fixedDiscountCollateralAuctionHouse.modifyParameters("collateralFSM", address(new Feed(bytes32(uint256(200 ether)), true)));
         safeEngine.approveSAFEModification(address(fixedDiscountCollateralAuctionHouse));
@@ -234,17 +235,17 @@ contract GlobalSettlementTest is DSTest {
         liquidationEngine.addAuthorization(address(englishCollateralAuctionHouse));
         liquidationEngine.addAuthorization(address(fixedDiscountCollateralAuctionHouse));
 
-        liquidationEngine.modifyParameters(name, "collateralAuctionHouse", address(englishCollateralAuctionHouse));
-        liquidationEngine.modifyParameters(name, "liquidationPenalty", 1 ether);
-        liquidationEngine.modifyParameters(name, "liquidationQuantity", uint(-1) / ray(1 ether));
+        liquidationEngine.modifyParameters(encodedName, "collateralAuctionHouse", address(englishCollateralAuctionHouse));
+        liquidationEngine.modifyParameters(encodedName, "liquidationPenalty", 1 ether);
+        liquidationEngine.modifyParameters(encodedName, "liquidationQuantity", uint(-1) / ray(1 ether));
 
-        collateralTypes[name].oracleSecurityModule = oracleFSM;
-        collateralTypes[name].collateral = newCollateral;
-        collateralTypes[name].collateralA = collateralA;
-        collateralTypes[name].englishCollateralAuctionHouse = englishCollateralAuctionHouse;
-        collateralTypes[name].fixedDiscountCollateralAuctionHouse = fixedDiscountCollateralAuctionHouse;
+        collateralTypes[encodedName].oracleSecurityModule = oracleFSM;
+        collateralTypes[encodedName].collateral = newCollateral;
+        collateralTypes[encodedName].collateralA = collateralA;
+        collateralTypes[encodedName].englishCollateralAuctionHouse = englishCollateralAuctionHouse;
+        collateralTypes[encodedName].fixedDiscountCollateralAuctionHouse = fixedDiscountCollateralAuctionHouse;
 
-        return collateralTypes[name];
+        return collateralTypes[encodedName];
     }
 
     function setUp() public {
@@ -252,8 +253,8 @@ contract GlobalSettlementTest is DSTest {
         hevm.warp(604411200);
 
         safeEngine = new SAFEEngine();
-        protocolToken = new DSToken('GOV');
-        systemCoin = new DSToken("Coin");
+        protocolToken = new DSToken('GOV', 'GOV');
+        systemCoin = new DSToken("Coin", "Coin");
         systemCoinA = new CoinJoin(address(safeEngine), address(systemCoin));
 
         surplusAuctionHouseOne = new PreSettlementSurplusAuctionHouse(address(safeEngine), address(protocolToken));
@@ -354,7 +355,7 @@ contract GlobalSettlementTest is DSTest {
     // -- Scenario where there is one over-collateralised SAFE
     // -- and there is no AccountingEngine deficit or surplus
     function test_shutdown_collateralised() public {
-        CollateralType memory gold = init_collateral("gold");
+        CollateralType memory gold = init_collateral("gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
 
@@ -417,7 +418,7 @@ contract GlobalSettlementTest is DSTest {
     // -- Scenario where there is one over-collateralised and one
     // -- under-collateralised SAFE, and no AccountingEngine deficit or surplus
     function test_shutdown_undercollateralised() public {
-        CollateralType memory gold = init_collateral("gold");
+        CollateralType memory gold = init_collateral("gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
         Usr bob = new Usr(safeEngine, globalSettlement);
@@ -506,7 +507,7 @@ contract GlobalSettlementTest is DSTest {
     // -- Scenario where there is one collateralised SAFE
     // -- undergoing auction at the time of shutdown
     function test_shutdown_fast_track_english_auction() public {
-        CollateralType memory gold = init_collateral("gold");
+        CollateralType memory gold = init_collateral("gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
 
@@ -580,7 +581,7 @@ contract GlobalSettlementTest is DSTest {
     }
 
     function test_shutdown_fast_track_fixed_discount_auction() public {
-        CollateralType memory gold = init_collateral("gold");
+        CollateralType memory gold = init_collateral("gold", "gold");
         // swap auction house in the liquidation engine
         liquidationEngine.modifyParameters("gold", "collateralAuctionHouse", address(gold.fixedDiscountCollateralAuctionHouse));
 
@@ -595,8 +596,8 @@ contract GlobalSettlementTest is DSTest {
         safeEngine.modifyParameters("gold", "liquidationPrice", ray(1 ether)); // now unsafe
 
         uint auction = liquidationEngine.liquidateSAFE("gold", safe1); // SAFE liquidated
-        assertEq(safeEngine.globalUnbackedDebt(), rad(15 ether));     // now there is bad debt
-        // get 1 coin from ali
+        assertEq(safeEngine.globalUnbackedDebt(), rad(15 ether));      // now there is bad debt
+        // get 5 coins from ali
         ali.transferInternalCoins(address(ali), address(this), rad(5 ether));
         safeEngine.approveSAFEModification(address(gold.fixedDiscountCollateralAuctionHouse));
         gold.fixedDiscountCollateralAuctionHouse.buyCollateral(auction, 5 ether);
@@ -616,7 +617,7 @@ contract GlobalSettlementTest is DSTest {
         // local checks:
         assertEq(generatedDebt("gold", safe1), 0);
         assertEq(lockedCollateral("gold", safe1), 6973684210526315790);
-        assertEq(safeEngine.debtBalance(address(accountingEngine)), rad(25 ether));
+        assertEq(safeEngine.debtBalance(address(accountingEngine)), rad(20 ether));
 
         // balance the accountingEngine
         accountingEngine.settleDebt(minimum(safeEngine.coinBalance(address(accountingEngine)), safeEngine.debtBalance(address(accountingEngine))));
@@ -659,7 +660,7 @@ contract GlobalSettlementTest is DSTest {
     // -- Scenario where there is one over-collateralised SAFE
     // -- and there is a deficit in the AccountingEngine
     function test_shutdown_collateralised_deficit() public {
-        CollateralType memory gold = init_collateral("gold");
+        CollateralType memory gold = init_collateral("gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
 
@@ -722,7 +723,7 @@ contract GlobalSettlementTest is DSTest {
     }
 
     function test_shutdown_process_safe_has_bug() public {
-        CollateralType memory gold = init_collateral("gold");
+        CollateralType memory gold = init_collateral("gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
         Usr bob = new Usr(safeEngine, globalSettlement);
@@ -773,7 +774,7 @@ contract GlobalSettlementTest is DSTest {
     }
 
     function test_shutdown_overcollateralized_surplus_smaller_redemption() public {
-        CollateralType memory gold = init_collateral("gold");
+        CollateralType memory gold = init_collateral("gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
         Usr bob = new Usr(safeEngine, globalSettlement);
@@ -858,7 +859,7 @@ contract GlobalSettlementTest is DSTest {
     }
 
     function test_shutdown_overcollateralized_surplus_bigger_redemption() public {
-        CollateralType memory gold = init_collateral("gold");
+        CollateralType memory gold = init_collateral("gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
         Usr bob = new Usr(safeEngine, globalSettlement);
@@ -946,7 +947,7 @@ contract GlobalSettlementTest is DSTest {
     // -- and one under-collateralised SAFE and there is a
     // -- surplus in the AccountingEngine
     function test_shutdown_over_and_under_collateralised_surplus() public {
-        CollateralType memory gold = init_collateral("gold");
+        CollateralType memory gold = init_collateral("gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
         Usr bob = new Usr(safeEngine, globalSettlement);
@@ -1044,8 +1045,8 @@ contract GlobalSettlementTest is DSTest {
     // -- under-collateralised SAFE of different collateral types
     // -- and no AccountingEngine deficit or surplus
     function test_shutdown_net_undercollateralised_multiple_collateralTypes() public {
-        CollateralType memory gold = init_collateral("gold");
-        CollateralType memory coal = init_collateral("coal");
+        CollateralType memory gold = init_collateral("gold", "gold");
+        CollateralType memory coal = init_collateral("coal", "coal");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
         Usr bob = new Usr(safeEngine, globalSettlement);

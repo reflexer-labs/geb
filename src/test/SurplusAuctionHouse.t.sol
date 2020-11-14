@@ -100,7 +100,7 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
         hevm.warp(604411200);
 
         safeEngine = new SAFEEngine();
-        protocolToken = new DSToken('');
+        protocolToken = new DSToken('', '');
 
         surplusAuctionHouse = new PreSettlementSurplusAuctionHouse(address(safeEngine), address(protocolToken));
 
@@ -215,7 +215,7 @@ contract PostSettlementSurplusAuctionHouseTest is DSTest {
         hevm.warp(604411200);
 
         safeEngine = new SAFEEngine();
-        protocolToken = new DSToken('');
+        protocolToken = new DSToken('', '');
 
         surplusAuctionHouse = new PostSettlementSurplusAuctionHouse(address(safeEngine), address(protocolToken));
 
