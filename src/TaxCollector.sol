@@ -168,9 +168,9 @@ contract TaxCollector {
         }
       }
     }
-    uint256 constant RAY     = 10 ** 27;
-    uint256 constant HUNDRED = 10 ** 29;
-    uint256 constant ONE     = 1;
+    uint256 constant RAY           = 10 ** 27;
+    uint256 constant WHOLE_TAX_CUT = 10 ** 29;
+    uint256 constant ONE           = 1;
 
     function addition(uint x, uint y) internal pure returns (uint z) {
         z = x + y;
@@ -328,7 +328,7 @@ contract TaxCollector {
         require(taxPercentage > 0, "TaxCollector/null-sf");
         require(usedSecondaryReceiver[receiverAccount] == 0, "TaxCollector/account-already-used");
         require(addition(secondaryReceiversAmount(), ONE) <= maxSecondaryReceivers, "TaxCollector/exceeds-max-receiver-limit");
-        require(addition(secondaryReceiverAllotedTax[collateralType], taxPercentage) < HUNDRED, "TaxCollector/tax-cut-exceeds-hundred");
+        require(addition(secondaryReceiverAllotedTax[collateralType], taxPercentage) < WHOLE_TAX_CUT, "TaxCollector/tax-cut-exceeds-hundred");
         secondaryReceiverNonce                                                       = addition(secondaryReceiverNonce, 1);
         latestSecondaryReceiver                                                      = secondaryReceiverNonce;
         usedSecondaryReceiver[receiverAccount]                                       = ONE;
@@ -377,7 +377,7 @@ contract TaxCollector {
             subtract(secondaryReceiverAllotedTax[collateralType], secondaryTaxReceivers[collateralType][position].taxPercentage),
             taxPercentage
           );
-          require(secondaryReceiverAllotedTax_ < HUNDRED, "TaxCollector/tax-cut-too-big");
+          require(secondaryReceiverAllotedTax_ < WHOLE_TAX_CUT, "TaxCollector/tax-cut-too-big");
           if (secondaryTaxReceivers[collateralType][position].taxPercentage == 0) {
             secondaryReceiverRevenueSources[secondaryReceiverAccounts[position]] = addition(
               secondaryReceiverRevenueSources[secondaryReceiverAccounts[position]],
@@ -555,8 +555,8 @@ contract TaxCollector {
         int256 coinBalance   = -int(safeEngine.coinBalance(receiver));
         // Compute the % out of SF that should be allocated to the receiver
         int256 currentTaxCut = (receiver == primaryTaxReceiver) ?
-          multiply(subtract(HUNDRED, secondaryReceiverAllotedTax[collateralType]), deltaRate) / int(HUNDRED) :
-          multiply(int(secondaryTaxReceivers[collateralType][receiverListPosition].taxPercentage), deltaRate) / int(HUNDRED);
+          multiply(subtract(WHOLE_TAX_CUT, secondaryReceiverAllotedTax[collateralType]), deltaRate) / int(WHOLE_TAX_CUT) :
+          multiply(int(secondaryTaxReceivers[collateralType][receiverListPosition].taxPercentage), deltaRate) / int(WHOLE_TAX_CUT);
         /**
             If SF is negative and a tax receiver doesn't have enough coins to absorb the loss,
             compute a new tax cut that can be absorbed
