@@ -18,22 +18,22 @@
 pragma solidity ^0.6.7;
 
 abstract contract DebtAuctionHouseLike {
-    function startAuction(address incomeReceiver, uint amountToSell, uint initialBid) virtual public returns (uint);
+    function startAuction(address incomeReceiver, uint256 amountToSell, uint256 initialBid) virtual public returns (uint256);
     function protocolToken() virtual public view returns (address);
     function disableContract() virtual external;
-    function contractEnabled() virtual public view returns (uint);
+    function contractEnabled() virtual public view returns (uint256);
 }
 
 abstract contract SurplusAuctionHouseLike {
-    function startAuction(uint, uint) virtual public returns (uint);
+    function startAuction(uint256, uint256) virtual public returns (uint256);
     function protocolToken() virtual public view returns (address);
     function disableContract() virtual external;
-    function contractEnabled() virtual public view returns (uint);
+    function contractEnabled() virtual public view returns (uint256);
 }
 
 abstract contract SAFEEngineLike {
-    function coinBalance(address) virtual public view returns (uint);
-    function debtBalance(address) virtual public view returns (uint);
+    function coinBalance(address) virtual public view returns (uint256);
+    function debtBalance(address) virtual public view returns (uint256);
     function settleDebt(uint256) virtual external;
     function transferInternalCoins(address,address,uint256) virtual external;
     function approveSAFEModification(address) virtual external;
@@ -41,12 +41,12 @@ abstract contract SAFEEngineLike {
 }
 
 abstract contract ProtocolTokenAuthorityLike {
-    function authorizedAccounts(address) virtual public view returns (uint);
+    function authorizedAccounts(address) virtual public view returns (uint256);
 }
 
 contract AccountingEngine {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
@@ -126,16 +126,16 @@ contract AccountingEngine {
     // --- Events ---
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
-    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
-    event PushDebtToQueue(uint timestamp, uint debtQueueBlock, uint totalQueuedDebt);
-    event PopDebtFromQueue(uint timestamp, uint debtQueueBlock, uint totalQueuedDebt);
-    event SettleDebt(uint rad, uint coinBalance, uint debtBalance);
-    event CancelAuctionedDebtWithSurplus(uint rad, uint totalOnAuctionDebt, uint coinBalance, uint debtBalance);
-    event AuctionDebt(uint id, uint totalOnAuctionDebt, uint debtBalance);
-    event AuctionSurplus(uint id, uint lastSurplusAuctionTime, uint coinBalance);
-    event DisableContract(uint disableTimestamp, uint disableCooldown, uint coinBalance, uint debtBalance);
-    event TransferPostSettlementSurplus(address postSettlementSurplusDrain, uint coinBalance, uint debtBalance);
+    event PushDebtToQueue(uint256 timestamp, uint256 debtQueueBlock, uint256 totalQueuedDebt);
+    event PopDebtFromQueue(uint256 timestamp, uint256 debtQueueBlock, uint256 totalQueuedDebt);
+    event SettleDebt(uint256 rad, uint256 coinBalance, uint256 debtBalance);
+    event CancelAuctionedDebtWithSurplus(uint rad, uint256 totalOnAuctionDebt, uint256 coinBalance, uint256 debtBalance);
+    event AuctionDebt(uint256 id, uint256 totalOnAuctionDebt, uint256 debtBalance);
+    event AuctionSurplus(uint256 id, uint256 lastSurplusAuctionTime, uint256 coinBalance);
+    event DisableContract(uint256 disableTimestamp, uint256 disableCooldown, uint256 coinBalance, uint256 debtBalance);
+    event TransferPostSettlementSurplus(address postSettlementSurplusDrain, uint256 coinBalance, uint256 debtBalance);
 
     // --- Init ---
     constructor(
@@ -154,19 +154,19 @@ contract AccountingEngine {
     }
 
     // --- Math ---
-    function addition(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x);
     }
-    function subtract(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
-    function minimum(uint x, uint y) internal pure returns (uint z) {
+    function minimum(uint256 x, uint256 y) internal pure returns (uint256 z) {
         return x <= y ? x : y;
     }
 
     // --- Administration ---
     /**
-     * @notice Modify general uint params for auctions
+     * @notice Modify general uint256 params for auctions
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
@@ -278,7 +278,8 @@ contract AccountingEngine {
      * @dev We can only auction surplus if we wait at least 'surplusAuctionDelay' seconds since the last
      *      auction trigger, if we keep enough surplus in the buffer and if there is no bad debt to settle
     **/
-    function auctionSurplus() external returns (uint id) {
+    function auctionSurplus() external returns (uint256 id) {
+        settleDebt(unqueuedUnauctionedDebt());
         require(
           now >= addition(lastSurplusAuctionTime, surplusAuctionDelay),
           "AccountingEngine/surplus-auction-delay-not-passed"
