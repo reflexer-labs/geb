@@ -148,6 +148,7 @@ contract EnglishCollateralAuctionHouse {
     }
     uint256 constant RAY = 10 ** 27;
     function rdivide(uint x, uint y) internal pure returns (uint z) {
+      require(y > 0, "EnglishCollateralAuctionHouse/division-by-zero");
       z = multiply(x, RAY) / y;
     }
 
@@ -483,9 +484,11 @@ contract FixedDiscountCollateralAuctionHouse {
     }
     uint256 constant RAY = 10 ** 27;
     function rdivide(uint x, uint y) internal pure returns (uint z) {
+        require(y > 0, "FixedDiscountCollateralAuctionHouse/division-by-zero");
         z = multiply(x, RAY) / y;
     }
     function wdivide(uint x, uint y) internal pure returns (uint z) {
+        require(y > 0, "FixedDiscountCollateralAuctionHouse/division-by-zero");
         z = multiply(x, WAD) / y;
     }
     function minimum(uint x, uint y) internal pure returns (uint z) {

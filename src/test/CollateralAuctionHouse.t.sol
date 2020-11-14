@@ -467,10 +467,12 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
         z = multiply(x, y) / WAD;
     }
     function rdivide(uint x, uint y) internal pure returns (uint z) {
-      z = multiply(x, RAY) / y;
+        require(y > 0, "division-by-zero");
+        z = multiply(x, RAY) / y;
     }
     function wdivide(uint x, uint y) internal pure returns (uint z) {
-      z = multiply(x, WAD) / y;
+        require(y > 0, "division-by-zero");
+        z = multiply(x, WAD) / y;
     }
 
     function test_modifyParameters() public {
