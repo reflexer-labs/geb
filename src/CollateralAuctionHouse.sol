@@ -465,7 +465,6 @@ contract FixedDiscountCollateralAuctionHouse {
     }
 
     // --- Math ---
-    uint256 constant RAD = 10 ** 45;
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
         require((z = x + y) >= x, "FixedDiscountCollateralAuctionHouse/add-uint48-overflow");
     }
@@ -686,8 +685,7 @@ contract FixedDiscountCollateralAuctionHouse {
             adjustedBid = addUint256(remainingToRaise / RAY, WAD);
         }
 
-        uint256 totalRaised = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
-        remainingToRaise    = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
+        remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
         if (both(remainingToRaise > 0, remainingToRaise < RAY)) {
             return (false, adjustedBid);
         }
