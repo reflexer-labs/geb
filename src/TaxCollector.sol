@@ -174,39 +174,40 @@ contract TaxCollector {
 
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x + y;
-        require(z >= x);
+        require(z >= x, "TaxCollector/add-uint-uint-overflow");
     }
     function addition(int256 x, int256 y) internal pure returns (int256 z) {
         z = x + y;
-        if (y <= 0) require(z <= x);
-        if (y  > 0) require(z > x);
+        if (y <= 0) require(z <= x, "TaxCollector/add-int-int-underflow");
+        if (y  > 0) require(z > x, "TaxCollector/add-int-int-overflow");
     }
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x);
+        require((z = x - y) <= x, "TaxCollector/sub-uint-uint-underflow");
     }
     function subtract(int256 x, int256 y) internal pure returns (int256 z) {
         z = x - y;
-        require(y <= 0 || z <= x);
-        require(y >= 0 || z >= x);
+        require(y <= 0 || z <= x, "TaxCollector/sub-int-int-underflow");
+        require(y >= 0 || z >= x, "TaxCollector/sub-int-int-overflow");
     }
     function deduct(uint256 x, uint256 y) internal pure returns (int256 z) {
         z = int256(x) - int256(y);
-        require(int256(x) >= 0 && int256(y) >= 0);
+        require(int256(x) >= 0 && int256(y) >= 0, "TaxCollector/ded-invalid-numbers");
     }
     function multiply(uint256 x, int256 y) internal pure returns (int256 z) {
         z = int256(x) * y;
-        require(int256(x) >= 0);
-        require(y == 0 || z / y == int256(x));
+        require(int256(x) >= 0, "TaxCollector/mul-uint-int-invalid-x");
+        require(y == 0 || z / y == int256(x), "TaxCollector/mul-uint-int-overflow");
     }
     function multiply(int256 x, int256 y) internal pure returns (int256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "TaxCollector/mul-int-int-invalid");
     }
     function rmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x * y;
-        require(y == 0 || z / y == x);
+        require(y == 0 || z / y == x, "TaxCollector/rmul-overflow");
         z = z / RAY;
     }
 
+    // --- Boolean Logic ---
     function both(bool x, bool y) internal pure returns (bool z) {
         assembly{ z := and(x, y)}
     }

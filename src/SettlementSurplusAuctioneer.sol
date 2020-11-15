@@ -83,7 +83,7 @@ contract SettlementSurplusAuctioneer {
 
     // --- Math ---
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "SettlementSurplusAuctioneer/overflow");
     }
 
     // --- Administration ---

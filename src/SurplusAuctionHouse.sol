@@ -125,10 +125,10 @@ contract PreSettlementSurplusAuctionHouse {
 
     // --- Math ---
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "StabilityFeeTreasury/add-uint48-overflow");
     }
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "StabilityFeeTreasury/mul-uint48-overflow");
     }
 
     // --- Admin ---

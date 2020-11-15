@@ -209,13 +209,13 @@ contract GlobalSettlement {
     // --- Math ---
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x + y;
-        require(z >= x);
+        require(z >= x, "GlobalSettlement/add-overflow");
     }
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x);
+        require((z = x - y) <= x, "GlobalSettlement/sub-underflow");
     }
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "GlobalSettlement/mul-overflow");
     }
     function minimum(uint256 x, uint256 y) internal pure returns (uint256 z) {
         return x <= y ? x : y;
@@ -226,11 +226,11 @@ contract GlobalSettlement {
         z = multiply(x, y) / RAY;
     }
     function rdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y > 0, "GlobalSettlement/division-by-zero");
+        require(y > 0, "GlobalSettlement/rdiv-by-zero");
         z = multiply(x, RAY) / y;
     }
     function wdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y > 0, "GlobalSettlement/division-by-zero");
+        require(y > 0, "GlobalSettlement/rdiv-by-zero");
         z = multiply(x, WAD) / y;
     }
 

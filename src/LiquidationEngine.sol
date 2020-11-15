@@ -185,13 +185,13 @@ contract LiquidationEngine {
     uint256 constant MAX_LIQUIDATION_QUANTITY = uint256(-1) / RAY;
 
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "LiquidationEngine/add-overflow");
     }
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x);
+        require((z = x - y) <= x, "LiquidationEngine/sub-underflow");
     }
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "LiquidationEngine/mul-overflow");
     }
     function rmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = multiply(x, y) / RAY;

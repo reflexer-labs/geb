@@ -133,15 +133,15 @@ contract CoinSavingsAccount {
     }
 
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "CoinSavingsAccount/add-overflow");
     }
 
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x);
+        require((z = x - y) <= x, "CoinSavingsAccount/sub-underflow");
     }
 
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "CoinSavingsAccount/mul-overflow");
     }
 
     // --- Administration ---
