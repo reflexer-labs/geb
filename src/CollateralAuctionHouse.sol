@@ -664,6 +664,32 @@ contract FixedDiscountCollateralAuctionHouse {
 
         return boughtCollateral;
     }
+    function getAdjustedBid(
+        uint256 id, uint256 wad
+    ) public view returns (bool, uint256) {
+        if (either(
+          either(bids[id].amountToSell == 0, bids[id].amountToRaise == 0),
+          either(wad == 0, wad < minimumBid)
+        )) {
+          return (false, wad);
+        }
+
+        uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
+
+        // bound max amount offered in exchange for collateral
+        uint256 adjustedBid = wad;
+        if (multiply(adjustedBid, RAY) > remainingToRaise) {
+            adjustedBid = addUint256(remainingToRaise / RAY, WAD);
+        }
+
+        uint256 totalRaised = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
+        remainingToRaise    = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
+        if (both(remainingToRaise > 0, remainingToRaise < RAY)) {
+            return (false, adjustedBid);
+        }
+
+        return (true, adjustedBid);
+    }
 
     // --- Core Auction Logic ---
     /**
@@ -713,26 +739,11 @@ contract FixedDiscountCollateralAuctionHouse {
      */
     function getApproximateCollateralBought(uint256 id, uint256 wad) external view returns (uint256, uint256) {
         if (lastReadRedemptionPrice == 0) return (0, wad);
-        if (either(
-          either(bids[id].amountToSell == 0, bids[id].amountToRaise == 0),
-          either(wad == 0, wad < minimumBid)
-        )) {
-          return (0, wad);
+
+        (bool validAuctionAndBid, uint256 adjustedBid) = getAdjustedBid(id, wad);
+        if (!validAuctionAndBid) {
+            return (0, adjustedBid);
         }
-
-        uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
-
-        // bound max amount offered in exchange for collateral
-        uint256 adjustedBid = wad;
-        if (multiply(adjustedBid, RAY) > remainingToRaise) {
-            adjustedBid = addUint256(remainingToRaise / RAY, WAD);
-        }
-
-      	uint256 totalRaised = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
-      	remainingToRaise    = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
-      	if (both(remainingToRaise > 0, remainingToRaise < RAY)) {
-      	    return (0, adjustedBid);
-      	}
 
         // check that the oracle doesn't return an invalid value
         (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getFinalTokenPrices(lastReadRedemptionPrice);
@@ -754,26 +765,10 @@ contract FixedDiscountCollateralAuctionHouse {
      * @param wad New bid submitted
      */
     function getCollateralBought(uint256 id, uint256 wad) external returns (uint256, uint256) {
-        if (either(
-          either(bids[id].amountToSell == 0, bids[id].amountToRaise == 0),
-          either(wad == 0, wad < minimumBid)
-        )) {
-          return (0, wad);
+        (bool validAuctionAndBid, uint256 adjustedBid) = getAdjustedBid(id, wad);
+        if (!validAuctionAndBid) {
+            return (0, adjustedBid);
         }
-
-        uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
-
-        // bound max amount offered in exchange for collateral
-        uint256 adjustedBid = wad;
-        if (multiply(adjustedBid, RAY) > remainingToRaise) {
-            adjustedBid = addUint256(remainingToRaise / RAY, WAD);
-        }
-
-      	uint256 totalRaised = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
-      	remainingToRaise    = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
-      	if (both(remainingToRaise > 0, remainingToRaise < RAY)) {
-      	    return (0, adjustedBid);
-      	}
 
         // Read the redemption price
         lastReadRedemptionPrice = oracleRelayer.redemptionPrice();

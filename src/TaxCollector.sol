@@ -438,6 +438,7 @@ contract TaxCollector {
     /**
      * @notice Get how much SF will be distributed after taxing a specific collateral type
      * @param collateralType Collateral type to compute the taxation outcome for
+     * @return The newly accumulated rate as well as the delta between the new and the last accumulated rates
      */
     function taxSingleOutcome(bytes32 collateralType) public view returns (uint256, int256) {
         (, uint256 lastAccumulatedRate) = safeEngine.collateralTypes(collateralType);

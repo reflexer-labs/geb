@@ -101,6 +101,7 @@ contract BasicCollateralJoin {
         collateralType  = collateralType_;
         collateral      = CollateralLike(collateral_);
         decimals        = collateral.decimals();
+        require(decimals == 18, "BasicCollateralJoin/non-18-decimals");
         emit AddAuthorization(msg.sender);
     }
     /**
