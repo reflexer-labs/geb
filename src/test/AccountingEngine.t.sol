@@ -208,10 +208,10 @@ contract AccountingEngineTest is DSTest {
         assertTrue(can_auction_debt());
     }
 
-    function test_pop_debt_after_being_popped() public {
+    function testFail_pop_debt_after_being_popped() public {
         popDebtFromQueue(100 ether);
-        alice.popDebtFromQueue(address(accountingEngine), now);
         assertEq(accountingEngine.debtPoppers(now), address(this));
+        alice.popDebtFromQueue(address(accountingEngine), now);
     }
 
     function test_surplus_auction() public {
