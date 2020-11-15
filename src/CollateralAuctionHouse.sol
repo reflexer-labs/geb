@@ -802,7 +802,7 @@ contract FixedDiscountCollateralAuctionHouse {
         uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
         require(both(wad > 0, wad >= minimum(minimumBid, remainingToRaise / RAY)), "FixedDiscountCollateralAuctionHouse/invalid-bid");
 
-        // bound max amount offered in exchange for collateral (in case someone offers more than it's necessary)
+        // bound max amount offered in exchange for collateral (in case someone offers more than is necessary)
         uint256 adjustedBid = wad;
         if (multiply(adjustedBid, RAY) > remainingToRaise) {
             adjustedBid = addUint256(remainingToRaise / RAY, 1);

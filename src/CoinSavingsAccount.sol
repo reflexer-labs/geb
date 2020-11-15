@@ -207,6 +207,7 @@ contract CoinSavingsAccount {
               'accumulatedRate' (27 decimals) to result in a correct amount of internal coins transferred
      */
     function deposit(uint256 wad) external {
+        updateAccumulatedRate();
         require(now == latestUpdateTime, "CoinSavingsAccount/accumulation-time-not-updated");
         savings[msg.sender] = addition(savings[msg.sender], wad);
         totalSavings        = addition(totalSavings, wad);
