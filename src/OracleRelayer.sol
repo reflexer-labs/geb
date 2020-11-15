@@ -126,6 +126,7 @@ contract OracleRelayer {
         require(y == 0 || (z = x * y) / y == x, "OracleRelayer/mul-overflow");
     }
     function rmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        // always rounds down
         z = multiply(x, y) / RAY;
     }
     function rdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
@@ -159,7 +160,7 @@ contract OracleRelayer {
     // --- Administration ---
     /**
      * @notice Modify oracle price feed addresses
-     * @param collateralType Collateral who's oracle we change
+     * @param collateralType Collateral whose oracle we change
      * @param parameter Name of the parameter
      * @param addr New oracle address
      */
@@ -214,7 +215,7 @@ contract OracleRelayer {
     }
     /**
      * @notice Modify CRatio related parameters
-     * @param collateralType Collateral who's parameters we change
+     * @param collateralType Collateral whose parameters we change
      * @param parameter Name of the parameter
      * @param data New param value
      */
@@ -292,21 +293,21 @@ contract OracleRelayer {
 
     /**
      * @notice Fetch the safety CRatio of a specific collateral type
-     * @param collateralType The collateral price we want the safety CRatio for
+     * @param collateralType The collateral type we want the safety CRatio for
      */
     function safetyCRatio(bytes32 collateralType) public view returns (uint256) {
         return collateralTypes[collateralType].safetyCRatio;
     }
     /**
      * @notice Fetch the liquidation CRatio of a specific collateral type
-     * @param collateralType The collateral price we want the liquidation CRatio for
+     * @param collateralType The collateral type we want the liquidation CRatio for
      */
     function liquidationCRatio(bytes32 collateralType) public view returns (uint256) {
         return collateralTypes[collateralType].liquidationCRatio;
     }
     /**
      * @notice Fetch the oracle price feed of a specific collateral type
-     * @param collateralType The collateral price we want the oracle price feed for
+     * @param collateralType The collateral type we want the oracle price feed for
      */
     function orcl(bytes32 collateralType) public view returns (address) {
         return address(collateralTypes[collateralType].orcl);

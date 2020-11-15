@@ -115,7 +115,7 @@ contract AccountingEngine {
     // Amount of stability fees that need to accrue in this contract before any surplus auction can start
     uint256 public surplusBuffer;                           // [rad]
 
-    // Time to wait (post settlement) until any remaining surpluscan be transferred to the settlement auctioneer
+    // Time to wait (post settlement) until any remaining surplus can be transferred to the settlement auctioneer
     uint256 public disableCooldown;                         // [seconds]
     // When the contract was disabled
     uint256 public disableTimestamp;                        // [unix timestamp]

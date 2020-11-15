@@ -7,7 +7,7 @@ abstract contract StructLike {
 /**
  * @title LinkedList (Structured Link List)
  * @author Vittorio Minacori (https://github.com/vittominacori)
- * @dev An utility library for using sorted linked list data structures in your Solidity project.
+ * @dev A utility library for using sorted linked list data structures in your Solidity project.
  */
 library LinkedList {
 
@@ -125,7 +125,7 @@ library LinkedList {
      * @param self stored linked list from contract
      * @param _struct the structure instance
      * @param _val value to seek
-     * @return uint256 next node with a value less than _value
+     * @return uint256 next node with a value less than StructLike(_struct).val(next_)
      */
     function sort(List storage self, address _struct, uint256 _val) internal view returns (uint256) {
         if (range(self) == 0) {

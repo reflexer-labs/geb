@@ -58,7 +58,7 @@ contract SAFEEngine {
     }
     /**
      * @notice Deny an address the rights to modify your SAFE
-     * @param account Account to give SAFE permissions to
+     * @param account Account that is denied SAFE permissions
      */
     function denySAFEModification(address account) external {
         safeRights[msg.sender][account] = 0;

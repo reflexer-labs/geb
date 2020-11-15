@@ -331,7 +331,7 @@ contract GlobalSettlement {
     function freeCollateral(bytes32 collateralType) external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(collateralType, msg.sender);
-        require(safeDebt == 0, "GlobalSettlement/art-not-zero");
+        require(safeDebt == 0, "GlobalSettlement/safe-debt-not-zero");
         require(safeCollateral <= 2**255, "GlobalSettlement/overflow");
         safeEngine.confiscateSAFECollateralAndDebt(
           collateralType,

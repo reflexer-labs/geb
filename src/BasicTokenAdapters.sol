@@ -129,7 +129,7 @@ contract BasicCollateralJoin {
     /**
     * @notice Exit collateral from the system
     * @dev This function destroys the collateral representation from inside the system
-    *      and exits the collateral from this adapte. The adapter assumes that the collateral
+    *      and exits the collateral from this adapter. The adapter assumes that the collateral
     *      has 18 decimals
     * @param account Account to which we transfer the collateral
     * @param wad Amount of collateral to transfer to 'account' (represented as a number with 18 decimals)
@@ -162,7 +162,7 @@ contract ETHJoin {
         emit RemoveAuthorization(account);
     }
     /**
-    * @notice Checks whether msg.sender can call an authed function
+    * @notice Checks whether msg.sender can call a restricted function
     **/
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "ETHJoin/account-not-authorized");
