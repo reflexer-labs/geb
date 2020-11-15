@@ -124,12 +124,12 @@ contract SAFEEngine {
     event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 collateralType, bytes32 parameter, uint256 data);
     event DisableContract();
-    event ModifyCollateralBalance(bytes32 collateralType, address account, int256 wad);
-    event TransferCollateral(bytes32 collateralType, address src, address dst, uint256 wad);
-    event TransferInternalCoins(address src, address dst, uint256 rad);
+    event ModifyCollateralBalance(bytes32 indexed collateralType, address indexed account, int256 wad);
+    event TransferCollateral(bytes32 indexed collateralType, address indexed src, address indexed dst, uint256 wad);
+    event TransferInternalCoins(address indexed src, address indexed dst, uint256 rad);
     event ModifySAFECollateralization(
-        bytes32 collateralType,
-        address safe,
+        bytes32 indexed collateralType,
+        address indexed safe,
         address collateralSource,
         address debtDestination,
         int256 deltaCollateral,
@@ -139,9 +139,9 @@ contract SAFEEngine {
         uint256 globalDebt
     );
     event TransferSAFECollateralAndDebt(
-        bytes32 collateralType,
-        address src,
-        address dst,
+        bytes32 indexed collateralType,
+        address indexed src,
+        address indexed dst,
         int256 deltaCollateral,
         int256 deltaDebt,
         uint256 srcLockedCollateral,
@@ -150,18 +150,18 @@ contract SAFEEngine {
         uint256 dstGeneratedDebt
     );
     event ConfiscateSAFECollateralAndDebt(
-        bytes32 collateralType,
-        address safe,
+        bytes32 indexed collateralType,
+        address indexed safe,
         address collateralCounterparty,
         address debtCounterparty,
         int256 deltaCollateral,
         int256 deltaDebt,
         uint256 globalUnbackedDebt
     );
-    event SettleDebt(address account, uint256 rad, uint256 debtBalance, uint256 coinBalance, uint256 globalUnbackedDebt, uint256 globalDebt);
+    event SettleDebt(address indexed account, uint256 rad, uint256 debtBalance, uint256 coinBalance, uint256 globalUnbackedDebt, uint256 globalDebt);
     event CreateUnbackedDebt(
-        address debtDestination,
-        address coinDestination,
+        address indexed debtDestination,
+        address indexed coinDestination,
         uint256 rad,
         uint256 debtDstBalance,
         uint256 coinDstBalance,
@@ -169,7 +169,7 @@ contract SAFEEngine {
         uint256 globalDebt
     );
     event UpdateAccumulatedRate(
-        bytes32 collateralType,
+        bytes32 indexed collateralType,
         address surplusDst,
         int256 rateMultiplier,
         uint256 dstCoinBalance,

@@ -68,8 +68,8 @@ contract CoinSavingsAccount {
     event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
     event DisableContract();
-    event Deposit(address usr, uint256 balance, uint256 totalSavings);
-    event Withdraw(address usr, uint256 balance, uint256 totalSavings);
+    event Deposit(address indexed usr, uint256 balance, uint256 totalSavings);
+    event Withdraw(address indexed usr, uint256 balance, uint256 totalSavings);
     event UpdateAccumulatedRate(uint256 newAccumulatedRate, uint256 coinAmount);
 
     // --- Data ---

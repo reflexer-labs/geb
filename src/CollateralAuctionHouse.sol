@@ -113,18 +113,18 @@ contract EnglishCollateralAuctionHouse {
         uint256 auctionsStarted,
         uint256 amountToSell,
         uint256 initialBid,
-        uint256 amountToRaise,
+        uint256 indexed amountToRaise,
         address indexed forgoneCollateralReceiver,
         address indexed auctionIncomeRecipient,
         uint256 auctionDeadline
     );
     event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
-    event RestartAuction(uint256 id, uint256 auctionDeadline);
-    event IncreaseBidSize(uint256 id, address highBidder, uint256 amountToBuy, uint256 rad, uint256 bidExpiry);
-    event DecreaseSoldAmount(uint256 id, address highBidder, uint256 amountToBuy, uint256 rad, uint256 bidExpiry);
-    event SettleAuction(uint256 id);
-    event TerminateAuctionPrematurely(uint256 id, address sender, uint256 bidAmount, uint256 collateralAmount);
+    event RestartAuction(uint256 indexed id, uint256 auctionDeadline);
+    event IncreaseBidSize(uint256 indexed id, address highBidder, uint256 amountToBuy, uint256 rad, uint256 bidExpiry);
+    event DecreaseSoldAmount(uint256 indexed id, address highBidder, uint256 amountToBuy, uint256 rad, uint256 bidExpiry);
+    event SettleAuction(uint256 indexed id);
+    event TerminateAuctionPrematurely(uint256 indexed id, address sender, uint256 bidAmount, uint256 collateralAmount);
 
     // --- Init ---
     constructor(address safeEngine_, address liquidationEngine_, bytes32 collateralType_) public {
@@ -148,8 +148,8 @@ contract EnglishCollateralAuctionHouse {
     }
     uint256 constant RAY = 10 ** 27;
     function rdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
-      require(y > 0, "EnglishCollateralAuctionHouse/division-by-zero");
-      z = multiply(x, RAY) / y;
+        require(y > 0, "EnglishCollateralAuctionHouse/division-by-zero");
+        z = multiply(x, RAY) / y;
     }
 
     // --- Admin ---
@@ -444,16 +444,16 @@ contract FixedDiscountCollateralAuctionHouse {
         uint256 auctionsStarted,
         uint256 amountToSell,
         uint256 initialBid,
-        uint256 amountToRaise,
+        uint256 indexed amountToRaise,
         address indexed forgoneCollateralReceiver,
         address indexed auctionIncomeRecipient,
         uint256 auctionDeadline
     );
     event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
-    event BuyCollateral(uint256 id, uint256 wad, uint256 boughtCollateral);
-    event SettleAuction(uint256 id, uint256 leftoverCollateral);
-    event TerminateAuctionPrematurely(uint256 id, address sender, uint256 collateralAmount);
+    event BuyCollateral(uint256 indexed id, uint256 wad, uint256 boughtCollateral);
+    event SettleAuction(uint256 indexed id, uint256 leftoverCollateral);
+    event TerminateAuctionPrematurely(uint256 indexed id, address sender, uint256 collateralAmount);
 
     // --- Init ---
     constructor(address safeEngine_, address liquidationEngine_, bytes32 collateralType_) public {

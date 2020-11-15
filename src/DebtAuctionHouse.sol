@@ -105,20 +105,20 @@ contract DebtAuctionHouse {
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
     event StartAuction(
-      uint256 id,
+      uint256 indexed id,
       uint256 auctionsStarted,
       uint256 amountToSell,
       uint256 initialBid,
       address indexed incomeReceiver,
-      uint256 auctionDeadline,
+      uint256 indexed auctionDeadline,
       uint256 activeDebtAuctions
     );
     event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
-    event RestartAuction(uint256 id, uint256 auctionDeadline);
-    event DecreaseSoldAmount(uint256 id, address highBidder, uint256 amountToBuy, uint256 bid, uint256 bidExpiry);
-    event SettleAuction(uint256 id, uint256 activeDebtAuctions);
-    event TerminateAuctionPrematurely(uint256 id, address sender, address highBidder, uint256 bidAmount, uint256 activeDebtAuctions);
+    event RestartAuction(uint256 indexed id, uint256 auctionDeadline);
+    event DecreaseSoldAmount(uint256 indexed id, address highBidder, uint256 amountToBuy, uint256 bid, uint256 bidExpiry);
+    event SettleAuction(uint256 indexed id, uint256 activeDebtAuctions);
+    event TerminateAuctionPrematurely(uint256 indexed id, address sender, address highBidder, uint256 bidAmount, uint256 activeDebtAuctions);
     event DisableContract(address sender);
 
     // --- Init ---

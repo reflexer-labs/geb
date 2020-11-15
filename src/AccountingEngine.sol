@@ -126,14 +126,14 @@ contract AccountingEngine {
     // --- Events ---
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
-    event ModifyParameters(bytes32 parameter, uint256 data);
-    event ModifyParameters(bytes32 parameter, address data);
-    event PushDebtToQueue(uint256 timestamp, uint256 debtQueueBlock, uint256 totalQueuedDebt);
-    event PopDebtFromQueue(uint256 timestamp, uint256 debtQueueBlock, uint256 totalQueuedDebt);
+    event ModifyParameters(bytes32 indexed parameter, uint256 data);
+    event ModifyParameters(bytes32 indexed parameter, address data);
+    event PushDebtToQueue(uint256 indexed timestamp, uint256 debtQueueBlock, uint256 totalQueuedDebt);
+    event PopDebtFromQueue(uint256 indexed timestamp, uint256 debtQueueBlock, uint256 totalQueuedDebt);
     event SettleDebt(uint256 rad, uint256 coinBalance, uint256 debtBalance);
     event CancelAuctionedDebtWithSurplus(uint rad, uint256 totalOnAuctionDebt, uint256 coinBalance, uint256 debtBalance);
-    event AuctionDebt(uint256 id, uint256 totalOnAuctionDebt, uint256 debtBalance);
-    event AuctionSurplus(uint256 id, uint256 lastSurplusAuctionTime, uint256 coinBalance);
+    event AuctionDebt(uint256 indexed id, uint256 totalOnAuctionDebt, uint256 debtBalance);
+    event AuctionSurplus(uint256 indexed id, uint256 lastSurplusAuctionTime, uint256 coinBalance);
     event DisableContract(uint256 disableTimestamp, uint256 disableCooldown, uint256 coinBalance, uint256 debtBalance);
     event TransferPostSettlementSurplus(address postSettlementSurplusDrain, uint256 coinBalance, uint256 debtBalance);
 
