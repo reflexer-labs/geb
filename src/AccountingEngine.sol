@@ -223,10 +223,9 @@ contract AccountingEngine {
      */
     function popDebtFromQueue(uint256 debtBlockTimestamp) external {
         require(addition(debtBlockTimestamp, popDebtDelay) <= now, "AccountingEngine/pop-debt-delay-not-passed");
+        require(debtQueue[debtBlockTimestamp] > 0, "AccountingEngine/null-debt-block");
         totalQueuedDebt = subtract(totalQueuedDebt, debtQueue[debtBlockTimestamp]);
-        if (debtQueue[debtBlockTimestamp] > 0) {
-          debtPoppers[debtBlockTimestamp] = msg.sender;
-        }
+        debtPoppers[debtBlockTimestamp] = msg.sender;
         emit PopDebtFromQueue(now, debtQueue[debtBlockTimestamp], totalQueuedDebt);
         debtQueue[debtBlockTimestamp] = 0;
     }
