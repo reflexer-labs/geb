@@ -79,9 +79,9 @@ contract PreSettlementSurplusAuctionHouse {
     mapping (uint256 => Bid) public bids;
 
     // SAFE database
-    SAFEEngineLike       public safeEngine;
+    SAFEEngineLike public safeEngine;
     // Protocol token address
-    TokenLike            public protocolToken;
+    TokenLike      public protocolToken;
 
     uint256  constant ONE = 1.00E18;                                                  // [wad]
     // Minimum bid increase compared to the last bid in order to take the new one in consideration
@@ -104,15 +104,15 @@ contract PreSettlementSurplusAuctionHouse {
     event RestartAuction(uint256 id, uint256 auctionDeadline);
     event IncreaseBidSize(uint256 id, address highBidder, uint256 amountToBuy, uint256 bid, uint256 bidExpiry);
     event StartAuction(
-        uint256 id,
+        uint256 indexed id,
         uint256 auctionsStarted,
         uint256 amountToSell,
         uint256 initialBid,
         uint256 auctionDeadline
     );
-    event SettleAuction(uint256 id);
+    event SettleAuction(uint256 indexed id);
     event DisableContract();
-    event TerminateAuctionPrematurely(uint256 id, address sender, address highBidder, uint256 bidAmount);
+    event TerminateAuctionPrematurely(uint256 indexed id, address sender, address highBidder, uint256 bidAmount);
 
     // --- Init ---
     constructor(address safeEngine_, address protocolToken_) public {
@@ -300,16 +300,16 @@ contract PostSettlementSurplusAuctionHouse {
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
     event ModifyParameters(bytes32 parameter, uint256 data);
-    event RestartAuction(uint256 id, uint256 auctionDeadline);
-    event IncreaseBidSize(uint256 id, address highBidder, uint256 amountToBuy, uint256 bid, uint256 bidExpiry);
+    event RestartAuction(uint256 indexed id, uint256 auctionDeadline);
+    event IncreaseBidSize(uint256 indexed id, address highBidder, uint256 amountToBuy, uint256 bid, uint256 bidExpiry);
     event StartAuction(
-        uint256 id,
+        uint256 indexed id,
         uint256 auctionsStarted,
         uint256 amountToSell,
         uint256 initialBid,
         uint256 auctionDeadline
     );
-    event SettleAuction(uint256 id);
+    event SettleAuction(uint256 indexed id);
 
     // --- Init ---
     constructor(address safeEngine_, address protocolToken_) public {

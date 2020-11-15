@@ -190,14 +190,14 @@ contract GlobalSettlement {
     event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
     event ShutdownSystem();
-    event FreezeCollateralType(bytes32 collateralType, uint256 finalCoinPerCollateralPrice);
-    event FastTrackAuction(bytes32 collateralType, uint256 auctionId, uint256 collateralTotalDebt);
-    event ProcessSAFE(bytes32 collateralType, address safe, uint256 collateralShortfall);
-    event FreeCollateral(bytes32 collateralType, address sender, int256 collateralAmount);
+    event FreezeCollateralType(bytes32 indexed collateralType, uint256 finalCoinPerCollateralPrice);
+    event FastTrackAuction(bytes32 indexed collateralType, uint256 auctionId, uint256 collateralTotalDebt);
+    event ProcessSAFE(bytes32 indexed collateralType, address safe, uint256 collateralShortfall);
+    event FreeCollateral(bytes32 indexed collateralType, address sender, int256 collateralAmount);
     event SetOutstandingCoinSupply(uint256 outstandingCoinSupply);
-    event CalculateCashPrice(bytes32 collateralType, uint256 collateralCashPrice);
-    event PrepareCoinsForRedeeming(address sender, uint256 coinBag);
-    event RedeemCollateral(bytes32 collateralType, address sender, uint256 coinsAmount, uint256 collateralAmount);
+    event CalculateCashPrice(bytes32 indexed collateralType, uint256 collateralCashPrice);
+    event PrepareCoinsForRedeeming(address indexed sender, uint256 coinBag);
+    event RedeemCollateral(bytes32 indexed collateralType, address indexed sender, uint256 coinsAmount, uint256 collateralAmount);
 
     // --- Init ---
     constructor() public {

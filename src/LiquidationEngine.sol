@@ -164,8 +164,8 @@ contract LiquidationEngine {
     );
     event FailedSAFESave(bytes failReason);
     event ProtectSAFE(
-      bytes32 collateralType,
-      address safe,
+      bytes32 indexed collateralType,
+      address indexed safe,
       address saviour
     );
 

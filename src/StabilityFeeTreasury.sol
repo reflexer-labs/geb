@@ -68,11 +68,11 @@ contract StabilityFeeTreasury {
     event ModifyParameters(bytes32 parameter, address addr);
     event ModifyParameters(bytes32 parameter, uint256 val);
     event DisableContract();
-    event SetTotalAllowance(address account, uint256 rad);
-    event SetPerBlockAllowance(address account, uint256 rad);
-    event GiveFunds(address account, uint256 rad, uint256 expensesAccumulator);
-    event TakeFunds(address account, uint256 rad);
-    event PullFunds(address sender, address dstAccount, address token, uint256 rad, uint256 expensesAccumulator);
+    event SetTotalAllowance(address indexed account, uint256 rad);
+    event SetPerBlockAllowance(address indexed account, uint256 rad);
+    event GiveFunds(address indexed account, uint256 rad, uint256 expensesAccumulator);
+    event TakeFunds(address indexed account, uint256 rad);
+    event PullFunds(address indexed sender, address indexed dstAccount, address token, uint256 rad, uint256 expensesAccumulator);
     event TransferSurplusFunds(address accountingEngine, uint256 fundsToTransfer);
 
     // --- Structs ---

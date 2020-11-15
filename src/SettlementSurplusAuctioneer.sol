@@ -62,7 +62,7 @@ contract SettlementSurplusAuctioneer {
 
     AccountingEngineLike    public accountingEngine;
     SurplusAuctionHouseLike public surplusAuctionHouse;
-    SAFEEngineLike           public safeEngine;
+    SAFEEngineLike          public safeEngine;
 
     uint256 public lastSurplusAuctionTime;
 
@@ -70,7 +70,7 @@ contract SettlementSurplusAuctioneer {
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
     event ModifyParameters(bytes32 parameter, address addr);
-    event AuctionSurplus(uint256 id, uint256 lastSurplusAuctionTime, uint256 coinBalance);
+    event AuctionSurplus(uint256 indexed id, uint256 lastSurplusAuctionTime, uint256 coinBalance);
 
     constructor(address accountingEngine_, address surplusAuctionHouse_) public {
         authorizedAccounts[msg.sender] = 1;

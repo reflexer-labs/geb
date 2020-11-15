@@ -95,7 +95,7 @@ contract OracleRelayer {
     );
     event UpdateRedemptionPrice(uint256 redemptionPrice);
     event UpdateCollateralPrice(
-      bytes32 collateralType,
+      bytes32 indexed collateralType,
       uint256 priceFeedValue,
       uint256 safetyPrice,
       uint256 liquidationPrice

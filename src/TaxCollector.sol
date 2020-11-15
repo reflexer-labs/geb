@@ -76,21 +76,21 @@ contract TaxCollector {
       address receiverAccount
     );
     event AddSecondaryReceiver(
-      bytes32 collateralType,
+      bytes32 indexed collateralType,
       uint256 secondaryReceiverNonce,
       uint256 latestSecondaryReceiver,
       uint256 secondaryReceiverAllotedTax,
       uint256 secondaryReceiverRevenueSources
     );
     event ModifySecondaryReceiver(
-      bytes32 collateralType,
+      bytes32 indexed collateralType,
       uint256 secondaryReceiverNonce,
       uint256 latestSecondaryReceiver,
       uint256 secondaryReceiverAllotedTax,
       uint256 secondaryReceiverRevenueSources
     );
-    event CollectTax(bytes32 collateralType, uint256 latestAccumulatedRate, int256 deltaRate);
-    event DistributeTax(bytes32 collateralType, address target, int256 taxCut);
+    event CollectTax(bytes32 indexed collateralType, uint256 latestAccumulatedRate, int256 deltaRate);
+    event DistributeTax(bytes32 indexed collateralType, address indexed target, int256 taxCut);
 
     // --- Data ---
     struct CollateralType {
