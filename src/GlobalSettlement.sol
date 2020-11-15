@@ -58,12 +58,12 @@ abstract contract CoinSavingsAccountLike {
     function disableContract() virtual external;
 }
 abstract contract CollateralAuctionHouseLike {
-    function bidAmount(uint id) virtual public view returns (uint256);
-    function raisedAmount(uint id) virtual public view returns (uint256);
-    function remainingAmountToSell(uint id) virtual public view returns (uint256);
-    function forgoneCollateralReceiver(uint id) virtual public view returns (address);
-    function amountToRaise(uint id) virtual public view returns (uint256);
-    function terminateAuctionPrematurely(uint auctionId) virtual external;
+    function bidAmount(uint256 id) virtual public view returns (uint256);
+    function raisedAmount(uint256 id) virtual public view returns (uint256);
+    function remainingAmountToSell(uint256 id) virtual public view returns (uint256);
+    function forgoneCollateralReceiver(uint256 id) virtual public view returns (address);
+    function amountToRaise(uint256 id) virtual public view returns (uint256);
+    function terminateAuctionPrematurely(uint256 auctionId) virtual external;
 }
 abstract contract OracleLike {
     function read() virtual public view returns (uint256);
@@ -149,7 +149,7 @@ abstract contract OracleRelayerLike {
 
 contract GlobalSettlement {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
@@ -187,17 +187,17 @@ contract GlobalSettlement {
     // --- Events ---
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
-    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
     event ShutdownSystem();
-    event FreezeCollateralType(bytes32 collateralType, uint finalCoinPerCollateralPrice);
+    event FreezeCollateralType(bytes32 collateralType, uint256 finalCoinPerCollateralPrice);
     event FastTrackAuction(bytes32 collateralType, uint256 auctionId, uint256 collateralTotalDebt);
     event ProcessSAFE(bytes32 collateralType, address safe, uint256 collateralShortfall);
-    event FreeCollateral(bytes32 collateralType, address sender, int collateralAmount);
+    event FreeCollateral(bytes32 collateralType, address sender, int256 collateralAmount);
     event SetOutstandingCoinSupply(uint256 outstandingCoinSupply);
-    event CalculateCashPrice(bytes32 collateralType, uint collateralCashPrice);
-    event PrepareCoinsForRedeeming(address sender, uint coinBag);
-    event RedeemCollateral(bytes32 collateralType, address sender, uint coinsAmount, uint collateralAmount);
+    event CalculateCashPrice(bytes32 collateralType, uint256 collateralCashPrice);
+    event PrepareCoinsForRedeeming(address sender, uint256 coinBag);
+    event RedeemCollateral(bytes32 collateralType, address sender, uint256 coinsAmount, uint256 collateralAmount);
 
     // --- Init ---
     constructor() public {
@@ -207,29 +207,29 @@ contract GlobalSettlement {
     }
 
     // --- Math ---
-    function addition(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x + y;
         require(z >= x);
     }
-    function subtract(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
-    function multiply(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
-    function minimum(uint x, uint y) internal pure returns (uint z) {
+    function minimum(uint256 x, uint256 y) internal pure returns (uint256 z) {
         return x <= y ? x : y;
     }
-    uint constant WAD = 10 ** 18;
-    uint constant RAY = 10 ** 27;
-    function rmultiply(uint x, uint y) internal pure returns (uint z) {
+    uint256 constant WAD = 10 ** 18;
+    uint256 constant RAY = 10 ** 27;
+    function rmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = multiply(x, y) / RAY;
     }
-    function rdivide(uint x, uint y) internal pure returns (uint z) {
+    function rdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y > 0, "GlobalSettlement/division-by-zero");
         z = multiply(x, RAY) / y;
     }
-    function wdivide(uint x, uint y) internal pure returns (uint z) {
+    function wdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y > 0, "GlobalSettlement/division-by-zero");
         z = multiply(x, WAD) / y;
     }
@@ -260,7 +260,7 @@ contract GlobalSettlement {
         shutdownTime = now;
         safeEngine.disableContract();
         liquidationEngine.disableContract();
-        // treasury must be disabled before AccountingEngine so that all surplus is gathered in one place
+        // treasury must be disabled before the accounting engine so that all surplus is gathered in one place
         if (address(stabilityFeeTreasury) != address(0)) {
           stabilityFeeTreasury.disableContract();
         }
@@ -278,7 +278,7 @@ contract GlobalSettlement {
         (collateralTotalDebt[collateralType],,,,,) = safeEngine.collateralTypes(collateralType);
         (OracleLike orcl,,) = oracleRelayer.collateralTypes(collateralType);
         // redemptionPrice is a ray, orcl returns a wad
-        finalCoinPerCollateralPrice[collateralType] = wdivide(oracleRelayer.redemptionPrice(), uint(orcl.read()));
+        finalCoinPerCollateralPrice[collateralType] = wdivide(oracleRelayer.redemptionPrice(), uint256(orcl.read()));
         emit FreezeCollateralType(collateralType, finalCoinPerCollateralPrice[collateralType]);
     }
     function fastTrackAuction(bytes32 collateralType, uint256 auctionId) external {
@@ -286,32 +286,32 @@ contract GlobalSettlement {
 
         (address auctionHouse_,,)    = liquidationEngine.collateralTypes(collateralType);
         CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
-        (, uint accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
+        (, uint256 accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
 
-        uint bidAmount                    = collateralAuctionHouse.bidAmount(auctionId);
-        uint raisedAmount                 = collateralAuctionHouse.raisedAmount(auctionId);
-        uint collateralToSell             = collateralAuctionHouse.remainingAmountToSell(auctionId);
+        uint256 bidAmount                 = collateralAuctionHouse.bidAmount(auctionId);
+        uint256 raisedAmount              = collateralAuctionHouse.raisedAmount(auctionId);
+        uint256 collateralToSell          = collateralAuctionHouse.remainingAmountToSell(auctionId);
         address forgoneCollateralReceiver = collateralAuctionHouse.forgoneCollateralReceiver(auctionId);
-        uint amountToRaise                = collateralAuctionHouse.amountToRaise(auctionId);
+        uint256 amountToRaise             = collateralAuctionHouse.amountToRaise(auctionId);
 
         safeEngine.createUnbackedDebt(address(accountingEngine), address(accountingEngine), subtract(amountToRaise, raisedAmount));
         safeEngine.createUnbackedDebt(address(accountingEngine), address(this), bidAmount);
         safeEngine.approveSAFEModification(address(collateralAuctionHouse));
         collateralAuctionHouse.terminateAuctionPrematurely(auctionId);
 
-        uint debt_ = subtract(amountToRaise, raisedAmount) / accumulatedRate;
+        uint256 debt_ = subtract(amountToRaise, raisedAmount) / accumulatedRate;
         collateralTotalDebt[collateralType] = addition(collateralTotalDebt[collateralType], debt_);
-        require(int(collateralToSell) >= 0 && int(debt_) >= 0, "GlobalSettlement/overflow");
-        safeEngine.confiscateSAFECollateralAndDebt(collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int(collateralToSell), int(debt_));
+        require(int256(collateralToSell) >= 0 && int256(debt_) >= 0, "GlobalSettlement/overflow");
+        safeEngine.confiscateSAFECollateralAndDebt(collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int256(collateralToSell), int256(debt_));
         emit FastTrackAuction(collateralType, auctionId, collateralTotalDebt[collateralType]);
     }
     function processSAFE(bytes32 collateralType, address safe) external {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
-        (, uint accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
-        (uint safeCollateral, uint safeDebt) = safeEngine.safes(collateralType, safe);
+        (, uint256 accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
+        (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(collateralType, safe);
 
-        uint amountOwed = rmultiply(rmultiply(safeDebt, accumulatedRate), finalCoinPerCollateralPrice[collateralType]);
-        uint minCollateral = minimum(safeCollateral, amountOwed);
+        uint256 amountOwed = rmultiply(rmultiply(safeDebt, accumulatedRate), finalCoinPerCollateralPrice[collateralType]);
+        uint256 minCollateral = minimum(safeCollateral, amountOwed);
         collateralShortfall[collateralType] = addition(
             collateralShortfall[collateralType],
             subtract(amountOwed, minCollateral)
@@ -323,15 +323,15 @@ contract GlobalSettlement {
             safe,
             address(this),
             address(accountingEngine),
-            -int(minCollateral),
-            -int(safeDebt)
+            -int256(minCollateral),
+            -int256(safeDebt)
         );
 
         emit ProcessSAFE(collateralType, safe, collateralShortfall[collateralType]);
     }
     function freeCollateral(bytes32 collateralType) external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
-        (uint safeCollateral, uint safeDebt) = safeEngine.safes(collateralType, msg.sender);
+        (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(collateralType, msg.sender);
         require(safeDebt == 0, "GlobalSettlement/art-not-zero");
         require(safeCollateral <= 2**255, "GlobalSettlement/overflow");
         safeEngine.confiscateSAFECollateralAndDebt(
@@ -339,10 +339,10 @@ contract GlobalSettlement {
           msg.sender,
           msg.sender,
           address(accountingEngine),
-          -int(safeCollateral),
+          -int256(safeCollateral),
           0
         );
-        emit FreeCollateral(collateralType, msg.sender, -int(safeCollateral));
+        emit FreeCollateral(collateralType, msg.sender, -int256(safeCollateral));
     }
     function setOutstandingCoinSupply() external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
@@ -356,7 +356,7 @@ contract GlobalSettlement {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
         require(collateralCashPrice[collateralType] == 0, "GlobalSettlement/collateral-cash-price-already-defined");
 
-        (, uint accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
+        (, uint256 accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
         uint256 redemptionAdjustedDebt = rmultiply(
           rmultiply(collateralTotalDebt[collateralType], accumulatedRate), finalCoinPerCollateralPrice[collateralType]
         );
@@ -371,9 +371,9 @@ contract GlobalSettlement {
         coinBag[msg.sender] = addition(coinBag[msg.sender], coinAmount);
         emit PrepareCoinsForRedeeming(msg.sender, coinBag[msg.sender]);
     }
-    function redeemCollateral(bytes32 collateralType, uint coinsAmount) external {
+    function redeemCollateral(bytes32 collateralType, uint256 coinsAmount) external {
         require(collateralCashPrice[collateralType] != 0, "GlobalSettlement/collateral-cash-price-not-defined");
-        uint collateralAmount = rmultiply(coinsAmount, collateralCashPrice[collateralType]);
+        uint256 collateralAmount = rmultiply(coinsAmount, collateralCashPrice[collateralType]);
         safeEngine.transferCollateral(
           collateralType,
           address(this),

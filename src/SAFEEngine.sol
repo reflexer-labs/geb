@@ -19,7 +19,7 @@ pragma solidity 0.6.7;
 
 contract SAFEEngine {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
@@ -47,7 +47,7 @@ contract SAFEEngine {
     }
 
     // Who can transfer collateral & debt in/out of a SAFE
-    mapping(address => mapping (address => uint)) public safeRights;
+    mapping(address => mapping (address => uint256)) public safeRights;
     /**
      * @notice Allow an address to modify your SAFE
      * @param account Account to give SAFE permissions to
@@ -94,15 +94,15 @@ contract SAFEEngine {
     }
 
     // Data about each collateral type
-    mapping (bytes32 => CollateralType)             public collateralTypes;
+    mapping (bytes32 => CollateralType)                public collateralTypes;
     // Data about each SAFE
-    mapping (bytes32 => mapping (address => SAFE )) public safes;
+    mapping (bytes32 => mapping (address => SAFE ))    public safes;
     // Balance of each collateral type
-    mapping (bytes32 => mapping (address => uint))  public tokenCollateral;  // [wad]
+    mapping (bytes32 => mapping (address => uint256))  public tokenCollateral;  // [wad]
     // Internal balance of system coins
-    mapping (address => uint)                       public coinBalance;      // [rad]
+    mapping (address => uint256)                       public coinBalance;      // [rad]
     // Amount of debt held by an account. Coins & debt are like matter and antimatter. They nullify each other
-    mapping (address => uint)                       public debtBalance;      // [rad]
+    mapping (address => uint256)                       public debtBalance;      // [rad]
 
     // Total amount of debt that a single safe can generate
     uint256 public safeDebtCeiling;      // [wad]
@@ -121,8 +121,8 @@ contract SAFEEngine {
     event ApproveSAFEModification(address sender, address account);
     event DenySAFEModification(address sender, address account);
     event InitializeCollateralType(bytes32 collateralType);
-    event ModifyParameters(bytes32 parameter, uint data);
-    event ModifyParameters(bytes32 collateralType, bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, uint256 data);
+    event ModifyParameters(bytes32 collateralType, bytes32 parameter, uint256 data);
     event DisableContract();
     event ModifyCollateralBalance(bytes32 collateralType, address account, int256 wad);
     event TransferCollateral(bytes32 collateralType, address src, address dst, uint256 wad);
@@ -132,92 +132,92 @@ contract SAFEEngine {
         address safe,
         address collateralSource,
         address debtDestination,
-        int deltaCollateral,
-        int deltaDebt,
-        uint lockedCollateral,
-        uint generatedDebt,
-        uint globalDebt
+        int256 deltaCollateral,
+        int256 deltaDebt,
+        uint256 lockedCollateral,
+        uint256 generatedDebt,
+        uint256 globalDebt
     );
     event TransferSAFECollateralAndDebt(
         bytes32 collateralType,
         address src,
         address dst,
-        int deltaCollateral,
-        int deltaDebt,
-        uint srcLockedCollateral,
-        uint srcGeneratedDebt,
-        uint dstLockedCollateral,
-        uint dstGeneratedDebt
+        int256 deltaCollateral,
+        int256 deltaDebt,
+        uint256 srcLockedCollateral,
+        uint256 srcGeneratedDebt,
+        uint256 dstLockedCollateral,
+        uint256 dstGeneratedDebt
     );
     event ConfiscateSAFECollateralAndDebt(
         bytes32 collateralType,
         address safe,
         address collateralCounterparty,
         address debtCounterparty,
-        int deltaCollateral,
-        int deltaDebt,
-        uint globalUnbackedDebt
+        int256 deltaCollateral,
+        int256 deltaDebt,
+        uint256 globalUnbackedDebt
     );
-    event SettleDebt(address account, uint rad, uint debtBalance, uint coinBalance, uint globalUnbackedDebt, uint globalDebt);
+    event SettleDebt(address account, uint256 rad, uint256 debtBalance, uint256 coinBalance, uint256 globalUnbackedDebt, uint256 globalDebt);
     event CreateUnbackedDebt(
         address debtDestination,
         address coinDestination,
-        uint rad,
-        uint debtDstBalance,
-        uint coinDstBalance,
-        uint globalUnbackedDebt,
-        uint globalDebt
+        uint256 rad,
+        uint256 debtDstBalance,
+        uint256 coinDstBalance,
+        uint256 globalUnbackedDebt,
+        uint256 globalDebt
     );
     event UpdateAccumulatedRate(
         bytes32 collateralType,
         address surplusDst,
-        int rateMultiplier,
-        uint dstCoinBalance,
-        uint globalDebt
+        int256 rateMultiplier,
+        uint256 dstCoinBalance,
+        uint256 globalDebt
     );
 
     // --- Init ---
     constructor() public {
         authorizedAccounts[msg.sender] = 1;
-        safeDebtCeiling = uint(-1);
+        safeDebtCeiling = uint256(-1);
         contractEnabled = 1;
         emit AddAuthorization(msg.sender);
-        emit ModifyParameters("safeDebtCeiling", uint(-1));
+        emit ModifyParameters("safeDebtCeiling", uint256(-1));
     }
 
     // --- Math ---
-    function addition(uint x, int y) internal pure returns (uint z) {
-        z = x + uint(y);
+    function addition(uint256 x, int256 y) internal pure returns (uint256 z) {
+        z = x + uint256(y);
         require(y >= 0 || z <= x);
         require(y <= 0 || z >= x);
     }
-    function addition(int x, int y) internal pure returns (int z) {
+    function addition(int256 x, int256 y) internal pure returns (int256 z) {
         z = x + y;
         require(y >= 0 || z <= x);
         require(y <= 0 || z >= x);
     }
-    function subtract(uint x, int y) internal pure returns (uint z) {
-        z = x - uint(y);
+    function subtract(uint256 x, int256 y) internal pure returns (uint256 z) {
+        z = x - uint256(y);
         require(y <= 0 || z <= x);
         require(y >= 0 || z >= x);
     }
-    function subtract(int x, int y) internal pure returns (int z) {
+    function subtract(int256 x, int256 y) internal pure returns (int256 z) {
         z = x - y;
         require(y <= 0 || z <= x);
         require(y >= 0 || z >= x);
     }
-    function multiply(uint x, int y) internal pure returns (int z) {
-        z = int(x) * y;
-        require(int(x) >= 0);
-        require(y == 0 || z / y == int(x));
+    function multiply(uint256 x, int256 y) internal pure returns (int256 z) {
+        z = int256(x) * y;
+        require(int256(x) >= 0);
+        require(y == 0 || z / y == int256(x));
     }
-    function addition(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x);
     }
-    function subtract(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
-    function multiply(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
 
@@ -233,11 +233,11 @@ contract SAFEEngine {
         emit InitializeCollateralType(collateralType);
     }
     /**
-     * @notice Modify general uint params
+     * @notice Modify general uint256 params
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         require(contractEnabled == 1, "SAFEEngine/contract-not-enabled");
         if (parameter == "globalDebtCeiling") globalDebtCeiling = data;
         else if (parameter == "safeDebtCeiling") safeDebtCeiling = data;
@@ -253,7 +253,7 @@ contract SAFEEngine {
     function modifyParameters(
         bytes32 collateralType,
         bytes32 parameter,
-        uint data
+        uint256 data
     ) external isAuthorized {
         require(contractEnabled == 1, "SAFEEngine/contract-not-enabled");
         if (parameter == "safetyPrice") collateralTypes[collateralType].safetyPrice = data;
@@ -339,8 +339,8 @@ contract SAFEEngine {
         address safe,
         address collateralSource,
         address debtDestination,
-        int deltaCollateral,
-        int deltaDebt
+        int256 deltaCollateral,
+        int256 deltaDebt
     ) external {
         // system is live
         require(contractEnabled == 1, "SAFEEngine/contract-not-enabled");
@@ -354,9 +354,9 @@ contract SAFEEngine {
         safeData.generatedDebt         = addition(safeData.generatedDebt, deltaDebt);
         collateralTypeData.debtAmount  = addition(collateralTypeData.debtAmount, deltaDebt);
 
-        int deltaAdjustedDebt = multiply(collateralTypeData.accumulatedRate, deltaDebt);
-        uint totalDebtIssued  = multiply(collateralTypeData.accumulatedRate, safeData.generatedDebt);
-        globalDebt            = addition(globalDebt, deltaAdjustedDebt);
+        int256 deltaAdjustedDebt = multiply(collateralTypeData.accumulatedRate, deltaDebt);
+        uint256 totalDebtIssued  = multiply(collateralTypeData.accumulatedRate, safeData.generatedDebt);
+        globalDebt               = addition(globalDebt, deltaAdjustedDebt);
 
         // either debt has decreased, or debt ceilings are not exceeded
         require(
@@ -425,8 +425,8 @@ contract SAFEEngine {
         bytes32 collateralType,
         address src,
         address dst,
-        int deltaCollateral,
-        int deltaDebt
+        int256 deltaCollateral,
+        int256 deltaDebt
     ) external {
         SAFE storage srcSAFE = safes[collateralType][src];
         SAFE storage dstSAFE = safes[collateralType][dst];
@@ -437,8 +437,8 @@ contract SAFEEngine {
         dstSAFE.lockedCollateral = addition(dstSAFE.lockedCollateral, deltaCollateral);
         dstSAFE.generatedDebt    = addition(dstSAFE.generatedDebt, deltaDebt);
 
-        uint srcTotalDebtIssued = multiply(srcSAFE.generatedDebt, collateralType_.accumulatedRate);
-        uint dstTotalDebtIssued = multiply(dstSAFE.generatedDebt, collateralType_.accumulatedRate);
+        uint256 srcTotalDebtIssued = multiply(srcSAFE.generatedDebt, collateralType_.accumulatedRate);
+        uint256 dstTotalDebtIssued = multiply(dstSAFE.generatedDebt, collateralType_.accumulatedRate);
 
         // both sides consent
         require(both(canModifySAFE(src, msg.sender), canModifySAFE(dst, msg.sender)), "SAFEEngine/not-allowed");
@@ -480,8 +480,8 @@ contract SAFEEngine {
         address safe,
         address collateralCounterparty,
         address debtCounterparty,
-        int deltaCollateral,
-        int deltaDebt
+        int256 deltaCollateral,
+        int256 deltaDebt
     ) external isAuthorized {
         SAFE storage safe_ = safes[collateralType][safe];
         CollateralType storage collateralType_ = collateralTypes[collateralType];
@@ -490,7 +490,7 @@ contract SAFEEngine {
         safe_.generatedDebt = addition(safe_.generatedDebt, deltaDebt);
         collateralType_.debtAmount = addition(collateralType_.debtAmount, deltaDebt);
 
-        int deltaTotalIssuedDebt = multiply(collateralType_.accumulatedRate, deltaDebt);
+        int256 deltaTotalIssuedDebt = multiply(collateralType_.accumulatedRate, deltaDebt);
 
         tokenCollateral[collateralType][collateralCounterparty] = subtract(
           tokenCollateral[collateralType][collateralCounterparty],
@@ -521,7 +521,7 @@ contract SAFEEngine {
      * @notice Nullify an amount of coins with an equal amount of debt
      * @param rad Amount of debt & coins to destroy
      */
-    function settleDebt(uint rad) external {
+    function settleDebt(uint256 rad) external {
         address account       = msg.sender;
         debtBalance[account]  = subtract(debtBalance[account], rad);
         coinBalance[account]  = subtract(coinBalance[account], rad);
@@ -538,7 +538,7 @@ contract SAFEEngine {
     function createUnbackedDebt(
         address debtDestination,
         address coinDestination,
-        uint rad
+        uint256 rad
     ) external isAuthorized {
         debtBalance[debtDestination]  = addition(debtBalance[debtDestination], rad);
         coinBalance[coinDestination]  = addition(coinBalance[coinDestination], rad);
@@ -566,12 +566,12 @@ contract SAFEEngine {
     function updateAccumulatedRate(
         bytes32 collateralType,
         address surplusDst,
-        int rateMultiplier
+        int256 rateMultiplier
     ) external isAuthorized {
         require(contractEnabled == 1, "SAFEEngine/contract-not-enabled");
         CollateralType storage collateralType_ = collateralTypes[collateralType];
         collateralType_.accumulatedRate        = addition(collateralType_.accumulatedRate, rateMultiplier);
-        int deltaSurplus                       = multiply(collateralType_.debtAmount, rateMultiplier);
+        int256 deltaSurplus                    = multiply(collateralType_.debtAmount, rateMultiplier);
         coinBalance[surplusDst]                = addition(coinBalance[surplusDst], deltaSurplus);
         globalDebt                             = addition(globalDebt, deltaSurplus);
         emit UpdateAccumulatedRate(

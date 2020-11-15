@@ -16,7 +16,7 @@
 pragma solidity 0.6.7;
 
 abstract contract SAFEEngineLike {
-    function modifyParameters(bytes32, bytes32, uint) virtual external;
+    function modifyParameters(bytes32, bytes32, uint256) virtual external;
 }
 
 abstract contract OracleLike {
@@ -25,7 +25,7 @@ abstract contract OracleLike {
 
 contract OracleRelayer {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
@@ -87,13 +87,13 @@ contract OracleRelayer {
         bytes32 parameter,
         address addr
     );
-    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(
         bytes32 collateralType,
         bytes32 parameter,
-        uint data
+        uint256 data
     );
-    event UpdateRedemptionPrice(uint redemptionPrice);
+    event UpdateRedemptionPrice(uint256 redemptionPrice);
     event UpdateCollateralPrice(
       bytes32 collateralType,
       uint256 priceFeedValue,
@@ -115,24 +115,24 @@ contract OracleRelayer {
     }
 
     // --- Math ---
-    uint constant WAD = 10 ** 18;
-    uint constant RAY = 10 ** 27;
+    uint256 constant WAD = 10 ** 18;
+    uint256 constant RAY = 10 ** 27;
 
-    function subtract(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x - y;
         require(z <= x);
     }
-    function multiply(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
-    function rmultiply(uint x, uint y) internal pure returns (uint z) {
+    function rmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = multiply(x, y) / RAY;
     }
-    function rdivide(uint x, uint y) internal pure returns (uint z) {
+    function rdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y > 0, "OracleRelayer/division-by-zero");
         z = multiply(x, RAY) / y;
     }
-    function rpower(uint x, uint n, uint base) internal pure returns (uint z) {
+    function rpower(uint256 x, uint256 n, uint256 base) internal pure returns (uint256 z) {
         assembly {
             switch x case 0 {switch n case 0 {z := base} default {z := 0}}
             default {
@@ -182,7 +182,7 @@ contract OracleRelayer {
      * @param parameter Name of the parameter
      * @param data New param value
      */
-    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         require(data > 0, "OracleRelayer/null-data");
         if (parameter == "redemptionPrice") {
@@ -222,7 +222,7 @@ contract OracleRelayer {
     function modifyParameters(
         bytes32 collateralType,
         bytes32 parameter,
-        uint data
+        uint256 data
     ) external isAuthorized {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         if (parameter == "safetyCRatio") {
@@ -245,7 +245,7 @@ contract OracleRelayer {
     /**
      * @notice Update the redemption price according to the current redemption rate
      */
-    function updateRedemptionPrice() internal returns (uint) {
+    function updateRedemptionPrice() internal returns (uint256) {
         // Update redemption price
         _redemptionPrice = rmultiply(
           rpower(redemptionRate, subtract(now, redemptionPriceUpdateTime), RAY),
@@ -260,7 +260,7 @@ contract OracleRelayer {
     /**
      * @notice Fetch the latest redemption price by first updating it
      */
-    function redemptionPrice() public returns (uint) {
+    function redemptionPrice() public returns (uint256) {
         if (now > redemptionPriceUpdateTime) return updateRedemptionPrice();
         return _redemptionPrice;
     }
@@ -273,9 +273,9 @@ contract OracleRelayer {
     function updateCollateralPrice(bytes32 collateralType) external {
         (uint256 priceFeedValue, bool hasValidValue) =
           collateralTypes[collateralType].orcl.getResultWithValidity();
-        uint redemptionPrice_ = redemptionPrice();
-        uint256 safetyPrice_ = hasValidValue ? rdivide(rdivide(multiply(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].safetyCRatio) : 0;
-        uint256 liquidationPrice_ = hasValidValue ? rdivide(rdivide(multiply(uint(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].liquidationCRatio) : 0;
+        uint256 redemptionPrice_ = redemptionPrice();
+        uint256 safetyPrice_ = hasValidValue ? rdivide(rdivide(multiply(uint256(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].safetyCRatio) : 0;
+        uint256 liquidationPrice_ = hasValidValue ? rdivide(rdivide(multiply(uint256(priceFeedValue), 10 ** 9), redemptionPrice_), collateralTypes[collateralType].liquidationCRatio) : 0;
 
         safeEngine.modifyParameters(collateralType, "safetyPrice", safetyPrice_);
         safeEngine.modifyParameters(collateralType, "liquidationPrice", liquidationPrice_);

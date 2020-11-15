@@ -17,7 +17,7 @@ pragma solidity 0.6.7;
 
 contract Coin {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
@@ -47,22 +47,22 @@ contract Coin {
     uint256 public totalSupply;
     uint256 public changeData;
 
-    mapping (address => uint)                      public balanceOf;
-    mapping (address => mapping (address => uint)) public allowance;
-    mapping (address => uint)                      public nonces;
+    mapping (address => uint256)                      public balanceOf;
+    mapping (address => mapping (address => uint256)) public allowance;
+    mapping (address => uint256)                      public nonces;
 
     // --- Events ---
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
-    event Approval(address indexed src, address indexed guy, uint amount);
-    event Transfer(address indexed src, address indexed dst, uint amount);
-    event ModifyParameters(bytes32 parameter, uint data);
+    event Approval(address indexed src, address indexed guy, uint256 amount);
+    event Transfer(address indexed src, address indexed dst, uint256 amount);
+    event ModifyParameters(bytes32 parameter, uint256 data);
 
     // --- Math ---
-    function addition(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x);
     }
-    function subtract(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
 
@@ -93,7 +93,7 @@ contract Coin {
     }
 
     // --- Administration ---
-    function modifyParameters(bytes32 parameter, uint data) external isAuthorized canChangeData {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized canChangeData {
         if (parameter == "changeData") {
           changeData = data;
         }
@@ -117,14 +117,14 @@ contract Coin {
     }
 
     // --- Token ---
-    function transfer(address dst, uint amount) external returns (bool) {
+    function transfer(address dst, uint256 amount) external returns (bool) {
         return transferFrom(msg.sender, dst, amount);
     }
-    function transferFrom(address src, address dst, uint amount)
+    function transferFrom(address src, address dst, uint256 amount)
         public returns (bool)
     {
         require(balanceOf[src] >= amount, "Coin/insufficient-balance");
-        if (src != msg.sender && allowance[src][msg.sender] != uint(-1)) {
+        if (src != msg.sender && allowance[src][msg.sender] != uint256(-1)) {
             require(allowance[src][msg.sender] >= amount, "Coin/insufficient-allowance");
             allowance[src][msg.sender] = subtract(allowance[src][msg.sender], amount);
         }
@@ -133,14 +133,14 @@ contract Coin {
         emit Transfer(src, dst, amount);
         return true;
     }
-    function mint(address usr, uint amount) external isAuthorized {
+    function mint(address usr, uint256 amount) external isAuthorized {
         balanceOf[usr] = addition(balanceOf[usr], amount);
         totalSupply    = addition(totalSupply, amount);
         emit Transfer(address(0), usr, amount);
     }
-    function burn(address usr, uint amount) external {
+    function burn(address usr, uint256 amount) external {
         require(balanceOf[usr] >= amount, "Coin/insufficient-balance");
-        if (usr != msg.sender && allowance[usr][msg.sender] != uint(-1)) {
+        if (usr != msg.sender && allowance[usr][msg.sender] != uint256(-1)) {
             require(allowance[usr][msg.sender] >= amount, "Coin/insufficient-allowance");
             allowance[usr][msg.sender] = subtract(allowance[usr][msg.sender], amount);
         }
@@ -148,20 +148,20 @@ contract Coin {
         totalSupply    = subtract(totalSupply, amount);
         emit Transfer(usr, address(0), amount);
     }
-    function approve(address usr, uint amount) external returns (bool) {
+    function approve(address usr, uint256 amount) external returns (bool) {
         allowance[msg.sender][usr] = amount;
         emit Approval(msg.sender, usr, amount);
         return true;
     }
 
     // --- Alias ---
-    function push(address usr, uint amount) external {
+    function push(address usr, uint256 amount) external {
         transferFrom(msg.sender, usr, amount);
     }
-    function pull(address usr, uint amount) external {
+    function pull(address usr, uint256 amount) external {
         transferFrom(usr, msg.sender, amount);
     }
-    function move(address src, address dst, uint amount) external {
+    function move(address src, address dst, uint256 amount) external {
         transferFrom(src, dst, amount);
     }
 
@@ -194,7 +194,7 @@ contract Coin {
         require(holder == ecrecover(digest, v, r, s), "Coin/invalid-permit");
         require(expiry == 0 || now <= expiry, "Coin/permit-expired");
         require(nonce == nonces[holder]++, "Coin/invalid-nonce");
-        uint wad = allowed ? uint(-1) : 0;
+        uint256 wad = allowed ? uint256(-1) : 0;
         allowance[holder][spender] = wad;
         emit Approval(holder, spender, wad);
     }

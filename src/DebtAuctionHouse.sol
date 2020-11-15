@@ -18,15 +18,15 @@
 pragma solidity 0.6.7;
 
 abstract contract SAFEEngineLike {
-    function transferInternalCoins(address,address,uint) virtual external;
-    function createUnbackedDebt(address,address,uint) virtual external;
+    function transferInternalCoins(address,address,uint256) virtual external;
+    function createUnbackedDebt(address,address,uint256) virtual external;
 }
 abstract contract TokenLike {
-    function mint(address,uint) virtual external;
+    function mint(address,uint256) virtual external;
 }
 abstract contract AccountingEngineLike {
-    function totalOnAuctionDebt() virtual public returns (uint);
-    function cancelAuctionedDebtWithSurplus(uint) virtual external;
+    function totalOnAuctionDebt() virtual public returns (uint256);
+    function cancelAuctionedDebtWithSurplus(uint256) virtual external;
 }
 
 /*
@@ -35,7 +35,7 @@ abstract contract AccountingEngineLike {
 
 contract DebtAuctionHouse {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
@@ -75,7 +75,7 @@ contract DebtAuctionHouse {
     }
 
     // Bid data for each separate auction
-    mapping (uint => Bid) public bids;
+    mapping (uint256 => Bid) public bids;
 
     // SAFE database
     SAFEEngineLike public safeEngine;
@@ -113,12 +113,12 @@ contract DebtAuctionHouse {
       uint256 auctionDeadline,
       uint256 activeDebtAuctions
     );
-    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
-    event RestartAuction(uint id, uint256 auctionDeadline);
-    event DecreaseSoldAmount(uint id, address highBidder, uint amountToBuy, uint bid, uint bidExpiry);
-    event SettleAuction(uint id, uint activeDebtAuctions);
-    event TerminateAuctionPrematurely(uint id, address sender, address highBidder, uint bidAmount, uint activeDebtAuctions);
+    event RestartAuction(uint256 id, uint256 auctionDeadline);
+    event DecreaseSoldAmount(uint256 id, address highBidder, uint256 amountToBuy, uint256 bid, uint256 bidExpiry);
+    event SettleAuction(uint256 id, uint256 activeDebtAuctions);
+    event TerminateAuctionPrematurely(uint256 id, address sender, address highBidder, uint256 bidAmount, uint256 activeDebtAuctions);
     event DisableContract(address sender);
 
     // --- Init ---
@@ -134,16 +134,16 @@ contract DebtAuctionHouse {
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
         require((z = x + y) >= x);
     }
-    function addUint256(uint256 x, uint256 y) internal pure returns (uint z) {
+    function addUint256(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x);
     }
-    function subtract(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
-    function multiply(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
-    function minimum(uint x, uint y) internal pure returns (uint z) {
+    function minimum(uint256 x, uint256 y) internal pure returns (uint256 z) {
         if (x > y) { z = y; } else { z = x; }
     }
 
@@ -153,7 +153,7 @@ contract DebtAuctionHouse {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         if (parameter == "bidDecrease") bidDecrease = data;
         else if (parameter == "amountSoldIncrease") amountSoldIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
@@ -183,11 +183,11 @@ contract DebtAuctionHouse {
      */
     function startAuction(
         address incomeReceiver,
-        uint amountToSell,
-        uint initialBid
-    ) external isAuthorized returns (uint id) {
+        uint256 amountToSell,
+        uint256 initialBid
+    ) external isAuthorized returns (uint256 id) {
         require(contractEnabled == 1, "DebtAuctionHouse/contract-not-enabled");
-        require(auctionsStarted < uint(-1), "DebtAuctionHouse/overflow");
+        require(auctionsStarted < uint256(-1), "DebtAuctionHouse/overflow");
         id = ++auctionsStarted;
 
         bids[id].bidAmount = initialBid;
@@ -203,7 +203,7 @@ contract DebtAuctionHouse {
      * @notice Restart an auction if no bids were submitted for it
      * @param id ID of the auction to restart
      */
-    function restartAuction(uint id) external {
+    function restartAuction(uint256 id) external {
         require(bids[id].auctionDeadline < now, "DebtAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "DebtAuctionHouse/bid-already-placed");
         bids[id].amountToSell = multiply(amountSoldIncrease, bids[id].amountToSell) / ONE;
@@ -217,7 +217,7 @@ contract DebtAuctionHouse {
      * @param amountToBuy Amount of protocol tokens to buy (must be smaller than the previous proposed amount) (wad)
      * @param bid New system coin bid (must always equal the total amount raised by the auction) (rad)
      */
-    function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) external {
+    function decreaseSoldAmount(uint256 id, uint256 amountToBuy, uint256 bid) external {
         require(contractEnabled == 1, "DebtAuctionHouse/contract-not-enabled");
         require(bids[id].highBidder != address(0), "DebtAuctionHouse/high-bidder-not-set");
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "DebtAuctionHouse/bid-already-expired");
@@ -231,7 +231,7 @@ contract DebtAuctionHouse {
 
         // on first bid submitted, clear as much totalOnAuctionDebt as possible
         if (bids[id].bidExpiry == 0) {
-            uint totalOnAuctionDebt = AccountingEngineLike(bids[id].highBidder).totalOnAuctionDebt();
+            uint256 totalOnAuctionDebt = AccountingEngineLike(bids[id].highBidder).totalOnAuctionDebt();
             AccountingEngineLike(bids[id].highBidder).cancelAuctionedDebtWithSurplus(minimum(bid, totalOnAuctionDebt));
         }
 
@@ -245,7 +245,7 @@ contract DebtAuctionHouse {
      * @notice Settle/finish an auction
      * @param id ID of the auction to settle
      */
-    function settleAuction(uint id) external {
+    function settleAuction(uint256 id) external {
         require(contractEnabled == 1, "DebtAuctionHouse/not-live");
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "DebtAuctionHouse/not-finished");
         protocolToken.mint(bids[id].highBidder, bids[id].amountToSell);
@@ -268,7 +268,7 @@ contract DebtAuctionHouse {
      * @notice Terminate an auction prematurely.
      * @param id ID of the auction to terminate
      */
-    function terminateAuctionPrematurely(uint id) external {
+    function terminateAuctionPrematurely(uint256 id) external {
         require(contractEnabled == 0, "DebtAuctionHouse/contract-still-enabled");
         require(bids[id].highBidder != address(0), "DebtAuctionHouse/high-bidder-not-set");
         safeEngine.createUnbackedDebt(accountingEngine, bids[id].highBidder, bids[id].bidAmount);

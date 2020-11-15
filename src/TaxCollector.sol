@@ -20,15 +20,15 @@ abstract contract SAFEEngineLike {
         uint256 debtAmount,       // [wad]
         uint256 accumulatedRate   // [ray]
     );
-    function updateAccumulatedRate(bytes32,address,int) virtual external;
-    function coinBalance(address) virtual public view returns (uint);
+    function updateAccumulatedRate(bytes32,address,int256) virtual external;
+    function coinBalance(address) virtual public view returns (uint256);
 }
 
 contract TaxCollector {
     using LinkedList for LinkedList.List;
 
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
@@ -60,9 +60,9 @@ contract TaxCollector {
     event ModifyParameters(
       bytes32 collateralType,
       bytes32 parameter,
-      uint data
+      uint256 data
     );
-    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
     event ModifyParameters(
       bytes32 collateralType,
@@ -77,20 +77,20 @@ contract TaxCollector {
     );
     event AddSecondaryReceiver(
       bytes32 collateralType,
-      uint secondaryReceiverNonce,
-      uint latestSecondaryReceiver,
-      uint secondaryReceiverAllotedTax,
-      uint secondaryReceiverRevenueSources
+      uint256 secondaryReceiverNonce,
+      uint256 latestSecondaryReceiver,
+      uint256 secondaryReceiverAllotedTax,
+      uint256 secondaryReceiverRevenueSources
     );
     event ModifySecondaryReceiver(
       bytes32 collateralType,
-      uint secondaryReceiverNonce,
-      uint latestSecondaryReceiver,
-      uint secondaryReceiverAllotedTax,
-      uint secondaryReceiverRevenueSources
+      uint256 secondaryReceiverNonce,
+      uint256 latestSecondaryReceiver,
+      uint256 secondaryReceiverAllotedTax,
+      uint256 secondaryReceiverRevenueSources
     );
-    event CollectTax(bytes32 collateralType, uint latestAccumulatedRate, int deltaRate);
-    event DistributeTax(bytes32 collateralType, address target, int taxCut);
+    event CollectTax(bytes32 collateralType, uint256 latestAccumulatedRate, int256 deltaRate);
+    event DistributeTax(bytes32 collateralType, address target, int256 taxCut);
 
     // --- Data ---
     struct CollateralType {
@@ -110,7 +110,7 @@ contract TaxCollector {
     // Data about each collateral type
     mapping (bytes32 => CollateralType)                  public collateralTypes;
     // Percentage of each collateral's SF that goes to other addresses apart from the primary receiver
-    mapping (bytes32 => uint)                            public secondaryReceiverAllotedTax;              // [%ray]
+    mapping (bytes32 => uint256)                         public secondaryReceiverAllotedTax;              // [%ray]
     // Whether an address is already used for a tax receiver
     mapping (address => uint256)                         public usedSecondaryReceiver;                    // [bool]
     // Address associated to each tax receiver index
@@ -145,7 +145,7 @@ contract TaxCollector {
     }
 
     // --- Math ---
-    function rpow(uint x, uint n, uint b) internal pure returns (uint z) {
+    function rpow(uint256 x, uint256 n, uint256 b) internal pure returns (uint256 z) {
       assembly {
         switch x case 0 {switch n case 0 {z := b} default {z := 0}}
         default {
@@ -172,36 +172,36 @@ contract TaxCollector {
     uint256 constant WHOLE_TAX_CUT = 10 ** 29;
     uint256 constant ONE           = 1;
 
-    function addition(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x + y;
         require(z >= x);
     }
-    function addition(int x, int y) internal pure returns (int z) {
+    function addition(int256 x, int256 y) internal pure returns (int256 z) {
         z = x + y;
         if (y <= 0) require(z <= x);
         if (y  > 0) require(z > x);
     }
-    function subtract(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
-    function subtract(int x, int y) internal pure returns (int z) {
+    function subtract(int256 x, int256 y) internal pure returns (int256 z) {
         z = x - y;
         require(y <= 0 || z <= x);
         require(y >= 0 || z >= x);
     }
-    function deduct(uint x, uint y) internal pure returns (int z) {
-        z = int(x) - int(y);
-        require(int(x) >= 0 && int(y) >= 0);
+    function deduct(uint256 x, uint256 y) internal pure returns (int256 z) {
+        z = int256(x) - int256(y);
+        require(int256(x) >= 0 && int256(y) >= 0);
     }
-    function multiply(uint x, int y) internal pure returns (int z) {
-        z = int(x) * y;
-        require(int(x) >= 0);
-        require(y == 0 || z / y == int(x));
+    function multiply(uint256 x, int256 y) internal pure returns (int256 z) {
+        z = int256(x) * y;
+        require(int256(x) >= 0);
+        require(y == 0 || z / y == int256(x));
     }
-    function multiply(int x, int y) internal pure returns (int z) {
+    function multiply(int256 x, int256 y) internal pure returns (int256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
-    function rmultiply(uint x, uint y) internal pure returns (uint z) {
+    function rmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x * y;
         require(y == 0 || z / y == x);
         z = z / RAY;
@@ -228,7 +228,7 @@ contract TaxCollector {
         emit InitializeCollateralType(collateralType);
     }
     /**
-     * @notice Modify collateral specific uint params
+     * @notice Modify collateral specific uint256 params
      * @param collateralType Collateral type who's parameter is modified
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
@@ -236,7 +236,7 @@ contract TaxCollector {
     function modifyParameters(
         bytes32 collateralType,
         bytes32 parameter,
-        uint data
+        uint256 data
     ) external isAuthorized {
         require(now == collateralTypes[collateralType].updateTime, "TaxCollector/update-time-not-now");
         if (parameter == "stabilityFee") collateralTypes[collateralType].stabilityFee = data;
@@ -248,11 +248,11 @@ contract TaxCollector {
         );
     }
     /**
-     * @notice Modify general uint params
+     * @notice Modify general uint256 params
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         if (parameter == "globalStabilityFee") globalStabilityFee = data;
         else if (parameter == "maxSecondaryReceivers") maxSecondaryReceivers = data;
         else revert("TaxCollector/modify-unrecognized-param");
@@ -400,9 +400,9 @@ contract TaxCollector {
     /**
      * @notice Check if multiple collateral types are up to date with taxation
      */
-    function collectedManyTax(uint start, uint end) public view returns (bool ok) {
+    function collectedManyTax(uint256 start, uint256 end) public view returns (bool ok) {
         require(both(start <= end, end < collateralList.length), "TaxCollector/invalid-indexes");
-        for (uint i = start; i <= end; i++) {
+        for (uint256 i = start; i <= end; i++) {
           if (now > collateralTypes[collateralList[i]].updateTime) {
             ok = false;
             return ok;
@@ -416,12 +416,12 @@ contract TaxCollector {
      * @param start Index in collateralList from which to start looping and calculating the tax outcome
      * @param end Index in collateralList at which we stop looping and calculating the tax outcome
      */
-    function taxManyOutcome(uint start, uint end) public view returns (bool ok, int rad) {
+    function taxManyOutcome(uint256 start, uint256 end) public view returns (bool ok, int256 rad) {
         require(both(start <= end, end < collateralList.length), "TaxCollector/invalid-indexes");
-        int  primaryReceiverBalance = -int(safeEngine.coinBalance(primaryTaxReceiver));
-        int  deltaRate;
-        uint debtAmount;
-        for (uint i = start; i <= end; i++) {
+        int256  primaryReceiverBalance = -int256(safeEngine.coinBalance(primaryTaxReceiver));
+        int256  deltaRate;
+        uint256 debtAmount;
+        for (uint256 i = start; i <= end; i++) {
           if (now > collateralTypes[collateralList[i]].updateTime) {
             (debtAmount, ) = safeEngine.collateralTypes(collateralList[i]);
             (, deltaRate)  = taxSingleOutcome(collateralList[i]);
@@ -438,9 +438,9 @@ contract TaxCollector {
      * @notice Get how much SF will be distributed after taxing a specific collateral type
      * @param collateralType Collateral type to compute the taxation outcome for
      */
-    function taxSingleOutcome(bytes32 collateralType) public view returns (uint, int) {
-        (, uint lastAccumulatedRate) = safeEngine.collateralTypes(collateralType);
-        uint newlyAccumulatedRate =
+    function taxSingleOutcome(bytes32 collateralType) public view returns (uint256, int256) {
+        (, uint256 lastAccumulatedRate) = safeEngine.collateralTypes(collateralType);
+        uint256 newlyAccumulatedRate =
           rmultiply(
             rpow(
               addition(
@@ -460,13 +460,13 @@ contract TaxCollector {
     /**
      * @notice Get the secondary tax receiver list length
      */
-    function secondaryReceiversAmount() public view returns (uint) {
+    function secondaryReceiversAmount() public view returns (uint256) {
         return secondaryReceiverList.range();
     }
     /**
      * @notice Get the collateralList length
      */
-    function collateralListLength() public view returns (uint) {
+    function collateralListLength() public view returns (uint256) {
         return collateralList.length;
     }
     /**
@@ -483,9 +483,9 @@ contract TaxCollector {
      * @param start Index in collateralList from which to start looping and calculating the tax outcome
      * @param end Index in collateralList at which we stop looping and calculating the tax outcome
      */
-    function taxMany(uint start, uint end) external {
+    function taxMany(uint256 start, uint256 end) external {
         require(both(start <= end, end < collateralList.length), "TaxCollector/invalid-indexes");
-        for (uint i = start; i <= end; i++) {
+        for (uint256 i = start; i <= end; i++) {
             taxSingle(collateralList[i]);
         }
     }
@@ -493,15 +493,15 @@ contract TaxCollector {
      * @notice Collect tax from a single collateral type
      * @param collateralType Collateral type to tax
      */
-    function taxSingle(bytes32 collateralType) public returns (uint) {
-        uint latestAccumulatedRate;
+    function taxSingle(bytes32 collateralType) public returns (uint256) {
+        uint256 latestAccumulatedRate;
         if (now <= collateralTypes[collateralType].updateTime) {
           (, latestAccumulatedRate) = safeEngine.collateralTypes(collateralType);
           return latestAccumulatedRate;
         }
-        (, int deltaRate) = taxSingleOutcome(collateralType);
+        (, int256 deltaRate) = taxSingleOutcome(collateralType);
         // Check how much debt has been generated for collateralType
-        (uint debtAmount, ) = safeEngine.collateralTypes(collateralType);
+        (uint256 debtAmount, ) = safeEngine.collateralTypes(collateralType);
         splitTaxIncome(collateralType, debtAmount, deltaRate);
         (, latestAccumulatedRate) = safeEngine.collateralTypes(collateralType);
         collateralTypes[collateralType].updateTime = now;
@@ -513,7 +513,7 @@ contract TaxCollector {
      * @param collateralType Collateral type to distribute SF for
      * @param deltaRate Difference between the last and the latest accumulate rates for the collateralType
      */
-    function splitTaxIncome(bytes32 collateralType, uint debtAmount, int deltaRate) internal {
+    function splitTaxIncome(bytes32 collateralType, uint256 debtAmount, int256 deltaRate) internal {
         // Start looping from the latest tax receiver
         uint256 currentSecondaryReceiver = latestSecondaryReceiver;
         // While we still haven't gone through the entire tax receiver list
@@ -532,7 +532,7 @@ contract TaxCollector {
           (, currentSecondaryReceiver) = secondaryReceiverList.prev(currentSecondaryReceiver);
         }
         // Distribute to primary receiver
-        distributeTax(collateralType, primaryTaxReceiver, uint(-1), debtAmount, deltaRate);
+        distributeTax(collateralType, primaryTaxReceiver, uint256(-1), debtAmount, deltaRate);
     }
 
     /**
@@ -550,20 +550,20 @@ contract TaxCollector {
         uint256 debtAmount,
         int256 deltaRate
     ) internal {
-        require(safeEngine.coinBalance(receiver) < 2**255, "TaxCollector/coin-balance-does-not-fit-into-int");
+        require(safeEngine.coinBalance(receiver) < 2**255, "TaxCollector/coin-balance-does-not-fit-into-int256");
         // Check how many coins the receiver has and negate the value
-        int256 coinBalance   = -int(safeEngine.coinBalance(receiver));
+        int256 coinBalance   = -int256(safeEngine.coinBalance(receiver));
         // Compute the % out of SF that should be allocated to the receiver
         int256 currentTaxCut = (receiver == primaryTaxReceiver) ?
-          multiply(subtract(WHOLE_TAX_CUT, secondaryReceiverAllotedTax[collateralType]), deltaRate) / int(WHOLE_TAX_CUT) :
-          multiply(int(secondaryTaxReceivers[collateralType][receiverListPosition].taxPercentage), deltaRate) / int(WHOLE_TAX_CUT);
+          multiply(subtract(WHOLE_TAX_CUT, secondaryReceiverAllotedTax[collateralType]), deltaRate) / int256(WHOLE_TAX_CUT) :
+          multiply(int256(secondaryTaxReceivers[collateralType][receiverListPosition].taxPercentage), deltaRate) / int256(WHOLE_TAX_CUT);
         /**
             If SF is negative and a tax receiver doesn't have enough coins to absorb the loss,
             compute a new tax cut that can be absorbed
         **/
         currentTaxCut  = (
           both(multiply(debtAmount, currentTaxCut) < 0, coinBalance > multiply(debtAmount, currentTaxCut))
-        ) ? coinBalance / int(debtAmount) : currentTaxCut;
+        ) ? coinBalance / int256(debtAmount) : currentTaxCut;
         /**
           If the tax receiver's tax cut is not null and if the receiver accepts negative SF
           offer/take SF to/from them
