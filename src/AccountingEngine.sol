@@ -301,10 +301,9 @@ contract AccountingEngine {
 
     /**
      * @notice Disable this contract (normally called by Global Settlement)
-     * @dev When we disable, the contract tries to settle as much debt as possible (if there's any) with
-            any surplus that's left in the system. After erasing debt, the contract will either transfer any
-            remaining surplus right away (if disableCooldown == 0) or will only record the timestamp when
-            it was disabled
+     * @dev When it's disabled, the contract will record the current timestamp. Afterwards,
+     *      the contract tries to settle as much debt as possible (if there's any) with any surplus that's
+     *      left in the system
     **/
     function disableContract() external isAuthorized {
         require(contractEnabled == 1, "AccountingEngine/contract-not-enabled");

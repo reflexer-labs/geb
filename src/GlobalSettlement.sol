@@ -84,7 +84,6 @@ abstract contract OracleRelayerLike {
     First we freeze the system and lock the prices for each collateral type.
     1. `shutdownSystem()`:
         - freezes user entrypoints
-        - cancels collateral/surplus auctions
         - starts cooldown period
     2. `freezeCollateralType(collateralType)`:
        - set the final price for each collateralType, reading off the price feed

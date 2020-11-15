@@ -178,12 +178,12 @@ contract CoinSavingsAccount {
 
     // --- Savings Rate Accumulation ---
     /**
-     * @notice Update the accumulated rates index
-     * @dev We return early if 'latestUpdateTime' is smaller or equal to block.timestamp. When the savings
+     * @notice Update the accumulated rate index
+     * @dev We return early if 'latestUpdateTime' is greater than or equal to block.timestamp. When the savings
             rate is positive, we create unbacked debt for the accounting engine and issue new coins for
             this contract
      */
-    function updateAccumulatedRate() external returns (uint256 newAccumulatedRate) {
+    function updateAccumulatedRate() public returns (uint256 newAccumulatedRate) {
         if (now <= latestUpdateTime) return accumulatedRate;
         newAccumulatedRate = rmultiply(rpower(savingsRate, subtract(now, latestUpdateTime), RAY), accumulatedRate);
         uint accumulatedRate_ = subtract(newAccumulatedRate, accumulatedRate);
@@ -219,6 +219,7 @@ contract CoinSavingsAccount {
               'accumulatedRate' (27 decimals) to result in a correct amount of internal coins transferred
      */
     function withdraw(uint256 wad) external {
+        updateAccumulatedRate();
         savings[msg.sender] = subtract(savings[msg.sender], wad);
         totalSavings        = subtract(totalSavings, wad);
         safeEngine.transferInternalCoins(address(this), msg.sender, multiply(accumulatedRate, wad));
