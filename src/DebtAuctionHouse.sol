@@ -204,6 +204,7 @@ contract DebtAuctionHouse {
      * @param id ID of the auction to restart
      */
     function restartAuction(uint256 id) external {
+        require(id <= auctionsStarted, "DebtAuctionHouse/auction-never-started");
         require(bids[id].auctionDeadline < now, "DebtAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "DebtAuctionHouse/bid-already-placed");
         bids[id].amountToSell = multiply(amountSoldIncrease, bids[id].amountToSell) / ONE;
