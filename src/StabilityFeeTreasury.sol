@@ -110,7 +110,6 @@ contract StabilityFeeTreasury {
         address coinJoin_
     ) public {
         require(address(CoinJoinLike(coinJoin_).systemCoin()) != address(0), "StabilityFeeTreasury/null-system-coin");
-        require(accountingEngine_ != address(this), "StabilityFeeTreasury/accounting-engine-cannot-be-treasury");
         authorizedAccounts[msg.sender] = 1;
         safeEngine                = SAFEEngineLike(safeEngine_);
         accountingEngine          = accountingEngine_;
