@@ -18,24 +18,24 @@
 pragma solidity 0.6.7;
 
 abstract contract AccountingEngineLike {
-    function surplusAuctionDelay() virtual public view returns (uint);
-    function surplusAuctionAmountToSell() virtual public view returns (uint);
+    function surplusAuctionDelay() virtual public view returns (uint256);
+    function surplusAuctionAmountToSell() virtual public view returns (uint256);
     function surplusAuctionHouse() virtual public view returns (address);
     function safeEngine() virtual public view returns (address);
-    function contractEnabled() virtual public view returns (uint);
+    function contractEnabled() virtual public view returns (uint256);
 }
 abstract contract SAFEEngineLike {
-    function coinBalance(address) virtual public view returns (uint);
+    function coinBalance(address) virtual public view returns (uint256);
     function approveSAFEModification(address) virtual external;
     function denySAFEModification(address) virtual external;
 }
 abstract contract SurplusAuctionHouseLike {
-    function startAuction(uint, uint) virtual public returns (uint);
+    function startAuction(uint256, uint256) virtual public returns (uint256);
 }
 
 contract SettlementSurplusAuctioneer {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
@@ -70,7 +70,7 @@ contract SettlementSurplusAuctioneer {
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
     event ModifyParameters(bytes32 parameter, address addr);
-    event AuctionSurplus(uint id, uint lastSurplusAuctionTime, uint coinBalance);
+    event AuctionSurplus(uint256 id, uint256 lastSurplusAuctionTime, uint256 coinBalance);
 
     constructor(address accountingEngine_, address surplusAuctionHouse_) public {
         authorizedAccounts[msg.sender] = 1;
@@ -82,7 +82,7 @@ contract SettlementSurplusAuctioneer {
     }
 
     // --- Math ---
-    function addition(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x);
     }
 
@@ -110,14 +110,14 @@ contract SettlementSurplusAuctioneer {
                The contract even reads surplus auction parameters from the AccountingEngine and uses them to
                start a new auction.
      */
-    function auctionSurplus() external returns (uint id) {
+    function auctionSurplus() external returns (uint256 id) {
         require(accountingEngine.contractEnabled() == 0, "SettlementSurplusAuctioneer/accounting-engine-still-enabled");
         require(
           now >= addition(lastSurplusAuctionTime, accountingEngine.surplusAuctionDelay()),
           "SettlementSurplusAuctioneer/surplus-auction-delay-not-passed"
         );
         lastSurplusAuctionTime = now;
-        uint amountToSell = (safeEngine.coinBalance(address(this)) < accountingEngine.surplusAuctionAmountToSell()) ?
+        uint256 amountToSell = (safeEngine.coinBalance(address(this)) < accountingEngine.surplusAuctionAmountToSell()) ?
           safeEngine.coinBalance(address(this)) : accountingEngine.surplusAuctionAmountToSell();
         if (amountToSell > 0) {
           id = surplusAuctionHouse.startAuction(amountToSell, 0);

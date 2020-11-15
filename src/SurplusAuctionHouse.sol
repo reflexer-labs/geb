@@ -18,16 +18,16 @@
 pragma solidity 0.6.7;
 
 abstract contract SAFEEngineLike {
-    function transferInternalCoins(address,address,uint) virtual external;
-    function coinBalance(address) virtual external view returns (uint);
+    function transferInternalCoins(address,address,uint256) virtual external;
+    function coinBalance(address) virtual external view returns (uint256);
     function approveSAFEModification(address) virtual external;
     function denySAFEModification(address) virtual external;
 }
 abstract contract TokenLike {
-    function approve(address, uint) virtual public returns (bool);
-    function balanceOf(address) virtual public view returns (uint);
-    function move(address,address,uint) virtual external;
-    function burn(address,uint) virtual external;
+    function approve(address, uint256) virtual public returns (bool);
+    function balanceOf(address) virtual public view returns (uint256);
+    function move(address,address,uint256) virtual external;
+    function burn(address,uint256) virtual external;
 }
 
 /*
@@ -36,7 +36,7 @@ abstract contract TokenLike {
 
 contract PreSettlementSurplusAuctionHouse {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
@@ -76,7 +76,7 @@ contract PreSettlementSurplusAuctionHouse {
     }
 
     // Bid data for each separate auction
-    mapping (uint => Bid) public bids;
+    mapping (uint256 => Bid) public bids;
 
     // SAFE database
     SAFEEngineLike       public safeEngine;
@@ -100,9 +100,9 @@ contract PreSettlementSurplusAuctionHouse {
     // --- Events ---
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
-    event ModifyParameters(bytes32 parameter, uint data);
-    event RestartAuction(uint id, uint auctionDeadline);
-    event IncreaseBidSize(uint id, address highBidder, uint amountToBuy, uint bid, uint bidExpiry);
+    event ModifyParameters(bytes32 parameter, uint256 data);
+    event RestartAuction(uint256 id, uint256 auctionDeadline);
+    event IncreaseBidSize(uint256 id, address highBidder, uint256 amountToBuy, uint256 bid, uint256 bidExpiry);
     event StartAuction(
         uint256 id,
         uint256 auctionsStarted,
@@ -110,9 +110,9 @@ contract PreSettlementSurplusAuctionHouse {
         uint256 initialBid,
         uint256 auctionDeadline
     );
-    event SettleAuction(uint id);
+    event SettleAuction(uint256 id);
     event DisableContract();
-    event TerminateAuctionPrematurely(uint id, address sender, address highBidder, uint bidAmount);
+    event TerminateAuctionPrematurely(uint256 id, address sender, address highBidder, uint256 bidAmount);
 
     // --- Init ---
     constructor(address safeEngine_, address protocolToken_) public {
@@ -127,7 +127,7 @@ contract PreSettlementSurplusAuctionHouse {
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
         require((z = x + y) >= x);
     }
-    function multiply(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
 
@@ -137,7 +137,7 @@ contract PreSettlementSurplusAuctionHouse {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         if (parameter == "bidIncrease") bidIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
@@ -151,9 +151,9 @@ contract PreSettlementSurplusAuctionHouse {
      * @param amountToSell Total amount of system coins to sell (wad)
      * @param initialBid Initial protocol token bid (rad)
      */
-    function startAuction(uint amountToSell, uint initialBid) external isAuthorized returns (uint id) {
+    function startAuction(uint256 amountToSell, uint256 initialBid) external isAuthorized returns (uint256 id) {
         require(contractEnabled == 1, "PreSettlementSurplusAuctionHouse/contract-not-enabled");
-        require(auctionsStarted < uint(-1), "PreSettlementSurplusAuctionHouse/overflow");
+        require(auctionsStarted < uint256(-1), "PreSettlementSurplusAuctionHouse/overflow");
         id = ++auctionsStarted;
 
         bids[id].bidAmount = initialBid;
@@ -169,7 +169,7 @@ contract PreSettlementSurplusAuctionHouse {
      * @notice Restart an auction if no bids were submitted for it
      * @param id ID of the auction to restart
      */
-    function restartAuction(uint id) external {
+    function restartAuction(uint256 id) external {
         require(bids[id].auctionDeadline < now, "PreSettlementSurplusAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "PreSettlementSurplusAuctionHouse/bid-already-placed");
         bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
@@ -181,7 +181,7 @@ contract PreSettlementSurplusAuctionHouse {
      * @param amountToBuy Amount of system coins to buy (wad)
      * @param bid New bid submitted (rad)
      */
-    function increaseBidSize(uint id, uint amountToBuy, uint bid) external {
+    function increaseBidSize(uint256 id, uint256 amountToBuy, uint256 bid) external {
         require(contractEnabled == 1, "PreSettlementSurplusAuctionHouse/contract-not-enabled");
         require(bids[id].highBidder != address(0), "PreSettlementSurplusAuctionHouse/high-bidder-not-set");
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "PreSettlementSurplusAuctionHouse/bid-already-expired");
@@ -206,7 +206,7 @@ contract PreSettlementSurplusAuctionHouse {
      * @notice Settle/finish an auction
      * @param id ID of the auction to settle
      */
-    function settleAuction(uint id) external {
+    function settleAuction(uint256 id) external {
         require(contractEnabled == 1, "PreSettlementSurplusAuctionHouse/contract-not-enabled");
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "PreSettlementSurplusAuctionHouse/not-finished");
         safeEngine.transferInternalCoins(address(this), bids[id].highBidder, bids[id].amountToSell);
@@ -226,7 +226,7 @@ contract PreSettlementSurplusAuctionHouse {
      * @notice Terminate an auction prematurely.
      * @param id ID of the auction to settle/terminate
      */
-    function terminateAuctionPrematurely(uint id) external {
+    function terminateAuctionPrematurely(uint256 id) external {
         require(contractEnabled == 0, "PreSettlementSurplusAuctionHouse/contract-still-enabled");
         require(bids[id].highBidder != address(0), "PreSettlementSurplusAuctionHouse/high-bidder-not-set");
         protocolToken.move(address(this), bids[id].highBidder, bids[id].bidAmount);
@@ -237,7 +237,7 @@ contract PreSettlementSurplusAuctionHouse {
 
 contract PostSettlementSurplusAuctionHouse {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
@@ -277,7 +277,7 @@ contract PostSettlementSurplusAuctionHouse {
     }
 
     // Bid data for each separate auction
-    mapping (uint => Bid) public bids;
+    mapping (uint256 => Bid) public bids;
 
     // SAFE database
     SAFEEngineLike        public safeEngine;
@@ -299,9 +299,9 @@ contract PostSettlementSurplusAuctionHouse {
     // --- Events ---
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
-    event ModifyParameters(bytes32 parameter, uint data);
-    event RestartAuction(uint id, uint auctionDeadline);
-    event IncreaseBidSize(uint id, address highBidder, uint amountToBuy, uint bid, uint bidExpiry);
+    event ModifyParameters(bytes32 parameter, uint256 data);
+    event RestartAuction(uint256 id, uint256 auctionDeadline);
+    event IncreaseBidSize(uint256 id, address highBidder, uint256 amountToBuy, uint256 bid, uint256 bidExpiry);
     event StartAuction(
         uint256 id,
         uint256 auctionsStarted,
@@ -309,7 +309,7 @@ contract PostSettlementSurplusAuctionHouse {
         uint256 initialBid,
         uint256 auctionDeadline
     );
-    event SettleAuction(uint id);
+    event SettleAuction(uint256 id);
 
     // --- Init ---
     constructor(address safeEngine_, address protocolToken_) public {
@@ -323,7 +323,7 @@ contract PostSettlementSurplusAuctionHouse {
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
         require((z = x + y) >= x);
     }
-    function multiply(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
 
@@ -333,7 +333,7 @@ contract PostSettlementSurplusAuctionHouse {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         if (parameter == "bidIncrease") bidIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
@@ -347,8 +347,8 @@ contract PostSettlementSurplusAuctionHouse {
      * @param amountToSell Total amount of system coins to sell (wad)
      * @param initialBid Initial protocol token bid (rad)
      */
-    function startAuction(uint amountToSell, uint initialBid) external isAuthorized returns (uint id) {
-        require(auctionsStarted < uint(-1), "PostSettlementSurplusAuctionHouse/overflow");
+    function startAuction(uint256 amountToSell, uint256 initialBid) external isAuthorized returns (uint256 id) {
+        require(auctionsStarted < uint256(-1), "PostSettlementSurplusAuctionHouse/overflow");
         id = ++auctionsStarted;
 
         bids[id].bidAmount = initialBid;
@@ -364,7 +364,7 @@ contract PostSettlementSurplusAuctionHouse {
      * @notice Restart an auction if no bids were submitted for it
      * @param id ID of the auction to restart
      */
-    function restartAuction(uint id) external {
+    function restartAuction(uint256 id) external {
         require(bids[id].auctionDeadline < now, "PostSettlementSurplusAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "PostSettlementSurplusAuctionHouse/bid-already-placed");
         bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
@@ -376,7 +376,7 @@ contract PostSettlementSurplusAuctionHouse {
      * @param amountToBuy Amount of system coins to buy (wad)
      * @param bid New bid submitted (rad)
      */
-    function increaseBidSize(uint id, uint amountToBuy, uint bid) external {
+    function increaseBidSize(uint256 id, uint256 amountToBuy, uint256 bid) external {
         require(bids[id].highBidder != address(0), "PostSettlementSurplusAuctionHouse/high-bidder-not-set");
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "PostSettlementSurplusAuctionHouse/bid-already-expired");
         require(bids[id].auctionDeadline > now, "PostSettlementSurplusAuctionHouse/auction-already-expired");
@@ -400,7 +400,7 @@ contract PostSettlementSurplusAuctionHouse {
      * @notice Settle/finish an auction
      * @param id ID of the auction to settle
      */
-    function settleAuction(uint id) external {
+    function settleAuction(uint256 id) external {
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "PostSettlementSurplusAuctionHouse/not-finished");
         safeEngine.transferInternalCoins(address(this), bids[id].highBidder, bids[id].amountToSell);
         protocolToken.burn(address(this), bids[id].bidAmount);

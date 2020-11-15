@@ -37,7 +37,7 @@ abstract contract SAFEEngineLike {
 
 contract CoinSavingsAccount {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
@@ -104,7 +104,7 @@ contract CoinSavingsAccount {
 
     // --- Math ---
     uint256 constant RAY = 10 ** 27;
-    function rpower(uint x, uint n, uint base) internal pure returns (uint z) {
+    function rpower(uint256 x, uint256 n, uint256 base) internal pure returns (uint256 z) {
         assembly {
             switch x case 0 {switch n case 0 {z := base} default {z := 0}}
             default {
@@ -128,19 +128,19 @@ contract CoinSavingsAccount {
         }
     }
 
-    function rmultiply(uint x, uint y) internal pure returns (uint z) {
+    function rmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = multiply(x, y) / RAY;
     }
 
-    function addition(uint x, uint y) internal pure returns (uint z) {
+    function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x);
     }
 
-    function subtract(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
 
-    function multiply(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
 
@@ -183,7 +183,7 @@ contract CoinSavingsAccount {
             rate is positive, we create unbacked debt for the accounting engine and issue new coins for
             this contract
      */
-    function updateAccumulatedRate() external returns (uint newAccumulatedRate) {
+    function updateAccumulatedRate() external returns (uint256 newAccumulatedRate) {
         if (now <= latestUpdateTime) return accumulatedRate;
         newAccumulatedRate = rmultiply(rpower(savingsRate, subtract(now, latestUpdateTime), RAY), accumulatedRate);
         uint accumulatedRate_ = subtract(newAccumulatedRate, accumulatedRate);
@@ -195,7 +195,7 @@ contract CoinSavingsAccount {
     /**
      * @notice Get the next value of 'accumulatedRate' without actually updating the variable
      */
-    function nextAccumulatedRate() external view returns (uint) {
+    function nextAccumulatedRate() external view returns (uint256) {
         if (now <= latestUpdateTime) return accumulatedRate;
         return rmultiply(rpower(savingsRate, subtract(now, latestUpdateTime), RAY), accumulatedRate);
     }
@@ -206,7 +206,7 @@ contract CoinSavingsAccount {
      * @param wad Amount of coins to deposit (expressed as an 18 decimal number). 'wad' will be multiplied by
               'accumulatedRate' (27 decimals) to result in a correct amount of internal coins transferred
      */
-    function deposit(uint wad) external {
+    function deposit(uint256 wad) external {
         require(now == latestUpdateTime, "CoinSavingsAccount/accumulation-time-not-updated");
         savings[msg.sender] = addition(savings[msg.sender], wad);
         totalSavings        = addition(totalSavings, wad);
@@ -218,7 +218,7 @@ contract CoinSavingsAccount {
      * @param wad Amount of coins to withdraw (expressed as an 18 decimal number). 'wad' will be multiplied by
               'accumulatedRate' (27 decimals) to result in a correct amount of internal coins transferred
      */
-    function withdraw(uint wad) external {
+    function withdraw(uint256 wad) external {
         savings[msg.sender] = subtract(savings[msg.sender], wad);
         totalSavings        = subtract(totalSavings, wad);
         safeEngine.transferInternalCoins(address(this), msg.sender, multiply(accumulatedRate, wad));

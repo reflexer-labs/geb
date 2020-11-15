@@ -18,8 +18,8 @@
 pragma solidity 0.6.7;
 
 abstract contract SAFEEngineLike {
-    function transferInternalCoins(address,address,uint) virtual external;
-    function transferCollateral(bytes32,address,address,uint) virtual external;
+    function transferInternalCoins(address,address,uint256) virtual external;
+    function transferCollateral(bytes32,address,address,uint256) virtual external;
 }
 abstract contract OracleRelayerLike {
     function redemptionPrice() virtual public returns (uint256);
@@ -28,7 +28,7 @@ abstract contract OracleLike {
     function getResultWithValidity() virtual public view returns (uint256, bool);
 }
 abstract contract LiquidationEngineLike {
-    function removeCoinsFromAuction(uint) virtual public;
+    function removeCoinsFromAuction(uint256) virtual public;
 }
 
 /*
@@ -37,7 +37,7 @@ abstract contract LiquidationEngineLike {
 
 contract EnglishCollateralAuctionHouse {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
@@ -83,7 +83,7 @@ contract EnglishCollateralAuctionHouse {
     }
 
     // Bid data for each separate auction
-    mapping (uint => Bid) public bids;
+    mapping (uint256 => Bid) public bids;
 
     // SAFE database
     SAFEEngineLike public safeEngine;
@@ -118,13 +118,13 @@ contract EnglishCollateralAuctionHouse {
         address indexed auctionIncomeRecipient,
         uint256 auctionDeadline
     );
-    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
-    event RestartAuction(uint id, uint256 auctionDeadline);
-    event IncreaseBidSize(uint id, address highBidder, uint amountToBuy, uint rad, uint bidExpiry);
-    event DecreaseSoldAmount(uint id, address highBidder, uint amountToBuy, uint rad, uint bidExpiry);
-    event SettleAuction(uint id);
-    event TerminateAuctionPrematurely(uint id, address sender, uint bidAmount, uint collateralAmount);
+    event RestartAuction(uint256 id, uint256 auctionDeadline);
+    event IncreaseBidSize(uint256 id, address highBidder, uint256 amountToBuy, uint256 rad, uint256 bidExpiry);
+    event DecreaseSoldAmount(uint256 id, address highBidder, uint256 amountToBuy, uint256 rad, uint256 bidExpiry);
+    event SettleAuction(uint256 id);
+    event TerminateAuctionPrematurely(uint256 id, address sender, uint256 bidAmount, uint256 collateralAmount);
 
     // --- Init ---
     constructor(address safeEngine_, address liquidationEngine_, bytes32 collateralType_) public {
@@ -139,15 +139,15 @@ contract EnglishCollateralAuctionHouse {
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
         require((z = x + y) >= x);
     }
-    function multiply(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
     uint256 constant WAD = 10 ** 18;
-    function wmultiply(uint x, uint y) internal pure returns (uint z) {
+    function wmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = multiply(x, y) / WAD;
     }
     uint256 constant RAY = 10 ** 27;
-    function rdivide(uint x, uint y) internal pure returns (uint z) {
+    function rdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
       require(y > 0, "EnglishCollateralAuctionHouse/division-by-zero");
       z = multiply(x, RAY) / y;
     }
@@ -158,7 +158,7 @@ contract EnglishCollateralAuctionHouse {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         if (parameter == "bidIncrease") bidIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
@@ -188,12 +188,12 @@ contract EnglishCollateralAuctionHouse {
     function startAuction(
         address forgoneCollateralReceiver,
         address auctionIncomeRecipient,
-        uint amountToRaise,
-        uint amountToSell,
-        uint initialBid
-    ) public isAuthorized returns (uint id)
+        uint256 amountToRaise,
+        uint256 amountToSell,
+        uint256 initialBid
+    ) public isAuthorized returns (uint256 id)
     {
-        require(auctionsStarted < uint(-1), "EnglishCollateralAuctionHouse/overflow");
+        require(auctionsStarted < uint256(-1), "EnglishCollateralAuctionHouse/overflow");
         require(amountToSell > 0, "EnglishCollateralAuctionHouse/null-amount-sold");
         id = ++auctionsStarted;
 
@@ -222,7 +222,7 @@ contract EnglishCollateralAuctionHouse {
      * @notice Restart an auction if no bids were submitted for it
      * @param id ID of the auction to restart
      */
-    function restartAuction(uint id) external {
+    function restartAuction(uint256 id) external {
         require(bids[id].auctionDeadline < now, "EnglishCollateralAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "EnglishCollateralAuctionHouse/bid-already-placed");
         bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
@@ -234,7 +234,7 @@ contract EnglishCollateralAuctionHouse {
      * @param amountToBuy Amount of collateral to buy (wad)
      * @param rad New bid submitted (rad)
      */
-    function increaseBidSize(uint id, uint amountToBuy, uint rad) external {
+    function increaseBidSize(uint256 id, uint256 amountToBuy, uint256 rad) external {
         require(bids[id].highBidder != address(0), "EnglishCollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "EnglishCollateralAuctionHouse/bid-already-expired");
         require(bids[id].auctionDeadline > now, "EnglishCollateralAuctionHouse/auction-already-expired");
@@ -262,7 +262,7 @@ contract EnglishCollateralAuctionHouse {
      * @param amountToBuy Amount of collateral to buy (must be smaller than the previous proposed amount) (wad)
      * @param rad New bid submitted; must be equal to the winning bid from the increaseBidSize phase (rad)
      */
-    function decreaseSoldAmount(uint id, uint amountToBuy, uint rad) external {
+    function decreaseSoldAmount(uint256 id, uint256 amountToBuy, uint256 rad) external {
         require(bids[id].highBidder != address(0), "EnglishCollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "EnglishCollateralAuctionHouse/bid-already-expired");
         require(bids[id].auctionDeadline > now, "EnglishCollateralAuctionHouse/auction-already-expired");
@@ -292,7 +292,7 @@ contract EnglishCollateralAuctionHouse {
      * @notice Settle/finish an auction
      * @param id ID of the auction to settle
      */
-    function settleAuction(uint id) external {
+    function settleAuction(uint256 id) external {
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "EnglishCollateralAuctionHouse/not-finished");
         safeEngine.transferCollateral(collateralType, address(this), bids[id].highBidder, bids[id].amountToSell);
         liquidationEngine.removeCoinsFromAuction(bids[id].amountToRaise);
@@ -304,7 +304,7 @@ contract EnglishCollateralAuctionHouse {
      *         Usually called by Global Settlement.
      * @param id ID of the auction to settle
      */
-    function terminateAuctionPrematurely(uint id) external isAuthorized {
+    function terminateAuctionPrematurely(uint256 id) external isAuthorized {
         require(bids[id].highBidder != address(0), "EnglishCollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidAmount < bids[id].amountToRaise, "EnglishCollateralAuctionHouse/already-decreasing-sold-amount");
         liquidationEngine.removeCoinsFromAuction(bids[id].amountToRaise);
@@ -315,19 +315,19 @@ contract EnglishCollateralAuctionHouse {
     }
 
     // --- Getters ---
-    function bidAmount(uint id) public view returns (uint256) {
+    function bidAmount(uint256 id) public view returns (uint256) {
         return bids[id].bidAmount;
     }
-    function remainingAmountToSell(uint id) public view returns (uint256) {
+    function remainingAmountToSell(uint256 id) public view returns (uint256) {
         return bids[id].amountToSell;
     }
-    function forgoneCollateralReceiver(uint id) public view returns (address) {
+    function forgoneCollateralReceiver(uint256 id) public view returns (address) {
         return bids[id].forgoneCollateralReceiver;
     }
-    function raisedAmount(uint id) public view returns (uint256) {
+    function raisedAmount(uint256 id) public view returns (uint256) {
         return 0;
     }
-    function amountToRaise(uint id) public view returns (uint256) {
+    function amountToRaise(uint256 id) public view returns (uint256) {
         return bids[id].amountToRaise;
     }
 }
@@ -355,7 +355,7 @@ contract EnglishCollateralAuctionHouse {
 
 contract FixedDiscountCollateralAuctionHouse {
     // --- Auth ---
-    mapping (address => uint) public authorizedAccounts;
+    mapping (address => uint256) public authorizedAccounts;
     /**
      * @notice Add auth to an account
      * @param account Account to add auth to
@@ -399,7 +399,7 @@ contract FixedDiscountCollateralAuctionHouse {
     }
 
     // Bid data for each separate auction
-    mapping (uint => Bid) public bids;
+    mapping (uint256 => Bid) public bids;
 
     // SAFE database
     SAFEEngineLike public safeEngine;
@@ -449,11 +449,11 @@ contract FixedDiscountCollateralAuctionHouse {
         address indexed auctionIncomeRecipient,
         uint256 auctionDeadline
     );
-    event ModifyParameters(bytes32 parameter, uint data);
+    event ModifyParameters(bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
-    event BuyCollateral(uint id, uint wad, uint boughtCollateral);
-    event SettleAuction(uint id, uint leftoverCollateral);
-    event TerminateAuctionPrematurely(uint id, address sender, uint collateralAmount);
+    event BuyCollateral(uint256 id, uint256 wad, uint256 boughtCollateral);
+    event SettleAuction(uint256 id, uint256 leftoverCollateral);
+    event TerminateAuctionPrematurely(uint256 id, address sender, uint256 collateralAmount);
 
     // --- Init ---
     constructor(address safeEngine_, address liquidationEngine_, bytes32 collateralType_) public {
@@ -469,32 +469,32 @@ contract FixedDiscountCollateralAuctionHouse {
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
         require((z = x + y) >= x);
     }
-    function addUint256(uint256 x, uint256 y) internal pure returns (uint z) {
+    function addUint256(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x);
     }
-    function subtract(uint x, uint y) internal pure returns (uint z) {
+    function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x);
     }
-    function multiply(uint x, uint y) internal pure returns (uint z) {
+    function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x);
     }
     uint256 constant WAD = 10 ** 18;
-    function wmultiply(uint x, uint y) internal pure returns (uint z) {
+    function wmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = multiply(x, y) / WAD;
     }
     uint256 constant RAY = 10 ** 27;
-    function rdivide(uint x, uint y) internal pure returns (uint z) {
+    function rdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y > 0, "FixedDiscountCollateralAuctionHouse/division-by-zero");
         z = multiply(x, RAY) / y;
     }
-    function wdivide(uint x, uint y) internal pure returns (uint z) {
+    function wdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y > 0, "FixedDiscountCollateralAuctionHouse/division-by-zero");
         z = multiply(x, WAD) / y;
     }
-    function minimum(uint x, uint y) internal pure returns (uint z) {
+    function minimum(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = (x <= y) ? x : y;
     }
-    function maximum(uint x, uint y) internal pure returns (uint z) {
+    function maximum(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = (x >= y) ? x : y;
     }
 
@@ -512,7 +512,7 @@ contract FixedDiscountCollateralAuctionHouse {
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
-    function modifyParameters(bytes32 parameter, uint data) external isAuthorized {
+    function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         if (parameter == "discount") {
             require(data < WAD, "FixedDiscountCollateralAuctionHouse/no-discount-offered");
             discount = data;
@@ -565,7 +565,7 @@ contract FixedDiscountCollateralAuctionHouse {
         try collateralMedian.getResultWithValidity()
           returns (uint256 price, bool valid) {
           if (valid) {
-            priceFeed = uint(price);
+            priceFeed = uint256(price);
           }
         } catch (bytes memory revertReason) {}
     }
@@ -576,7 +576,7 @@ contract FixedDiscountCollateralAuctionHouse {
         try systemCoinOracle.getResultWithValidity()
           returns (uint256 price, bool valid) {
           if (valid) {
-            priceFeed = uint(price) * 10 ** 9; // scale to RAY
+            priceFeed = uint256(price) * 10 ** 9; // scale to RAY
           }
         } catch (bytes memory revertReason) {}
     }
@@ -590,7 +590,7 @@ contract FixedDiscountCollateralAuctionHouse {
         ceilingPrice = wmultiply(redemptionPrice, subtract(2 * WAD, upperSystemCoinMedianDeviation));
         ceilingPrice = (ceilingPrice >= minCeilingDeviatedPrice) ? ceilingPrice : redemptionPrice;
     }
-    function getFinalTokenPrices(uint systemCoinRedemptionPrice) public view returns (uint256, uint256) {
+    function getFinalTokenPrices(uint256 systemCoinRedemptionPrice) public view returns (uint256, uint256) {
         require(systemCoinRedemptionPrice > 0, "FixedDiscountCollateralAuctionHouse/invalid-redemption-price-provided");
         (uint256 collateralFsmPriceFeedValue, bool collateralFsmHasValidValue) = collateralFSM.getResultWithValidity();
         if (!collateralFsmHasValidValue) {
@@ -605,13 +605,13 @@ contract FixedDiscountCollateralAuctionHouse {
           uint256 ceilingPrice = getSystemCoinCeilingDeviatedPrice(systemCoinAdjustedPrice);
 
           if (uint(systemCoinPriceFeedValue) < systemCoinAdjustedPrice) {
-            systemCoinAdjustedPrice = maximum(uint(systemCoinPriceFeedValue), floorPrice);
+            systemCoinAdjustedPrice = maximum(uint256(systemCoinPriceFeedValue), floorPrice);
           } else {
-            systemCoinAdjustedPrice = minimum(uint(systemCoinPriceFeedValue), ceilingPrice);
+            systemCoinAdjustedPrice = minimum(uint256(systemCoinPriceFeedValue), ceilingPrice);
           }
         }
 
-        return (uint(collateralFsmPriceFeedValue), systemCoinAdjustedPrice);
+        return (uint256(collateralFsmPriceFeedValue), systemCoinAdjustedPrice);
     }
     function getFinalBaseCollateralPrice(
         uint256 collateralFsmPriceFeedValue,
@@ -642,7 +642,7 @@ contract FixedDiscountCollateralAuctionHouse {
         );
     }
     function getBoughtCollateral(
-        uint id,
+        uint256 id,
         uint256 collateralFsmPriceFeedValue,
         uint256 collateralMedianPriceFeedValue,
         uint256 systemCoinPriceFeedValue,
@@ -680,8 +680,8 @@ contract FixedDiscountCollateralAuctionHouse {
         uint256 amountToRaise,
         uint256 amountToSell,
         uint256 initialBid
-    ) public isAuthorized returns (uint id) {
-        require(auctionsStarted < uint(-1), "FixedDiscountCollateralAuctionHouse/overflow");
+    ) public isAuthorized returns (uint256 id) {
+        require(auctionsStarted < uint256(-1), "FixedDiscountCollateralAuctionHouse/overflow");
         require(amountToSell > 0, "FixedDiscountCollateralAuctionHouse/no-collateral-for-sale");
         require(amountToRaise > 0, "FixedDiscountCollateralAuctionHouse/nothing-to-raise");
         require(amountToRaise >= RAY, "FixedDiscountCollateralAuctionHouse/dusty-auction");
@@ -711,7 +711,7 @@ contract FixedDiscountCollateralAuctionHouse {
      * @param id ID of the auction to buy collateral from
      * @param wad New bid submitted
      */
-    function getApproximateCollateralBought(uint id, uint wad) external view returns (uint256, uint256) {
+    function getApproximateCollateralBought(uint256 id, uint256 wad) external view returns (uint256, uint256) {
         if (lastReadRedemptionPrice == 0) return (0, wad);
         if (either(
           either(bids[id].amountToSell == 0, bids[id].amountToRaise == 0),
@@ -753,7 +753,7 @@ contract FixedDiscountCollateralAuctionHouse {
      * @param id ID of the auction to buy collateral from
      * @param wad New bid submitted
      */
-    function getCollateralBought(uint id, uint wad) external returns (uint256, uint256) {
+    function getCollateralBought(uint256 id, uint256 wad) external returns (uint256, uint256) {
         if (either(
           either(bids[id].amountToSell == 0, bids[id].amountToRaise == 0),
           either(wad == 0, wad < minimumBid)
@@ -797,7 +797,7 @@ contract FixedDiscountCollateralAuctionHouse {
      * @param id ID of the auction to buy collateral from
      * @param wad New bid submitted (as a WAD which has 18 decimals)
      */
-    function buyCollateral(uint id, uint wad) external {
+    function buyCollateral(uint256 id, uint256 wad) external {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
 
         uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
@@ -856,14 +856,14 @@ contract FixedDiscountCollateralAuctionHouse {
      * @notice Settle/finish an auction
      * @param id ID of the auction to settle
      */
-    function settleAuction(uint id) external {
+    function settleAuction(uint256 id) external {
         return;
     }
     /**
      * @notice Terminate an auction prematurely. Usually called by Global Settlement.
      * @param id ID of the auction to settle
      */
-    function terminateAuctionPrematurely(uint id) external isAuthorized {
+    function terminateAuctionPrematurely(uint256 id) external isAuthorized {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
         uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
         liquidationEngine.removeCoinsFromAuction(subtract(bids[id].amountToRaise, bids[id].raisedAmount));
@@ -873,19 +873,19 @@ contract FixedDiscountCollateralAuctionHouse {
     }
 
     // --- Getters ---
-    function bidAmount(uint id) public view returns (uint256) {
+    function bidAmount(uint256 id) public view returns (uint256) {
         return 0;
     }
-    function remainingAmountToSell(uint id) public view returns (uint256) {
+    function remainingAmountToSell(uint256 id) public view returns (uint256) {
         return subtract(bids[id].amountToSell, bids[id].soldAmount);
     }
-    function forgoneCollateralReceiver(uint id) public view returns (address) {
+    function forgoneCollateralReceiver(uint256 id) public view returns (address) {
         return bids[id].forgoneCollateralReceiver;
     }
-    function raisedAmount(uint id) public view returns (uint256) {
+    function raisedAmount(uint256 id) public view returns (uint256) {
         return bids[id].raisedAmount;
     }
-    function amountToRaise(uint id) public view returns (uint256) {
+    function amountToRaise(uint256 id) public view returns (uint256) {
         return bids[id].amountToRaise;
     }
 }
