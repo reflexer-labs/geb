@@ -193,9 +193,6 @@ contract LiquidationEngine {
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "LiquidationEngine/mul-overflow");
     }
-    function rmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        z = multiply(x, y) / RAY;
-    }
     function minimum(uint256 x, uint256 y) internal pure returns (uint256 z) {
         if (x > y) { z = y; } else { z = x; }
     }
