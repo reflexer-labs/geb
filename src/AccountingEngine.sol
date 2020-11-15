@@ -155,10 +155,10 @@ contract AccountingEngine {
 
     // --- Math ---
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "AccountingEngine/add-overflow");
     }
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x);
+        require((z = x - y) <= x, "AccountingEngine/sub-underflow");
     }
     function minimum(uint256 x, uint256 y) internal pure returns (uint256 z) {
         return x <= y ? x : y;

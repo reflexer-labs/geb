@@ -132,16 +132,16 @@ contract DebtAuctionHouse {
 
     // --- Math ---
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "DebtAuctionHouse/add-uint48-overflow");
     }
     function addUint256(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "DebtAuctionHouse/add-uint256-overflow");
     }
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x);
+        require((z = x - y) <= x, "DebtAuctionHouse/sub-underflow");
     }
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "DebtAuctionHouse/mul-overflow");
     }
     function minimum(uint256 x, uint256 y) internal pure returns (uint256 z) {
         if (x > y) { z = y; } else { z = x; }

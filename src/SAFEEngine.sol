@@ -188,37 +188,37 @@ contract SAFEEngine {
     // --- Math ---
     function addition(uint256 x, int256 y) internal pure returns (uint256 z) {
         z = x + uint256(y);
-        require(y >= 0 || z <= x);
-        require(y <= 0 || z >= x);
+        require(y >= 0 || z <= x, "SAFEEngine/add-uint-int-overflow");
+        require(y <= 0 || z >= x, "SAFEEngine/add-uint-int-underflow");
     }
     function addition(int256 x, int256 y) internal pure returns (int256 z) {
         z = x + y;
-        require(y >= 0 || z <= x);
-        require(y <= 0 || z >= x);
+        require(y >= 0 || z <= x, "SAFEEngine/add-int-int-overflow");
+        require(y <= 0 || z >= x, "SAFEEngine/add-int-int-underflow");
     }
     function subtract(uint256 x, int256 y) internal pure returns (uint256 z) {
         z = x - uint256(y);
-        require(y <= 0 || z <= x);
-        require(y >= 0 || z >= x);
+        require(y <= 0 || z <= x, "SAFEEngine/sub-uint-int-overflow");
+        require(y >= 0 || z >= x, "SAFEEngine/sub-uint-int-underflow");
     }
     function subtract(int256 x, int256 y) internal pure returns (int256 z) {
         z = x - y;
-        require(y <= 0 || z <= x);
-        require(y >= 0 || z >= x);
+        require(y <= 0 || z <= x, "SAFEEngine/sub-int-int-overflow");
+        require(y >= 0 || z >= x, "SAFEEngine/sub-int-int-underflow");
     }
     function multiply(uint256 x, int256 y) internal pure returns (int256 z) {
         z = int256(x) * y;
-        require(int256(x) >= 0);
-        require(y == 0 || z / y == int256(x));
+        require(int256(x) >= 0, "SAFEEngine/mul-uint-int-null-x");
+        require(y == 0 || z / y == int256(x), "SAFEEngine/mul-uint-int-overflow");
     }
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "SAFEEngine/add-uint-uint-overflow");
     }
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x);
+        require((z = x - y) <= x, "SAFEEngine/sub-uint-uint-underflow");
     }
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "SAFEEngine/multiply-uint-uint-overflow");
     }
 
     // --- Administration ---

@@ -81,7 +81,7 @@ contract StabilityFeeTreasury {
         uint256 perBlock;
     }
 
-    mapping(address => Allowance) private allowance;
+    mapping(address => Allowance)                   private allowance;
     mapping(address => mapping(uint256 => uint256)) public pulledPerBlock;
 
     SAFEEngineLike  public safeEngine;
@@ -130,28 +130,28 @@ contract StabilityFeeTreasury {
 
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x + y;
-        require(z >= x);
+        require(z >= x, "StabilityFeeTreasury/add-uint-uint-overflow");
     }
     function addition(int256 x, int256 y) internal pure returns (int256 z) {
         z = x + y;
-        if (y <= 0) require(z <= x);
-        if (y  > 0) require(z > x);
+        if (y <= 0) require(z <= x, "StabilityFeeTreasury/add-int-int-underflow");
+        if (y  > 0) require(z > x, "StabilityFeeTreasury/add-int-int-overflow");
     }
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x);
+        require((z = x - y) <= x, "StabilityFeeTreasury/sub-uint-uint-underflow");
     }
     function subtract(int256 x, int256 y) internal pure returns (int256 z) {
         z = x - y;
-        require(y <= 0 || z <= x);
-        require(y >= 0 || z >= x);
+        require(y <= 0 || z <= x, "StabilityFeeTreasury/sub-int-int-underflow");
+        require(y >= 0 || z >= x, "StabilityFeeTreasury/sub-int-int-overflow");
     }
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "StabilityFeeTreasury/mul-uint-uint-overflow");
     }
     function divide(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y > 0);
+        require(y > 0, "StabilityFeeTreasury/div-y-null");
         z = x / y;
-        require(z <= x);
+        require(z <= x, "StabilityFeeTreasury/div-invalid");
     }
 
     // --- Administration ---

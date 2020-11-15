@@ -60,10 +60,10 @@ contract Coin {
 
     // --- Math ---
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "Coin/add-overflow");
     }
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x);
+        require((z = x - y) <= x, "Coin/sub-underflow");
     }
 
     // --- EIP712 niceties ---

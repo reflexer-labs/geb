@@ -137,10 +137,10 @@ contract EnglishCollateralAuctionHouse {
 
     // --- Math ---
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "EnglishCollateralAuctionHouse/add-uint48-overflow");
     }
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "EnglishCollateralAuctionHouse/mul-overflow");
     }
     uint256 constant WAD = 10 ** 18;
     function wmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
@@ -467,16 +467,16 @@ contract FixedDiscountCollateralAuctionHouse {
     // --- Math ---
     uint256 constant RAD = 10 ** 45;
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "FixedDiscountCollateralAuctionHouse/add-uint48-overflow");
     }
     function addUint256(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x);
+        require((z = x + y) >= x, "FixedDiscountCollateralAuctionHouse/add-uint256-overflow");
     }
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x);
+        require((z = x - y) <= x, "FixedDiscountCollateralAuctionHouse/sub-underflow");
     }
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "FixedDiscountCollateralAuctionHouse/mul-overflow");
     }
     uint256 constant WAD = 10 ** 18;
     function wmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
@@ -484,11 +484,11 @@ contract FixedDiscountCollateralAuctionHouse {
     }
     uint256 constant RAY = 10 ** 27;
     function rdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y > 0, "FixedDiscountCollateralAuctionHouse/division-by-zero");
+        require(y > 0, "FixedDiscountCollateralAuctionHouse/rdiv-by-zero");
         z = multiply(x, RAY) / y;
     }
     function wdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y > 0, "FixedDiscountCollateralAuctionHouse/division-by-zero");
+        require(y > 0, "FixedDiscountCollateralAuctionHouse/wdiv-by-zero");
         z = multiply(x, WAD) / y;
     }
     function minimum(uint256 x, uint256 y) internal pure returns (uint256 z) {

@@ -267,7 +267,7 @@ contract CoinJoin {
     constructor(address safeEngine_, address systemCoin_) public {
         authorizedAccounts[msg.sender] = 1;
         contractEnabled                = 1;
-        safeEngine                      = SAFEEngineLike(safeEngine_);
+        safeEngine                     = SAFEEngineLike(safeEngine_);
         systemCoin                     = DSTokenLike(systemCoin_);
         decimals                       = 18;
         emit AddAuthorization(msg.sender);
@@ -281,7 +281,7 @@ contract CoinJoin {
     }
     uint256 constant RAY = 10 ** 27;
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "CoinJoin/mul-overflow");
     }
     /**
     * @notice Join system coins in the system

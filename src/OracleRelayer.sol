@@ -120,16 +120,16 @@ contract OracleRelayer {
 
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x - y;
-        require(z <= x);
+        require(z <= x, "OracleRelayer/sub-underflow");
     }
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x);
+        require(y == 0 || (z = x * y) / y == x, "OracleRelayer/mul-overflow");
     }
     function rmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = multiply(x, y) / RAY;
     }
     function rdivide(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y > 0, "OracleRelayer/division-by-zero");
+        require(y > 0, "OracleRelayer/rdiv-by-zero");
         z = multiply(x, RAY) / y;
     }
     function rpower(uint256 x, uint256 n, uint256 base) internal pure returns (uint256 z) {
