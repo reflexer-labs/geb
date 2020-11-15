@@ -196,9 +196,7 @@ contract StabilityFeeTreasury {
     function disableContract() external isAuthorized {
         require(contractEnabled == 1, "StabilityFeeTreasury/already-disabled");
         contractEnabled = 0;
-        if (systemCoin.balanceOf(address(this)) > 0) {
-          coinJoin.join(address(this), systemCoin.balanceOf(address(this)));
-        }
+        joinAllCoins();
         safeEngine.transferInternalCoins(address(this), accountingEngine, safeEngine.coinBalance(address(this)));
         emit DisableContract();
     }
