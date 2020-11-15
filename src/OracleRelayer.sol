@@ -186,7 +186,6 @@ contract OracleRelayer {
         require(contractEnabled == 1, "OracleRelayer/contract-not-enabled");
         require(data > 0, "OracleRelayer/null-data");
         if (parameter == "redemptionPrice") {
-          require(data > 0, "OracleRelayer/null-redemption-price");
           _redemptionPrice = data;
         }
         else if (parameter == "redemptionRate") {
