@@ -473,7 +473,7 @@ contract SAFEEngine {
      * @param collateralCounterparty Who we take/give collateral to
      * @param debtCounterparty Who we take/give debt to
      * @param deltaCollateral Amount of collateral taken/added into the SAFE (wad)
-     * @param deltaDebt Amount of collateral taken/added into the SAFE (wad)
+     * @param deltaDebt Amount of debt taken/added into the SAFE (wad)
      */
     function confiscateSAFECollateralAndDebt(
         bytes32 collateralType,

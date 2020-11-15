@@ -209,7 +209,7 @@ library LinkedList {
     }
 
     /**
-     * @dev Pushes an entry to the head of the linked list
+     * @dev Pushes an entry to the head or tail of the linked list
      * @param self stored linked list from contract
      * @param _node new entry to push to the head
      * @param _direction push to the head (NEXT) or tail (PREV)

@@ -567,7 +567,9 @@ contract FixedDiscountCollateralAuctionHouse {
           if (valid) {
             priceFeed = uint256(price);
           }
-        } catch (bytes memory revertReason) {}
+        } catch (bytes memory revertReason) {
+          return 0;
+        }
     }
     function getSystemCoinMarketPrice() public view returns (uint256 priceFeed) {
         if (address(systemCoinOracle) == address(0)) return 0;
@@ -578,7 +580,9 @@ contract FixedDiscountCollateralAuctionHouse {
           if (valid) {
             priceFeed = uint256(price) * 10 ** 9; // scale to RAY
           }
-        } catch (bytes memory revertReason) {}
+        } catch (bytes memory revertReason) {
+          return 0;
+        }
     }
     function getSystemCoinFloorDeviatedPrice(uint256 redemptionPrice) public view returns (uint256 floorPrice) {
         uint256 minFloorDeviatedPrice = wmultiply(redemptionPrice, minSystemCoinMedianDeviation);
