@@ -360,7 +360,7 @@ contract LiquidationEngine {
           accountingEngine.pushDebtToQueue(multiply(limitAdjustedDebt, accumulatedRate));
 
           {
-            uint256 amountToRaise_         = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
+            uint256 amountToRaise_      = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
             currentOnAuctionSystemCoins = addition(currentOnAuctionSystemCoins, amountToRaise_);
 
             auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
@@ -379,6 +379,10 @@ contract LiquidationEngine {
 
         mutex[collateralType][safe] = 0;
     }
+    /**
+     * @notice Remove debt that was currently being auctioned
+     * @param rad The amount of debt to withdraw from currentOnAuctionSystemCoins
+     */
     function removeCoinsFromAuction(uint256 rad) public isAuthorized {
         currentOnAuctionSystemCoins = subtract(currentOnAuctionSystemCoins, rad);
         emit UpdateCurrentOnAuctionSystemCoins(currentOnAuctionSystemCoins);
