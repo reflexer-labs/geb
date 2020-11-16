@@ -253,6 +253,9 @@ contract GlobalSettlement {
     }
 
     // --- Settlement ---
+    /**
+     * @notice Freeze the system and start the cooldown period
+     */
     function shutdownSystem() external isAuthorized {
         require(contractEnabled == 1, "GlobalSettlement/contract-not-enabled");
         contractEnabled = 0;
@@ -270,7 +273,10 @@ contract GlobalSettlement {
         }
         emit ShutdownSystem();
     }
-
+    /**
+     * @notice Calculate a collateral type's final price according to the latest system coin redemption price
+     * @param collateralType The collateral type to calculate the price for
+     */
     function freezeCollateralType(bytes32 collateralType) external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         require(finalCoinPerCollateralPrice[collateralType] == 0, "GlobalSettlement/final-collateral-price-already-defined");
@@ -280,10 +286,15 @@ contract GlobalSettlement {
         finalCoinPerCollateralPrice[collateralType] = wdivide(oracleRelayer.redemptionPrice(), uint256(orcl.read()));
         emit FreezeCollateralType(collateralType, finalCoinPerCollateralPrice[collateralType]);
     }
+    /**
+     * @notice Fast track an ongoing collateral auction
+     * @param collateralType The collateral type associated with the auction contract
+     * @param auctionId The ID of the auction to be fast tracked
+     */
     function fastTrackAuction(bytes32 collateralType, uint256 auctionId) external {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
 
-        (address auctionHouse_,,)    = liquidationEngine.collateralTypes(collateralType);
+        (address auctionHouse_,,)       = liquidationEngine.collateralTypes(collateralType);
         CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
         (, uint256 accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
 
@@ -304,6 +315,11 @@ contract GlobalSettlement {
         safeEngine.confiscateSAFECollateralAndDebt(collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int256(collateralToSell), int256(debt_));
         emit FastTrackAuction(collateralType, auctionId, collateralTotalDebt[collateralType]);
     }
+    /**
+     * @notice Cancel a SAFE's debt and leave any extra collateral in it
+     * @param collateralType The collateral type associated with the SAFE
+     * @param safe The SAFE to be processed
+     */
     function processSAFE(bytes32 collateralType, address safe) external {
         require(finalCoinPerCollateralPrice[collateralType] != 0, "GlobalSettlement/final-collateral-price-not-defined");
         (, uint256 accumulatedRate,,,,) = safeEngine.collateralTypes(collateralType);
@@ -328,6 +344,10 @@ contract GlobalSettlement {
 
         emit ProcessSAFE(collateralType, safe, collateralShortfall[collateralType]);
     }
+    /**
+     * @notice Remove collateral from the caller's SAFE
+     * @param collateralType The collateral type to free
+     */
     function freeCollateral(bytes32 collateralType) external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(collateralType, msg.sender);
@@ -343,6 +363,9 @@ contract GlobalSettlement {
         );
         emit FreeCollateral(collateralType, msg.sender, -int256(safeCollateral));
     }
+    /**
+     * @notice Set the final outstanding supply of system coins. There must be no remaining surplus in the accounting engine
+     */
     function setOutstandingCoinSupply() external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");
         require(outstandingCoinSupply == 0, "GlobalSettlement/outstanding-coin-supply-not-zero");
@@ -351,6 +374,10 @@ contract GlobalSettlement {
         outstandingCoinSupply = safeEngine.globalDebt();
         emit SetOutstandingCoinSupply(outstandingCoinSupply);
     }
+    /**
+     * @notice Calculate a collateral's price taking into consideration system surplus/deficit and the finalCoinPerCollateralPrice
+     * @param collateralType The collateral whose cash price will be calculated
+     */
     function calculateCashPrice(bytes32 collateralType) external {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
         require(collateralCashPrice[collateralType] == 0, "GlobalSettlement/collateral-cash-price-already-defined");
@@ -364,12 +391,21 @@ contract GlobalSettlement {
         );
         emit CalculateCashPrice(collateralType, collateralCashPrice[collateralType]);
     }
+    /**
+     * @notice Add coins into a 'bag' so that you can use them to redeem collateral
+     * @param coinAmount The amount of internal system coins to add into the bag (represented as a RAD)
+     */
     function prepareCoinsForRedeeming(uint256 coinAmount) external {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
         safeEngine.transferInternalCoins(msg.sender, address(accountingEngine), multiply(coinAmount, RAY));
         coinBag[msg.sender] = addition(coinBag[msg.sender], coinAmount);
         emit PrepareCoinsForRedeeming(msg.sender, coinBag[msg.sender]);
     }
+    /**
+     * @notice Redeem a specific collateral type using an amount of internal system coins from your bag
+     * @param collateralType The collateral type to redeem
+     * @param coinsAmount The amount of internal coins to use from your bag
+     */
     function redeemCollateral(bytes32 collateralType, uint256 coinsAmount) external {
         require(collateralCashPrice[collateralType] != 0, "GlobalSettlement/collateral-cash-price-not-defined");
         uint256 collateralAmount = rmultiply(coinsAmount, collateralCashPrice[collateralType]);
