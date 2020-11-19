@@ -119,6 +119,16 @@ contract AccountingEngineTest is DSTest {
         ok = abi.decode(success, (bool));
         if (ok) return true;
     }
+    function can_TransferSurplus() public returns (bool) {
+        string memory sig = "transferExtraSurplus()";
+        bytes memory data = abi.encodeWithSignature(sig);
+
+        bytes memory can_call = abi.encodeWithSignature("try_call(address,bytes)", accountingEngine, data);
+        (bool ok, bytes memory success) = address(this).call(can_call);
+
+        ok = abi.decode(success, (bool));
+        if (ok) return true;
+    }
     function can_auction_debt() public returns (bool) {
         string memory sig = "auctionDebt()";
         bytes memory data = abi.encodeWithSignature(sig);
@@ -214,9 +224,76 @@ contract AccountingEngineTest is DSTest {
         alice.popDebtFromQueue(address(accountingEngine), now);
     }
 
+    function test_surplus_auction_when_transfer_permitted() public {
+        accountingEngine.modifyParameters("extraSurplusIsTransferred", 1);
+        safeEngine.mint(address(accountingEngine), 100 ether);
+        assertTrue( !can_auctionSurplus() );
+    }
+
+    function test_auction_surplus_when_amount_null() public {
+        accountingEngine.modifyParameters("surplusAuctionAmountToSell", 0);
+        safeEngine.mint(address(accountingEngine), 100 ether);
+        assertTrue( !can_auctionSurplus() );
+    }
+
     function test_surplus_auction() public {
         safeEngine.mint(address(accountingEngine), 100 ether);
         assertTrue( can_auctionSurplus() );
+    }
+
+    function test_transfer_surplus_when_not_permitted() public {
+        accountingEngine.modifyParameters("extraSurplusReceiver", address(1));
+        accountingEngine.modifyParameters("surplusTransferAmount", 100 ether);
+        safeEngine.mint(address(accountingEngine), 100 ether);
+        assertTrue( !can_TransferSurplus() );
+    }
+
+    function test_transfer_surplus_when_receiver_not_defined() public {
+        accountingEngine.modifyParameters("extraSurplusIsTransferred", 1);
+        accountingEngine.modifyParameters("surplusTransferAmount", 100 ether);
+        safeEngine.mint(address(accountingEngine), 100 ether);
+        assertTrue( !can_TransferSurplus() );
+    }
+
+    function test_transfer_surplus_when_amount_not_defined() public {
+        accountingEngine.modifyParameters("extraSurplusIsTransferred", 1);
+        accountingEngine.modifyParameters("extraSurplusReceiver", address(1));
+        safeEngine.mint(address(accountingEngine), 100 ether);
+        assertTrue( !can_auctionSurplus() );
+    }
+
+    function test_surplus_transfer() public {
+        accountingEngine.modifyParameters("extraSurplusIsTransferred", 1);
+        accountingEngine.modifyParameters("extraSurplusReceiver", address(1));
+        accountingEngine.modifyParameters("surplusTransferAmount", 100 ether);
+        safeEngine.mint(address(accountingEngine), 100 ether);
+        assertTrue( !can_auctionSurplus() );
+        assertTrue( can_TransferSurplus() );
+    }
+
+    function test_surplus_transfer_twice_in_a_row() public {
+        accountingEngine.modifyParameters("extraSurplusIsTransferred", 1);
+        accountingEngine.modifyParameters("extraSurplusReceiver", address(1));
+        accountingEngine.modifyParameters("surplusTransferAmount", 100 ether);
+        safeEngine.mint(address(accountingEngine), 200 ether);
+        accountingEngine.transferExtraSurplus();
+        assertEq(safeEngine.coinBalance(address(1)), 100 ether);
+        assertTrue( can_TransferSurplus() );
+        accountingEngine.transferExtraSurplus();
+        assertEq(safeEngine.coinBalance(address(1)), 200 ether);
+    }
+
+    function test_surplus_transfer_after_waiting() public {
+        accountingEngine.modifyParameters("extraSurplusIsTransferred", 1);
+        accountingEngine.modifyParameters("extraSurplusReceiver", address(1));
+        accountingEngine.modifyParameters("surplusTransferAmount", 100 ether);
+        accountingEngine.modifyParameters("surplusTransferDelay", 1);
+        safeEngine.mint(address(accountingEngine), 200 ether);
+        assertTrue( !can_TransferSurplus() );
+        hevm.warp(now + 1);
+        accountingEngine.transferExtraSurplus();
+        assertEq(safeEngine.coinBalance(address(1)), 100 ether);
+        assertTrue( !can_TransferSurplus() );
     }
 
     function test_settlement_auction_surplus() public {
@@ -266,11 +343,29 @@ contract AccountingEngineTest is DSTest {
         safeEngine.mint(address(accountingEngine), 50 ether);
         assertTrue(!can_auctionSurplus() );
     }
+    function test_no_transfer_surplus_pending_debt() public {
+        accountingEngine.modifyParameters("extraSurplusIsTransferred", 1);
+        accountingEngine.modifyParameters("extraSurplusReceiver", address(1));
+        accountingEngine.modifyParameters("surplusTransferAmount", 0 ether);
+
+        popDebtFromQueue(100 ether);
+        safeEngine.mint(address(accountingEngine), 50 ether);
+        assertTrue(!can_TransferSurplus() );
+    }
     function test_no_surplus_auction_nonzero_bad_debt() public {
         accountingEngine.modifyParameters("surplusAuctionAmountToSell", uint256(0 ether));
         popDebtFromQueue(100 ether);
         safeEngine.mint(address(accountingEngine), 50 ether);
         assertTrue(!can_auctionSurplus() );
+    }
+    function test_no_transfer_surplus_nonzero_bad_debt() public {
+        accountingEngine.modifyParameters("extraSurplusIsTransferred", 1);
+        accountingEngine.modifyParameters("extraSurplusReceiver", address(1));
+        accountingEngine.modifyParameters("surplusTransferAmount", 0);
+
+        popDebtFromQueue(100 ether);
+        safeEngine.mint(address(accountingEngine), 50 ether);
+        assertTrue(!can_TransferSurplus() );
     }
     function test_no_surplus_auction_pending_debt_auction() public {
         popDebtFromQueue(100 ether);
@@ -279,6 +374,17 @@ contract AccountingEngineTest is DSTest {
         safeEngine.mint(address(accountingEngine), 100 ether);
 
         assertTrue(!can_auctionSurplus() );
+    }
+    function test_no_transfer_surplus_pending_debt_auction() public {
+        accountingEngine.modifyParameters("extraSurplusIsTransferred", 1);
+        accountingEngine.modifyParameters("extraSurplusReceiver", address(1));
+
+        popDebtFromQueue(100 ether);
+        accountingEngine.debtAuctionHouse();
+
+        safeEngine.mint(address(accountingEngine), 100 ether);
+
+        assertTrue(!can_TransferSurplus() );
     }
     function test_no_surplus_auction_pending_settleDebt() public {
         popDebtFromQueue(100 ether);
@@ -289,6 +395,18 @@ contract AccountingEngineTest is DSTest {
 
         assertTrue(!can_auctionSurplus() );
     }
+    function test_no_transfer_surplus_pending_settleDebt() public {
+        accountingEngine.modifyParameters("extraSurplusIsTransferred", 1);
+        accountingEngine.modifyParameters("extraSurplusReceiver", address(1));
+
+        popDebtFromQueue(100 ether);
+        uint id = accountingEngine.auctionDebt();
+
+        safeEngine.mint(address(this), 100 ether);
+        debtAuctionHouse.decreaseSoldAmount(id, 0 ether, rad(100 ether));
+
+        assertTrue(!can_TransferSurplus() );
+    }
     function test_no_surplus_after_good_debt_auction() public {
         popDebtFromQueue(100 ether);
         uint id = accountingEngine.auctionDebt();
@@ -297,6 +415,18 @@ contract AccountingEngineTest is DSTest {
         debtAuctionHouse.decreaseSoldAmount(id, 0 ether, rad(100 ether));  // debt auction succeeds..
 
         assertTrue(!can_auctionSurplus() );
+    }
+    function test_no_transfer_surplus_after_good_debt_auction() public {
+        accountingEngine.modifyParameters("extraSurplusIsTransferred", 1);
+        accountingEngine.modifyParameters("extraSurplusReceiver", address(1));
+
+        popDebtFromQueue(100 ether);
+        uint id = accountingEngine.auctionDebt();
+        safeEngine.mint(address(this), 100 ether);
+
+        debtAuctionHouse.decreaseSoldAmount(id, 0 ether, rad(100 ether));  // debt auction succeeds..
+
+        assertTrue(!can_TransferSurplus() );
     }
     function test_multiple_increaseBidSize() public {
         popDebtFromQueue(100 ether);

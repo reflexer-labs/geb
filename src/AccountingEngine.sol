@@ -86,6 +86,8 @@ contract AccountingEngine {
     ProtocolTokenAuthorityLike public protocolTokenAuthority;
     // Contract that auctions extra surplus after settlement is triggered
     address                    public postSettlementSurplusDrain;
+    // Address that receives extra surplus transfers
+    address                    public extraSurplusReceiver;
 
     /**
       Debt blocks that need to be covered by auctions. There is a delay to pop debt from
@@ -99,10 +101,14 @@ contract AccountingEngine {
     uint256 public totalQueuedDebt;                         // [rad]
     // Total debt being auctioned in DebtAuctionHouse (printing protocol tokens for coins that will settle the debt)
     uint256 public totalOnAuctionDebt;                      // [rad]
-    // When the last surplus auction was triggered; enforces a delay in case we use DEX surplus auctions
+    // When the last surplus auction was triggered
     uint256 public lastSurplusAuctionTime;                  // [unix timestamp]
+    // When the last surplus transfer was triggered
+    uint256 public lastSurplusTransferTime;                 // [unix timestamp]
     // Delay between surplus auctions
     uint256 public surplusAuctionDelay;                     // [seconds]
+    // Delay between extra surplus transfers
+    uint256 public surplusTransferDelay;                    // [seconds]
     // Delay after which debt can be popped from debtQueue
     uint256 public popDebtDelay;                            // [seconds]
     // Amount of protocol tokens to be minted post-auction
@@ -110,8 +116,12 @@ contract AccountingEngine {
     // Amount of debt sold in one debt auction (initial coin bid for initialDebtAuctionMintedTokens protocol tokens)
     uint256 public debtAuctionBidSize;                      // [rad]
 
+    // How the system disposes off surplus
+    uint256 public extraSurplusIsTransferred;
     // Amount of surplus stability fees sold in one surplus auction
     uint256 public surplusAuctionAmountToSell;              // [rad]
+    // Amount of extra surplus to transfer
+    uint256 public surplusTransferAmount;                   // [rad]
     // Amount of stability fees that need to accrue in this contract before any surplus auction can start
     uint256 public surplusBuffer;                           // [rad]
 
@@ -136,6 +146,7 @@ contract AccountingEngine {
     event AuctionSurplus(uint256 indexed id, uint256 lastSurplusAuctionTime, uint256 coinBalance);
     event DisableContract(uint256 disableTimestamp, uint256 disableCooldown, uint256 coinBalance, uint256 debtBalance);
     event TransferPostSettlementSurplus(address postSettlementSurplusDrain, uint256 coinBalance, uint256 debtBalance);
+    event TransferExtraSurplus(address indexed extraSurplusReceiver, uint256 lastSurplusAuctionTime, uint256 coinBalance);
 
     // --- Init ---
     constructor(
@@ -149,6 +160,7 @@ contract AccountingEngine {
         debtAuctionHouse = DebtAuctionHouseLike(debtAuctionHouse_);
         safeEngine.approveSAFEModification(surplusAuctionHouse_);
         lastSurplusAuctionTime = now;
+        lastSurplusTransferTime = now;
         contractEnabled = 1;
         emit AddAuthorization(msg.sender);
     }
@@ -172,8 +184,11 @@ contract AccountingEngine {
      */
     function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         if (parameter == "surplusAuctionDelay") surplusAuctionDelay = data;
+        else if (parameter == "surplusTransferDelay") surplusTransferDelay = data;
         else if (parameter == "popDebtDelay") popDebtDelay = data;
         else if (parameter == "surplusAuctionAmountToSell") surplusAuctionAmountToSell = data;
+        else if (parameter == "surplusTransferAmount") surplusTransferAmount = data;
+        else if (parameter == "extraSurplusIsTransferred") extraSurplusIsTransferred = data;
         else if (parameter == "debtAuctionBidSize") debtAuctionBidSize = data;
         else if (parameter == "initialDebtAuctionMintedTokens") initialDebtAuctionMintedTokens = data;
         else if (parameter == "surplusBuffer") surplusBuffer = data;
@@ -195,6 +210,7 @@ contract AccountingEngine {
         else if (parameter == "debtAuctionHouse") debtAuctionHouse = DebtAuctionHouseLike(data);
         else if (parameter == "postSettlementSurplusDrain") postSettlementSurplusDrain = data;
         else if (parameter == "protocolTokenAuthority") protocolTokenAuthority = ProtocolTokenAuthorityLike(data);
+        else if (parameter == "extraSurplusReceiver") extraSurplusReceiver = data;
         else revert("AccountingEngine/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
     }
@@ -275,9 +291,11 @@ contract AccountingEngine {
     /**
      * @notice Start a surplus auction
      * @dev We can only auction surplus if we wait at least 'surplusAuctionDelay' seconds since the last
-     *      auction trigger, if we keep enough surplus in the buffer and if there is no bad debt to settle
+     *      auction trigger, if we keep enough surplus in the buffer and if there is no bad debt left to settle
     **/
     function auctionSurplus() external returns (uint256 id) {
+        require(extraSurplusIsTransferred != 1, "AccountingEngine/surplus-transfer-no-auction");
+        require(surplusAuctionAmountToSell > 0, "AccountingEngine/null-amount-to-auction");
         settleDebt(unqueuedUnauctionedDebt());
         require(
           now >= addition(lastSurplusAuctionTime, surplusAuctionDelay),
@@ -296,6 +314,35 @@ contract AccountingEngine {
         lastSurplusAuctionTime = now;
         id = surplusAuctionHouse.startAuction(surplusAuctionAmountToSell, 0);
         emit AuctionSurplus(id, lastSurplusAuctionTime, safeEngine.coinBalance(address(this)));
+    }
+
+    // Extra surplus transfers/surplus auction alternative
+    /**
+     * @notice Send surplus to an address as an alternative to auctions
+     * @dev We can only transfer surplus if we wait at least 'surplusTransferDelay' seconds since the last
+     *      transfer, if we keep enough surplus in the buffer and if there is no bad debt left to settle
+    **/
+    function transferExtraSurplus() external {
+        require(extraSurplusIsTransferred == 1, "AccountingEngine/surplus-auction-not-transfer");
+        require(extraSurplusReceiver != address(0), "AccountingEngine/null-surplus-receiver");
+        require(surplusTransferAmount > 0, "AccountingEngine/null-amount-to-transfer");
+        settleDebt(unqueuedUnauctionedDebt());
+        require(
+          now >= addition(lastSurplusTransferTime, surplusTransferDelay),
+          "AccountingEngine/surplus-transfer-delay-not-passed"
+        );
+        require(
+          safeEngine.coinBalance(address(this)) >=
+          addition(addition(safeEngine.debtBalance(address(this)), surplusTransferAmount), surplusBuffer),
+          "AccountingEngine/insufficient-surplus"
+        );
+        require(
+          unqueuedUnauctionedDebt() == 0,
+          "AccountingEngine/debt-not-zero"
+        );
+        lastSurplusTransferTime = now;
+        safeEngine.transferInternalCoins(address(this), extraSurplusReceiver, surplusTransferAmount);
+        emit TransferExtraSurplus(extraSurplusReceiver, lastSurplusTransferTime, safeEngine.coinBalance(address(this)));
     }
 
     /**
