@@ -2,7 +2,7 @@ pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
-import {PreSettlementSurplusAuctionHouse, RecyclingSurplusAuctionHouse, PostSettlementSurplusAuctionHouse} from "../SurplusAuctionHouse.sol";
+import {BurningSurplusAuctionHouse, RecyclingSurplusAuctionHouse, PostSettlementSurplusAuctionHouse} from "../SurplusAuctionHouse.sol";
 import "../SAFEEngine.sol";
 import {CoinJoin} from '../BasicTokenAdapters.sol';
 import {Coin} from "../Coin.sol";
@@ -11,9 +11,9 @@ abstract contract Hevm {
     function warp(uint256) virtual public;
 }
 
-contract GuyPreSurplusAuction {
-    PreSettlementSurplusAuctionHouse surplusAuctionHouse;
-    constructor(PreSettlementSurplusAuctionHouse surplusAuctionHouse_) public {
+contract GuyBurningSurplusAuction {
+    BurningSurplusAuctionHouse surplusAuctionHouse;
+    constructor(BurningSurplusAuctionHouse surplusAuctionHouse_) public {
         surplusAuctionHouse = surplusAuctionHouse_;
         SAFEEngine(address(surplusAuctionHouse.safeEngine())).approveSAFEModification(address(surplusAuctionHouse));
         DSToken(address(surplusAuctionHouse.protocolToken())).approve(address(surplusAuctionHouse));
@@ -118,10 +118,10 @@ contract GlobalSettlement {
     }
 }
 
-contract PreSettlementSurplusAuctionHouseTest is DSTest {
+contract BurningSurplusAuctionHouseTest is DSTest {
     Hevm hevm;
 
-    PreSettlementSurplusAuctionHouse surplusAuctionHouse;
+    BurningSurplusAuctionHouse surplusAuctionHouse;
     SAFEEngine safeEngine;
     DSToken protocolToken;
 
@@ -135,10 +135,10 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
         safeEngine = new SAFEEngine();
         protocolToken = new DSToken('', '');
 
-        surplusAuctionHouse = new PreSettlementSurplusAuctionHouse(address(safeEngine), address(protocolToken));
+        surplusAuctionHouse = new BurningSurplusAuctionHouse(address(safeEngine), address(protocolToken));
 
-        ali = address(new GuyPreSurplusAuction(surplusAuctionHouse));
-        bob = address(new GuyPreSurplusAuction(surplusAuctionHouse));
+        ali = address(new GuyBurningSurplusAuction(surplusAuctionHouse));
+        bob = address(new GuyBurningSurplusAuction(surplusAuctionHouse));
 
         safeEngine.approveSAFEModification(address(surplusAuctionHouse));
         protocolToken.approve(address(surplusAuctionHouse));
@@ -160,9 +160,9 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
     }
     function test_increase_bid_same_bidder() public {
         uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
-        GuyPreSurplusAuction(ali).increaseBidSize(id, 100 ether, 190 ether);
+        GuyBurningSurplusAuction(ali).increaseBidSize(id, 100 ether, 190 ether);
         assertEq(protocolToken.balanceOf(ali), 10 ether);
-        GuyPreSurplusAuction(ali).increaseBidSize(id, 100 ether, 200 ether);
+        GuyBurningSurplusAuction(ali).increaseBidSize(id, 100 ether, 200 ether);
         assertEq(protocolToken.balanceOf(ali), 0);
     }
     function test_increaseBidSize() public {
@@ -170,13 +170,13 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
         // amount to buy taken from creator
         assertEq(safeEngine.coinBalance(address(this)), 900 ether);
 
-        GuyPreSurplusAuction(ali).increaseBidSize(id, 100 ether, 1 ether);
+        GuyBurningSurplusAuction(ali).increaseBidSize(id, 100 ether, 1 ether);
         // bid taken from bidder
         assertEq(protocolToken.balanceOf(ali), 199 ether);
         // payment remains in auction
         assertEq(protocolToken.balanceOf(address(surplusAuctionHouse)), 1 ether);
 
-        GuyPreSurplusAuction(bob).increaseBidSize(id, 100 ether, 2 ether);
+        GuyBurningSurplusAuction(bob).increaseBidSize(id, 100 ether, 2 ether);
         // bid taken from bidder
         assertEq(protocolToken.balanceOf(bob), 198 ether);
         // prev bidder refunded
@@ -185,7 +185,7 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
         assertEq(protocolToken.balanceOf(address(surplusAuctionHouse)), 2 ether);
 
         hevm.warp(now + 5 weeks);
-        GuyPreSurplusAuction(bob).settleAuction(id);
+        GuyBurningSurplusAuction(bob).settleAuction(id);
         // high bidder gets the amount sold
         assertEq(safeEngine.coinBalance(address(surplusAuctionHouse)), 0 ether);
         assertEq(safeEngine.coinBalance(bob), 100 ether);
@@ -194,31 +194,31 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
     }
     function test_bid_increase() public {
         uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
-        assertTrue( GuyPreSurplusAuction(ali).try_increaseBidSize(id, 100 ether, 1.00 ether));
-        assertTrue(!GuyPreSurplusAuction(bob).try_increaseBidSize(id, 100 ether, 1.01 ether));
+        assertTrue( GuyBurningSurplusAuction(ali).try_increaseBidSize(id, 100 ether, 1.00 ether));
+        assertTrue(!GuyBurningSurplusAuction(bob).try_increaseBidSize(id, 100 ether, 1.01 ether));
         // high bidder is subject to beg
-        assertTrue(!GuyPreSurplusAuction(ali).try_increaseBidSize(id, 100 ether, 1.01 ether));
-        assertTrue( GuyPreSurplusAuction(bob).try_increaseBidSize(id, 100 ether, 1.07 ether));
+        assertTrue(!GuyBurningSurplusAuction(ali).try_increaseBidSize(id, 100 ether, 1.01 ether));
+        assertTrue( GuyBurningSurplusAuction(bob).try_increaseBidSize(id, 100 ether, 1.07 ether));
     }
     function test_restart_auction() public {
         // start an auction
         uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
         // check no tick
-        assertTrue(!GuyPreSurplusAuction(ali).try_restartAuction(id));
+        assertTrue(!GuyBurningSurplusAuction(ali).try_restartAuction(id));
         // run past the end
         hevm.warp(now + 2 weeks);
         // check not biddable
-        assertTrue(!GuyPreSurplusAuction(ali).try_increaseBidSize(id, 100 ether, 1 ether));
-        assertTrue( GuyPreSurplusAuction(ali).try_restartAuction(id));
+        assertTrue(!GuyBurningSurplusAuction(ali).try_increaseBidSize(id, 100 ether, 1 ether));
+        assertTrue( GuyBurningSurplusAuction(ali).try_restartAuction(id));
         // check biddable
-        assertTrue( GuyPreSurplusAuction(ali).try_increaseBidSize(id, 100 ether, 1 ether));
+        assertTrue( GuyBurningSurplusAuction(ali).try_increaseBidSize(id, 100 ether, 1 ether));
     }
     function testFail_terminate_prematurely() public {
         uint id = surplusAuctionHouse.startAuction({ amountToSell: 100 ether, initialBid: 0 });
         // amount to buy taken from creator
         assertEq(safeEngine.coinBalance(address(this)), 900 ether);
 
-        GuyPreSurplusAuction(ali).increaseBidSize(id, 100 ether, 1 ether);
+        GuyBurningSurplusAuction(ali).increaseBidSize(id, 100 ether, 1 ether);
         surplusAuctionHouse.terminateAuctionPrematurely(id);
     }
     function test_terminate_prematurely() public {
@@ -226,7 +226,7 @@ contract PreSettlementSurplusAuctionHouseTest is DSTest {
         // amount to buy taken from creator
         assertEq(safeEngine.coinBalance(address(this)), 900 ether);
 
-        GuyPreSurplusAuction(ali).increaseBidSize(id, 100 ether, 1 ether);
+        GuyBurningSurplusAuction(ali).increaseBidSize(id, 100 ether, 1 ether);
         // Shutdown
         surplusAuctionHouse.disableContract();
         surplusAuctionHouse.terminateAuctionPrematurely(id);

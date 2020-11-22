@@ -40,6 +40,10 @@ abstract contract SAFEEngineLike {
     function denySAFEModification(address) virtual external;
 }
 
+abstract contract SystemStakingPoolLike {
+    function canPrintProtocolTokens() virtual public view returns (bool);
+}
+
 abstract contract ProtocolTokenAuthorityLike {
     function authorizedAccounts(address) virtual public view returns (uint256);
 }
@@ -84,10 +88,13 @@ contract AccountingEngine {
     DebtAuctionHouseLike       public debtAuctionHouse;
     // Permissions registry for who can burn and mint protocol tokens
     ProtocolTokenAuthorityLike public protocolTokenAuthority;
+    // Staking pool for protocol tokens
+    SystemStakingPoolLike      public systemStakingPool;
     // Contract that auctions extra surplus after settlement is triggered
     address                    public postSettlementSurplusDrain;
     // Address that receives extra surplus transfers
     address                    public extraSurplusReceiver;
+    //
 
     /**
       Debt blocks that need to be covered by auctions. There is a delay to pop debt from
@@ -207,6 +214,10 @@ contract AccountingEngine {
             surplusAuctionHouse = SurplusAuctionHouseLike(data);
             safeEngine.approveSAFEModification(data);
         }
+        else if (parameter == "systemStakingPool") {
+            systemStakingPool = SystemStakingPoolLike(data);
+            systemStakingPool.canPrintProtocolTokens();
+        }
         else if (parameter == "debtAuctionHouse") debtAuctionHouse = DebtAuctionHouseLike(data);
         else if (parameter == "postSettlementSurplusDrain") postSettlementSurplusDrain = data;
         else if (parameter == "protocolTokenAuthority") protocolTokenAuthority = ProtocolTokenAuthorityLike(data);
@@ -218,6 +229,16 @@ contract AccountingEngine {
     // --- Getters ---
     function unqueuedUnauctionedDebt() public view returns (uint256) {
         return subtract(subtract(safeEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt);
+    }
+
+    // --- Internal ---
+    function canPrintProtocolTokens() public view returns (bool) {
+        if (address(systemStakingPool) == address(0)) return true;
+        try systemStakingPool.canPrintProtocolTokens() returns (bool ok) {
+          return ok;
+        } catch(bytes memory) {
+          return true;
+        }
     }
 
     // --- Debt Queueing ---
@@ -282,6 +303,7 @@ contract AccountingEngine {
         require(safeEngine.coinBalance(address(this)) == 0, "AccountingEngine/surplus-not-zero");
         require(debtAuctionHouse.protocolToken() != address(0), "AccountingEngine/debt-auction-house-null-prot");
         require(protocolTokenAuthority.authorizedAccounts(address(debtAuctionHouse)) == 1, "AccountingEngine/debt-auction-house-cannot-print-prot");
+        require(canPrintProtocolTokens(), "AccountingEngine/staking-pool-denies-printing");
         totalOnAuctionDebt = addition(totalOnAuctionDebt, debtAuctionBidSize);
         id = debtAuctionHouse.startAuction(address(this), initialDebtAuctionMintedTokens, debtAuctionBidSize);
         emit AuctionDebt(id, totalOnAuctionDebt, safeEngine.debtBalance(address(this)));
