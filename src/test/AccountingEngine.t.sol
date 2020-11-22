@@ -3,7 +3,7 @@ pragma solidity 0.6.7;
 import "ds-test/test.sol";
 import {DSToken} from "ds-token/token.sol";
 import {DebtAuctionHouse as DAH} from './DebtAuctionHouse.t.sol';
-import {PreSettlementSurplusAuctionHouse as SAH_ONE} from "./SurplusAuctionHouse.t.sol";
+import {BurningSurplusAuctionHouse as SAH_ONE} from "./SurplusAuctionHouse.t.sol";
 import {PostSettlementSurplusAuctionHouse as SAH_TWO} from "./SurplusAuctionHouse.t.sol";
 import {TestSAFEEngine as SAFEEngine} from './SAFEEngine.t.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';

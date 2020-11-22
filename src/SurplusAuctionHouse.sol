@@ -31,10 +31,10 @@ abstract contract TokenLike {
 }
 
 /*
-   This thing lets you auction some coins in return for protocol tokens
+   This thing lets you auction some coins in return for protocol tokens that are then burnt
 */
 
-contract PreSettlementSurplusAuctionHouse {
+contract BurningSurplusAuctionHouse {
     // --- Auth ---
     mapping (address => uint256) public authorizedAccounts;
     /**
@@ -57,7 +57,7 @@ contract PreSettlementSurplusAuctionHouse {
     * @notice Checks whether msg.sender can call an authed function
     **/
     modifier isAuthorized {
-        require(authorizedAccounts[msg.sender] == 1, "PreSettlementSurplusAuctionHouse/account-not-authorized");
+        require(authorizedAccounts[msg.sender] == 1, "BurningSurplusAuctionHouse/account-not-authorized");
         _;
     }
 
@@ -125,10 +125,10 @@ contract PreSettlementSurplusAuctionHouse {
 
     // --- Math ---
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
-        require((z = x + y) >= x, "PreSettlementSurplusAuctionHouse/add-uint48-overflow");
+        require((z = x + y) >= x, "BurningSurplusAuctionHouse/add-uint48-overflow");
     }
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "PreSettlementSurplusAuctionHouse/mul-overflow");
+        require(y == 0 || (z = x * y) / y == x, "BurningSurplusAuctionHouse/mul-overflow");
     }
 
     // --- Admin ---
@@ -141,7 +141,7 @@ contract PreSettlementSurplusAuctionHouse {
         if (parameter == "bidIncrease") bidIncrease = data;
         else if (parameter == "bidDuration") bidDuration = uint48(data);
         else if (parameter == "totalAuctionLength") totalAuctionLength = uint48(data);
-        else revert("PreSettlementSurplusAuctionHouse/modify-unrecognized-param");
+        else revert("BurningSurplusAuctionHouse/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
     }
 
@@ -152,8 +152,8 @@ contract PreSettlementSurplusAuctionHouse {
      * @param initialBid Initial protocol token bid (rad)
      */
     function startAuction(uint256 amountToSell, uint256 initialBid) external isAuthorized returns (uint256 id) {
-        require(contractEnabled == 1, "PreSettlementSurplusAuctionHouse/contract-not-enabled");
-        require(auctionsStarted < uint256(-1), "PreSettlementSurplusAuctionHouse/overflow");
+        require(contractEnabled == 1, "BurningSurplusAuctionHouse/contract-not-enabled");
+        require(auctionsStarted < uint256(-1), "BurningSurplusAuctionHouse/overflow");
         id = ++auctionsStarted;
 
         bids[id].bidAmount = initialBid;
@@ -170,8 +170,8 @@ contract PreSettlementSurplusAuctionHouse {
      * @param id ID of the auction to restart
      */
     function restartAuction(uint256 id) external {
-        require(bids[id].auctionDeadline < now, "PreSettlementSurplusAuctionHouse/not-finished");
-        require(bids[id].bidExpiry == 0, "PreSettlementSurplusAuctionHouse/bid-already-placed");
+        require(bids[id].auctionDeadline < now, "BurningSurplusAuctionHouse/not-finished");
+        require(bids[id].bidExpiry == 0, "BurningSurplusAuctionHouse/bid-already-placed");
         bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
         emit RestartAuction(id, bids[id].auctionDeadline);
     }
@@ -182,14 +182,14 @@ contract PreSettlementSurplusAuctionHouse {
      * @param bid New bid submitted (rad)
      */
     function increaseBidSize(uint256 id, uint256 amountToBuy, uint256 bid) external {
-        require(contractEnabled == 1, "PreSettlementSurplusAuctionHouse/contract-not-enabled");
-        require(bids[id].highBidder != address(0), "PreSettlementSurplusAuctionHouse/high-bidder-not-set");
-        require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "PreSettlementSurplusAuctionHouse/bid-already-expired");
-        require(bids[id].auctionDeadline > now, "PreSettlementSurplusAuctionHouse/auction-already-expired");
+        require(contractEnabled == 1, "BurningSurplusAuctionHouse/contract-not-enabled");
+        require(bids[id].highBidder != address(0), "BurningSurplusAuctionHouse/high-bidder-not-set");
+        require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "BurningSurplusAuctionHouse/bid-already-expired");
+        require(bids[id].auctionDeadline > now, "BurningSurplusAuctionHouse/auction-already-expired");
 
-        require(amountToBuy == bids[id].amountToSell, "PreSettlementSurplusAuctionHouse/amounts-not-matching");
-        require(bid > bids[id].bidAmount, "PreSettlementSurplusAuctionHouse/bid-not-higher");
-        require(multiply(bid, ONE) >= multiply(bidIncrease, bids[id].bidAmount), "PreSettlementSurplusAuctionHouse/insufficient-increase");
+        require(amountToBuy == bids[id].amountToSell, "BurningSurplusAuctionHouse/amounts-not-matching");
+        require(bid > bids[id].bidAmount, "BurningSurplusAuctionHouse/bid-not-higher");
+        require(multiply(bid, ONE) >= multiply(bidIncrease, bids[id].bidAmount), "BurningSurplusAuctionHouse/insufficient-increase");
 
         if (msg.sender != bids[id].highBidder) {
             protocolToken.move(msg.sender, bids[id].highBidder, bids[id].bidAmount);
@@ -207,8 +207,8 @@ contract PreSettlementSurplusAuctionHouse {
      * @param id ID of the auction to settle
      */
     function settleAuction(uint256 id) external {
-        require(contractEnabled == 1, "PreSettlementSurplusAuctionHouse/contract-not-enabled");
-        require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "PreSettlementSurplusAuctionHouse/not-finished");
+        require(contractEnabled == 1, "BurningSurplusAuctionHouse/contract-not-enabled");
+        require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "BurningSurplusAuctionHouse/not-finished");
         safeEngine.transferInternalCoins(address(this), bids[id].highBidder, bids[id].amountToSell);
         protocolToken.burn(address(this), bids[id].bidAmount);
         delete bids[id];
@@ -227,8 +227,8 @@ contract PreSettlementSurplusAuctionHouse {
      * @param id ID of the auction to settle/terminate
      */
     function terminateAuctionPrematurely(uint256 id) external {
-        require(contractEnabled == 0, "PreSettlementSurplusAuctionHouse/contract-still-enabled");
-        require(bids[id].highBidder != address(0), "PreSettlementSurplusAuctionHouse/high-bidder-not-set");
+        require(contractEnabled == 0, "BurningSurplusAuctionHouse/contract-still-enabled");
+        require(bids[id].highBidder != address(0), "BurningSurplusAuctionHouse/high-bidder-not-set");
         protocolToken.move(address(this), bids[id].highBidder, bids[id].bidAmount);
         emit TerminateAuctionPrematurely(id, msg.sender, bids[id].highBidder, bids[id].bidAmount);
         delete bids[id];
