@@ -333,7 +333,8 @@ contract AccountingEngine {
           "AccountingEngine/debt-not-zero"
         );
         require(surplusAuctionHouse.protocolToken() != address(0), "AccountingEngine/surplus-auction-house-null-prot");
-        lastSurplusAuctionTime = now;
+        lastSurplusAuctionTime  = now;
+        lastSurplusTransferTime = now;
         id = surplusAuctionHouse.startAuction(surplusAuctionAmountToSell, 0);
         emit AuctionSurplus(id, lastSurplusAuctionTime, safeEngine.coinBalance(address(this)));
     }
@@ -363,6 +364,7 @@ contract AccountingEngine {
           "AccountingEngine/debt-not-zero"
         );
         lastSurplusTransferTime = now;
+        lastSurplusAuctionTime  = now;
         safeEngine.transferInternalCoins(address(this), extraSurplusReceiver, surplusTransferAmount);
         emit TransferExtraSurplus(extraSurplusReceiver, lastSurplusTransferTime, safeEngine.coinBalance(address(this)));
     }
