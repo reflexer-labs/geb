@@ -356,6 +356,7 @@ contract RecyclingSurplusAuctionHouse {
      * @param addr New value for an address
      */
     function modifyParameters(bytes32 parameter, address addr) external isAuthorized {
+        require(addr != address(0), "RecyclingSurplusAuctionHouse/invalid-address");
         if (parameter == "protocolTokenBidReceiver") protocolTokenBidReceiver = addr;
         else revert("RecyclingSurplusAuctionHouse/modify-unrecognized-param");
         emit ModifyParameters(parameter, addr);
@@ -370,6 +371,7 @@ contract RecyclingSurplusAuctionHouse {
     function startAuction(uint256 amountToSell, uint256 initialBid) external isAuthorized returns (uint256 id) {
         require(contractEnabled == 1, "RecyclingSurplusAuctionHouse/contract-not-enabled");
         require(auctionsStarted < uint256(-1), "RecyclingSurplusAuctionHouse/overflow");
+        require(protocolTokenBidReceiver != address(0), "RecyclingSurplusAuctionHouse/null-prot-token-receiver");
         id = ++auctionsStarted;
 
         bids[id].bidAmount = initialBid;
