@@ -1,7 +1,7 @@
 pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
-import {DSToken} from "ds-token/token.sol";
+import {DSDelegateToken} from "ds-token/delegate.sol";
 import {PostSettlementSurplusAuctionHouse} from "../SurplusAuctionHouse.sol";
 import "../SettlementSurplusAuctioneer.sol";
 import {TestSAFEEngine as SAFEEngine} from './SAFEEngine.t.sol';
@@ -43,7 +43,7 @@ contract SettlementSurplusAuctioneerTest is DSTest {
     PostSettlementSurplusAuctionHouse surplusAuctionHouse;
     AccountingEngine accountingEngine;
     SAFEEngine safeEngine;
-    DSToken protocolToken;
+    DSDelegateToken protocolToken;
 
     function setUp() public {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
@@ -51,7 +51,7 @@ contract SettlementSurplusAuctioneerTest is DSTest {
 
         safeEngine = new SAFEEngine();
         accountingEngine = new AccountingEngine();
-        protocolToken = new DSToken('', '');
+        protocolToken = new DSDelegateToken('', '');
 
         accountingEngine.modifyParameters("safeEngine", address(safeEngine));
         accountingEngine.modifyParameters("surplusAuctionAmountToSell", 100 ether * 10 ** 9);

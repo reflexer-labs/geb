@@ -2,7 +2,7 @@ pragma solidity 0.6.7;
 pragma experimental ABIEncoderV2;
 
 import "ds-test/test.sol";
-import "ds-token/token.sol";
+import "ds-token/delegate.sol";
 
 import {SAFEEngine} from '../SAFEEngine.sol';
 import {LiquidationEngine} from '../LiquidationEngine.sol';
@@ -117,7 +117,7 @@ contract Usr {
         if (ok) return true;
     }
     function approve(address token, address target, uint wad) external {
-        DSToken(token).approve(target, wad);
+        DSDelegateToken(token).approve(target, wad);
     }
     function join(address adapter, address safe, uint wad) external {
         BasicCollateralJoin(adapter).join(safe, wad);
@@ -142,8 +142,8 @@ contract Usr {
 
 contract ModifySAFECollateralizationTest is DSTest {
     TestSAFEEngine safeEngine;
-    DSToken gold;
-    DSToken stable;
+    DSDelegateToken gold;
+    DSDelegateToken stable;
     TaxCollector taxCollector;
 
     BasicCollateralJoin collateralA;
@@ -170,7 +170,7 @@ contract ModifySAFECollateralizationTest is DSTest {
     function setUp() public {
         safeEngine = new TestSAFEEngine();
 
-        gold = new DSToken("GEM", '');
+        gold = new DSDelegateToken("GEM", '');
         gold.mint(1000 ether);
 
         safeEngine.initializeCollateralType("gold");
@@ -394,8 +394,8 @@ contract SAFEDebtLimitTest is DSTest {
   Hevm hevm;
 
   TestSAFEEngine safeEngine;
-  DSToken gold;
-  DSToken stable;
+  DSDelegateToken gold;
+  DSDelegateToken stable;
   TaxCollector taxCollector;
 
   BasicCollateralJoin collateralA;
@@ -428,7 +428,7 @@ contract SAFEDebtLimitTest is DSTest {
 
       safeEngine = new TestSAFEEngine();
 
-      gold = new DSToken("GEM", '');
+      gold = new DSDelegateToken("GEM", '');
       gold.mint(1000 ether);
 
       safeEngine.initializeCollateralType("gold");
@@ -537,11 +537,11 @@ contract SAFEDebtLimitTest is DSTest {
 
 contract JoinTest is DSTest {
     TestSAFEEngine safeEngine;
-    DSToken collateral;
+    DSDelegateToken collateral;
     BasicCollateralJoin collateralA;
     ETHJoin ethA;
     CoinJoin coinA;
-    DSToken coin;
+    DSDelegateToken coin;
     address me;
 
     uint constant WAD = 10 ** 18;
@@ -550,14 +550,14 @@ contract JoinTest is DSTest {
         safeEngine = new TestSAFEEngine();
         safeEngine.initializeCollateralType("ETH");
 
-        collateral  = new DSToken("Gem", 'Gem');
+        collateral  = new DSDelegateToken("Gem", 'Gem');
         collateralA = new BasicCollateralJoin(address(safeEngine), "collateral", address(collateral));
         safeEngine.addAuthorization(address(collateralA));
 
         ethA = new ETHJoin(address(safeEngine), "ETH");
         safeEngine.addAuthorization(address(ethA));
 
-        coin  = new DSToken("Coin", 'Coin');
+        coin  = new DSDelegateToken("Coin", 'Coin');
         coinA = new CoinJoin(address(safeEngine), address(coin));
         safeEngine.addAuthorization(address(coinA));
         coin.setOwner(address(coinA));
@@ -700,7 +700,7 @@ contract LiquidationTest is DSTest {
     TestSAFEEngine safeEngine;
     TestAccountingEngine accountingEngine;
     LiquidationEngine liquidationEngine;
-    DSToken gold;
+    DSDelegateToken gold;
     TaxCollector taxCollector;
 
     BasicCollateralJoin collateralA;
@@ -709,7 +709,7 @@ contract LiquidationTest is DSTest {
     DebtAuctionHouse debtAuctionHouse;
     PostSettlementSurplusAuctionHouse surplusAuctionHouse;
 
-    DSToken protocolToken;
+    DSDelegateToken protocolToken;
 
     ProtocolTokenAuthority tokenAuthority;
 
@@ -753,7 +753,7 @@ contract LiquidationTest is DSTest {
         hevm = Hevm(0x7109709ECfa91a80626fF3989D68f67F5b1DD12D);
         hevm.warp(604411200);
 
-        protocolToken = new DSToken('GOV', '');
+        protocolToken = new DSDelegateToken('GOV', '');
         protocolToken.mint(100 ether);
 
         safeEngine = new TestSAFEEngine();
@@ -780,7 +780,7 @@ contract LiquidationTest is DSTest {
         safeEngine.addAuthorization(address(liquidationEngine));
         accountingEngine.addAuthorization(address(liquidationEngine));
 
-        gold = new DSToken("GEM", '');
+        gold = new DSDelegateToken("GEM", '');
         gold.mint(1000 ether);
 
         safeEngine.initializeCollateralType("gold");

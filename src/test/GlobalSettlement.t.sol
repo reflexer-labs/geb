@@ -20,7 +20,7 @@
 pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
-import "ds-token/token.sol";
+import "ds-token/delegate.sol";
 
 import {SAFEEngine} from '../SAFEEngine.sol';
 import {LiquidationEngine} from '../LiquidationEngine.sol';
@@ -130,13 +130,13 @@ contract GlobalSettlementTest is DSTest {
     StabilityFeeTreasury stabilityFeeTreasury;
     SettlementSurplusAuctioneer postSettlementSurplusDrain;
 
-    DSToken protocolToken;
-    DSToken systemCoin;
+    DSDelegateToken protocolToken;
+    DSDelegateToken systemCoin;
     CoinJoin systemCoinA;
 
     struct CollateralType {
         DummyFSM oracleSecurityModule;
-        DSToken collateral;
+        DSDelegateToken collateral;
         BasicCollateralJoin collateralA;
         EnglishCollateralAuctionHouse englishCollateralAuctionHouse;
         FixedDiscountCollateralAuctionHouse fixedDiscountCollateralAuctionHouse;
@@ -194,7 +194,7 @@ contract GlobalSettlementTest is DSTest {
     }
 
     function init_collateral(string memory name, bytes32 encodedName) internal returns (CollateralType memory) {
-        DSToken newCollateral = new DSToken(name, name);
+        DSDelegateToken newCollateral = new DSDelegateToken(name, name);
         newCollateral.mint(20 ether);
 
         DummyFSM oracleFSM = new DummyFSM();
@@ -253,8 +253,8 @@ contract GlobalSettlementTest is DSTest {
         hevm.warp(604411200);
 
         safeEngine = new SAFEEngine();
-        protocolToken = new DSToken('GOV', 'GOV');
-        systemCoin = new DSToken("Coin", "Coin");
+        protocolToken = new DSDelegateToken('GOV', 'GOV');
+        systemCoin = new DSDelegateToken("Coin", "Coin");
         systemCoinA = new CoinJoin(address(safeEngine), address(systemCoin));
 
         surplusAuctionHouseOne = new BurningSurplusAuctionHouse(address(safeEngine), address(protocolToken));

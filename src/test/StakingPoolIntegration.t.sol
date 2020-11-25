@@ -1,7 +1,7 @@
 pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
-import {DSToken} from "ds-token/token.sol";
+import {DSDelegateToken} from "ds-token/delegate.sol";
 import {TestSAFEEngine as SAFEEngine} from './SAFEEngine.t.sol';
 import {DebtAuctionHouse as DAH} from './DebtAuctionHouse.t.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
@@ -11,10 +11,10 @@ abstract contract Hevm {
 }
 
 contract ValidSystemStakingPool {
-    DSToken token;
+    DSDelegateToken token;
 
     constructor(address token_) public {
-        token = DSToken(token_);
+        token = DSDelegateToken(token_);
     }
 
     function transferProtocolTokens(address receiver, uint256 amount) public {
@@ -26,12 +26,12 @@ contract ValidSystemStakingPool {
 }
 
 contract RevertableSystemStakingPool {
-    DSToken token;
+    DSDelegateToken token;
 
     bool reverts;
 
     constructor(address token_) public {
-        token = DSToken(token_);
+        token = DSDelegateToken(token_);
     }
 
     function switchRevertMode() public {
@@ -48,10 +48,10 @@ contract RevertableSystemStakingPool {
 }
 
 contract MissingImplementationSystemStakingPool {
-    DSToken token;
+    DSDelegateToken token;
 
     constructor(address token_) public {
-        token = DSToken(token_);
+        token = DSDelegateToken(token_);
     }
 
     function transferProtocolTokens(address receiver, uint256 amount) public {
@@ -84,7 +84,7 @@ contract StakingPoolIntegrationTest is DSTest {
     SAFEEngine safeEngine;
     AccountingEngine accountingEngine;
     DAH debtAuctionHouse;
-    DSToken protocolToken;
+    DSDelegateToken protocolToken;
     ProtocolTokenAuthority tokenAuthority;
 
     function setUp() public {
@@ -93,7 +93,7 @@ contract StakingPoolIntegrationTest is DSTest {
 
         safeEngine = new SAFEEngine();
 
-        protocolToken  = new DSToken("", "");
+        protocolToken  = new DSDelegateToken("", "");
         debtAuctionHouse = new DAH(address(safeEngine), address(protocolToken));
 
         accountingEngine = new AccountingEngine(

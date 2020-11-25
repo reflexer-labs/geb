@@ -1,7 +1,7 @@
 pragma solidity 0.6.7;
 
 import {DSTest}  from "ds-test/test.sol";
-import {DSToken} from "ds-token/token.sol";
+import {DSDelegateToken} from "ds-token/delegate.sol";
 import "../DebtAuctionHouse.sol";
 import "../SAFEEngine.sol";
 
@@ -14,7 +14,7 @@ contract Guy {
     constructor(DebtAuctionHouse debtAuctionHouse_) public {
         debtAuctionHouse = debtAuctionHouse_;
         SAFEEngine(address(debtAuctionHouse.safeEngine())).approveSAFEModification(address(debtAuctionHouse));
-        DSToken(address(debtAuctionHouse.protocolToken())).approve(address(debtAuctionHouse));
+        DSDelegateToken(address(debtAuctionHouse.protocolToken())).approve(address(debtAuctionHouse));
     }
     function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) public {
         debtAuctionHouse.decreaseSoldAmount(id, amountToBuy, bid);
@@ -61,7 +61,7 @@ contract Gal {
     }
 }
 
-contract SAFEEnginish is DSToken('', '') {
+contract SAFEEnginish is DSDelegateToken('', '') {
     uint constant ONE = 10 ** 27;
     function transferInternalCoins(address src, address dst, uint rad) public {
         super.transferFrom(src, dst, rad);
@@ -79,7 +79,7 @@ contract DebtAuctionHouseTest is DSTest {
 
     DebtAuctionHouse debtAuctionHouse;
     SAFEEngine safeEngine;
-    DSToken protocolToken;
+    DSDelegateToken protocolToken;
 
     address ali;
     address bob;
@@ -92,7 +92,7 @@ contract DebtAuctionHouseTest is DSTest {
         hevm.warp(604411200);
 
         safeEngine = new SAFEEngine();
-        protocolToken = new DSToken('', '');
+        protocolToken = new DSDelegateToken('', '');
 
         debtAuctionHouse = new DebtAuctionHouse(address(safeEngine), address(protocolToken));
 

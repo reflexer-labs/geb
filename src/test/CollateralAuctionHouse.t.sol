@@ -1,7 +1,7 @@
 pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
-import {DSToken} from "ds-token/token.sol";
+import {DSDelegateToken} from "ds-token/delegate.sol";
 
 import {SAFEEngine} from "../SAFEEngine.sol";
 import {EnglishCollateralAuctionHouse, FixedDiscountCollateralAuctionHouse} from "../CollateralAuctionHouse.sol";

@@ -1,7 +1,7 @@
 pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
-import {DSToken} from "ds-token/token.sol";
+import {DSDelegateToken} from "ds-token/delegate.sol";
 import {BurningSurplusAuctionHouse, RecyclingSurplusAuctionHouse, PostSettlementSurplusAuctionHouse} from "../SurplusAuctionHouse.sol";
 import "../SAFEEngine.sol";
 import {CoinJoin} from '../BasicTokenAdapters.sol';
@@ -16,7 +16,7 @@ contract GuyBurningSurplusAuction {
     constructor(BurningSurplusAuctionHouse surplusAuctionHouse_) public {
         surplusAuctionHouse = surplusAuctionHouse_;
         SAFEEngine(address(surplusAuctionHouse.safeEngine())).approveSAFEModification(address(surplusAuctionHouse));
-        DSToken(address(surplusAuctionHouse.protocolToken())).approve(address(surplusAuctionHouse));
+        DSDelegateToken(address(surplusAuctionHouse.protocolToken())).approve(address(surplusAuctionHouse));
     }
     function increaseBidSize(uint id, uint amountToBuy, uint bid) public {
         surplusAuctionHouse.increaseBidSize(id, amountToBuy, bid);
@@ -49,7 +49,7 @@ contract GuyRecyclingSurplusAuction {
     constructor(RecyclingSurplusAuctionHouse surplusAuctionHouse_) public {
         surplusAuctionHouse = surplusAuctionHouse_;
         SAFEEngine(address(surplusAuctionHouse.safeEngine())).approveSAFEModification(address(surplusAuctionHouse));
-        DSToken(address(surplusAuctionHouse.protocolToken())).approve(address(surplusAuctionHouse));
+        DSDelegateToken(address(surplusAuctionHouse.protocolToken())).approve(address(surplusAuctionHouse));
     }
     function increaseBidSize(uint id, uint amountToBuy, uint bid) public {
         surplusAuctionHouse.increaseBidSize(id, amountToBuy, bid);
@@ -82,7 +82,7 @@ contract GuyPostSurplusAuction {
     constructor(PostSettlementSurplusAuctionHouse surplusAuctionHouse_) public {
         surplusAuctionHouse = surplusAuctionHouse_;
         SAFEEngine(address(surplusAuctionHouse.safeEngine())).approveSAFEModification(address(surplusAuctionHouse));
-        DSToken(address(surplusAuctionHouse.protocolToken())).approve(address(surplusAuctionHouse));
+        DSDelegateToken(address(surplusAuctionHouse.protocolToken())).approve(address(surplusAuctionHouse));
     }
     function increaseBidSize(uint id, uint amountToBuy, uint bid) public {
         surplusAuctionHouse.increaseBidSize(id, amountToBuy, bid);
@@ -123,7 +123,7 @@ contract BurningSurplusAuctionHouseTest is DSTest {
 
     BurningSurplusAuctionHouse surplusAuctionHouse;
     SAFEEngine safeEngine;
-    DSToken protocolToken;
+    DSDelegateToken protocolToken;
 
     address ali;
     address bob;
@@ -133,7 +133,7 @@ contract BurningSurplusAuctionHouseTest is DSTest {
         hevm.warp(604411200);
 
         safeEngine = new SAFEEngine();
-        protocolToken = new DSToken('', '');
+        protocolToken = new DSDelegateToken('', '');
 
         surplusAuctionHouse = new BurningSurplusAuctionHouse(address(safeEngine), address(protocolToken));
 
@@ -238,7 +238,7 @@ contract RecyclingSurplusAuctionHouseTest is DSTest {
 
     RecyclingSurplusAuctionHouse surplusAuctionHouse;
     SAFEEngine safeEngine;
-    DSToken protocolToken;
+    DSDelegateToken protocolToken;
 
     address ali;
     address bob;
@@ -248,7 +248,7 @@ contract RecyclingSurplusAuctionHouseTest is DSTest {
         hevm.warp(604411200);
 
         safeEngine = new SAFEEngine();
-        protocolToken = new DSToken('', '');
+        protocolToken = new DSDelegateToken('', '');
 
         surplusAuctionHouse = new RecyclingSurplusAuctionHouse(address(safeEngine), address(protocolToken));
 
@@ -365,7 +365,7 @@ contract PostSettlementSurplusAuctionHouseTest is DSTest {
 
     PostSettlementSurplusAuctionHouse surplusAuctionHouse;
     SAFEEngine safeEngine;
-    DSToken protocolToken;
+    DSDelegateToken protocolToken;
 
     address ali;
     address bob;
@@ -375,7 +375,7 @@ contract PostSettlementSurplusAuctionHouseTest is DSTest {
         hevm.warp(604411200);
 
         safeEngine = new SAFEEngine();
-        protocolToken = new DSToken('', '');
+        protocolToken = new DSDelegateToken('', '');
 
         surplusAuctionHouse = new PostSettlementSurplusAuctionHouse(address(safeEngine), address(protocolToken));
 

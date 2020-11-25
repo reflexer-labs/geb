@@ -18,7 +18,7 @@
 pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
-import "ds-token/token.sol";
+import "ds-token/delegate.sol";
 
 import {Coin} from "../Coin.sol";
 import {SAFEEngine} from '../SAFEEngine.sol';
@@ -111,7 +111,7 @@ contract CoinTest is DSTest {
     OracleRelayer oracleRelayer;
 
     BasicCollateralJoin collateralA;
-    DSToken gold;
+    DSDelegateToken gold;
     Feed    goldFeed;
 
     Coin    token;
@@ -151,7 +151,7 @@ contract CoinTest is DSTest {
         oracleRelayer = new OracleRelayer(address(safeEngine));
         safeEngine.addAuthorization(address(oracleRelayer));
 
-        gold = new DSToken("GEM", "GEM");
+        gold = new DSDelegateToken("GEM", "GEM");
         gold.mint(1000 ether);
         safeEngine.initializeCollateralType("gold");
         goldFeed = new Feed(1 ether, true);
