@@ -94,7 +94,6 @@ contract AccountingEngine {
     address                    public postSettlementSurplusDrain;
     // Address that receives extra surplus transfers
     address                    public extraSurplusReceiver;
-    //
 
     /**
       Debt blocks that need to be covered by auctions. There is a delay to pop debt from
