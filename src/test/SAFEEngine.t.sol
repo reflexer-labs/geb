@@ -1179,6 +1179,105 @@ contract LiquidationTest is DSTest {
         assertEq(safeEngine.coinBalance(address(this)), 0);
         assertEq(safeEngine.coinBalance(address(accountingEngine)), rad(150 ether));
     }
+
+    function testFail_liquidation_quantity_small_leaves_dust() public {
+        safeEngine.modifyParameters("gold", 'debtFloor', rad(150 ether));
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2.5 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2.5 ether));
+
+        safeEngine.modifySAFECollateralization("gold", me, me, me, 100 ether, 150 ether);
+
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(1 ether));
+
+        liquidationEngine.modifyParameters("onAuctionSystemCoinLimit", rad(150 ether));
+        liquidationEngine.modifyParameters("gold", "liquidationQuantity", rad(1 ether));
+
+        assertEq(liquidationEngine.onAuctionSystemCoinLimit(), rad(150 ether));
+        assertEq(liquidationEngine.currentOnAuctionSystemCoins(), 0);
+
+        assertEq(liquidationEngine.getLimitAdjustedDebtToCover("gold", address(this)), 1 ether);
+
+        liquidationEngine.liquidateSAFE("gold", address(this));
+    }
+
+    function testFail_liquidation_remaining_on_auction_limit_results_in_dust() public {
+        safeEngine.modifyParameters("gold", 'debtFloor', rad(150 ether));
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2.5 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2.5 ether));
+
+        safeEngine.modifySAFECollateralization("gold", me, me, me, 100 ether, 150 ether);
+
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(1 ether));
+
+        liquidationEngine.modifyParameters("onAuctionSystemCoinLimit", rad(149 ether));
+        liquidationEngine.modifyParameters("gold", "liquidationQuantity", rad(150 ether));
+
+        assertEq(liquidationEngine.onAuctionSystemCoinLimit(), rad(149 ether));
+        assertEq(liquidationEngine.currentOnAuctionSystemCoins(), 0);
+
+        assertEq(liquidationEngine.getLimitAdjustedDebtToCover("gold", address(this)), 149 ether);
+
+        liquidationEngine.liquidateSAFE("gold", address(this));
+    }
+
+    function test_liquidation_remaining_on_auction_limit_right_above_safe_debt() public {
+        safeEngine.modifyParameters("gold", 'debtFloor', rad(149 ether));
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2.5 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2.5 ether));
+
+        safeEngine.modifySAFECollateralization("gold", me, me, me, 100 ether, 150 ether);
+
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(1 ether));
+
+        liquidationEngine.modifyParameters("onAuctionSystemCoinLimit", rad(150 ether));
+        liquidationEngine.modifyParameters("gold", "liquidationQuantity", rad(1 ether));
+
+        assertEq(liquidationEngine.onAuctionSystemCoinLimit(), rad(150 ether));
+        assertEq(liquidationEngine.currentOnAuctionSystemCoins(), 0);
+
+        assertEq(liquidationEngine.getLimitAdjustedDebtToCover("gold", address(this)), 1 ether);
+
+        liquidationEngine.liquidateSAFE("gold", address(this));
+
+        (uint lockedCollateral, uint generatedDebt) = safeEngine.safes("gold", address(this));
+        assertEq(lockedCollateral, 99333333333333333334);
+        assertEq(generatedDebt, 149 ether);
+    }
+
+    function test_double_liquidate_safe() public {
+        safeEngine.modifyParameters("gold", 'debtFloor', rad(149 ether));
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(2.5 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(2.5 ether));
+
+        safeEngine.modifySAFECollateralization("gold", me, me, me, 100 ether, 150 ether);
+
+        safeEngine.modifyParameters("gold", 'safetyPrice', ray(1 ether));
+        safeEngine.modifyParameters("gold", 'liquidationPrice', ray(1 ether));
+
+        liquidationEngine.modifyParameters("onAuctionSystemCoinLimit", rad(150 ether));
+        liquidationEngine.modifyParameters("gold", "liquidationQuantity", rad(1 ether));
+
+        assertEq(liquidationEngine.onAuctionSystemCoinLimit(), rad(150 ether));
+        assertEq(liquidationEngine.currentOnAuctionSystemCoins(), 0);
+
+        assertEq(liquidationEngine.getLimitAdjustedDebtToCover("gold", address(this)), 1 ether);
+
+        liquidationEngine.liquidateSAFE("gold", address(this));
+
+        liquidationEngine.modifyParameters("onAuctionSystemCoinLimit", uint(-1));
+        liquidationEngine.modifyParameters("gold", "liquidationQuantity", rad(1000 ether));
+
+        assertEq(liquidationEngine.getLimitAdjustedDebtToCover("gold", address(this)), 149 ether);
+
+        liquidationEngine.liquidateSAFE("gold", address(this));
+
+        (uint lockedCollateral, uint generatedDebt) = safeEngine.safes("gold", address(this));
+        assertEq(lockedCollateral, 0);
+        assertEq(generatedDebt, 0);
+    }
 }
 
 contract AccumulateRatesTest is DSTest {

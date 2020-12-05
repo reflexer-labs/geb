@@ -201,6 +201,9 @@ contract LiquidationEngine {
     function both(bool x, bool y) internal pure returns (bool z) {
         assembly{ z := and(x, y)}
     }
+    function either(bool x, bool y) internal pure returns (bool z) {
+        assembly{ z := or(x, y)}
+    }
 
     // --- Administration ---
     /*
@@ -349,17 +352,22 @@ contract LiquidationEngine {
             safeDebt,
             multiply(minimum(collateralData.liquidationQuantity, subtract(onAuctionSystemCoinLimit, currentOnAuctionSystemCoins)), WAD) / accumulatedRate / collateralData.liquidationPenalty
           );
+          require(limitAdjustedDebt > 0, "LiquidationEngine/null-auction");
+          require(either(limitAdjustedDebt == safeDebt, multiply(subtract(safeDebt, limitAdjustedDebt), accumulatedRate) >= debtFloor), "LiquidationEngine/dusty-safe");
+
           uint256 collateralToSell = minimum(safeCollateral, multiply(safeCollateral, limitAdjustedDebt) / safeDebt);
 
-          require(both(limitAdjustedDebt > 0, collateralToSell > 0), "LiquidationEngine/null-auction");
+          require(collateralToSell > 0, "LiquidationEngine/null-collateral-to-sell");
           require(both(collateralToSell <= 2**255, limitAdjustedDebt <= 2**255), "LiquidationEngine/collateral-or-debt-overflow");
-          // This can leave the SAFE with generatedDebt < debtFloor
+
           safeEngine.confiscateSAFECollateralAndDebt(
             collateralType, safe, address(this), address(accountingEngine), -int256(collateralToSell), -int256(limitAdjustedDebt)
           );
           accountingEngine.pushDebtToQueue(multiply(limitAdjustedDebt, accumulatedRate));
 
           {
+            // This calcuation will overflow if multiply(limitAdjustedDebt, accumulatedRate) exceeds ~10^14,
+            // i.e. the maximum amountToRaise is roughly 100 trillion system coins.
             uint256 amountToRaise_      = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
             currentOnAuctionSystemCoins = addition(currentOnAuctionSystemCoins, amountToRaise_);
 
@@ -386,5 +394,22 @@ contract LiquidationEngine {
     function removeCoinsFromAuction(uint256 rad) public isAuthorized {
         currentOnAuctionSystemCoins = subtract(currentOnAuctionSystemCoins, rad);
         emit UpdateCurrentOnAuctionSystemCoins(currentOnAuctionSystemCoins);
+    }
+
+    // --- Getters ---
+    /*
+    * @notice Get the amount of debt that can currently be covered by a collateral auction for a specific safe
+    * @param collateralType The collateral type of the SAFE
+    * @param safe The SAFE's address
+    */
+    function getLimitAdjustedDebtToCover(bytes32 collateralType, address safe) external view returns (uint256) {
+        (, uint256 accumulatedRate,,,,)            = safeEngine.collateralTypes(collateralType);
+        (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(collateralType, safe);
+        CollateralType memory collateralData       = collateralTypes[collateralType];
+
+        return minimum(
+          safeDebt,
+          multiply(minimum(collateralData.liquidationQuantity, subtract(onAuctionSystemCoinLimit, currentOnAuctionSystemCoins)), WAD) / accumulatedRate / collateralData.liquidationPenalty
+        );
     }
 }
