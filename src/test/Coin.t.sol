@@ -219,7 +219,10 @@ contract CoinTest is DSTest {
         assertEq(token.balanceOf(self), initialBalanceThis);
     }
     function testTransferCost() public logs_gas {
-        token.transfer(address(0), 10);
+        token.transfer(address(1), 10);
+    }
+    function testFailTransferToZero() public logs_gas {
+        token.transfer(address(0), 1);
     }
     function testAllowanceStartsAtZero() public logs_gas {
         assertEq(token.allowance(user1, user2), 0);
@@ -253,6 +256,10 @@ contract CoinTest is DSTest {
         token.approve(user2, amountApproved);
         assertTrue(TokenUser(user2).doTransferFrom(self, user2, amountApproved));
         assertEq(token.balanceOf(self), initialBalanceThis - amountApproved);
+    }
+
+    function testFailMintToZero() public logs_gas {
+        token.mint(address(0), 1);
     }
 
     function testFailTransferWithoutApproval() public logs_gas {

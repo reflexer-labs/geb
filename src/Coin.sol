@@ -123,6 +123,7 @@ contract Coin {
     function transferFrom(address src, address dst, uint256 amount)
         public returns (bool)
     {
+        require(dst != address(0), "Coin/null-dst");
         require(balanceOf[src] >= amount, "Coin/insufficient-balance");
         if (src != msg.sender && allowance[src][msg.sender] != uint256(-1)) {
             require(allowance[src][msg.sender] >= amount, "Coin/insufficient-allowance");
@@ -134,6 +135,7 @@ contract Coin {
         return true;
     }
     function mint(address usr, uint256 amount) external isAuthorized {
+        require(usr != address(0), "Coin/null-usr");
         balanceOf[usr] = addition(balanceOf[usr], amount);
         totalSupply    = addition(totalSupply, amount);
         emit Transfer(address(0), usr, amount);
