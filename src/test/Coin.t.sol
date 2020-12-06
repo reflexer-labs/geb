@@ -258,13 +258,13 @@ contract CoinTest is DSTest {
         assertEq(token.balanceOf(self), initialBalanceThis - amountApproved);
     }
 
-    function testFailMintToZero() public logs_gas {
-        token.mint(address(0), 1);
-    }
-
     function testFailTransferWithoutApproval() public logs_gas {
         token.transfer(user1, 50);
         token.transferFrom(user1, self, 1);
+    }
+
+    function testFailTransferToContractItself() public logs_gas {
+        token.transfer(address(token), 1);
     }
 
     function testFailChargeMoreThanApproved() public logs_gas {
