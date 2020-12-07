@@ -165,7 +165,7 @@ contract AccountingEngine {
         surplusAuctionHouse = SurplusAuctionHouseLike(surplusAuctionHouse_);
         debtAuctionHouse = DebtAuctionHouseLike(debtAuctionHouse_);
         safeEngine.approveSAFEModification(surplusAuctionHouse_);
-        lastSurplusAuctionTime = now;
+        lastSurplusAuctionTime  = now;
         lastSurplusTransferTime = now;
         contractEnabled = 1;
         emit AddAuthorization(msg.sender);
@@ -198,6 +198,14 @@ contract AccountingEngine {
         else if (parameter == "debtAuctionBidSize") debtAuctionBidSize = data;
         else if (parameter == "initialDebtAuctionMintedTokens") initialDebtAuctionMintedTokens = data;
         else if (parameter == "surplusBuffer") surplusBuffer = data;
+        else if (parameter == "lastSurplusTransferTime") {
+          require(data > now, "AccountingEngine/invalid-lastSurplusTransferTime");
+          lastSurplusTransferTime = data;
+        }
+        else if (parameter == "lastSurplusAuctionTime") {
+          require(data > now, "AccountingEngine/invalid-lastSurplusAuctionTime");
+          lastSurplusAuctionTime = data;
+        }
         else if (parameter == "disableCooldown") disableCooldown = data;
         else revert("AccountingEngine/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
