@@ -119,7 +119,6 @@ contract StabilityFeeTreasury {
         expensesMultiplier        = HUNDRED;
         contractEnabled           = 1;
         systemCoin.approve(address(coinJoin), uint256(-1));
-        safeEngine.approveSAFEModification(address(coinJoin));
         emit AddAuthorization(msg.sender);
     }
 
