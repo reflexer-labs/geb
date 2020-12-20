@@ -192,6 +192,21 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(197 ether));
         assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(5 ether));
     }
+    function testFail_give_more_debt_than_coin() public {
+        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(address(stabilityFeeTreasury)) + 1);
+
+        assertEq(safeEngine.coinBalance(address(usr)), 0);
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(200 ether));
+        stabilityFeeTreasury.giveFunds(address(usr), rad(5 ether));
+    }
+    function testFail_give_more_debt_than_coin_after_join() public {
+        systemCoin.transfer(address(stabilityFeeTreasury), 100 ether);
+        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(address(stabilityFeeTreasury)) + rad(100 ether) + 1);
+
+        assertEq(safeEngine.coinBalance(address(usr)), 0);
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(200 ether));
+        stabilityFeeTreasury.giveFunds(address(usr), rad(5 ether));
+    }
     function testFail_pull_above_setTotalAllowance() public {
         stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), rad(11 ether));
@@ -208,7 +223,7 @@ contract StabilityFeeTreasuryTest is DSTest {
           address(stabilityFeeTreasury), address(0), address(stabilityFeeTreasury.systemCoin()), rad(1 ether)
         );
     }
-    function testFail_pull_random_tkn() public {
+    function testFail_pull_random_token() public {
         stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
         usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(0x3), rad(1 ether));
     }
@@ -241,6 +256,48 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(safeEngine.coinBalance(address(usr)), rad(0.9 ether));
         assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(199.1 ether));
         assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(0.9 ether));
+    }
+    function testFail_pull_funds_more_debt_than_coin() public {
+        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
+        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(address(stabilityFeeTreasury)) + 1);
+        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 0.9 ether);
+    }
+    function testFail_pull_funds_more_debt_than_coin_post_join() public {
+        systemCoin.transfer(address(stabilityFeeTreasury), 100 ether);
+        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
+        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(address(stabilityFeeTreasury)) + rad(100 ether) + 1);
+        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 0.9 ether);
+    }
+    function test_pull_funds_less_debt_than_coin() public {
+        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
+        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(address(stabilityFeeTreasury)) - rad(1 ether));
+        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 0.9 ether);
+
+        (uint total, ) = stabilityFeeTreasury.getAllowance(address(usr));
+        assertEq(total, rad(9.1 ether));
+        assertEq(stabilityFeeTreasury.pulledPerBlock(address(usr), block.number), rad(0.9 ether));
+        assertEq(systemCoin.balanceOf(address(usr)), 0);
+        assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
+        assertEq(safeEngine.coinBalance(address(usr)), rad(0.9 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(0.1 ether));
+    }
+    function test_less_debt_than_coin_post_join() public {
+        systemCoin.transfer(address(stabilityFeeTreasury), 100 ether);
+        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
+        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(address(stabilityFeeTreasury)) - rad(1 ether));
+        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 0.9 ether);
+
+        (uint total, ) = stabilityFeeTreasury.getAllowance(address(usr));
+        assertEq(total, rad(9.1 ether));
+        assertEq(stabilityFeeTreasury.pulledPerBlock(address(usr), block.number), rad(0.9 ether));
+        assertEq(systemCoin.balanceOf(address(usr)), 0);
+        assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
+        assertEq(safeEngine.coinBalance(address(usr)), rad(0.9 ether));
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(100.1 ether));
     }
     function testFail_pull_funds_above_block_limit() public {
         stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
@@ -287,5 +344,43 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(10 ether));
         assertEq(safeEngine.coinBalance(address(alice)), rad(40 ether));
         assertEq(safeEngine.coinBalance(address(charlie)), rad(150 ether));
+    }
+    function testFail_transferSurplusFunds_more_debt_than_coin() public {
+        address charlie = address(0x12345);
+        stabilityFeeTreasury.modifyParameters("accountingEngine", charlie);
+
+        stabilityFeeTreasury.modifyParameters("treasuryCapacity", rad(30 ether));
+        stabilityFeeTreasury.modifyParameters("minimumFundsRequired", rad(10 ether));
+        stabilityFeeTreasury.modifyParameters("surplusTransferDelay", 10 minutes);
+
+        stabilityFeeTreasury.giveFunds(alice, rad(40 ether));
+        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), rad(161 ether));
+
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(160 ether));
+        assertEq(safeEngine.debtBalance(address(stabilityFeeTreasury)), rad(161 ether));
+
+        hevm.warp(now + 10 minutes);
+        stabilityFeeTreasury.transferSurplusFunds();
+    }
+    function test_transferSurplusFunds_less_debt_than_coin() public {
+        address charlie = address(0x12345);
+        stabilityFeeTreasury.modifyParameters("accountingEngine", charlie);
+
+        stabilityFeeTreasury.modifyParameters("treasuryCapacity", rad(30 ether));
+        stabilityFeeTreasury.modifyParameters("minimumFundsRequired", rad(10 ether));
+        stabilityFeeTreasury.modifyParameters("surplusTransferDelay", 10 minutes);
+
+        stabilityFeeTreasury.giveFunds(alice, rad(40 ether));
+        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), rad(50 ether));
+
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(160 ether));
+        assertEq(safeEngine.debtBalance(address(stabilityFeeTreasury)), rad(50 ether));
+
+        hevm.warp(now + 10 minutes);
+        stabilityFeeTreasury.transferSurplusFunds();
+
+        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(address(alice)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(address(charlie)), rad(70 ether));
     }
 }
