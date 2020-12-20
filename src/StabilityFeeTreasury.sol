@@ -32,7 +32,6 @@ abstract contract SystemCoinLike {
 abstract contract CoinJoinLike {
     function systemCoin() virtual public view returns (address);
     function join(address, uint256) virtual external;
-    function exit(address, uint256) virtual external;
 }
 
 contract StabilityFeeTreasury {
