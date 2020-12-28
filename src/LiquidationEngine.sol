@@ -160,7 +160,7 @@ contract LiquidationEngine {
     event SaveSAFE(
       bytes32 indexed collateralType,
       address indexed safe,
-      uint256 collateralAdded
+      uint256 collateralAddedOrDebtRepaid
     );
     event FailedSAFESave(bytes failReason);
     event ProtectSAFE(
@@ -327,9 +327,9 @@ contract LiquidationEngine {
         if (chosenSAFESaviour[collateralType][safe] != address(0) &&
             safeSaviours[chosenSAFESaviour[collateralType][safe]] == 1) {
           try SAFESaviourLike(chosenSAFESaviour[collateralType][safe]).saveSAFE(msg.sender, collateralType, safe)
-            returns (bool ok, uint256 collateralAdded, uint256) {
-            if (both(ok, collateralAdded > 0)) {
-              emit SaveSAFE(collateralType, safe, collateralAdded);
+            returns (bool ok, uint256 collateralAddedOrDebtRepaid, uint256) {
+            if (both(ok, collateralAddedOrDebtRepaid > 0)) {
+              emit SaveSAFE(collateralType, safe, collateralAddedOrDebtRepaid);
             }
           } catch (bytes memory revertReason) {
             emit FailedSAFESave(revertReason);
