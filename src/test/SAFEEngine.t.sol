@@ -9,7 +9,6 @@ import {LiquidationEngine} from '../LiquidationEngine.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
 import {TaxCollector} from '../TaxCollector.sol';
 import '../BasicTokenAdapters.sol';
-import {OracleRelayer} from '../OracleRelayer.sol';
 
 import {EnglishCollateralAuctionHouse} from './CollateralAuctionHouse.t.sol';
 import {DebtAuctionHouse} from './DebtAuctionHouse.t.sol';

@@ -122,7 +122,7 @@ contract AccountingEngine {
     // Amount of debt sold in one debt auction (initial coin bid for initialDebtAuctionMintedTokens protocol tokens)
     uint256 public debtAuctionBidSize;                      // [rad]
 
-    // How the system disposes off surplus
+    // Whether the system transfers surplus instead of auctioning it
     uint256 public extraSurplusIsTransferred;
     // Amount of surplus stability fees sold in one surplus auction
     uint256 public surplusAuctionAmountToSell;              // [rad]
@@ -237,8 +237,6 @@ contract AccountingEngine {
     function unqueuedUnauctionedDebt() public view returns (uint256) {
         return subtract(subtract(safeEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt);
     }
-
-    // --- Internal ---
     function canPrintProtocolTokens() public view returns (bool) {
         if (address(systemStakingPool) == address(0)) return true;
         try systemStakingPool.canPrintProtocolTokens() returns (bool ok) {
