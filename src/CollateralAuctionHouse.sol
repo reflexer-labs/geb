@@ -25,6 +25,7 @@ abstract contract OracleRelayerLike {
     function redemptionPrice() virtual public returns (uint256);
 }
 abstract contract OracleLike {
+    function priceSource() virtual public view returns (address);
     function getResultWithValidity() virtual public view returns (uint256, bool);
 }
 abstract contract LiquidationEngineLike {
@@ -429,7 +430,6 @@ contract FixedDiscountCollateralAuctionHouse {
 
     OracleRelayerLike     public oracleRelayer;
     OracleLike            public collateralFSM;
-    OracleLike            public collateralMedian;
     OracleLike            public systemCoinOracle;
     LiquidationEngineLike public liquidationEngine;
 
@@ -548,8 +548,11 @@ contract FixedDiscountCollateralAuctionHouse {
      */
     function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
-        else if (parameter == "collateralFSM") collateralFSM = OracleLike(data);
-        else if (parameter == "collateralMedian") collateralMedian = OracleLike(data);
+        else if (parameter == "collateralFSM") {
+          collateralFSM = OracleLike(data);
+          // Check that priceSource() is implemented
+          collateralFSM.priceSource();
+        }
         else if (parameter == "systemCoinOracle") systemCoinOracle = OracleLike(data);
         else if (parameter == "liquidationEngine") liquidationEngine = LiquidationEngineLike(data);
         else revert("FixedDiscountCollateralAuctionHouse/modify-unrecognized-param");
@@ -558,10 +561,16 @@ contract FixedDiscountCollateralAuctionHouse {
 
     // --- Auction Utils ---
     function getCollateralMedianPrice() public view returns (uint256 priceFeed) {
-        if (address(collateralMedian) == address(0)) return 0;
+        // Fetch the collateral median address from the collateral FSM
+        address collateralMedian;
+        try collateralFSM.priceSource() returns (address median) {
+          collateralMedian = median;
+        } catch (bytes memory revertReason) {}
+
+        if (collateralMedian == address(0)) return 0;
 
         // wrapped call toward the collateral median
-        try collateralMedian.getResultWithValidity()
+        try OracleLike(collateralMedian).getResultWithValidity()
           returns (uint256 price, bool valid) {
           if (valid) {
             priceFeed = uint256(price);

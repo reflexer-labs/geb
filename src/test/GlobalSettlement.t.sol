@@ -46,6 +46,7 @@ contract DSThing is DSAuth, DSNote, DSMath {
 }
 
 contract DummyFSM is DSThing {
+    address public priceSource;
     bool validPrice;
     uint price;
     function getResultWithValidity() public view returns (uint256, bool) {
@@ -107,6 +108,7 @@ contract Usr {
 }
 
 contract Feed {
+    address public priceSource;
     bool    validPrice;
     bytes32 price;
     constructor(bytes32 initPrice, bool initValid) public {

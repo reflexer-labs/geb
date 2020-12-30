@@ -74,7 +74,7 @@ contract StabilityFeeTreasury {
     event GiveFunds(address indexed account, uint256 rad, uint256 expensesAccumulator);
     event TakeFunds(address indexed account, uint256 rad);
     event PullFunds(address indexed sender, address indexed dstAccount, address token, uint256 rad, uint256 expensesAccumulator);
-    event TransferSurplusFunds(address accountingEngine, uint256 fundsToTransfer);
+    event TransferSurplusFunds(address extraSurplusReceiver, uint256 fundsToTransfer);
 
     // --- Structs ---
     struct Allowance {
@@ -89,7 +89,7 @@ contract StabilityFeeTreasury {
     SystemCoinLike  public systemCoin;
     CoinJoinLike    public coinJoin;
 
-    address public accountingEngine;
+    address public extraSurplusReceiver;
 
     uint256 public treasuryCapacity;           // max amount of SF that can be kept in treasury                        [rad]
     uint256 public minimumFundsRequired;       // minimum amount of SF that must be kept in the treasury at all times  [rad]
@@ -107,13 +107,14 @@ contract StabilityFeeTreasury {
 
     constructor(
         address safeEngine_,
-        address accountingEngine_,
+        address extraSurplusReceiver_,
         address coinJoin_
     ) public {
         require(address(CoinJoinLike(coinJoin_).systemCoin()) != address(0), "StabilityFeeTreasury/null-system-coin");
+        require(extraSurplusReceiver_ != address(0), "StabilityFeeTreasury/null-surplus-receiver");
         authorizedAccounts[msg.sender] = 1;
         safeEngine                = SAFEEngineLike(safeEngine_);
-        accountingEngine          = accountingEngine_;
+        extraSurplusReceiver      = extraSurplusReceiver_;
         coinJoin                  = CoinJoinLike(coinJoin_);
         systemCoin                = SystemCoinLike(coinJoin.systemCoin());
         latestSurplusTransferTime = now;
@@ -165,9 +166,9 @@ contract StabilityFeeTreasury {
     function modifyParameters(bytes32 parameter, address addr) external isAuthorized {
         require(contractEnabled == 1, "StabilityFeeTreasury/contract-not-enabled");
         require(addr != address(0), "StabilityFeeTreasury/null-addr");
-        if (parameter == "accountingEngine") {
+        if (parameter == "extraSurplusReceiver") {
           require(addr != address(this), "StabilityFeeTreasury/accounting-engine-cannot-be-treasury");
-          accountingEngine = addr;
+          extraSurplusReceiver = addr;
         }
         else revert("StabilityFeeTreasury/modify-unrecognized-param");
         emit ModifyParameters(parameter, addr);
@@ -199,7 +200,7 @@ contract StabilityFeeTreasury {
         require(contractEnabled == 1, "StabilityFeeTreasury/already-disabled");
         contractEnabled = 0;
         joinAllCoins();
-        safeEngine.transferInternalCoins(address(this), accountingEngine, safeEngine.coinBalance(address(this)));
+        safeEngine.transferInternalCoins(address(this), extraSurplusReceiver, safeEngine.coinBalance(address(this)));
         emit DisableContract();
     }
 
@@ -269,7 +270,7 @@ contract StabilityFeeTreasury {
         require(safeEngine.debtBalance(address(this)) == 0, "StabilityFeeTreasury/outstanding-bad-debt");
         require(safeEngine.coinBalance(address(this)) >= rad, "StabilityFeeTreasury/not-enough-funds");
 
-        if (account != accountingEngine) {
+        if (account != extraSurplusReceiver) {
           expensesAccumulator = addition(expensesAccumulator, rad);
         }
 
@@ -299,7 +300,7 @@ contract StabilityFeeTreasury {
         if (dstAccount == address(this)) return;
 	      require(allowance[msg.sender].total >= wad, "StabilityFeeTreasury/not-allowed");
         require(dstAccount != address(0), "StabilityFeeTreasury/null-dst");
-        require(dstAccount != accountingEngine, "StabilityFeeTreasury/dst-cannot-be-accounting");
+        require(dstAccount != extraSurplusReceiver, "StabilityFeeTreasury/dst-cannot-be-accounting");
         require(wad > 0, "StabilityFeeTreasury/null-transfer-amount");
         require(token == address(systemCoin), "StabilityFeeTreasury/token-unavailable");
         if (allowance[msg.sender].perBlock > 0) {
@@ -356,9 +357,9 @@ contract StabilityFeeTreasury {
           // Make sure that we still keep min SF in treasury
           uint256 fundsToTransfer = subtract(safeEngine.coinBalance(address(this)), remainingFunds);
           // Transfer surplus to accounting engine
-          safeEngine.transferInternalCoins(address(this), accountingEngine, fundsToTransfer);
+          safeEngine.transferInternalCoins(address(this), extraSurplusReceiver, fundsToTransfer);
           // Emit event
-          emit TransferSurplusFunds(accountingEngine, fundsToTransfer);
+          emit TransferSurplusFunds(extraSurplusReceiver, fundsToTransfer);
         }
     }
 }
