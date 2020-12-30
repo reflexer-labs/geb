@@ -91,13 +91,14 @@ contract StabilityFeeTreasury {
 
     address public extraSurplusReceiver;
 
-    uint256 public treasuryCapacity;           // max amount of SF that can be kept in treasury                        [rad]
-    uint256 public minimumFundsRequired;       // minimum amount of SF that must be kept in the treasury at all times  [rad]
-    uint256 public expensesMultiplier;         // multiplier for expenses                                              [hundred]
-    uint256 public surplusTransferDelay;       // minimum time between transferSurplusFunds calls                      [seconds]
-    uint256 public expensesAccumulator;        // expenses accumulator                                                 [rad]
-    uint256 public accumulatorTag;             // latest tagged accumulator price                                      [rad]
-    uint256 public latestSurplusTransferTime;  // latest timestamp when transferSurplusFunds was called                [seconds]
+    uint256 public treasuryCapacity;           // max amount of SF that can be kept in treasury                            [rad]
+    uint256 public minimumFundsRequired;       // minimum amount of SF that must be kept in the treasury at all times      [rad]
+    uint256 public expensesMultiplier;         // multiplier for expenses                                                  [hundred]
+    uint256 public surplusTransferDelay;       // minimum time between transferSurplusFunds calls                          [seconds]
+    uint256 public expensesAccumulator;        // expenses accumulator                                                     [rad]
+    uint256 public accumulatorTag;             // latest tagged accumulator price                                          [rad]
+    uint256 public pullFundsMinThreshold;      // minimum funds that must be in the treasury so that someone can pullFunds [rad]
+    uint256 public latestSurplusTransferTime;  // latest timestamp when transferSurplusFunds was called                    [seconds]
     uint256 public contractEnabled;
 
     modifier accountNotTreasury(address account) {
@@ -188,6 +189,9 @@ contract StabilityFeeTreasury {
         else if (parameter == "minimumFundsRequired") {
           require(val <= treasuryCapacity, "StabilityFeeTreasury/min-funds-higher-than-capacity");
           minimumFundsRequired = val;
+        }
+        else if (parameter == "pullFundsMinThreshold") {
+          pullFundsMinThreshold = val;
         }
         else if (parameter == "surplusTransferDelay") surplusTransferDelay = val;
         else revert("StabilityFeeTreasury/modify-unrecognized-param");
@@ -314,6 +318,7 @@ contract StabilityFeeTreasury {
 
         require(safeEngine.debtBalance(address(this)) == 0, "StabilityFeeTreasury/outstanding-bad-debt");
         require(safeEngine.coinBalance(address(this)) >= multiply(wad, RAY), "StabilityFeeTreasury/not-enough-funds");
+        require(safeEngine.coinBalance(address(this)) >= pullFundsMinThreshold, "StabilityFeeTreasury/below-pullFunds-min-threshold");
 
         // Update allowance and accumulator
         allowance[msg.sender].total = subtract(allowance[msg.sender].total, multiply(wad, RAY));

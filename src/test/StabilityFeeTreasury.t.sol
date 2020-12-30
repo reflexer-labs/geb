@@ -14,7 +14,7 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// along with this program. If not, see <http://www.gnu.org/licenses/>.
 
 pragma solidity 0.6.7;
 
@@ -256,6 +256,12 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(safeEngine.coinBalance(address(usr)), rad(0.9 ether));
         assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(199.1 ether));
         assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(0.9 ether));
+    }
+    function testFail_pull_funds_when_funds_below_pull_threshold() public {
+        stabilityFeeTreasury.modifyParameters("pullFundsMinThreshold", safeEngine.coinBalance(address(stabilityFeeTreasury)) + 1);
+        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
+        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(stabilityFeeTreasury.systemCoin()), 0.9 ether);
     }
     function testFail_pull_funds_more_debt_than_coin() public {
         stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
