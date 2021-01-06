@@ -95,7 +95,8 @@ contract BurningSurplusAuctionHouse {
     // Whether the contract is settled or not
     uint256  public   contractEnabled;
 
-    bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("SURPLUS");
+    bytes32 public constant AUCTION_HOUSE_TYPE   = bytes32("SURPLUS");
+    bytes32 public constant SURPLUS_AUCTION_TYPE = bytes32("BURNING");
 
     // --- Events ---
     event AddAuthorization(address account);
@@ -301,6 +302,7 @@ contract RecyclingSurplusAuctionHouse {
     uint256  public   contractEnabled;
 
     bytes32 public constant AUCTION_HOUSE_TYPE = bytes32("SURPLUS");
+    bytes32 public constant SURPLUS_AUCTION_TYPE = bytes32("RECYCLING");
 
     // --- Events ---
     event AddAuthorization(address account);
