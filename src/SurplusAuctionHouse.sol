@@ -268,9 +268,9 @@ contract RecyclingSurplusAuctionHouse {
     // --- Data ---
     struct Bid {
         // Bid size (how many protocol tokens are offered per system coins sold)
-        uint256 bidAmount;                                                            // [rad]
+        uint256 bidAmount;                                                            // [wad]
         // How many system coins are sold in an auction
-        uint256 amountToSell;                                                         // [wad]
+        uint256 amountToSell;                                                         // [rad]
         // Who the high bidder is
         address highBidder;
         // When the latest bid expires and the auction can be settled
@@ -367,8 +367,8 @@ contract RecyclingSurplusAuctionHouse {
     // --- Auction ---
     /**
      * @notice Start a new surplus auction
-     * @param amountToSell Total amount of system coins to sell (wad)
-     * @param initialBid Initial protocol token bid (rad)
+     * @param amountToSell Total amount of system coins to sell (rad)
+     * @param initialBid Initial protocol token bid (wad)
      */
     function startAuction(uint256 amountToSell, uint256 initialBid) external isAuthorized returns (uint256 id) {
         require(contractEnabled == 1, "RecyclingSurplusAuctionHouse/contract-not-enabled");
@@ -398,8 +398,8 @@ contract RecyclingSurplusAuctionHouse {
     /**
      * @notice Submit a higher protocol token bid for the same amount of system coins
      * @param id ID of the auction you want to submit the bid for
-     * @param amountToBuy Amount of system coins to buy (wad)
-     * @param bid New bid submitted (rad)
+     * @param amountToBuy Amount of system coins to buy (rad)
+     * @param bid New bid submitted (wad)
      */
     function increaseBidSize(uint256 id, uint256 amountToBuy, uint256 bid) external {
         require(contractEnabled == 1, "RecyclingSurplusAuctionHouse/contract-not-enabled");
