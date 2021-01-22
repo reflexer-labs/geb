@@ -423,7 +423,7 @@ contract FixedDiscountCollateralAuctionHouse {
     uint256  public   upperCollateralMedianDeviation = 0.95E18;   // 5% deviation                                     // [wad]
     // Max lower bound deviation that the system coin oracle price feed can have compared to the systemCoinOracle price
     uint256  public   lowerSystemCoinMedianDeviation = WAD;       // 0% deviation                                     // [wad]
-    // Max upper bound deviation that the collateral median can have compared to the systemCoinOracle price
+    // Max upper bound deviation that the system coin oracle price feed can have compared to the systemCoinOracle price
     uint256  public   upperSystemCoinMedianDeviation = WAD;       // 0% deviation                                     // [wad]
     // Min deviation for the system coin median result compared to the redemption price in order to take the median into account
     uint256  public   minSystemCoinMedianDeviation   = 0.999E18;                                                      // [wad]
