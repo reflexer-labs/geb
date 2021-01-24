@@ -807,7 +807,7 @@ contract FixedDiscountCollateralAuctionHouse {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
 
         uint256 remainingToRaise = subtract(bids[id].amountToRaise, bids[id].raisedAmount);
-        require(both(wad > 0, wad >= minimum(minimumBid, remainingToRaise / RAY)), "FixedDiscountCollateralAuctionHouse/invalid-bid");
+        require(both(wad > 0, wad >= minimumBid), "FixedDiscountCollateralAuctionHouse/invalid-bid");
 
         // bound max amount offered in exchange for collateral (in case someone offers more than is necessary)
         uint256 adjustedBid = wad;
@@ -817,6 +817,11 @@ contract FixedDiscountCollateralAuctionHouse {
 
         // update amount raised
         bids[id].raisedAmount = addUint256(bids[id].raisedAmount, multiply(adjustedBid, RAY));
+
+        // check that there's at least RAY left to raise if raisedAmount < amountToRaise
+        if (bids[id].raisedAmount < bids[id].amountToRaise) {
+            require(subtract(bids[id].amountToRaise, bids[id].raisedAmount) >= RAY, "FixedDiscountCollateralAuctionHouse/invalid-left-to-raise");
+        }
 
         // Read the redemption price
         lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
@@ -985,7 +990,7 @@ contract IncreasingDiscountCollateralAuctionHouse {
     // Minimum discount (compared to the system coin's current redemption price) at which collateral is being sold
     uint256  public   minDiscount = 0.95E18;                      // 5% discount                                      // [wad]
     // Maximum discount (compared to the system coin's current redemption price) at which collateral is being sold
-    uint256  public   maxDiscount = 0.93E18;                      // 7% discount                                      // [wad]
+    uint256  public   maxDiscount = 0.95E18;                      // 5% discount                                      // [wad]
     // Rate at which the discount will be updated in an auction
     uint256  public   perSecondDiscountUpdateRate = RAY;                                                              // [ray]
     // Max time over which the discount can be updated
@@ -1466,18 +1471,13 @@ contract IncreasingDiscountCollateralAuctionHouse {
      */
     function buyCollateral(uint256 id, uint256 wad) external {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "IncreasingDiscountCollateralAuctionHouse/inexistent-auction");
-        require(both(wad > 0, wad >= minimum(minimumBid, bids[id].amountToRaise / RAY)), "IncreasingDiscountCollateralAuctionHouse/invalid-bid");
+        require(both(wad > 0, wad >= minimumBid), "IncreasingDiscountCollateralAuctionHouse/invalid-bid");
 
-        // bound max amount offered in exchange for collateral (in case someone offers more than is necessary)
+        // bound max amount offered in exchange for collateral (in case someone offers more than it's necessary)
         uint256 adjustedBid = wad;
         if (multiply(adjustedBid, RAY) > bids[id].amountToRaise) {
             adjustedBid = addUint256(bids[id].amountToRaise / RAY, 1);
         }
-
-        // update amount to raise and store remaining to raise
-        uint256 remainingToRaise;
-        (remainingToRaise, bids[id].amountToRaise) = (multiply(adjustedBid, RAY) > bids[id].amountToRaise) ?
-          (bids[id].amountToRaise, uint256(0)) : (uint256(0), subtract(bids[id].amountToRaise, multiply(adjustedBid, RAY)));
 
         // Read the redemption price
         lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
@@ -1488,12 +1488,26 @@ contract IncreasingDiscountCollateralAuctionHouse {
 
         // get the amount of collateral bought
         uint256 boughtCollateral = getBoughtCollateral(
-          id, collateralFsmPriceFeedValue, getCollateralMedianPrice(), systemCoinPriceFeedValue, adjustedBid, updateCurrentDiscount(id)
+            id, collateralFsmPriceFeedValue, getCollateralMedianPrice(), systemCoinPriceFeedValue, adjustedBid, updateCurrentDiscount(id)
         );
         // check that the calculated amount is greater than zero
         require(boughtCollateral > 0, "IncreasingDiscountCollateralAuctionHouse/null-bought-amount");
         // update the amount of collateral to sell
         bids[id].amountToSell = subtract(bids[id].amountToSell, boughtCollateral);
+
+        // update remainingToRaise in case amountToSell is zero (everything has been sold)
+        uint256 remainingToRaise = (either(multiply(wad, RAY) >= bids[id].amountToRaise, bids[id].amountToSell == 0)) ?
+            bids[id].amountToRaise : subtract(bids[id].amountToRaise, multiply(wad, RAY));
+
+        // update leftover amount to raise in the bid struct
+        bids[id].amountToRaise = (multiply(adjustedBid, RAY) > bids[id].amountToRaise) ?
+            0 : subtract(bids[id].amountToRaise, multiply(adjustedBid, RAY));
+
+        // check that the remaining amount to raise is either zero or higher than RAY
+        require(
+          either(bids[id].amountToRaise == 0, bids[id].amountToRaise >= RAY),
+          "IncreasingDiscountCollateralAuctionHouse/invalid-left-to-raise"
+        );
 
         // transfer the bid to the income recipient and the collateral to the bidder
         safeEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, multiply(adjustedBid, RAY));
@@ -1505,13 +1519,13 @@ contract IncreasingDiscountCollateralAuctionHouse {
         // Remove coins from the liquidation buffer
         bool soldAll = either(bids[id].amountToRaise == 0, bids[id].amountToSell == 0);
         if (soldAll) {
-          liquidationEngine.removeCoinsFromAuction(remainingToRaise);
+            liquidationEngine.removeCoinsFromAuction(remainingToRaise);
         } else {
-          liquidationEngine.removeCoinsFromAuction(multiply(adjustedBid, RAY));
+            liquidationEngine.removeCoinsFromAuction(multiply(adjustedBid, RAY));
         }
 
         // If the auction raised the whole amount or all collateral was sold,
-        // send remaining collateral back to the forgone receiver
+        // send remaining collateral to the forgone receiver
         if (soldAll) {
             safeEngine.transferCollateral(collateralType, address(this), bids[id].forgoneCollateralReceiver, bids[id].amountToSell);
             delete bids[id];

@@ -208,7 +208,6 @@ contract CoinTest is DSTest {
         assertEq(oracleRelayer.redemptionPrice(), 10 ** 27);
         assertEq(token.balanceOf(self), initialBalanceThis);
         assertEq(token.balanceOf(cal), initialBalanceCal);
-        assertEq(token.changeData(), 1);
         assertEq(token.chainId(), 99);
         assertEq(keccak256(abi.encodePacked(token.version())), keccak256(abi.encodePacked("1")));
         token.mint(self, 0);
@@ -367,21 +366,6 @@ contract CoinTest is DSTest {
         //used for signature generation testing
         assertEq(address(token), address(0xCaF5d8813B29465413587C30004231645FE1f680));
     }
-    function testRenamings() public {
-        token.setName("Prai");
-        assertEq(keccak256(abi.encodePacked(token.name())), keccak256(abi.encodePacked("Prai")));
-
-        token.setSymbol("PRAI");
-        assertEq(keccak256(abi.encodePacked(token.symbol())), keccak256(abi.encodePacked("PRAI")));
-    }
-    function testFailChangeNameAfterGivingUpRights() public {
-        token.modifyParameters("changeData", 0);
-        token.setName("Prai");
-    }
-    function testFailChangeSymbolAfterGivingUpRights() public {
-        token.modifyParameters("changeData", 0);
-        token.setSymbol("PRAI");
-    }
     function testTypehash() public {
         assertEq(token.PERMIT_TYPEHASH(), 0xea2aa0a1be11a07ed86d755c93467f4f82362b452371d1ba94d1715123511acb);
     }
@@ -392,7 +376,6 @@ contract CoinTest is DSTest {
     //TODO: remake with v,r,s for coin now that we changed the DOMAIN SEPARATOR because of the dai->coin renaming
 
     // function testPermit() public {
-    //     token.modifyParameters("changeData", 0);
     //     assertEq(token.nonces(cal), 0);
     //     assertEq(token.allowance(cal, del), 0);
     //     token.permit(cal, del, 0, 0, true, v, r, s);
@@ -401,7 +384,6 @@ contract CoinTest is DSTest {
     // }
 
     function testFailPermitAddress0() public {
-        token.modifyParameters("changeData", 0);
         v = 0;
         token.permit(address(0), del, 0, 0, true, v, r, s);
     }
@@ -409,7 +391,6 @@ contract CoinTest is DSTest {
     //TODO: remake with _v,_r,_s for coin now that we changed the DOMAIN SEPARATOR because of the dai->coin renaming
 
     // function testPermitWithExpiry() public {
-    //     token.modifyParameters("changeData", 0);
     //     assertEq(now, 604411200);
     //     token.permit(cal, del, 0, 604411200 + 1 hours, true, _v, _r, _s);
     //     assertEq(token.allowance(cal, del),uint(-1));
@@ -417,13 +398,11 @@ contract CoinTest is DSTest {
     // }
 
     function testFailPermitWithExpiry() public {
-        token.modifyParameters("changeData", 0);
         hevm.warp(now + 2 hours);
         assertEq(now, 604411200 + 2 hours);
         token.permit(cal, del, 0, 1, true, _v, _r, _s);
     }
     function testFailReplay() public {
-        token.modifyParameters("changeData", 0);
         token.permit(cal, del, 0, 0, true, v, r, s);
         token.permit(cal, del, 0, 0, true, v, r, s);
     }
