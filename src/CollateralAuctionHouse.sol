@@ -560,6 +560,14 @@ contract FixedDiscountCollateralAuctionHouse {
     }
 
     // --- Private Auction Utils ---
+    /*
+    * @notify Get the amount of bought collateral from a specific auction using custom collateral price feeds and a system coin price feed
+    * @param id The ID of the auction to bid in and get collateral from
+    * @param collateralFsmPriceFeedValue The collateral price fetched from the FSM
+    * @param collateralMedianPriceFeedValue The collateral price fetched from the oracle median
+    * @param systemCoinPriceFeedValue The system coin market price fetched from the oracle
+    * @param adjustedBid The system coin bid
+    */
     function getBoughtCollateral(
         uint256 id,
         uint256 collateralFsmPriceFeedValue,
@@ -585,6 +593,10 @@ contract FixedDiscountCollateralAuctionHouse {
     }
 
     // --- Public Auction Utils ---
+    /*
+    * @notice Fetch the collateral median price (from the oracle, not FSM)
+    * @returns The collateral price from the oracle median; zero if the address of the collateralMedian (as fetched from the FSM) is null
+    */
     function getCollateralMedianPrice() public view returns (uint256 priceFeed) {
         // Fetch the collateral median address from the collateral FSM
         address collateralMedian;
@@ -604,6 +616,10 @@ contract FixedDiscountCollateralAuctionHouse {
           return 0;
         }
     }
+    /*
+    * @notice Fetch the system coin market price
+    * @returns The system coin market price fetch from the oracle
+    */
     function getSystemCoinMarketPrice() public view returns (uint256 priceFeed) {
         if (address(systemCoinOracle) == address(0)) return 0;
 
@@ -617,17 +633,30 @@ contract FixedDiscountCollateralAuctionHouse {
           return 0;
         }
     }
+    /*
+    * @notice Get the smallest possible price that's at max minSystemCoinMedianDeviation deviated from the redemption price and at least
+    *         minSystemCoinMedianDeviation deviated
+    */
     function getSystemCoinFloorDeviatedPrice(uint256 redemptionPrice) public view returns (uint256 floorPrice) {
         uint256 minFloorDeviatedPrice = wmultiply(redemptionPrice, minSystemCoinMedianDeviation);
         floorPrice = wmultiply(redemptionPrice, lowerSystemCoinMedianDeviation);
         floorPrice = (floorPrice <= minFloorDeviatedPrice) ? floorPrice : redemptionPrice;
     }
+    /*
+    * @notice Get the highest possible price that's at max upperSystemCoinMedianDeviation deviated from the redemption price and at least
+    *         minSystemCoinMedianDeviation deviated
+    */
     function getSystemCoinCeilingDeviatedPrice(uint256 redemptionPrice) public view returns (uint256 ceilingPrice) {
         uint256 minCeilingDeviatedPrice = wmultiply(redemptionPrice, subtract(2 * WAD, minSystemCoinMedianDeviation));
         ceilingPrice = wmultiply(redemptionPrice, subtract(2 * WAD, upperSystemCoinMedianDeviation));
         ceilingPrice = (ceilingPrice >= minCeilingDeviatedPrice) ? ceilingPrice : redemptionPrice;
     }
-    function getFinalTokenPrices(uint256 systemCoinRedemptionPrice) public view returns (uint256, uint256) {
+    /*
+    * @notice Get the collateral price from the FSM and the final system coin price that will be used when bidding in an auction
+    * @param systemCoinRedemptionPrice The system coin redemption price
+    * @returns The collateral price from the FSM and the final system coin price used for bidding (picking between redemption and market prices)
+    */
+    function getCollateralFSMAndFinalSystemCoinPrices(uint256 systemCoinRedemptionPrice) public view returns (uint256, uint256) {
         require(systemCoinRedemptionPrice > 0, "FixedDiscountCollateralAuctionHouse/invalid-redemption-price-provided");
         (uint256 collateralFsmPriceFeedValue, bool collateralFsmHasValidValue) = collateralFSM.getResultWithValidity();
         if (!collateralFsmHasValidValue) {
@@ -650,6 +679,12 @@ contract FixedDiscountCollateralAuctionHouse {
 
         return (uint256(collateralFsmPriceFeedValue), systemCoinAdjustedPrice);
     }
+    /*
+    * @notice Get the collateral price used in bidding by picking between the raw FSM and the oracle median price and taking into account
+    *         deviation limits
+    * @param collateralFsmPriceFeedValue The collateral price fetched from the FSM
+    * @param collateralMedianPriceFeedValue The collateral price fetched from the median attached to the FSM
+    */
     function getFinalBaseCollateralPrice(
         uint256 collateralFsmPriceFeedValue,
         uint256 collateralMedianPriceFeedValue
@@ -666,6 +701,13 @@ contract FixedDiscountCollateralAuctionHouse {
           return minimum(adjustedMedianPrice, ceilingPrice);
         }
     }
+    /*
+    * @notice Get the discounted collateral price (using a custom discount)
+    * @param collateralFsmPriceFeedValue The collateral price fetched from the FSM
+    * @param collateralMedianPriceFeedValue The collateral price fetched from the oracle median
+    * @param systemCoinPriceFeedValue The system coin price fetched from the oracle
+    * @param customDiscount The custom discount used to calculate the collateral price offered
+    */
     function getDiscountedCollateralPrice(
         uint256 collateralFsmPriceFeedValue,
         uint256 collateralMedianPriceFeedValue,
@@ -678,6 +720,12 @@ contract FixedDiscountCollateralAuctionHouse {
           customDiscount
         );
     }
+    /*
+    * @notice Get the actual bid that will be used in an auction (taking into account the bidder input)
+    * @param id The id of the auction to calculate the adjusted bid for
+    * @param wad The initial bid submitted
+    * @returns Whether the bid is valid or not and the adjusted bid
+    */
     function getAdjustedBid(
         uint256 id, uint256 wad
     ) public view returns (bool, uint256) {
@@ -759,7 +807,7 @@ contract FixedDiscountCollateralAuctionHouse {
         }
 
         // check that the oracle doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getFinalTokenPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices(lastReadRedemptionPrice);
         if (collateralFsmPriceFeedValue == 0) {
           return (0, adjustedBid);
         }
@@ -787,7 +835,7 @@ contract FixedDiscountCollateralAuctionHouse {
         lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
 
         // check that the oracle doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getFinalTokenPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices(lastReadRedemptionPrice);
         if (collateralFsmPriceFeedValue == 0) {
           return (0, adjustedBid);
         }
@@ -829,7 +877,7 @@ contract FixedDiscountCollateralAuctionHouse {
         lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
 
         // check that the collateral FSM doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getFinalTokenPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices(lastReadRedemptionPrice);
         require(collateralFsmPriceFeedValue > 0, "FixedDiscountCollateralAuctionHouse/collateral-fsm-invalid-value");
 
         // get the amount of collateral bought
@@ -1183,6 +1231,16 @@ contract IncreasingDiscountCollateralAuctionHouse {
     }
 
     // --- Private Auction Utils ---
+    /*
+    * @notify Get the amount of bought collateral from a specific auction using custom collateral price feeds, a system
+    *         coin price feed and a custom discount
+    * @param id The ID of the auction to bid in and get collateral from
+    * @param collateralFsmPriceFeedValue The collateral price fetched from the FSM
+    * @param collateralMedianPriceFeedValue The collateral price fetched from the oracle median
+    * @param systemCoinPriceFeedValue The system coin market price fetched from the oracle
+    * @param adjustedBid The system coin bid
+    * @param customDiscount The discount offered
+    */
     function getBoughtCollateral(
         uint256 id,
         uint256 collateralFsmPriceFeedValue,
@@ -1206,6 +1264,11 @@ contract IncreasingDiscountCollateralAuctionHouse {
 
         return boughtCollateral;
     }
+    /*
+    * @notice Update the discount used in a particular auction
+    * @param id The id of the auction to update the discount for
+    * @returns The newly computed currentDiscount for the targeted auction
+    */
     function updateCurrentDiscount(uint256 id) private returns (uint256) {
         // Work directly with storage
         Bid storage auctionBidData              = bids[id];
@@ -1215,6 +1278,10 @@ contract IncreasingDiscountCollateralAuctionHouse {
     }
 
     // --- Public Auction Utils ---
+    /*
+    * @notice Fetch the collateral median price (from the oracle, not FSM)
+    * @returns The collateral price from the oracle median; zero if the address of the collateralMedian (as fetched from the FSM) is null
+    */
     function getCollateralMedianPrice() public view returns (uint256 priceFeed) {
         // Fetch the collateral median address from the collateral FSM
         address collateralMedian;
@@ -1234,6 +1301,10 @@ contract IncreasingDiscountCollateralAuctionHouse {
           return 0;
         }
     }
+    /*
+    * @notice Fetch the system coin market price
+    * @returns The system coin market price fetch from the oracle
+    */
     function getSystemCoinMarketPrice() public view returns (uint256 priceFeed) {
         if (address(systemCoinOracle) == address(0)) return 0;
 
@@ -1247,17 +1318,30 @@ contract IncreasingDiscountCollateralAuctionHouse {
           return 0;
         }
     }
+    /*
+    * @notice Get the smallest possible price that's at max minSystemCoinMedianDeviation deviated from the redemption price and at least
+    *         minSystemCoinMedianDeviation deviated
+    */
     function getSystemCoinFloorDeviatedPrice(uint256 redemptionPrice) public view returns (uint256 floorPrice) {
         uint256 minFloorDeviatedPrice = wmultiply(redemptionPrice, minSystemCoinMedianDeviation);
         floorPrice = wmultiply(redemptionPrice, lowerSystemCoinMedianDeviation);
         floorPrice = (floorPrice <= minFloorDeviatedPrice) ? floorPrice : redemptionPrice;
     }
+    /*
+    * @notice Get the highest possible price that's at max upperSystemCoinMedianDeviation deviated from the redemption price and at least
+    *         minSystemCoinMedianDeviation deviated
+    */
     function getSystemCoinCeilingDeviatedPrice(uint256 redemptionPrice) public view returns (uint256 ceilingPrice) {
         uint256 minCeilingDeviatedPrice = wmultiply(redemptionPrice, subtract(2 * WAD, minSystemCoinMedianDeviation));
         ceilingPrice = wmultiply(redemptionPrice, subtract(2 * WAD, upperSystemCoinMedianDeviation));
         ceilingPrice = (ceilingPrice >= minCeilingDeviatedPrice) ? ceilingPrice : redemptionPrice;
     }
-    function getFinalTokenPrices(uint256 systemCoinRedemptionPrice) public view returns (uint256, uint256) {
+    /*
+    * @notice Get the collateral price from the FSM and the final system coin price that will be used when bidding in an auction
+    * @param systemCoinRedemptionPrice The system coin redemption price
+    * @returns The collateral price from the FSM and the final system coin price used for bidding (picking between redemption and market prices)
+    */
+    function getCollateralFSMAndFinalSystemCoinPrices(uint256 systemCoinRedemptionPrice) public view returns (uint256, uint256) {
         require(systemCoinRedemptionPrice > 0, "IncreasingDiscountCollateralAuctionHouse/invalid-redemption-price-provided");
         (uint256 collateralFsmPriceFeedValue, bool collateralFsmHasValidValue) = collateralFSM.getResultWithValidity();
         if (!collateralFsmHasValidValue) {
@@ -1280,6 +1364,12 @@ contract IncreasingDiscountCollateralAuctionHouse {
 
         return (uint256(collateralFsmPriceFeedValue), systemCoinAdjustedPrice);
     }
+    /*
+    * @notice Get the collateral price used in bidding by picking between the raw FSM and the oracle median price and taking into account
+    *         deviation limits
+    * @param collateralFsmPriceFeedValue The collateral price fetched from the FSM
+    * @param collateralMedianPriceFeedValue The collateral price fetched from the median attached to the FSM
+    */
     function getFinalBaseCollateralPrice(
         uint256 collateralFsmPriceFeedValue,
         uint256 collateralMedianPriceFeedValue
@@ -1296,6 +1386,13 @@ contract IncreasingDiscountCollateralAuctionHouse {
           return minimum(adjustedMedianPrice, ceilingPrice);
         }
     }
+    /*
+    * @notice Get the discounted collateral price (using a custom discount)
+    * @param collateralFsmPriceFeedValue The collateral price fetched from the FSM
+    * @param collateralMedianPriceFeedValue The collateral price fetched from the oracle median
+    * @param systemCoinPriceFeedValue The system coin price fetched from the oracle
+    * @param customDiscount The custom discount used to calculate the collateral price offered
+    */
     function getDiscountedCollateralPrice(
         uint256 collateralFsmPriceFeedValue,
         uint256 collateralMedianPriceFeedValue,
@@ -1308,6 +1405,11 @@ contract IncreasingDiscountCollateralAuctionHouse {
           customDiscount
         );
     }
+    /*
+    * @notice Get the upcoming discount that will be used in a specific auction
+    * @param id The ID of the auction to calculate the upcoming discount for
+    * @returns The upcoming discount that will be used in the targeted auction
+    */
     function getNextCurrentDiscount(uint256 id) public view returns (uint256) {
         uint256 nextDiscount = bids[id].currentDiscount;
 
@@ -1335,6 +1437,12 @@ contract IncreasingDiscountCollateralAuctionHouse {
 
         return nextDiscount;
     }
+    /*
+    * @notice Get the actual bid that will be used in an auction (taking into account the bidder input)
+    * @param id The id of the auction to calculate the adjusted bid for
+    * @param wad The initial bid submitted
+    * @returns Whether the bid is valid or not and the adjusted bid
+    */
     function getAdjustedBid(
         uint256 id, uint256 wad
     ) public view returns (bool, uint256) {
@@ -1426,7 +1534,7 @@ contract IncreasingDiscountCollateralAuctionHouse {
         }
 
         // check that the oracle doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getFinalTokenPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices(lastReadRedemptionPrice);
         if (collateralFsmPriceFeedValue == 0) {
           return (0, adjustedBid);
         }
@@ -1456,7 +1564,7 @@ contract IncreasingDiscountCollateralAuctionHouse {
         lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
 
         // check that the oracle doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getFinalTokenPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices(lastReadRedemptionPrice);
         if (collateralFsmPriceFeedValue == 0) {
           return (0, adjustedBid);
         }
@@ -1489,7 +1597,7 @@ contract IncreasingDiscountCollateralAuctionHouse {
         lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
 
         // check that the collateral FSM doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getFinalTokenPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices(lastReadRedemptionPrice);
         require(collateralFsmPriceFeedValue > 0, "IncreasingDiscountCollateralAuctionHouse/collateral-fsm-invalid-value");
 
         // get the amount of collateral bought
