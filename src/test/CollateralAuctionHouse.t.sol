@@ -2827,5 +2827,211 @@ contract IncreasingDiscountCollateralAuctionHouseTest is DSTest {
     }
 
     // Custom tests for the increasing discount implementation
-    
+    function test_small_discount_change_rate_bid_right_away() public {
+        collateralAuctionHouse.modifyParameters("perSecondDiscountUpdateRate", 999998607628240588157433861); // -0.5% per hour
+        collateralAuctionHouse.modifyParameters("maxDiscount", 0.93E18);
+
+        oracleRelayer.modifyParameters("redemptionPrice", RAY);
+        collateralFSM.set_val(200 ether);
+        safeEngine.mint(ali, 200 * RAD - 200 ether);
+
+        uint collateralAmountPreBid = safeEngine.tokenCollateral("collateralType", address(ali));
+
+        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
+                                                      , amountToRaise: 50 * RAD
+                                                      , forgoneCollateralReceiver: safeAuctioned
+                                                      , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
+                                                      });
+
+        Guy(ali).buyCollateral_increasingDiscount(id, 49 * WAD);
+        assertEq(liquidationEngine.currentOnAuctionSystemCoins(), rad(951 ether));
+
+        ( uint256 amountToSell,
+          uint256 amountToRaise,
+          uint256 currentDiscount,
+          ,
+          uint256 perSecondDiscountUpdateRate,
+          uint256 latestDiscountUpdateTime,
+          ,
+          ,
+        ) = collateralAuctionHouse.bids(id);
+        assertEq(amountToSell, 742105263157894737);
+        assertEq(amountToRaise, RAY * WAD);
+        assertEq(currentDiscount, collateralAuctionHouse.minDiscount());
+        assertEq(perSecondDiscountUpdateRate, 999998607628240588157433861);
+        assertEq(latestDiscountUpdateTime, now);
+
+        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 49 * RAD);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 742105263157894737);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 1 ether - 742105263157894737);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 0);
+    }
+    function test_small_discount_change_rate_bid_after_half_rate_timeline() public {
+        collateralAuctionHouse.modifyParameters("perSecondDiscountUpdateRate", 999998607628240588157433861); // -0.5% per hour
+        collateralAuctionHouse.modifyParameters("maxDiscount", 0.93E18);
+
+        oracleRelayer.modifyParameters("redemptionPrice", RAY);
+        collateralFSM.set_val(200 ether);
+        safeEngine.mint(ali, 200 * RAD - 200 ether);
+
+        uint collateralAmountPreBid = safeEngine.tokenCollateral("collateralType", address(ali));
+
+        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
+                                                      , amountToRaise: 50 * RAD
+                                                      , forgoneCollateralReceiver: safeAuctioned
+                                                      , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
+                                                      });
+
+        hevm.warp(now + 30 minutes);
+        Guy(ali).buyCollateral_increasingDiscount(id, 49 * WAD);
+        assertEq(liquidationEngine.currentOnAuctionSystemCoins(), rad(951 ether));
+
+        ( uint256 amountToSell,
+          uint256 amountToRaise,
+          uint256 currentDiscount,
+          ,
+          uint256 perSecondDiscountUpdateRate,
+          uint256 latestDiscountUpdateTime,
+          ,
+          ,
+        ) = collateralAuctionHouse.bids(id);
+        assertEq(amountToSell, 741458098434345369);
+        assertEq(amountToRaise, RAY * WAD);
+        assertEq(currentDiscount, 947622023804850158);
+        assertEq(perSecondDiscountUpdateRate, 999998607628240588157433861);
+        assertEq(latestDiscountUpdateTime, now);
+
+        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 49 * RAD);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 741458098434345369);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 1 ether - 741458098434345369);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 0);
+    }
+    function test_small_discount_change_rate_bid_end_rate_timeline() public {
+        collateralAuctionHouse.modifyParameters("perSecondDiscountUpdateRate", 999998607628240588157433861); // -0.5% per hour
+        collateralAuctionHouse.modifyParameters("maxDiscount", 0.93E18);
+
+        oracleRelayer.modifyParameters("redemptionPrice", RAY);
+        collateralFSM.set_val(200 ether);
+        safeEngine.mint(ali, 200 * RAD - 200 ether);
+
+        uint collateralAmountPreBid = safeEngine.tokenCollateral("collateralType", address(ali));
+
+        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
+                                                      , amountToRaise: 50 * RAD
+                                                      , forgoneCollateralReceiver: safeAuctioned
+                                                      , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
+                                                      });
+
+        hevm.warp(now + 1 hours);
+        Guy(ali).buyCollateral_increasingDiscount(id, 49 * WAD);
+        assertEq(liquidationEngine.currentOnAuctionSystemCoins(), rad(951 ether));
+
+        ( uint256 amountToSell,
+          uint256 amountToRaise,
+          uint256 currentDiscount,
+          ,
+          uint256 perSecondDiscountUpdateRate,
+          uint256 latestDiscountUpdateTime,
+          ,
+          ,
+        ) = collateralAuctionHouse.bids(id);
+        assertEq(amountToSell, 736559139784946237);
+        assertEq(amountToRaise, RAY * WAD);
+        assertEq(currentDiscount, 930000000000000000);
+        assertEq(perSecondDiscountUpdateRate, 999998607628240588157433861);
+        assertEq(latestDiscountUpdateTime, now);
+
+        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 49 * RAD);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 736559139784946237);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 1 ether - 736559139784946237);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 0);
+    }
+    function test_small_discount_change_rate_bid_long_after_rate_timeline() public {
+        collateralAuctionHouse.modifyParameters("perSecondDiscountUpdateRate", 999998607628240588157433861); // -0.5% per hour
+        collateralAuctionHouse.modifyParameters("maxDiscount", 0.93E18);
+
+        oracleRelayer.modifyParameters("redemptionPrice", RAY);
+        collateralFSM.set_val(200 ether);
+        safeEngine.mint(ali, 200 * RAD - 200 ether);
+
+        uint collateralAmountPreBid = safeEngine.tokenCollateral("collateralType", address(ali));
+
+        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
+                                                      , amountToRaise: 50 * RAD
+                                                      , forgoneCollateralReceiver: safeAuctioned
+                                                      , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
+                                                      });
+
+        hevm.warp(now + 3650 days);
+        Guy(ali).buyCollateral_increasingDiscount(id, 49 * WAD);
+        assertEq(liquidationEngine.currentOnAuctionSystemCoins(), rad(951 ether));
+
+        ( uint256 amountToSell,
+          uint256 amountToRaise,
+          uint256 currentDiscount,
+          ,
+          uint256 perSecondDiscountUpdateRate,
+          uint256 latestDiscountUpdateTime,
+          ,
+          ,
+        ) = collateralAuctionHouse.bids(id);
+        assertEq(amountToSell, 736559139784946237);
+        assertEq(amountToRaise, RAY * WAD);
+        assertEq(currentDiscount, 930000000000000000);
+        assertEq(perSecondDiscountUpdateRate, 999998607628240588157433861);
+        assertEq(latestDiscountUpdateTime, now);
+
+        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 49 * RAD);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 736559139784946237);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 1 ether - 736559139784946237);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 0);
+    }
+    function test_bid_multi_times_at_different_timestamps() public {
+        collateralAuctionHouse.modifyParameters("perSecondDiscountUpdateRate", 999998607628240588157433861); // -0.5% per hour
+        collateralAuctionHouse.modifyParameters("maxDiscount", 0.93E18);
+
+        oracleRelayer.modifyParameters("redemptionPrice", RAY);
+        collateralFSM.set_val(200 ether);
+        safeEngine.mint(ali, 200 * RAD - 200 ether);
+
+        uint collateralAmountPreBid = safeEngine.tokenCollateral("collateralType", address(ali));
+
+        uint id = collateralAuctionHouse.startAuction({ amountToSell: 1 ether
+                                                      , amountToRaise: 50 * RAD
+                                                      , forgoneCollateralReceiver: safeAuctioned
+                                                      , auctionIncomeRecipient: auctionIncomeRecipient
+                                                      , initialBid: 0
+                                                      });
+
+        for (uint i = 0; i < 10; i++) {
+          hevm.warp(now + 1 minutes);
+          Guy(ali).buyCollateral_increasingDiscount(id, 5 * WAD);
+        }
+
+        assertEq(liquidationEngine.currentOnAuctionSystemCoins(), rad(950 ether));
+
+        ( uint256 amountToSell,
+          uint256 amountToRaise,
+          uint256 currentDiscount,
+          ,
+          uint256 perSecondDiscountUpdateRate,
+          uint256 latestDiscountUpdateTime,
+          ,
+          ,
+        ) = collateralAuctionHouse.bids(id);
+        assertEq(amountToSell, 0);
+        assertEq(amountToRaise, 0);
+        assertEq(currentDiscount, 0);
+        assertEq(perSecondDiscountUpdateRate, 0);
+        assertEq(latestDiscountUpdateTime, 0);
+
+        assertEq(safeEngine.coinBalance(auctionIncomeRecipient), 50 * RAD);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(collateralAuctionHouse)), 0);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(ali)) - collateralAmountPreBid, 1 ether - 736721153320545015);
+        assertEq(safeEngine.tokenCollateral("collateralType", address(safeAuctioned)), 736721153320545015);
+    }
 }

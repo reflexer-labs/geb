@@ -559,7 +559,32 @@ contract FixedDiscountCollateralAuctionHouse {
         emit ModifyParameters(parameter, data);
     }
 
-    // --- Auction Utils ---
+    // --- Private Auction Utils ---
+    function getBoughtCollateral(
+        uint256 id,
+        uint256 collateralFsmPriceFeedValue,
+        uint256 collateralMedianPriceFeedValue,
+        uint256 systemCoinPriceFeedValue,
+        uint256 adjustedBid
+    ) private view returns (uint256) {
+        // calculate the collateral price in relation to the latest system coin price and apply the discount
+        uint256 discountedCollateralPrice =
+          getDiscountedCollateralPrice(
+            collateralFsmPriceFeedValue,
+            collateralMedianPriceFeedValue,
+            systemCoinPriceFeedValue,
+            discount
+          );
+        // calculate the amount of collateral bought
+        uint256 boughtCollateral = wdivide(adjustedBid, discountedCollateralPrice);
+        // if the calculated collateral amount exceeds the amount still up for sale, adjust it to the remaining amount
+        boughtCollateral = (boughtCollateral > subtract(bids[id].amountToSell, bids[id].soldAmount)) ?
+                           subtract(bids[id].amountToSell, bids[id].soldAmount) : boughtCollateral;
+
+        return boughtCollateral;
+    }
+
+    // --- Public Auction Utils ---
     function getCollateralMedianPrice() public view returns (uint256 priceFeed) {
         // Fetch the collateral median address from the collateral FSM
         address collateralMedian;
@@ -652,29 +677,6 @@ contract FixedDiscountCollateralAuctionHouse {
           rdivide(getFinalBaseCollateralPrice(collateralFsmPriceFeedValue, collateralMedianPriceFeedValue), systemCoinPriceFeedValue),
           customDiscount
         );
-    }
-    function getBoughtCollateral(
-        uint256 id,
-        uint256 collateralFsmPriceFeedValue,
-        uint256 collateralMedianPriceFeedValue,
-        uint256 systemCoinPriceFeedValue,
-        uint256 adjustedBid
-    ) private view returns (uint256) {
-        // calculate the collateral price in relation to the latest system coin price and apply the discount
-        uint256 discountedCollateralPrice =
-          getDiscountedCollateralPrice(
-            collateralFsmPriceFeedValue,
-            collateralMedianPriceFeedValue,
-            systemCoinPriceFeedValue,
-            discount
-          );
-        // calculate the amount of collateral bought
-        uint256 boughtCollateral = wdivide(adjustedBid, discountedCollateralPrice);
-        // if the calculated collateral amount exceeds the amount still up for sale, adjust it to the remaining amount
-        boughtCollateral = (boughtCollateral > subtract(bids[id].amountToSell, bids[id].soldAmount)) ?
-                           subtract(bids[id].amountToSell, bids[id].soldAmount) : boughtCollateral;
-
-        return boughtCollateral;
     }
     function getAdjustedBid(
         uint256 id, uint256 wad
@@ -1180,7 +1182,39 @@ contract IncreasingDiscountCollateralAuctionHouse {
         emit ModifyParameters(parameter, data);
     }
 
-    // --- Auction Utils ---
+    // --- Private Auction Utils ---
+    function getBoughtCollateral(
+        uint256 id,
+        uint256 collateralFsmPriceFeedValue,
+        uint256 collateralMedianPriceFeedValue,
+        uint256 systemCoinPriceFeedValue,
+        uint256 adjustedBid,
+        uint256 customDiscount
+    ) private view returns (uint256) {
+        // calculate the collateral price in relation to the latest system coin price and apply the discount
+        uint256 discountedCollateralPrice =
+          getDiscountedCollateralPrice(
+            collateralFsmPriceFeedValue,
+            collateralMedianPriceFeedValue,
+            systemCoinPriceFeedValue,
+            customDiscount
+          );
+        // calculate the amount of collateral bought
+        uint256 boughtCollateral = wdivide(adjustedBid, discountedCollateralPrice);
+        // if the calculated collateral amount exceeds the amount still up for sale, adjust it to the remaining amount
+        boughtCollateral = (boughtCollateral > bids[id].amountToSell) ? bids[id].amountToSell : boughtCollateral;
+
+        return boughtCollateral;
+    }
+    function updateCurrentDiscount(uint256 id) private returns (uint256) {
+        // Work directly with storage
+        Bid storage auctionBidData              = bids[id];
+        auctionBidData.currentDiscount          = getNextCurrentDiscount(id);
+        auctionBidData.latestDiscountUpdateTime = now;
+        return auctionBidData.currentDiscount;
+    }
+
+    // --- Public Auction Utils ---
     function getCollateralMedianPrice() public view returns (uint256 priceFeed) {
         // Fetch the collateral median address from the collateral FSM
         address collateralMedian;
@@ -1274,60 +1308,32 @@ contract IncreasingDiscountCollateralAuctionHouse {
           customDiscount
         );
     }
-    function getBoughtCollateral(
-        uint256 id,
-        uint256 collateralFsmPriceFeedValue,
-        uint256 collateralMedianPriceFeedValue,
-        uint256 systemCoinPriceFeedValue,
-        uint256 adjustedBid,
-        uint256 customDiscount
-    ) private view returns (uint256) {
-        // calculate the collateral price in relation to the latest system coin price and apply the discount
-        uint256 discountedCollateralPrice =
-          getDiscountedCollateralPrice(
-            collateralFsmPriceFeedValue,
-            collateralMedianPriceFeedValue,
-            systemCoinPriceFeedValue,
-            customDiscount
-          );
-        // calculate the amount of collateral bought
-        uint256 boughtCollateral = wdivide(adjustedBid, discountedCollateralPrice);
-        // if the calculated collateral amount exceeds the amount still up for sale, adjust it to the remaining amount
-        boughtCollateral = (boughtCollateral > bids[id].amountToSell) ? bids[id].amountToSell : boughtCollateral;
-
-        return boughtCollateral;
-    }
-    function updateCurrentDiscount(uint256 id) private returns (uint256) {
-        // Work directly with storage
-        Bid storage auctionBidData = bids[id];
+    function getNextCurrentDiscount(uint256 id) public view returns (uint256) {
+        uint256 nextDiscount = bids[id].currentDiscount;
 
         // If the increase deadline hasn't been passed yet and the current discount is still not at max
-        if (both(uint48(now) < auctionBidData.discountIncreaseDeadline, auctionBidData.currentDiscount > auctionBidData.maxDiscount)) {
+        if (both(uint48(now) < bids[id].discountIncreaseDeadline, bids[id].currentDiscount > bids[id].maxDiscount)) {
             // Calculate the new current discount
-            uint256 newDiscount = rmultiply(
-              rpower(auctionBidData.perSecondDiscountUpdateRate, subtract(now, auctionBidData.latestDiscountUpdateTime), RAY),
-              auctionBidData.currentDiscount
+            nextDiscount = rmultiply(
+              rpower(bids[id].perSecondDiscountUpdateRate, subtract(now, bids[id].latestDiscountUpdateTime), RAY),
+              bids[id].currentDiscount
             );
 
             // If the new discount is greater than the max one
-            if (newDiscount < auctionBidData.maxDiscount) {
-              newDiscount = auctionBidData.maxDiscount;
+            if (nextDiscount < bids[id].maxDiscount) {
+              nextDiscount = bids[id].maxDiscount;
             }
-
-            // Update the latest discount update time as well as the current discount
-            auctionBidData.latestDiscountUpdateTime = now;
-            auctionBidData.currentDiscount  = newDiscount;
         } else {
             // Calculate the conditions when we can instaly set the current discount to max
-            bool currentZeroCanBeSet = both(auctionBidData.currentDiscount == 0, auctionBidData.maxDiscount > 0);
-            bool notDoneUpdating     = both(uint48(now) >= auctionBidData.discountIncreaseDeadline, auctionBidData.currentDiscount != auctionBidData.maxDiscount);
+            bool currentZeroCanBeSet = both(bids[id].currentDiscount == 0, bids[id].maxDiscount > 0);
+            bool notDoneUpdating     = both(uint48(now) >= bids[id].discountIncreaseDeadline, bids[id].currentDiscount != bids[id].maxDiscount);
 
             if (either(currentZeroCanBeSet, notDoneUpdating)) {
-              auctionBidData.currentDiscount = auctionBidData.maxDiscount;
+              nextDiscount = bids[id].maxDiscount;
             }
         }
 
-        return auctionBidData.currentDiscount;
+        return nextDiscount;
     }
     function getAdjustedBid(
         uint256 id, uint256 wad
