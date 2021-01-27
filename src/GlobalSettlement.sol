@@ -393,7 +393,7 @@ contract GlobalSettlement {
     }
     /**
      * @notice Add coins into a 'bag' so that you can use them to redeem collateral
-     * @param coinAmount The amount of internal system coins to add into the bag (represented as a RAD)
+     * @param coinAmount The amount of internal system coins to add into the bag
      */
     function prepareCoinsForRedeeming(uint256 coinAmount) external {
         require(outstandingCoinSupply != 0, "GlobalSettlement/outstanding-coin-supply-zero");
