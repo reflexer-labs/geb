@@ -11,11 +11,11 @@ Then run
 echidna-test src/test/fuzz/<name of file>.sol --contract <Name of contract> --config src/test/fuzz/echidna.yaml
 ```
 
-Configs are in this folder (echidna.yaml). You can set the number of and depth of runs, number of total runs and 
+Configs are in this folder (echidna.yaml). 
 
 The contracts in this folder are modified versions of the originals in the _src_ folder. They have assertions added to test for invariants, visibility of functions modified. Running the Fuzz against modified versions without the assertions is still possible, general properties on the Fuzz contract can be executed against unmodified contracts.
 
-Tests should only run one at a time because they interfere with each other.
+Tests were run one at a time because they interfere with each other.
 
 ## LiquidationEngine
 
@@ -80,7 +80,7 @@ assertion in liquidateSAFE: failed!💥
 
     value: 115962318970534578672575213196172.476289404989529599
 
-Conclusion: ETH and RAI balances turn overflows highly unlikely.
+### Conclusion: ETH and RAI balances turn overflows highly unlikely.
 
 Fuzzing collateral parameters. 
 
@@ -102,16 +102,16 @@ assertion in liquidateSAFE: failed!💥
     fuzzCollateral(1161411429974471145367254032213.244706580012183533262350610) // ray
     liquidateSAFE("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",0x0)
 
-    Conclusion: tbd, check possible bounds
+### Conclusion: Overflows are unlikely, as the accumulatedRate above is very unlikely to happen.
 
 assertion in liquidateSAFE: failed!💥  
   Call sequence:
-    fuzzCollateral(1157997639923822943907917210751064349855217408082103205029)
+    fuzzCollateral(1157997639923822943907917210751.064349855217408082103205029)
     liquidateSAFE("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",0x0)
 
 assertion in liquidateSAFE: failed!💥  
   Call sequence:
-    fuzzCollateral(1158823425568521744927601028838920837023251549674080992876)
+    fuzzCollateral(1158823425568521744927601028838.920837023251549674080992876)
     liquidateSAFE("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",0x0)
 
 Drilling further down, will check for each operation what are the minimum values that will cause an overflow:
@@ -121,5 +121,90 @@ assertion in fuzzAmountToRaise: failed!💥
   Call sequence:
     fuzzAmountToRaise(115867312542273104931626618209252766)
 
-For 1000000 Coin adjustedDebt, an accumulatedRate of 115867312.542273104931626618209252766 will cause an overflow
+For 1000000 Coin adjustedDebt, an accumulatedRate of 115867312.542273104931626618209252766 will cause an overflow, or 115 trillion (USD?) value being auctioned.
+
+Mainnet demo accumulatedRate 1.003780882956070313962213806
+
+### Conclusion: Overflows are unlikely, as the accumulatedRate above is very unlikely to happen.
+
+
+## LiquidationEngine
+
+### General fuzz
+
+Unique instructions: 1895
+Unique codehashes: 1
+Seed: 8581679829532695371
+13:34:50 geb $ echidna-test src/test/fuzz/fixedDiscountAuctionHouseFuzz.sol --contract GeneralFuzz  --config src/test/fuzz/echidna.yaml
+Analyzing contract: /Users/fabio/Documents/reflexer/geb/src/test/fuzz/fixedDiscountAuctionHouseFuzz.sol:GeneralFuzz
+assertion in getCollateralMedianPrice: passed! 🎉
+assertion in upperSystemCoinMedianDeviation: passed! 🎉
+assertion in AUCTION_HOUSE_TYPE: passed! 🎉
+assertion in lowerCollateralMedianDeviation: passed! 🎉
+assertion in authorizedAccounts: passed! 🎉
+assertion in startAuction: passed! 🎉
+assertion in settleAuction: passed! 🎉
+assertion in lastReadRedemptionPrice: passed! 🎉
+assertion in AUCTION_TYPE: passed! 🎉
+assertion in addAuthorization: passed! 🎉
+assertion in getCollateralBought: passed! 🎉
+assertion in getSystemCoinMarketPrice: passed! 🎉
+assertion in bids: passed! 🎉
+assertion in liquidationEngine: passed! 🎉
+assertion in upperCollateralMedianDeviation: passed! 🎉
+assertion in lowerSystemCoinMedianDeviation: passed! 🎉
+assertion in forgoneCollateralReceiver: passed! 🎉
+assertion in getAdjustedBid: passed! 🎉
+assertion in bidAmount: passed! 🎉
+assertion in getSystemCoinCeilingDeviatedPrice: failed!💥  
+  Call sequence:
+    getSystemCoinCeilingDeviatedPrice(116616512653811068243793757584434900370453896993835906454488)
+
+assertion in oracleRelayer: passed! 🎉
+assertion in buyCollateral: passed! 🎉
+assertion in auctionsStarted: passed! 🎉
+assertion in amountToRaise: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in safeEngine: passed! 🎉
+assertion in discount: passed! 🎉
+assertion in totalAuctionLength: passed! 🎉
+assertion in raisedAmount: passed! 🎉
+assertion in getDiscountedCollateralPrice: failed!💥  
+  Call sequence:
+    getDiscountedCollateralPrice(29047792149950914941998691223,22820851174,1,4476306840354875696171)
+
+assertion in getApproximateCollateralBought: passed! 🎉
+assertion in terminateAuctionPrematurely: passed! 🎉
+assertion in removeAuthorization: passed! 🎉
+assertion in minSystemCoinMedianDeviation: passed! 🎉
+assertion in getCollateralFSMAndFinalSystemCoinPrices: passed! 🎉
+assertion in getFinalBaseCollateralPrice: failed!💥  
+  Call sequence:
+    getFinalBaseCollateralPrice(110376586915668636906989437976525516029949870719869704441644,22363478170431731215097728616756635465877599049678556111609)
+
+assertion in minimumBid: passed! 🎉
+assertion in systemCoinOracle: passed! 🎉
+assertion in collateralType: passed! 🎉
+assertion in remainingAmountToSell: passed! 🎉
+assertion in collateralFSM: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in getSystemCoinFloorDeviatedPrice: failed!💥  
+  Call sequence:
+    getSystemCoinFloorDeviatedPrice(116038250365304167291688789558538801178441247388656827831822)
+
+### Conclusion: Pending, check bounds
+
+### Fuzz Bids
+
+Will setup an auction, and allow echidna accounts to bid, checking for the following properties:
+
+
+
+### Auctions and bids
+
+Will allow echidna accounts to initiate auctions and bid, checking for the following properties:
+
+
+
+
 
