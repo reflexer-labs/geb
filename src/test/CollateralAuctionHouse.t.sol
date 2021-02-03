@@ -546,6 +546,36 @@ contract FixedDiscountCollateralAuctionHouseTest is DSTest {
     function testFail_no_discount() public {
         collateralAuctionHouse.modifyParameters("discount", 1 ether);
     }
+    function test_getSystemCoinFloorDeviatedPrice() public {
+        collateralAuctionHouse.modifyParameters("minSystemCoinMedianDeviation", 0.90E18);
+
+        collateralAuctionHouse.modifyParameters("lowerSystemCoinMedianDeviation", 1E18);
+        assertEq(collateralAuctionHouse.getSystemCoinFloorDeviatedPrice(oracleRelayer.redemptionPrice()), oracleRelayer.redemptionPrice());
+
+        collateralAuctionHouse.modifyParameters("lowerSystemCoinMedianDeviation", 0.95E18);
+        assertEq(collateralAuctionHouse.getSystemCoinFloorDeviatedPrice(oracleRelayer.redemptionPrice()), oracleRelayer.redemptionPrice());
+
+        collateralAuctionHouse.modifyParameters("lowerSystemCoinMedianDeviation", 0.90E18);
+        assertEq(collateralAuctionHouse.getSystemCoinFloorDeviatedPrice(oracleRelayer.redemptionPrice()), 4.5E27);
+
+        collateralAuctionHouse.modifyParameters("lowerSystemCoinMedianDeviation", 0.89E18);
+        assertEq(collateralAuctionHouse.getSystemCoinFloorDeviatedPrice(oracleRelayer.redemptionPrice()), 4.45E27);
+    }
+    function test_getSystemCoinCeilingDeviatedPrice() public {
+        collateralAuctionHouse.modifyParameters("minSystemCoinMedianDeviation", 0.90E18);
+
+        collateralAuctionHouse.modifyParameters("upperSystemCoinMedianDeviation", 1E18);
+        assertEq(collateralAuctionHouse.getSystemCoinCeilingDeviatedPrice(oracleRelayer.redemptionPrice()), oracleRelayer.redemptionPrice());
+
+        collateralAuctionHouse.modifyParameters("upperSystemCoinMedianDeviation", 0.95E18);
+        assertEq(collateralAuctionHouse.getSystemCoinCeilingDeviatedPrice(oracleRelayer.redemptionPrice()), oracleRelayer.redemptionPrice());
+
+        collateralAuctionHouse.modifyParameters("upperSystemCoinMedianDeviation", 0.90E18);
+        assertEq(collateralAuctionHouse.getSystemCoinCeilingDeviatedPrice(oracleRelayer.redemptionPrice()), 5.5E27);
+
+        collateralAuctionHouse.modifyParameters("upperSystemCoinMedianDeviation", 0.89E18);
+        assertEq(collateralAuctionHouse.getSystemCoinCeilingDeviatedPrice(oracleRelayer.redemptionPrice()), 5.55E27);
+    }
     function test_startAuction() public {
         collateralAuctionHouse.startAuction({ amountToSell: 100 ether
                                             , amountToRaise: 50 * RAD
@@ -1727,6 +1757,36 @@ contract IncreasingDiscountCollateralAuctionHouseTest is DSTest {
     }
     function testFail_max_discount_lower_than_min() public {
         collateralAuctionHouse.modifyParameters("maxDiscount", 1 ether - 1);
+    }
+    function test_getSystemCoinFloorDeviatedPrice() public {
+        collateralAuctionHouse.modifyParameters("minSystemCoinMedianDeviation", 0.90E18);
+
+        collateralAuctionHouse.modifyParameters("lowerSystemCoinMedianDeviation", 1E18);
+        assertEq(collateralAuctionHouse.getSystemCoinFloorDeviatedPrice(oracleRelayer.redemptionPrice()), oracleRelayer.redemptionPrice());
+
+        collateralAuctionHouse.modifyParameters("lowerSystemCoinMedianDeviation", 0.95E18);
+        assertEq(collateralAuctionHouse.getSystemCoinFloorDeviatedPrice(oracleRelayer.redemptionPrice()), oracleRelayer.redemptionPrice());
+
+        collateralAuctionHouse.modifyParameters("lowerSystemCoinMedianDeviation", 0.90E18);
+        assertEq(collateralAuctionHouse.getSystemCoinFloorDeviatedPrice(oracleRelayer.redemptionPrice()), 4.5E27);
+
+        collateralAuctionHouse.modifyParameters("lowerSystemCoinMedianDeviation", 0.89E18);
+        assertEq(collateralAuctionHouse.getSystemCoinFloorDeviatedPrice(oracleRelayer.redemptionPrice()), 4.45E27);
+    }
+    function test_getSystemCoinCeilingDeviatedPrice() public {
+        collateralAuctionHouse.modifyParameters("minSystemCoinMedianDeviation", 0.90E18);
+
+        collateralAuctionHouse.modifyParameters("upperSystemCoinMedianDeviation", 1E18);
+        assertEq(collateralAuctionHouse.getSystemCoinCeilingDeviatedPrice(oracleRelayer.redemptionPrice()), oracleRelayer.redemptionPrice());
+
+        collateralAuctionHouse.modifyParameters("upperSystemCoinMedianDeviation", 0.95E18);
+        assertEq(collateralAuctionHouse.getSystemCoinCeilingDeviatedPrice(oracleRelayer.redemptionPrice()), oracleRelayer.redemptionPrice());
+
+        collateralAuctionHouse.modifyParameters("upperSystemCoinMedianDeviation", 0.90E18);
+        assertEq(collateralAuctionHouse.getSystemCoinCeilingDeviatedPrice(oracleRelayer.redemptionPrice()), 5.5E27);
+
+        collateralAuctionHouse.modifyParameters("upperSystemCoinMedianDeviation", 0.89E18);
+        assertEq(collateralAuctionHouse.getSystemCoinCeilingDeviatedPrice(oracleRelayer.redemptionPrice()), 5.55E27);
     }
     function test_startAuction() public {
         collateralAuctionHouse.startAuction({ amountToSell: 100 ether

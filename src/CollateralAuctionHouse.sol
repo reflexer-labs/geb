@@ -634,7 +634,7 @@ contract FixedDiscountCollateralAuctionHouse {
         }
     }
     /*
-    * @notice Get the smallest possible price that's at max minSystemCoinMedianDeviation deviated from the redemption price and at least
+    * @notice Get the smallest possible price that's at max lowerSystemCoinMedianDeviation deviated from the redemption price and at least
     *         minSystemCoinMedianDeviation deviated
     */
     function getSystemCoinFloorDeviatedPrice(uint256 redemptionPrice) public view returns (uint256 floorPrice) {
@@ -1319,7 +1319,7 @@ contract IncreasingDiscountCollateralAuctionHouse {
         }
     }
     /*
-    * @notice Get the smallest possible price that's at max minSystemCoinMedianDeviation deviated from the redemption price and at least
+    * @notice Get the smallest possible price that's at max lowerSystemCoinMedianDeviation deviated from the redemption price and at least
     *         minSystemCoinMedianDeviation deviated
     */
     function getSystemCoinFloorDeviatedPrice(uint256 redemptionPrice) public view returns (uint256 floorPrice) {
