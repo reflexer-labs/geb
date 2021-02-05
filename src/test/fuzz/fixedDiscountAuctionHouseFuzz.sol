@@ -144,13 +144,12 @@ contract FuzzBids is FixedDiscountCollateralAuctionHouseMock{
 
         if (bids[1].raisedAmount != SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient)) return false; // rad
         if (bids[1].soldAmount != SAFEEngineMock(address(safeEngine)).sentCollateral(address(this))) return false; 
-        if (bids[1].soldAmount * RAY != LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAfuction()) return false; // failing
+        if (bids[1].raisedAmount != LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAfuction()) return false; // failing
 
         if (_amountToRaise != bids[1].amountToRaise) return false;
         if (_amountToSell != bids[1].amountToSell) return false;
         if (bids[1].auctionDeadline != totalAuctionLength) return false;
         if (bids[1].forgoneCollateralReceiver != _forgoneCollateralReceiver) return false;
-        if (bids[1].auctionDeadline != totalAuctionLength) return false;
 
         return true;
     }
@@ -187,7 +186,7 @@ contract FuzzAuctionsAndBids is FixedDiscountCollateralAuctionHouseMock {
             collateralFSM = OracleLike(address(new Feed(bytes32(uint256(3.14 ether)), true)));
             oracleRelayer = OracleRelayerLike(address(new OracleRelayerMock()));
 
-            // authing accounts
+            // authing accounts, authing them will also allow to modify parameters
             authorizedAccounts[address(0x10000)] = 1;
             authorizedAccounts[address(0x20000)] = 1;
             authorizedAccounts[address(0xabc00)] = 1;
@@ -198,57 +197,28 @@ contract FuzzAuctionsAndBids is FixedDiscountCollateralAuctionHouseMock {
         return collateralType == "ETH-A";
     }
 
-    function echidna_minimumBid() public returns (bool) { 
-        return minimumBid == 5* 10**18;
-    }
-
     function echidna_lastReadRedemptionPrice() public returns (bool) { 
         return lastReadRedemptionPrice == 0 || lastReadRedemptionPrice == 3.14 ether;
     }
 
-    function echidna_discount() public returns (bool) { 
-        return discount == 0.95E18;
-    }
-
-    function echidna_lowerCollateralMedianDeviation() public returns (bool) { 
-        return lowerCollateralMedianDeviation == 0.90E18;
-    }
-
-    function echidna_upperCollateralMedianDeviation() public returns (bool) { 
-        return upperCollateralMedianDeviation == 0.95E18;
-    }
-
-    function echidna_lowerSystemCoinMedianDeviation() public returns (bool) { 
-        return lowerSystemCoinMedianDeviation == 10 ** 18;
-    }
-
-    function echidna_upperSystemCoinMedianDeviation() public returns (bool) { 
-        return upperSystemCoinMedianDeviation == 10 ** 18;
-    }
-
-    function echidna_minSystemCoinMedianDeviation() public returns (bool) { 
-        return minSystemCoinMedianDeviation == 0.999E18;
-    }
-
     function echidna_bids() public returns (bool) { 
+        uint raisedAmountSum;
+        uint soldAmountSum;
 
         for (uint i = 1; i <= auctionsStarted; i++) {
             // auction settled, auctionHouse deletes the bid
             if (bids[i].auctionDeadline == 0) break;
+            raisedAmountSum += bids[i].raisedAmount;
+            soldAmountSum += bids[i].soldAmount;
 
-            if (bids[i].raisedAmount != SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient)) return false; // rad
-            if (bids[i].soldAmount != SAFEEngineMock(address(safeEngine)).sentCollateral(address(this))) return false; 
-            if (bids[i].soldAmount * 10**27 != LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAfuction()) return false; // failing
-
-            if (_amountToRaise != bids[i].amountToRaise) return false;
-            if (_amountToSell != bids[i].amountToSell) return false;
-            if (bids[i].auctionDeadline != totalAuctionLength) return false;
-            if (bids[i].forgoneCollateralReceiver != _forgoneCollateralReceiver) return false;
             if (bids[i].auctionDeadline != totalAuctionLength) return false;
         }
+
+        if (raisedAmountSum < SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient)) return false; // rad
+        if (soldAmountSum < SAFEEngineMock(address(safeEngine)).sentCollateral(address(this))) return false; 
+        if (raisedAmountSum < LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAfuction()) return false; // failing
         return true;
     }
-
 
     // adding a directed bidding function
     // we trust the fuzzer will find it's way to the active auction (it does), but here we're forcing valid bids to make we make the most of the runs.

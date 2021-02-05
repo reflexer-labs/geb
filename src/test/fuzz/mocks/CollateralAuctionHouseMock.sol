@@ -245,7 +245,7 @@ contract FixedDiscountCollateralAuctionHouseMock {
      * @param parameter The name of the contract address being updated
      * @param data New address for the oracle contract
      */
-    function modifyParameters(bytes32 parameter, address data) external isAuthorized {
+    function modifyParameters(bytes32 parameter, address data) internal isAuthorized { // disabling modifying addresses (fuzzing test #3)
         if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
         else if (parameter == "collateralFSM") {
           collateralFSM = OracleLike(data);
@@ -623,7 +623,7 @@ contract FixedDiscountCollateralAuctionHouseMock {
      * @notice Terminate an auction prematurely. Usually called by Global Settlement.
      * @param id ID of the auction to settle
      */
-    function terminateAuctionPrematurely(uint256 id) external isAuthorized {
+    function terminateAuctionPrematurely(uint256 id) internal isAuthorized { // preventing this to be called for fuzz test #3
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "FixedDiscountCollateralAuctionHouse/inexistent-auction");
         uint256 leftoverCollateral = subtract(bids[id].amountToSell, bids[id].soldAmount);
         liquidationEngine.removeCoinsFromAuction(subtract(bids[id].amountToRaise, bids[id].raisedAmount));

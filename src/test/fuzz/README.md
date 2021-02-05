@@ -1,8 +1,6 @@
 # Security Tests
 
-The contracts in this folder are the fuzz and symbolic execution scripts for the rolling distribution incentives contract.
-
-## Fuzz
+The contracts in this folder are the fuzz scripts for the GEB repository.
 
 To run the fuzzer, set up Echidna (https://github.com/crytic/echidna) on your machine.
 
@@ -15,13 +13,25 @@ Configs are in this folder (echidna.yaml).
 
 The contracts in this folder are modified versions of the originals in the _src_ folder. They have assertions added to test for invariants, visibility of functions modified. Running the Fuzz against modified versions without the assertions is still possible, general properties on the Fuzz contract can be executed against unmodified contracts.
 
-Tests were run one at a time because they interfere with each other.
+Tests should be run one at a time because they interfere with each other.
+
+For all contracts being fuzzed, we tested the following:
+
+1. Fuzzing a plain version of the contract, to check for unexpected failures
+2. Writing assertions and/or turning "requires" into "asserts" within the smart contract itself. This will cause echidna to fail fuzzing, and upon failures echidna finds the lowest value that causes the assertion to fail. This is useful to test bounds of functions (i.e.: modifying safeMath functions to assertions will cause echidna to fail on overflows, giving insight on the bounds acceptable). This is useful to find out when these functions revert. Although reverting will not impact the contract's state, it could cause a denial of service (or the contract not updating state when necessary and getting stuck). We check the found bounds against the expected usage of the system.
+3. For contracts that have state (i.e.: the auction house below), we also force the contract into common states like setting up the contract with an auction open, and then let echidna fuzz through an auction. On some cases we auth the echidna accounts too.
+
+Echidna will generate random values and call all functions failing either for violated assertions, or for properties (functions starting with echidna_) that return false. Sequence of calls is limited by seqLen in the config file. Calls are also spaced over time (both block number and timestamp) in random ways. Once the fuzzer finds a new execution path, it will explore it by trying execution with values close to the ones that opened the new path.
+
+# Results
 
 ## LiquidationEngine
 
-### General fuzz
+### 1. Plain code fuzz
 
 Goal: Check for unexpected failures. Use contract GeneralFuzz.sol, with checkAsserts == true in echidna config.
+
+```
 Analyzing contract: /Users/fabio/Documents/reflexer/geb/src/test/fuzz/liquidationEngineFuzz.sol:GeneralFuzz
 assertion in getLimitAdjustedDebtToCover: passed! 🎉
 assertion in authorizedAccounts: passed! 🎉
@@ -50,92 +60,98 @@ assertion in modifyParameters: passed! 🎉
 Unique instructions: 2037
 Unique codehashes: 1
 Seed: -1285543104051193671
+```
 
-### Overflow Fuzz
+#### Conclusion: No issues noted.
+
+### SAFE Fuzz
 
 This script will fuzz a modified version of the LiquidationEngine, including a mock SafeEngine. The modified version will fire an assertion on overflows, results aim to provide an insight on safe bounds for all calculations in the contract.
 
-For this we will fuzz both a safe state (collateral and debt), as well as collateral parameters.
+For this we will fuzz a safe state (collateral and debt, through the custom ```fuzzSafe(lockedCollateral, generatedDebt)``` function). The Safe Engine mock version will always return the fuzzed values (disregarding collateral type and safe address), enabling us to analyze the liquidation process with the fuzzed values (without modifying the liquidateSAFE function). Goal here is to find out when the calculation overflows (which would prevent liquidations from happening).
 
+```
 assertion in liquidateSAFE: failed!💥  
   Call sequence:
     fuzzSafe(129747088119375309651257358574,115953324830350971415744056541225015777259025135427)
-    liquidateSAFE("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",0x0)
+liquidateSAFE("",0x0)
 
 assertion in liquidateSAFE: failed!💥  
   Call sequence:
     fuzzSafe(2052681306273291383173695501788748492407539991603,116249465701150515206245782751373535662228471911304)
-    liquidateSAFE("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",0x0)
+liquidateSAFE("",0x0)
+````
 
-If fuzzingboth collateral and debt, values close to the ones above will overflow, the case that was mostly reduced is the following:
-                         129747088119.375309651257358574 
-    115953324830350971415744056541225.015777259025135427 
+If fuzzing both collateral and debt, values close to the ones above will overflow, the case that was mostly reduced is the following:
+                         129,747,088,119.375309651257358574
+115,953,324,830,350,971,415,744,056,541,225.015777259025135427
+
+129 Trillion ETH, along with 11 * 10^31 System coin is the minimum case found.
 
 We also tested fuzzing only debt, with: 1000 ETH collateral.
 
+```
 assertion in liquidateSAFE: failed!💥  
   Call sequence:
     fuzzSafe(1593573193211699743555714681088209368725398,115962318970534578672575213196172476289404989529599)
-    liquidateSAFE("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",0x0)
+    liquidateSAFE("",0x0)
 
-    value: 115962318970534578672575213196172.476289404989529599
+    value: 115,962,318,970,534,578,672,575,213,196,172.476289404989529599
+````
 
-### Conclusion: ETH and RAI balances turn overflows highly unlikely.
+#### Conclusion: ETH available on the market will alone prevent overflows in this case. Even with a large collateral balance in the SAFE (or if using a lower priced collateral in another system), the cRatio will prevent overflows.
 
-Fuzzing collateral parameters. 
+### Collateral Parameters Fuzz 
 
+In this case we fuzz collateral parameters (function fuzzCollateral(debtAmount, accumulatedRate, safetyPrice, debtCeiling, liquidationPrice)), starting with fuzzing all of them, then focusing on sore spots, or parameters that could be the largest in real world scenarios. 
+
+```
 assertion in liquidateSAFE: failed!💥  
   Call sequence:
     fuzzCollateral(450992486657743016140264857026696769110506126496,1163589619993600885897239347144712372885483871469250752242,141717857058841484220302860016620462197477603704226775,0,0)
-    liquidateSAFE("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",0x0)
-
-Breaking it down:
-Fuzzing only debtAmount and accumulatedRate
-  Call sequence:
-    fuzzCollateral(20322495390052294381148718653546535.671555256555527115,
+liquidateSAFE("",0x0)
+````
+This one failed because it set the debt ceiling and liquidation price to zero. Not very meaningful resulsts, since safetyPrice, debtCeiling and liquidationPrice are governance set, so we set them to near real workd value and broke it down by fuzzing only the values tha fluctuate from system usage: debtAmount and accumulatedRate.
+```
+fuzzCollateral(20322495390052294381148718653546535.671555256555527115,
     1158205436519173868301519626380.878836493514036996143978012) // wad, ray
-    liquidateSAFE("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",0x0)
-
+liquidateSAFE("",0x0)
+```
 Only accumulatedRate, debtAmount set to 10mm:
+```
 assertion in liquidateSAFE: failed!💥  
   Call sequence:
     fuzzCollateral(1161411429974471145367254032213.244706580012183533262350610) // ray
-    liquidateSAFE("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",0x0)
+    liquidateSAFE("",0x0)
 
-### Conclusion: Overflows are unlikely, as the accumulatedRate above is very unlikely to happen.
 
 assertion in liquidateSAFE: failed!💥  
   Call sequence:
     fuzzCollateral(1157997639923822943907917210751.064349855217408082103205029)
-    liquidateSAFE("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",0x0)
+    liquidateSAFE("",0x0)
 
 assertion in liquidateSAFE: failed!💥  
   Call sequence:
     fuzzCollateral(1158823425568521744927601028838.920837023251549674080992876)
-    liquidateSAFE("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",0x0)
-
+    liquidateSAFE("",0x0)
+```
 Drilling further down, will check for each operation what are the minimum values that will cause an overflow:
 amountToRaise:
-
+```
 assertion in fuzzAmountToRaise: failed!💥  
   Call sequence:
     fuzzAmountToRaise(115867312542273104931626618209252766)
+```
+For 1000000 Coin adjustedDebt, an accumulatedRate of 115867312.542273104931626618209252766 will cause an overflow, or 115 trillion system coins.
 
-For 1000000 Coin adjustedDebt, an accumulatedRate of 115867312.542273104931626618209252766 will cause an overflow, or 115 trillion (USD?) value being auctioned.
-
-Mainnet demo accumulatedRate 1.003780882956070313962213806
-
-### Conclusion: Overflows are unlikely, as the accumulatedRate above is very unlikely to happen.
+#### Conclusion: Overflows are unlikely, as the accumulatedRate above is unlikely to happen.
 
 
-## LiquidationEngine
+## FixedDiscountCollateralAuctionHouse
 
-### General fuzz
-
-Unique instructions: 1895
-Unique codehashes: 1
-Seed: 8581679829532695371
-13:34:50 geb $ echidna-test src/test/fuzz/fixedDiscountAuctionHouseFuzz.sol --contract GeneralFuzz  --config src/test/fuzz/echidna.yaml
+### Plain code fuzz
+```
+src/test/fuzz/fixedDiscountAuctionHouseFuzz.sol --contract GeneralFuzz  --config src/test/fuzz/echidna.yaml
 Analyzing contract: /Users/fabio/Documents/reflexer/geb/src/test/fuzz/fixedDiscountAuctionHouseFuzz.sol:GeneralFuzz
 assertion in getCollateralMedianPrice: passed! 🎉
 assertion in upperSystemCoinMedianDeviation: passed! 🎉
@@ -191,20 +207,83 @@ assertion in modifyParameters: passed! 🎉
 assertion in getSystemCoinFloorDeviatedPrice: failed!💥  
   Call sequence:
     getSystemCoinFloorDeviatedPrice(116038250365304167291688789558538801178441247388656827831822)
+```
 
-### Conclusion: Pending, check bounds
+Some of the getters overflow, as follows:
+
+- getSystemCoinCeilingDeviatedPrice(116616512653811068243793757584434900370453896993835906454488): Overflows with a redemptionPrice of 116616512653811.068243793757584434900370453896993835906454488
+ - getDiscountedCollateralPrice(29047792149950914941998691223,22820851174,1,4476306840354875696171)
+ - getFinalBaseCollateralPrice(110376586915668636906989437976525516029949870719869704441644,22363478170431731215097728616756635465877599049678556111609)
+ - getSystemCoinFloorDeviatedPrice(116038250365304167291688789558538801178441247388656827831822)
+ - 116038250365304.167291688789558538801178441247388656827831822
+
+
+### Conclusion: Bounds are reasonable considering ETH as a collateral and the RAI starting price of 3.14
 
 ### Fuzz Bids
 
-Will setup an auction, and allow echidna accounts to bid, checking for the following properties:
+In this case we setup an auction and let echidna fuzz the whole contract with three users. Users have an unlimited balance, and will basically settle the auction in multiple ways.
 
+Here we are not looking for bounds, but instead checking the properties that either should remain constant, or that move as the auction evolves:
+
+- auctionDeadline
+- raisedAmount
+- soldAmount
+- Coins removed from auction on liquidationEngine
+- amountToRaise
+- amountToSell
+- collateralType
+- minimumBid
+- lastReadRedemptionPrice
+- lowerSystemCoinMedianDeviation
+- upperSystemCoinMedianDeviation
+- lowerCollateralMedianDeviation
+- upperCollateralMedianDeviation
+- discount
+- minSystemCoinMedianDeviation
+
+We also validate the token flows in and out of the auction contract.
+
+These properties are verified in between all calls.
+
+A function to aid the fuzzer to bid in the correct auction was also created (function bid in fuzz contract). It forces a valid bid on the auction. The fuzzer does find it's way to the correct auction/bid amounts, but enabling this function will increase it's effectiveness. To test without the aid function turn it's visibility to internal.
+
+```
+echidna_collateralType: passed! 🎉
+echidna_minimumBid: passed! 🎉
+echidna_lowerSystemCoinMedianDeviation: passed! 🎉
+echidna_lastReadRedemptionPrice: passed! 🎉
+echidna_bids: passed! 🎉
+echidna_auctionsStarted: passed! 🎉
+echidna_upperSystemCoinMedianDeviation: passed! 🎉
+echidna_lowerCollateralMedianDeviation: passed! 🎉
+echidna_upperCollateralMedianDeviation: passed! 🎉
+echidna_discount: passed! 🎉
+echidna_minSystemCoinMedianDeviation: passed! 🎉
+```
+
+#### Conclusion: No exceptions found.
 
 
 ### Auctions and bids
 
-Will allow echidna accounts to initiate auctions and bid, checking for the following properties:
+In this case we auth the fuzzer users, and let them both create auctions and bid on them. In this case there is also an aid function (bid) that will bid in one of the created auctions (settled or unsettled).
 
+FOr these cases a high seqLen is recommended, 500 was used for this run. (This means that for every instance of the contract the fuzzer will try a sequence of 500 txs).
 
+Turn the modifyParameters(bytes32,address) to internal to run this case (as it will prevent the fuzzer to change oracle and accountingEngine addresses), and do the same with terminateAuctionPrematurely, or the fuzzer will terminate auctions randomly.
 
+We set the following properties for this case:
+- colateralType
+- lastReadRedemptionPrice
+- raisedAmount
+- soldAmount
 
+We also check if the token flows are acceptable.
+```
+echidna_collateralType: passed! 🎉
+echidna_lastReadRedemptionPrice: passed! 🎉
+echidna_bids: passed! 🎉
+```
 
+#### Conclusion: No exceptions found.
