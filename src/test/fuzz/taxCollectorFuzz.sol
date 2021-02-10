@@ -172,7 +172,7 @@ contract Rpow {
             }
         }
     }
-    
+
     function fuzz_rpow(uint x, uint n) public {
         assert(rpow(x, n, RAY) / 10 ** 15 == rpowSolidity(x, n, RAY) / 10 ** 15);
     }
