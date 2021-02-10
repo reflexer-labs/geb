@@ -171,6 +171,7 @@ contract TaxCollector {
     uint256 constant RAY           = 10 ** 27;
     uint256 constant WHOLE_TAX_CUT = 10 ** 29;
     uint256 constant ONE           = 1;
+    int256  constant INT256_MIN    = -2**255;
 
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x + y;
@@ -199,6 +200,7 @@ contract TaxCollector {
         require(y == 0 || z / y == int256(x), "TaxCollector/mul-uint-int-overflow");
     }
     function multiply(int256 x, int256 y) internal pure returns (int256 z) {
+        require(!both(x == -1, y == INT256_MIN), "TaxCollector/mul-int-int-overflow");
         require(y == 0 || (z = x * y) / y == x, "TaxCollector/mul-int-int-invalid");
     }
     function rmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
