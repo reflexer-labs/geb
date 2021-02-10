@@ -378,14 +378,27 @@ The call above produces slightly different results:
 	"1": "uint256: asm 2718281828458990744961643954"
 }
 ```
+or on another examples
+```
+{
+	"0": "uint256: sol 367879441171430420341698821",
+	"1": "uint256: asm 367879441171434947308084559"
+}
+
+{
+	"0": "uint256: sol 1174559060629581930499137600391251418047665",
+	"1": "uint256: asm 1174559060629581930499137600401997209333852"
+}
+```
 
 In taxCollector's context, rpow is used to multiply globalStabilityFee + collateralStabilityFee and the delta between now and the  last update for the collateral.
 
 - stabilityFee (ray%): 1000.000000000000000000000001
 - time since last update (seconds): 1000000000000000000000000001, 10055109076 years
 
+We also tested how different are the results, and determined it affects the last 15 digits of the result. (results in RAY, contract Rpow).
 
-#### Conclusion: WIP, limits seem safe, check why implementations differ.
+#### Conclusion: As seen, implementations slightly differ in the results. This is likely due to how the solidity version is being compiled. This affects only precision after the last 15 digits of the result (result in RAY, so just a minor practical difference). Conclusion is we should maintain the current implementation, due to it being battletested on MCD and 1inch contracts. 
 
 #### SignedMath
 We checked the other signed math functions in the contract:
@@ -399,7 +412,7 @@ assertion in fuzzSignedMultiply: failed!💥
 
 the Multiply (int,int) function needs to be updated to check for the edge case above (a=-1, b=minInt256).
 
-#### Conclusion: WIP, create PR for fix.
+#### Conclusion: Fixed in commit 422210bd509b15e60c2cd9f6b5615c5fc99935d8.
 
 ### SecondaryReceivers
 
@@ -474,6 +487,8 @@ assertion in taxManyOutcome: failed!💥
     initializeCollateralType("142") Time delay: 0x1 Block delay: 0x1
     taxManyOutcome(0,0)
     
+TaxManyOutcome will call taxSingle (below), it failed due to an incorrect period (as expected).
+    
 
 Failure in taxSingle:
 assertion in taxSingle: failed!💥  
@@ -481,7 +496,9 @@ assertion in taxSingle: failed!💥
     fuzzSafeEngineParams(24156297535047651174260027428945694198,2440833663884588063980026454756096814604,4055979757487036252849098407008606829)
     taxSingle("")
 
-accumulatedRate of 579174376706775911274.800714463840417781295696008
+debtAmount (wad):  24156297535047651174.260027428945694198
+accumulatedRate (ray): 2440833663884.588063980026454756096814604
+coiBalance (rad): .000000004055979757487036252849098407008606829
 
 failure in taxSingleOutcome:
 assertion in taxSingleOutcome: failed!💥  
@@ -489,8 +506,9 @@ assertion in taxSingleOutcome: failed!💥
     fuzzSafeEngineParams(32009589394515823170620614171415115802900314972004807949104927289202285711,58127098963045144785531823126094668709999337501291827457972926705886648852901,5855237267068563497038537319648564433479856848423069762335917477095656913)
     taxSingleOutcome("")
 
-accumulatedRate of 
-1158037789158253640499087.702679119376385506936977895
+debtAmount (wad): 32009589394515823170620614171415115802900314972004807949.104927289202285711
+accumulatedRate (ray): 58127098963045144785531823126094668709999337501291.827457972926705886648852901
+coiBalance (rad): 585523726706856349703853731.9648564433479856848423069762335917477095656913
 
 failure in taxMany:
 assertion in taxMany: failed!💥  
@@ -498,9 +516,8 @@ assertion in taxMany: failed!💥
     initializeCollateralType("")
     fuzzSafeEngineParams(0,115796792157171934533363076104241853622385144458508,247122978102071542620845283503554896831987181594491) Time delay: 0x1 Block delay: 0x1
     taxMany(0,0)
+    
+Failing because of incorrect period, it actually calls taxSingle (tested above) within execution.
 
-
-
-
-#### Conclusion: WIP
+#### Conclusion: We reached different limits on this test, but still all bounds are unlikely to happen (limited by debtAmount, the coin totalSupply and reasonableness of the accumulatedRate)
 
