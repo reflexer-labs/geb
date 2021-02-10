@@ -287,3 +287,220 @@ echidna_bids: passed! 🎉
 ```
 
 #### Conclusion: No exceptions found.
+
+## TaxCollector
+
+### Overflows
+```
+Analyzing contract: /Users/fabio/Documents/reflexer/geb/src/test/fuzz/taxCollectorFuzz.sol:Fuzz
+assertion in secondaryReceiverAccounts: passed! 🎉
+assertion in latestSecondaryReceiver: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in authorizedAccounts: passed! 🎉
+assertion in taxManyOutcome: passed! 🎉
+assertion in collateralList: failed!💥  
+  Call sequence:
+    collateralList(0)
+
+assertion in addAuthorization: passed! 🎉
+assertion in globalStabilityFee: passed! 🎉
+assertion in primaryTaxReceiver: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in isSecondaryReceiver: passed! 🎉
+assertion in initializeCollateralType: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in safeEngine: passed! 🎉
+assertion in taxSingle: failed!💥  
+  Call sequence:
+    fuzzSafeEngineParams(0,579174376706775911274800714463840417781295696008,0)
+    taxSingle("")
+
+assertion in fuzzSafeEngineParams: passed! 🎉
+assertion in secondaryTaxReceivers: passed! 🎉
+assertion in removeAuthorization: passed! 🎉
+assertion in secondaryReceiverNonce: passed! 🎉
+assertion in collateralListLength: passed! 🎉
+assertion in secondaryReceiversAmount: passed! 🎉
+assertion in collectedManyTax: passed! 🎉
+assertion in secondaryReceiverRevenueSources: passed! 🎉
+assertion in collateralTypes: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in secondaryReceiverAllotedTax: passed! 🎉
+assertion in taxSingleOutcome: failed!💥  
+  Call sequence:
+    taxSingle("")
+    fuzzSafeEngineParams(0,115803778915825364049908770267911937638550693697789,0)
+    taxSingleOutcome("")
+
+assertion in usedSecondaryReceiver: passed! 🎉
+assertion in taxMany: passed! 🎉
+assertion in maxSecondaryReceivers: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+
+Unique instructions: 4901
+Unique codehashes: 2
+Seed: -8725941163565682918
+```
+
+Failures in taxSingle:
+fuzzSafeEngineParams(0,579174376706775911274800714463840417781295696008,0)
+
+accumulatedRate of 579174376706775911274.800714463840417781295696008
+
+Failure in taxSingleOutcome:
+    taxSingle("")
+    fuzzSafeEngineParams(0,115803778915825364049908770267911937638550693697789,0)
+    taxSingleOutcome("")
+
+accumulatedRate of 
+1158037789158253640499087.702679119376385506936977895
+
+#### Conclusion: Overflows are unlikely, as the accumulatedRate above is unlikely to happen.
+
+### Math
+
+#### rPow
+
+We implemented the rPow function in Solidity, and rounding seem to be off a bit (results lack precision).
+
+We first tested with base fixed at RAY (as it's used in production), and it failed with:
+
+```
+assertion in fuzz_rpow: failed!💥  
+  Call sequence:
+    fuzz_rpow(1000000000000000000000000001,1000000000000000000000000001)
+````
+
+The call above produces slightly different results: 
+```
+{
+	"0": "uint256: sol 2718281828458957297665721793",
+	"1": "uint256: asm 2718281828458990744961643954"
+}
+```
+
+In taxCollector's context, rpow is used to multiply globalStabilityFee + collateralStabilityFee and the delta between now and the  last update for the collateral.
+
+- stabilityFee (ray%): 1000.000000000000000000000001
+- time since last update (seconds): 1000000000000000000000000001, 10055109076 years
+
+
+#### Conclusion: WIP, limits seem safe, check why implementations differ.
+
+#### SignedMath
+We checked the other signed math functions in the contract:
+```
+assertion in fuzzSignedSubtract: passed! 🎉
+assertion in fuzzSignedAddition: passed! 🎉
+assertion in fuzzSignedMultiply: failed!💥  
+  Call sequence:
+    fuzz_rpow(-1,-57896044618658097711785492504343953926634992332820282019728792003956564819968)
+````
+
+the Multiply (int,int) function needs to be updated to check for the edge case above (a=-1, b=minInt256).
+
+#### Conclusion: WIP, create PR for fix.
+
+### SecondaryReceivers
+
+We will auth the fuzzer accounts in the contract, so they can add/remove secondary receivers and initialize collateral (and reach the parts of the code that require these). This test is best run with a high seqLen.
+
+```
+Analyzing contract: /Users/fabio/Documents/reflexer/geb/src/test/fuzz/taxCollectorFuzz.sol:StatefulFuzz
+assertion in secondaryReceiverAccounts: passed! 🎉
+assertion in latestSecondaryReceiver: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in authorizedAccounts: passed! 🎉
+assertion in taxManyOutcome: failed!💥  
+  Call sequence:
+    initializeCollateralType("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL")
+    fuzzSafeEngineParams(0,116722783967983422816141205997215843014688047892712,0)
+    initializeCollateralType("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\142") Time delay: 0x1 Block delay: 0x1
+    taxManyOutcome(0,0)
+
+assertion in collateralList: failed!💥  
+  Call sequence:
+    collateralList(0)
+
+assertion in addAuthorization: passed! 🎉
+assertion in globalStabilityFee: passed! 🎉
+assertion in primaryTaxReceiver: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in isSecondaryReceiver: passed! 🎉
+assertion in initializeCollateralType: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in safeEngine: passed! 🎉
+assertion in taxSingle: failed!💥  
+  Call sequence:
+    fuzzSafeEngineParams(24156297535047651174260027428945694198,2440833663884588063980026454756096814604,4055979757487036252849098407008606829)
+    taxSingle("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL")
+
+assertion in fuzzSafeEngineParams: passed! 🎉
+assertion in secondaryTaxReceivers: passed! 🎉
+assertion in removeAuthorization: passed! 🎉
+assertion in secondaryReceiverNonce: passed! 🎉
+assertion in collateralListLength: passed! 🎉
+assertion in secondaryReceiversAmount: passed! 🎉
+assertion in collectedManyTax: passed! 🎉
+assertion in secondaryReceiverRevenueSources: passed! 🎉
+assertion in collateralTypes: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in secondaryReceiverAllotedTax: passed! 🎉
+assertion in taxSingleOutcome: failed!💥  
+  Call sequence:
+    fuzzSafeEngineParams(32009589394515823170620614171415115802900314972004807949104927289202285711,58127098963045144785531823126094668709999337501291827457972926705886648852901,5855237267068563497038537319648564433479856848423069762335917477095656913)
+    taxSingleOutcome("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL")
+
+assertion in usedSecondaryReceiver: passed! 🎉
+assertion in taxMany: failed!💥  
+  Call sequence:
+    initializeCollateralType("\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL")
+    fuzzSafeEngineParams(0,115796792157171934533363076104241853622385144458508,247122978102071542620845283503554896831987181594491) Time delay: 0x1 Block delay: 0x1
+    taxMany(0,0)
+
+assertion in maxSecondaryReceivers: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+
+Unique instructions: 8647
+Unique codehashes: 2
+Seed: 4704021613944476058
+
+```
+Failure in taxManyOutcome:
+assertion in taxManyOutcome: failed!💥  
+  Call sequence:
+    initializeCollateralType("")
+    fuzzSafeEngineParams(0,116722783967983422816141205997215843014688047892712,0)
+    initializeCollateralType("142") Time delay: 0x1 Block delay: 0x1
+    taxManyOutcome(0,0)
+    
+
+Failure in taxSingle:
+assertion in taxSingle: failed!💥  
+  Call sequence:
+    fuzzSafeEngineParams(24156297535047651174260027428945694198,2440833663884588063980026454756096814604,4055979757487036252849098407008606829)
+    taxSingle("")
+
+accumulatedRate of 579174376706775911274.800714463840417781295696008
+
+failure in taxSingleOutcome:
+assertion in taxSingleOutcome: failed!💥  
+  Call sequence:
+    fuzzSafeEngineParams(32009589394515823170620614171415115802900314972004807949104927289202285711,58127098963045144785531823126094668709999337501291827457972926705886648852901,5855237267068563497038537319648564433479856848423069762335917477095656913)
+    taxSingleOutcome("")
+
+accumulatedRate of 
+1158037789158253640499087.702679119376385506936977895
+
+failure in taxMany:
+assertion in taxMany: failed!💥  
+  Call sequence:
+    initializeCollateralType("")
+    fuzzSafeEngineParams(0,115796792157171934533363076104241853622385144458508,247122978102071542620845283503554896831987181594491) Time delay: 0x1 Block delay: 0x1
+    taxMany(0,0)
+
+
+
+
+#### Conclusion: WIP
+
