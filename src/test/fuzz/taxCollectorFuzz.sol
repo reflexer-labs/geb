@@ -158,6 +158,7 @@ contract Rpow {
     function rmul(uint256 x, uint256 y, uint256 b) internal pure returns (uint256 z) {
         z = x * y;
         require(y == 0 || z / y == x);
+        z += b / 2; // why?
         z = z / b;
     }
 
@@ -166,7 +167,6 @@ contract Rpow {
 
         for (n /= 2; n != 0; n /= 2) {
             x = rmul(x, x, b);
-
             if (n % 2 != 0) {
                 z = rmul(z, x, b);
             }
@@ -174,7 +174,8 @@ contract Rpow {
     }
 
     function fuzz_rpow(uint x, uint n) public {
-        assert(rpow(x, n, RAY) / 10 ** 15 == rpowSolidity(x, n, RAY) / 10 ** 15);
+        assert(rpow(x, n, RAY) / 10 ** 20 == rpowSolidity(x, n, RAY) / 10 ** 20);
+        assert(rpow(x, n, RAY) == rpowSolidity(x, n, RAY));
     }
 }
 

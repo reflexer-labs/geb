@@ -400,6 +400,8 @@ We also tested how different are the results, and determined it affects the last
 
 #### Conclusion: As seen, implementations slightly differ in the results. This is due to the rounding scheme implemented in the assembly version (results in slightly lower results). This affects only precision after the last 15 digits of the result (result in RAY, so just a minor practical difference). Conclusion is we should maintain the current implementation, due to it being battletested on MCD and 1inch contracts. 
 
+#### Update: We updated the Solidity function to implement the same rounding scheme as the one used in the production assembly version, and got the same exact results (contract Rpow).
+
 #### SignedMath
 We checked the other signed math functions in the contract:
 ```
