@@ -302,7 +302,7 @@ contract StabilityFeeTreasury {
      */
     function pullFunds(address dstAccount, address token, uint256 wad) external {
         if (dstAccount == address(this)) return;
-	      require(allowance[msg.sender].total >= wad, "StabilityFeeTreasury/not-allowed");
+	require(allowance[msg.sender].total >= wad, "StabilityFeeTreasury/not-allowed");
         require(dstAccount != address(0), "StabilityFeeTreasury/null-dst");
         require(dstAccount != extraSurplusReceiver, "StabilityFeeTreasury/dst-cannot-be-accounting");
         require(wad > 0, "StabilityFeeTreasury/null-transfer-amount");
@@ -332,7 +332,7 @@ contract StabilityFeeTreasury {
 
     // --- Treasury Maintenance ---
     /**
-     * @notice Transfer surplus stability fees to the AccountingEngine. This is here to make sure that the treasury
+     * @notice Transfer surplus stability fees to the extraSurplusReceiver. This is here to make sure that the treasury
                doesn't accumulate too many fees that it doesn't even need in order to pay for allowances. It ensures
                that there are enough funds left in the treasury to account for projected expenses (latest expenses multiplied
                by an expense multiplier)
