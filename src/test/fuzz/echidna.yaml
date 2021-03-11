@@ -1,0 +1,9 @@
+seqLen: 200
+testLimit: 200000
+checkAsserts: false
+sender: ["0x10000", "0x20000", "0xabc00"]
+coverage: false
+maxTimeDelay: 725760000 # 1200 weeks
+maxBlockDelay: 60480000 # around 1000 weeks of blocks
+testMaxGas: 12500000 # current block gas limit
+estimateGas: false
