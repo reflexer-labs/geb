@@ -129,10 +129,19 @@ echidna_discount: passed! 🎉
 echidna_maxDiscountUpdateRateTimeline: passed! 🎉
 echidna_minSystemCoinMedianDeviation: passed! 🎉
 
-Seed: 1386503579258549513
+Seed: -8237748390916735651
 ```
 
-#### Conclusion: No exceptions found.
+#### Conclusion: One exception found
+
+Due to the different way the funcion ```buyCollateral``` removes coins from auction when the auction is settled, a minor difference occurs between the coins removed from auction (on liquidationEngine) and the amount sent to ```auctionIncomeRecipient``` (on safeEngine). Example below:
+
+```
+log_named_uint("auctionIncomeRecipient balance", 60980538147000000000000000000000000000)
+log_named_uint("removed coins on liq engine",    60980538146327134580274291843636852893)
+```
+
+The function on the mock contract was fixed, to prevent the difference from happening.
 
 
 ### Auctions and bids (FuzzAuctionsAndBids)
@@ -144,14 +153,29 @@ A high seqLen is recommended, 1500 was used for this run. (This means that for e
 Turn the modifyParameters(bytes32,address) to internal to run this case (as it will prevent the fuzzer to change oracle and accountingEngine addresses), and do the same with terminateAuctionPrematurely, or the fuzzer will terminate auctions randomly (to taste).
 
 We set the following properties for this case:
-- colateralType
-- lastReadRedemptionPrice
-- raisedAmount
-- soldAmount
+- dicsound bounds
+- maxDiscount
+- perSecondDiascountUpdateRate
+- Amounts settled and token flows
 
 We also check if the token flows are acceptable.
 ```
-TBR
+Analyzing contract: /Users/fabio/Documents/reflexer/geb/src/test/fuzz/increasingDiscountAuctionHouseFuzz.sol:FuzzAuctionsAndBids
+echidna_collateralType: passed! 🎉
+echidna_minimumBid: passed! 🎉
+echidna_lowerSystemCoinMedianDeviation: passed! 🎉
+echidna_maxDiscount: passed! 🎉
+echidna_lastReadRedemptionPrice: passed! 🎉
+echidna_bids: passed! 🎉
+echidna_upperSystemCoinMedianDeviation: passed! 🎉
+echidna_perSecondDiscountUpdateRate: passed! 🎉
+echidna_lowerCollateralMedianDeviation: passed! 🎉
+echidna_upperCollateralMedianDeviation: passed! 🎉
+echidna_discount: passed! 🎉
+echidna_maxDiscountUpdateRateTimeline: passed! 🎉
+echidna_minSystemCoinMedianDeviation: passed! 🎉
+
+Seed: -7178401117171357020
 ```
 
 #### Conclusion: No exceptions found.

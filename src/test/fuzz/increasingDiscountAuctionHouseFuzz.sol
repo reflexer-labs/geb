@@ -7,12 +7,15 @@ contract SAFEEngineMock {
     mapping (address => uint) public receivedCoin;
     mapping (address => uint) public sentCollateral;
 
-    
+    function addUint256(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require((z = x + y) >= x);
+    }
+
     function transferInternalCoins(address,address to,uint256 val) public {
-        receivedCoin[to] += val;
+        receivedCoin[to] = addUint256(val, receivedCoin[to]);
     }
     function transferCollateral(bytes32,address from,address,uint256 val) public {
-        sentCollateral[from] += val;
+        sentCollateral[from] = addUint256(val, sentCollateral[from]);
     }
 }
 contract OracleRelayerMock {
@@ -21,9 +24,13 @@ contract OracleRelayerMock {
     }
 }
 contract LiquidationEngineMock {
-    uint public removedCoinsFromAfuction;
+    function addUint256(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require((z = x + y) >= x);
+    }
+
+    uint public removedCoinsFromAuction;
     function removeCoinsFromAuction(uint256 val) public {
-        removedCoinsFromAfuction += val;
+        removedCoinsFromAuction = addUint256(val,removedCoinsFromAuction);
     }
 }
 
@@ -92,8 +99,8 @@ contract FuzzBounds is IncreasingDiscountCollateralAuctionHouseMock {
 contract FuzzBids is IncreasingDiscountCollateralAuctionHouseMock{
     address auctionIncomeRecipient = address(0xfab);
     address _forgoneCollateralReceiver = address(0xacab);
-    uint _amountToRaise = 50 * 10 ** 45;
-    uint _amountToSell = 100 ether;
+    uint _amountToRaise = uint(50 * 10 ** 45);
+    uint _amountToSell = uint(100 ether);
 
     constructor() public IncreasingDiscountCollateralAuctionHouseMock(
             address(new SAFEEngineMock()),
@@ -114,12 +121,7 @@ contract FuzzBids is IncreasingDiscountCollateralAuctionHouseMock{
             modifyParameters("maxDiscount", 0.90E18); // 10%
 
             // starting an auction
-            startAuction({ amountToSell: 100 ether
-                                , amountToRaise: _amountToRaise
-                                , forgoneCollateralReceiver: _forgoneCollateralReceiver
-                                , auctionIncomeRecipient: auctionIncomeRecipient
-                                , initialBid: 0
-                                });
+            startAuction(_forgoneCollateralReceiver, auctionIncomeRecipient, _amountToRaise, _amountToSell, 0);
 
             // auction initiated
             assert(bids[1].amountToRaise == _amountToRaise);
@@ -179,6 +181,31 @@ contract FuzzBids is IncreasingDiscountCollateralAuctionHouseMock{
         return minSystemCoinMedianDeviation == 0.999E18;
     }
 
+    // auxiliary structure to track auction initial data
+    struct AuctionData {
+        uint initialAmountToRaise;
+        uint initialAmountToSell;
+    }
+
+    mapping (uint256 => AuctionData) internal auctions;
+
+    function startAuction(
+        address, address,
+        uint256 amountToRaise,
+        uint256 amountToSell,
+        uint256 initialBid
+    ) public override returns (uint256 id) {
+        id = super.startAuction(
+            _forgoneCollateralReceiver,
+            auctionIncomeRecipient,
+            amountToRaise,
+            amountToSell,
+            initialBid
+        );
+
+        auctions[id] = AuctionData(amountToRaise, amountToSell);
+    }    
+
     function echidna_bids() public returns (bool) { 
 
         // auction settled, auctionHouse deletes the bid
@@ -186,13 +213,17 @@ contract FuzzBids is IncreasingDiscountCollateralAuctionHouseMock{
 
         if (_amountToRaise - bids[1].amountToRaise != SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient)) return false; // rad
         if (_amountToSell - bids[1].amountToSell != SAFEEngineMock(address(safeEngine)).sentCollateral(address(this))) return false;
-        if (_amountToRaise - bids[1].amountToRaise != LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAfuction()) return false;
+        if (_amountToRaise - bids[1].amountToRaise != LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAuction()) return false;
         if (bids[1].forgoneCollateralReceiver != _forgoneCollateralReceiver) return false;
         if (bids[1].auctionIncomeRecipient != auctionIncomeRecipient) return false;
 
         if (bids[1].currentDiscount > 0.95E18 || bids[1].currentDiscount < 0.90E18) return false;
         if (bids[1].maxDiscount != 0.90E18) return false;
         if (bids[1].perSecondDiscountUpdateRate != 999998607628240588157433861) return false;
+
+        if (auctions[1].initialAmountToSell - bids[1].amountToSell != SAFEEngineMock(address(safeEngine)).sentCollateral(address(this))) return false; 
+        if (SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient) != LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAuction()) return false;
+        if (SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient) != auctions[1].initialAmountToRaise - bids[1].amountToRaise) return false;
 
         return true;
     }
@@ -225,7 +256,7 @@ contract FuzzAuctionsAndBids is IncreasingDiscountCollateralAuctionHouseMock {
 
     function setUp() public {
             // creating feeds
-            collateralFSM = OracleLike(address(new Feed(bytes32(uint256(3.14 ether)), true)));
+            collateralFSM = OracleLike(address(new Feed(bytes32(uint256(200 ether)), true)));
             oracleRelayer = OracleRelayerLike(address(new OracleRelayerMock()));
 
             // config increasing discount
@@ -289,24 +320,57 @@ contract FuzzAuctionsAndBids is IncreasingDiscountCollateralAuctionHouseMock {
         return minSystemCoinMedianDeviation == 0.999E18;
     }
 
+    // auxiliary structure to track auction initial data
+    struct AuctionData {
+        uint initialAmountToRaise;
+        uint initialAmountToSell;
+    }
+
+    mapping (uint256 => AuctionData) internal auctions;
+
+    function startAuction(
+        address, address,
+        uint256 amountToRaise,
+        uint256 amountToSell,
+        uint256 initialBid
+    ) public override returns (uint256 id) {
+        id = super.startAuction(
+            _forgoneCollateralReceiver,
+            auctionIncomeRecipient,
+            amountToRaise,
+            amountToSell,
+            initialBid
+        );
+
+        auctions[id] = AuctionData(amountToRaise, amountToSell);
+    }
+
     function echidna_bids() public returns (bool) { 
-        uint amountToRaiseSum;
-        uint amountToSellSum;
+        if (auctionsStarted == 0) return true;
+
+        uint pendingAmountToRaise;
+        uint pendingAmountToSell;
+        uint totalAmountToRaise;
+        uint totalAmountToSell;
 
         for (uint i = 1; i <= auctionsStarted; i++) {
-            // auction settled, auctionHouse deletes the bid
-            if (bids[i].amountToSell == 0) break;
-            amountToRaiseSum += bids[i].amountToRaise;
-            amountToSellSum += bids[i].amountToSell;
+            totalAmountToRaise += auctions[i].initialAmountToRaise;
+            totalAmountToSell += auctions[i].initialAmountToSell;
+            pendingAmountToRaise += bids[i].amountToRaise;
+            pendingAmountToSell += bids[i].amountToSell;
 
-            if (bids[i].currentDiscount > 0.95E18 || bids[i].currentDiscount < 0.50E18) return false;
-            if (bids[i].maxDiscount != 0.50E18) return false;
-            if (bids[i].perSecondDiscountUpdateRate != 999998607628240588157433861) return false;
+            if (bids[i].forgoneCollateralReceiver != address(0)) { // auction not yet settled
+                if (bids[i].currentDiscount > 0.95E18 || bids[i].currentDiscount < 0.50E18) return false;
+                if (bids[i].maxDiscount != 0.50E18) return false;
+                if (bids[i].perSecondDiscountUpdateRate != 999998607628240588157433861) return false;
+            }
+
         }
 
-        // if (raisedAmountSum < SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient)) return false; // rad
-        // if (soldAmountSum < SAFEEngineMock(address(safeEngine)).sentCollateral(address(this))) return false; 
-        // if (raisedAmountSum < LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAfuction()) return false; // failing
+        if (totalAmountToSell - pendingAmountToSell != SAFEEngineMock(address(safeEngine)).sentCollateral(address(this))) return false;
+        if (SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient) != LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAuction()) return false;
+        if (SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient) != totalAmountToRaise - pendingAmountToRaise) return false;
+
         return true;
     }
 
