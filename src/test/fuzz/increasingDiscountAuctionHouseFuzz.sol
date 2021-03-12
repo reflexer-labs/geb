@@ -222,7 +222,7 @@ contract FuzzBids is IncreasingDiscountCollateralAuctionHouseMock{
         if (bids[1].perSecondDiscountUpdateRate != 999998607628240588157433861) return false;
 
         if (auctions[1].initialAmountToSell - bids[1].amountToSell != SAFEEngineMock(address(safeEngine)).sentCollateral(address(this))) return false; 
-        if (SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient) > LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAuction() + 10**18 && SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient) != 0) return false; // value transferred is expected to be slightly higher, allowing for up to a 1 wad (1 coin) difference
+        if (SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient) < LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAuction() && SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient) != 0) return false; // value transferred is expected to be slightly higher
         if (LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAuction() != auctions[1].initialAmountToRaise - bids[1].amountToRaise) return false;
 
         return true;
@@ -368,7 +368,7 @@ contract FuzzAuctionsAndBids is IncreasingDiscountCollateralAuctionHouseMock {
         }
 
         if (totalAmountToSell - pendingAmountToSell != SAFEEngineMock(address(safeEngine)).sentCollateral(address(this))) return false;
-        if (SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient) > LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAuction() + 10**18) return false; // value will be slightly higher here, allowing for 1 wad difference
+        if (SAFEEngineMock(address(safeEngine)).receivedCoin(auctionIncomeRecipient) < LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAuction()) return false; // value will be slightly higher here
         if (LiquidationEngineMock(address(liquidationEngine)).removedCoinsFromAuction() != totalAmountToRaise - pendingAmountToRaise) return false;
 
         return true;
