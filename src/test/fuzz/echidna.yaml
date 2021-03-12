@@ -1,4 +1,4 @@
-seqLen: 200
+seqLen: 50
 testLimit: 20000
 checkAsserts: false
 sender: ["0x10000", "0x20000", "0xabc00"]

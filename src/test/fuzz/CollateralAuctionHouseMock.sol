@@ -691,11 +691,11 @@ contract IncreasingDiscountCollateralAuctionHouseMock {
         bids[id].amountToSell = subtract(bids[id].amountToSell, boughtCollateral);
 
         // update remainingToRaise in case amountToSell is zero (everything has been sold)
-        uint256 remainingToRaise = (either(multiply(wad, RAY) >= bids[id].amountToRaise, bids[id].amountToSell == 0)) ? 
+        uint256 remainingToRaise = (either(multiply(wad, RAY) >= bids[id].amountToRaise, bids[id].amountToSell == 0)) ?
             bids[id].amountToRaise : subtract(bids[id].amountToRaise, multiply(wad, RAY));
 
         // update leftover amount to raise in the bid struct
-        bids[id].amountToRaise = (multiply(adjustedBid, RAY) >= bids[id].amountToRaise) ?
+        bids[id].amountToRaise = (multiply(adjustedBid, RAY) > bids[id].amountToRaise) ?
             0 : subtract(bids[id].amountToRaise, multiply(adjustedBid, RAY));
 
         // check that the remaining amount to raise is either zero or higher than RAY
@@ -705,18 +705,17 @@ contract IncreasingDiscountCollateralAuctionHouseMock {
         );
 
         // transfer the bid to the income recipient and the collateral to the bidder
+        safeEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, multiply(adjustedBid, RAY));
         safeEngine.transferCollateral(collateralType, address(this), msg.sender, boughtCollateral);
 
         // Emit the buy event
         emit BuyCollateral(id, adjustedBid, boughtCollateral);
 
-        // Remove coins from the liquidation buffer, transfer them to the auctionIncomeRecipient
+        // Remove coins from the liquidation buffer
         bool soldAll = either(bids[id].amountToRaise == 0, bids[id].amountToSell == 0);
         if (soldAll) {
-            safeEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, remainingToRaise); // fix: transfering same amount removed from auctions
             liquidationEngine.removeCoinsFromAuction(remainingToRaise);
         } else {
-            safeEngine.transferInternalCoins(msg.sender, bids[id].auctionIncomeRecipient, multiply(adjustedBid, RAY));
             liquidationEngine.removeCoinsFromAuction(multiply(adjustedBid, RAY));
         }
 

@@ -129,19 +129,10 @@ echidna_discount: passed! 🎉
 echidna_maxDiscountUpdateRateTimeline: passed! 🎉
 echidna_minSystemCoinMedianDeviation: passed! 🎉
 
-Seed: -8237748390916735651
+Seed: 383542954992209152
 ```
 
-#### Conclusion: One exception found
-
-Due to the different way the funcion ```buyCollateral``` removes coins from auction when the auction is settled, a minor difference occurs between the coins removed from auction (on liquidationEngine) and the amount sent to ```auctionIncomeRecipient``` (on safeEngine). Example below:
-
-```
-log_named_uint("auctionIncomeRecipient balance", 60980538147000000000000000000000000000)
-log_named_uint("removed coins on liq engine",    60980538146327134580274291843636852893)
-```
-
-The function on the mock contract was fixed, to prevent the difference from happening.
+#### Conclusion: No issues noted.
 
 
 ### Auctions and bids (FuzzAuctionsAndBids)
@@ -175,7 +166,7 @@ echidna_discount: passed! 🎉
 echidna_maxDiscountUpdateRateTimeline: passed! 🎉
 echidna_minSystemCoinMedianDeviation: passed! 🎉
 
-Seed: -7178401117171357020
+Seed: -5231695734031020631
 ```
 
 #### Conclusion: No exceptions found.
