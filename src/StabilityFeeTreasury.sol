@@ -82,13 +82,16 @@ contract StabilityFeeTreasury {
         uint256 perBlock;
     }
 
+    // Mapping of total and per block allowances
     mapping(address => Allowance)                   private allowance;
+    // Mapping that keeps track of how much surplus an authorized address has pulled each block
     mapping(address => mapping(uint256 => uint256)) public pulledPerBlock;
 
     SAFEEngineLike  public safeEngine;
     SystemCoinLike  public systemCoin;
     CoinJoinLike    public coinJoin;
 
+    // The address that receives any extra surplus which is not used by the treasury
     address public extraSurplusReceiver;
 
     uint256 public treasuryCapacity;           // max amount of SF that can be kept in treasury                            [rad]
@@ -160,7 +163,7 @@ contract StabilityFeeTreasury {
 
     // --- Administration ---
     /**
-     * @notice Modify contract addresses
+     * @notice Modify address parameters
      * @param parameter The name of the contract whose address will be changed
      * @param addr New address for the contract
      */
@@ -216,13 +219,16 @@ contract StabilityFeeTreasury {
         assembly{ z := and(x, y)}
     }
     /**
-     * @notice Join all ERC20 system coins that the treasury has inside SAFEEngine
+     * @notice Join all ERC20 system coins that the treasury has inside the SAFEEngine
      */
     function joinAllCoins() internal {
         if (systemCoin.balanceOf(address(this)) > 0) {
           coinJoin.join(address(this), systemCoin.balanceOf(address(this)));
         }
     }
+    /*
+    * @notice Settle as much bad debt as possible (if this contract has any)
+    */
     function settleDebt() public {
         uint256 coinBalanceSelf = safeEngine.coinBalance(address(this));
         uint256 debtBalanceSelf = safeEngine.debtBalance(address(this));
@@ -233,6 +239,10 @@ contract StabilityFeeTreasury {
     }
 
     // --- Getters ---
+    /*
+    * @notice Returns the total and per block allowances for a specific address
+    * @param account The address to return the allowances for
+    */
     function getAllowance(address account) public view returns (uint256, uint256) {
         return (allowance[account].total, allowance[account].perBlock);
     }

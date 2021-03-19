@@ -88,7 +88,7 @@ contract SettlementSurplusAuctioneer {
 
     // --- Administration ---
     /**
-     * @notice Modify contract addresses
+     * @notice Modify address params
      * @param parameter The name of the contract whose address will be changed
      * @param addr New address for the contract
      */
@@ -106,8 +106,8 @@ contract SettlementSurplusAuctioneer {
 
     // --- Core Logic ---
     /**
-     * @notice Auction stability fees. The process is very similar to how the AccountingEngine would do it.
-               The contract even reads surplus auction parameters from the AccountingEngine and uses them to
+     * @notice Auction surplus. The process is very similar to the one in the AccountingEngine.
+               The contract reads surplus auction parameters from the AccountingEngine and uses them to
                start a new auction.
      */
     function auctionSurplus() external returns (uint256 id) {
