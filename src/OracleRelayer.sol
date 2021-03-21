@@ -104,13 +104,15 @@ contract OracleRelayer {
     // --- Init ---
     constructor(address safeEngine_) public {
         authorizedAccounts[msg.sender] = 1;
-        safeEngine                 = SAFEEngineLike(safeEngine_);
-        _redemptionPrice           = RAY;
-        redemptionRate             = RAY;
-        redemptionPriceUpdateTime  = now;
-        redemptionRateUpperBound   = RAY * WAD;
-        redemptionRateLowerBound   = 1;
-        contractEnabled            = 1;
+
+        safeEngine                     = SAFEEngineLike(safeEngine_);
+        _redemptionPrice               = RAY;
+        redemptionRate                 = RAY;
+        redemptionPriceUpdateTime      = now;
+        redemptionRateUpperBound       = RAY * WAD;
+        redemptionRateLowerBound       = 1;
+        contractEnabled                = 1;
+
         emit AddAuthorization(msg.sender);
     }
 
@@ -179,7 +181,7 @@ contract OracleRelayer {
         );
     }
     /**
-     * @notice Modify redemption related parameters
+     * @notice Modify redemption rate/price related parameters
      * @param parameter Name of the parameter
      * @param data New param value
      */
@@ -243,7 +245,7 @@ contract OracleRelayer {
 
     // --- Redemption Price Update ---
     /**
-     * @notice Update the redemption price according to the current redemption rate
+     * @notice Update the redemption price using the current redemption rate
      */
     function updateRedemptionPrice() internal returns (uint256) {
         // Update redemption price

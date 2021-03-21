@@ -31,7 +31,7 @@ abstract contract TokenLike {
 }
 
 /*
-   This thing lets you auction some coins in return for protocol tokens that are then burnt
+   This thing lets you auction some system coins in return for protocol tokens that are then burnt
 */
 
 contract BurningSurplusAuctionHouse {
@@ -341,7 +341,7 @@ contract RecyclingSurplusAuctionHouse {
 
     // --- Admin ---
     /**
-     * @notice Modify auction parameters
+     * @notice Modify uint256 parameters
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
@@ -355,7 +355,7 @@ contract RecyclingSurplusAuctionHouse {
     /**
      * @notice Modify addresses
      * @param parameter The name of the parameter modified
-     * @param addr New value for an address
+     * @param addr New address value
      */
     function modifyParameters(bytes32 parameter, address addr) external isAuthorized {
         require(addr != address(0), "RecyclingSurplusAuctionHouse/invalid-address");
@@ -549,7 +549,7 @@ contract PostSettlementSurplusAuctionHouse {
 
     // --- Admin ---
     /**
-     * @notice Modify auction parameters
+     * @notice Modify uint256 parameters
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */

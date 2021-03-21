@@ -298,7 +298,7 @@ contract CoinJoin {
     }
     /**
     * @notice Exit system coins from the system and inside 'Coin.sol'
-    * @dev Inside the system, coins have 45 (rad) decimals but outside they have 18 decimals (wad).
+    * @dev Inside the system, coins have 45 (rad) decimals but outside of it they have 18 decimals (wad).
            When we exit, we specify a wad amount of coins and then the contract automatically multiplies
            wad by 10**27 to move the correct 45 decimal coin amount to this adapter
     * @param account Account that will receive the exited coins

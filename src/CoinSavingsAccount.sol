@@ -127,26 +127,22 @@ contract CoinSavingsAccount {
             }
         }
     }
-
     function rmultiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = multiply(x, y) / RAY;
     }
-
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x + y) >= x, "CoinSavingsAccount/add-overflow");
     }
-
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require((z = x - y) <= x, "CoinSavingsAccount/sub-underflow");
     }
-
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
         require(y == 0 || (z = x * y) / y == x, "CoinSavingsAccount/mul-overflow");
     }
 
     // --- Administration ---
     /**
-     * @notice Modify savings rate
+     * @notice Modify an uint256 parameter
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
@@ -158,7 +154,7 @@ contract CoinSavingsAccount {
         emit ModifyParameters(parameter, data);
     }
     /**
-     * @notice Modify address of the accounting engine
+     * @notice Modify the address of the accountingEngine
      * @param parameter The name of the parameter modified
      * @param addr New value for the parameter
      */
@@ -180,7 +176,7 @@ contract CoinSavingsAccount {
     /**
      * @notice Update the accumulated rate index
      * @dev We return early if 'latestUpdateTime' is greater than or equal to block.timestamp. When the savings
-            rate is positive, we create unbacked debt for the accounting engine and issue new coins for
+            rate is positive, we create unbacked debt for the accountingEngine and issue new coins for
             this contract
      */
     function updateAccumulatedRate() public returns (uint256 newAccumulatedRate) {
@@ -204,7 +200,7 @@ contract CoinSavingsAccount {
     /**
      * @notice Deposit coins in the savings account
      * @param wad Amount of coins to deposit (expressed as an 18 decimal number). 'wad' will be multiplied by
-              'accumulatedRate' (27 decimals) to result in a correct amount of internal coins transferred
+              'accumulatedRate' (27 decimals) to result in a correct amount of internal coins to transfer
      */
     function deposit(uint256 wad) external {
         updateAccumulatedRate();
@@ -217,7 +213,7 @@ contract CoinSavingsAccount {
     /**
      * @notice Withdraw coins (alongside any interest accrued) from the savings account
      * @param wad Amount of coins to withdraw (expressed as an 18 decimal number). 'wad' will be multiplied by
-              'accumulatedRate' (27 decimals) to result in a correct amount of internal coins transferred
+              'accumulatedRate' (27 decimals) to result in a correct amount of internal coins to transfer
      */
     function withdraw(uint256 wad) external {
         updateAccumulatedRate();

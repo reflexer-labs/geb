@@ -64,6 +64,7 @@ contract SettlementSurplusAuctioneer {
     SurplusAuctionHouseLike public surplusAuctionHouse;
     SAFEEngineLike          public safeEngine;
 
+    // Last time when this contract triggered a surplus auction
     uint256 public lastSurplusAuctionTime;
 
     // --- Events ---
@@ -107,8 +108,8 @@ contract SettlementSurplusAuctioneer {
     // --- Core Logic ---
     /**
      * @notice Auction surplus. The process is very similar to the one in the AccountingEngine.
-               The contract reads surplus auction parameters from the AccountingEngine and uses them to
-               start a new auction.
+     * @dev The contract reads surplus auction parameters from the AccountingEngine and uses them to
+     *      start a new auction.
      */
     function auctionSurplus() external returns (uint256 id) {
         require(accountingEngine.contractEnabled() == 0, "SettlementSurplusAuctioneer/accounting-engine-still-enabled");

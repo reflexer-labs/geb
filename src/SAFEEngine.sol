@@ -531,7 +531,7 @@ contract SAFEEngine {
     }
     /**
      * @notice Usually called by CoinSavingsAccount in order to create unbacked debt
-     * @param debtDestination Usually AccountingEngine that can settle debt with surplus
+     * @param debtDestination Usually AccountingEngine that can settle uncovered debt with surplus
      * @param coinDestination Usually CoinSavingsAccount that passes the new coins to depositors
      * @param rad Amount of debt to create
      */
@@ -559,8 +559,7 @@ contract SAFEEngine {
     /**
      * @notice Usually called by TaxCollector in order to accrue interest on a specific collateral type
      * @param collateralType Collateral type we accrue interest for
-     * @param surplusDst Destination for amount of surplus created by applying the interest rate
-       to debt created by SAFEs with 'collateralType'
+     * @param surplusDst Destination for the newly created surplus
      * @param rateMultiplier Multiplier applied to the debtAmount in order to calculate the surplus [ray]
      */
     function updateAccumulatedRate(

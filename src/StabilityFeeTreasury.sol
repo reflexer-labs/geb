@@ -94,7 +94,7 @@ contract StabilityFeeTreasury {
     // The address that receives any extra surplus which is not used by the treasury
     address public extraSurplusReceiver;
 
-    uint256 public treasuryCapacity;           // max amount of SF that can be kept in treasury                            [rad]
+    uint256 public treasuryCapacity;           // max amount of SF that can be kept in the treasury                        [rad]
     uint256 public minimumFundsRequired;       // minimum amount of SF that must be kept in the treasury at all times      [rad]
     uint256 public expensesMultiplier;         // multiplier for expenses                                                  [hundred]
     uint256 public surplusTransferDelay;       // minimum time between transferSurplusFunds calls                          [seconds]
@@ -116,7 +116,9 @@ contract StabilityFeeTreasury {
     ) public {
         require(address(CoinJoinLike(coinJoin_).systemCoin()) != address(0), "StabilityFeeTreasury/null-system-coin");
         require(extraSurplusReceiver_ != address(0), "StabilityFeeTreasury/null-surplus-receiver");
+
         authorizedAccounts[msg.sender] = 1;
+
         safeEngine                = SAFEEngineLike(safeEngine_);
         extraSurplusReceiver      = extraSurplusReceiver_;
         coinJoin                  = CoinJoinLike(coinJoin_);
@@ -124,7 +126,9 @@ contract StabilityFeeTreasury {
         latestSurplusTransferTime = now;
         expensesMultiplier        = HUNDRED;
         contractEnabled           = 1;
+
         systemCoin.approve(address(coinJoin), uint256(-1));
+
         emit AddAuthorization(msg.sender);
     }
 
@@ -343,7 +347,7 @@ contract StabilityFeeTreasury {
     // --- Treasury Maintenance ---
     /**
      * @notice Transfer surplus stability fees to the extraSurplusReceiver. This is here to make sure that the treasury
-               doesn't accumulate too many fees that it doesn't even need in order to pay for allowances. It ensures
+               doesn't accumulate fees that it doesn't even need in order to pay for allowances. It ensures
                that there are enough funds left in the treasury to account for projected expenses (latest expenses multiplied
                by an expense multiplier)
      */

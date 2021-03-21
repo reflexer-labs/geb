@@ -155,7 +155,7 @@ contract EnglishCollateralAuctionHouse {
 
     // --- Admin ---
     /**
-     * @notice Modify auction parameters
+     * @notice Modify an uint256 parameter
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
@@ -167,7 +167,7 @@ contract EnglishCollateralAuctionHouse {
         emit ModifyParameters(parameter, data);
     }
     /**
-     * @notice Modify the address of an integrated contract
+     * @notice Modify an address parameter
      * @param parameter The name of the contract whose address we modify
      * @param data New contract address
      */
@@ -180,8 +180,8 @@ contract EnglishCollateralAuctionHouse {
     // --- Auction ---
     /**
      * @notice Start a new collateral auction
-     * @param forgoneCollateralReceiver Who receives leftover collateral that is not auctioned
-     * @param auctionIncomeRecipient Who receives the amount raised in the auction
+     * @param forgoneCollateralReceiver Address that receives leftover collateral that is not auctioned
+     * @param auctionIncomeRecipient Address that receives the amount of system coins raised by the auction
      * @param amountToRaise Total amount of coins to raise (rad)
      * @param amountToSell Total amount of collateral available to sell (wad)
      * @param initialBid Initial bid size (usually zero in this implementation) (rad)
@@ -395,7 +395,7 @@ contract FixedDiscountCollateralAuctionHouse {
         uint48  auctionDeadline;                                                                                      // [unix epoch time]
         // Who (which SAFE) receives leftover collateral that is not sold in the auction; usually the liquidated SAFE
         address forgoneCollateralReceiver;
-        // Who receives the coins raised from the auction; usually the accounting engine
+        // Who receives the coins raised by the auction; usually the accounting engine
         address auctionIncomeRecipient;
     }
 
@@ -507,7 +507,7 @@ contract FixedDiscountCollateralAuctionHouse {
 
     // --- Admin ---
     /**
-     * @notice Modify auction parameters
+     * @notice Modify an uint256 parameter
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
@@ -542,7 +542,7 @@ contract FixedDiscountCollateralAuctionHouse {
         emit ModifyParameters(parameter, data);
     }
     /**
-     * @notice Modify oracle related integrations
+     * @notice Modify an address parameter
      * @param parameter The name of the contract address being updated
      * @param data New address for the oracle contract
      */
@@ -1017,7 +1017,7 @@ contract IncreasingDiscountCollateralAuctionHouse {
         uint48  discountIncreaseDeadline;                                                                             // [unix epoch time]
         // Who (which SAFE) receives leftover collateral that is not sold in the auction; usually the liquidated SAFE
         address forgoneCollateralReceiver;
-        // Who receives the coins raised from the auction; usually the accounting engine
+        // Who receives the coins raised by the auction; usually the accounting engine
         address auctionIncomeRecipient;
     }
 
@@ -1166,8 +1166,8 @@ contract IncreasingDiscountCollateralAuctionHouse {
 
     // --- Admin ---
     /**
-     * @notice Modify auction parameters
-     * @param parameter The name of the parameter modified
+     * @notice Modify an uint256 parameter
+     * @param parameter The name of the parameter to modify
      * @param data New value for the parameter
      */
     function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
@@ -1213,9 +1213,9 @@ contract IncreasingDiscountCollateralAuctionHouse {
         emit ModifyParameters(parameter, data);
     }
     /**
-     * @notice Modify oracle related integrations
-     * @param parameter The name of the contract address being updated
-     * @param data New address for the oracle contract
+     * @notice Modify an addres parameter
+     * @param parameter The parameter name
+     * @param data New address for the parameter
      */
     function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);

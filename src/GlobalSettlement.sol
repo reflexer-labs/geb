@@ -149,38 +149,59 @@ abstract contract OracleRelayerLike {
 contract GlobalSettlement {
     // --- Auth ---
     mapping (address => uint256) public authorizedAccounts;
+    /**
+     * @notice Add auth to an account
+     * @param account Account to add auth to
+     */
     function addAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 1;
         emit AddAuthorization(account);
     }
+    /**
+     * @notice Remove auth from an account
+     * @param account Account to remove auth from
+     */
     function removeAuthorization(address account) external isAuthorized {
         authorizedAccounts[account] = 0;
         emit RemoveAuthorization(account);
     }
+    /**
+    * @notice Checks whether msg.sender can call an authed function
+    **/
     modifier isAuthorized {
         require(authorizedAccounts[msg.sender] == 1, "GlobalSettlement/account-not-authorized");
         _;
     }
 
     // --- Data ---
-    SAFEEngineLike            public safeEngine;
+    SAFEEngineLike           public safeEngine;
     LiquidationEngineLike    public liquidationEngine;
     AccountingEngineLike     public accountingEngine;
     OracleRelayerLike        public oracleRelayer;
     CoinSavingsAccountLike   public coinSavingsAccount;
     StabilityFeeTreasuryLike public stabilityFeeTreasury;
 
+    // Flag that indicates whether settlement has been triggered or not
     uint256  public contractEnabled;
+    // The timestamp when settlement was triggered
     uint256  public shutdownTime;
+    // The amount of time post settlement during which no processing takes place
     uint256  public shutdownCooldown;
+    // The outstanding supply of system coins computed during the setOutstandingCoinSupply() phase
     uint256  public outstandingCoinSupply;                                      // [rad]
 
+    // The amount of collateral that a system coin can redeem
     mapping (bytes32 => uint256) public finalCoinPerCollateralPrice;            // [ray]
+    // Total amount of bad debt in SAFEs with different collateral types
     mapping (bytes32 => uint256) public collateralShortfall;                    // [wad]
+    // Total debt backed by every collateral type
     mapping (bytes32 => uint256) public collateralTotalDebt;                    // [wad]
+    // Mapping of collateral prices in terms of system coins after taking into account system surplus/deficit and finalCoinPerCollateralPrices
     mapping (bytes32 => uint256) public collateralCashPrice;                    // [ray]
 
+    // Bags of coins ready to be used for collateral redemption
     mapping (address => uint256)                      public coinBag;           // [wad]
+    // Amount of coins already used for collateral redemption by every address and for different collateral types
     mapping (bytes32 => mapping (address => uint256)) public coinsUsedToRedeem; // [wad]
 
     // --- Events ---
@@ -234,6 +255,11 @@ contract GlobalSettlement {
     }
 
     // --- Administration ---
+    /*
+    * @notify Modify an address parameter
+    * @param parameter The name of the parameter to modify
+    * @param data The new address for the parameter
+    */
     function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         require(contractEnabled == 1, "GlobalSettlement/contract-not-enabled");
         if (parameter == "safeEngine") safeEngine = SAFEEngineLike(data);
@@ -245,6 +271,11 @@ contract GlobalSettlement {
         else revert("GlobalSettlement/modify-unrecognized-parameter");
         emit ModifyParameters(parameter, data);
     }
+    /*
+    * @notify Modify an uint256 parameter
+    * @param parameter The name of the parameter to modify
+    * @param data The new value for the parameter
+    */
     function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         require(contractEnabled == 1, "GlobalSettlement/contract-not-enabled");
         if (parameter == "shutdownCooldown") shutdownCooldown = data;
@@ -364,7 +395,8 @@ contract GlobalSettlement {
         emit FreeCollateral(collateralType, msg.sender, -int256(safeCollateral));
     }
     /**
-     * @notice Set the final outstanding supply of system coins. There must be no remaining surplus in the accounting engine
+     * @notice Set the final outstanding supply of system coins
+     * @dev There must be no remaining surplus in the accounting engine
      */
     function setOutstandingCoinSupply() external {
         require(contractEnabled == 0, "GlobalSettlement/contract-still-enabled");

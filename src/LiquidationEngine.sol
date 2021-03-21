@@ -399,8 +399,8 @@ contract LiquidationEngine {
     // --- Getters ---
     /*
     * @notice Get the amount of debt that can currently be covered by a collateral auction for a specific safe
-    * @param collateralType The collateral type of the SAFE
-    * @param safe The SAFE's address
+    * @param collateralType The collateral type stored in the SAFE
+    * @param safe The SAFE's address/handler
     */
     function getLimitAdjustedDebtToCover(bytes32 collateralType, address safe) external view returns (uint256) {
         (, uint256 accumulatedRate,,,,)            = safeEngine.collateralTypes(collateralType);

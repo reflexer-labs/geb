@@ -149,7 +149,7 @@ contract DebtAuctionHouse {
 
     // --- Admin ---
     /**
-     * @notice Modify auction parameters
+     * @notice Modify an uint256 parameter
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
@@ -162,7 +162,7 @@ contract DebtAuctionHouse {
         emit ModifyParameters(parameter, data);
     }
     /**
-     * @notice Change addresses of integrated contracts
+     * @notice Modify an address parameter
      * @param parameter The name of the oracle contract modified
      * @param addr New contract address
      */
@@ -266,7 +266,7 @@ contract DebtAuctionHouse {
         emit DisableContract(msg.sender);
     }
     /**
-     * @notice Terminate an auction prematurely.
+     * @notice Terminate an auction prematurely
      * @param id ID of the auction to terminate
      */
     function terminateAuctionPrematurely(uint256 id) external {

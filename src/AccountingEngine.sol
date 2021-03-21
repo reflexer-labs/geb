@@ -161,13 +161,17 @@ contract AccountingEngine {
       address debtAuctionHouse_
     ) public {
         authorizedAccounts[msg.sender] = 1;
-        safeEngine = SAFEEngineLike(safeEngine_);
-        surplusAuctionHouse = SurplusAuctionHouseLike(surplusAuctionHouse_);
-        debtAuctionHouse = DebtAuctionHouseLike(debtAuctionHouse_);
+
+        safeEngine                     = SAFEEngineLike(safeEngine_);
+        surplusAuctionHouse            = SurplusAuctionHouseLike(surplusAuctionHouse_);
+        debtAuctionHouse               = DebtAuctionHouseLike(debtAuctionHouse_);
+
         safeEngine.approveSAFEModification(surplusAuctionHouse_);
-        lastSurplusAuctionTime  = now;
-        lastSurplusTransferTime = now;
-        contractEnabled = 1;
+
+        lastSurplusAuctionTime         = now;
+        lastSurplusTransferTime        = now;
+        contractEnabled                = 1;
+
         emit AddAuthorization(msg.sender);
     }
 
@@ -184,7 +188,7 @@ contract AccountingEngine {
 
     // --- Administration ---
     /**
-     * @notice Modify general uint256 params for auctions
+     * @notice Modify an uint256 param
      * @param parameter The name of the parameter modified
      * @param data New value for the parameter
      */
@@ -211,9 +215,9 @@ contract AccountingEngine {
         emit ModifyParameters(parameter, data);
     }
     /**
-     * @notice Modify dependency addresses
-     * @param parameter The name of the auction type we want to change the address for
-     * @param data New address for the auction
+     * @notice Modify an address param
+     * @param parameter The name of the parameter
+     * @param data New address for the parameter
      */
     function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "surplusAuctionHouse") {
@@ -234,9 +238,15 @@ contract AccountingEngine {
     }
 
     // --- Getters ---
+    /*
+    * @notice Returns the amount of bad debt that is not in the debtQueue and is not currently handled by debt auctions
+    */
     function unqueuedUnauctionedDebt() public view returns (uint256) {
         return subtract(subtract(safeEngine.debtBalance(address(this)), totalQueuedDebt), totalOnAuctionDebt);
     }
+    /*
+    * @notify Returns a bool indicating whether the AccountingEngine can currently print protocol tokens using debt auctions
+    */
     function canPrintProtocolTokens() public view returns (bool) {
         if (address(systemStakingPool) == address(0)) return true;
         try systemStakingPool.canPrintProtocolTokens() returns (bool ok) {
@@ -248,7 +258,7 @@ contract AccountingEngine {
 
     // --- Debt Queueing ---
     /**
-     * @notice Push debt (that the system tries to cover with collateral auctions) to a queue
+     * @notice Push bad debt into a queue
      * @dev Debt is locked in a queue to give the system enough time to auction collateral
      *      and gather surplus
      * @param debtBlock Amount of debt to push
@@ -259,7 +269,8 @@ contract AccountingEngine {
         emit PushDebtToQueue(now, debtQueue[now], totalQueuedDebt);
     }
     /**
-     * @notice A block of debt can be popped from the queue after popDebtDelay seconds passed since it was
+     * @notice Pop a block of bad debt from the debt queue
+     * @dev A block of debt can be popped from the queue after popDebtDelay seconds have passed since it was
      *         added there
      * @param debtBlockTimestamp Timestamp of the block of debt that should be popped out
      */
@@ -274,7 +285,7 @@ contract AccountingEngine {
 
     // Debt settlement
     /**
-     * @notice Destroy an equal amount of coins and debt
+     * @notice Destroy an equal amount of coins and bad debt
      * @dev We can only destroy debt that is not locked in the queue and also not in a debt auction
      * @param rad Amount of coins/debt to destroy (number with 45 decimals)
     **/
@@ -285,7 +296,7 @@ contract AccountingEngine {
         emit SettleDebt(rad, safeEngine.coinBalance(address(this)), safeEngine.debtBalance(address(this)));
     }
     /**
-     * @notice Use surplus coins to destroy debt that is/was in a debt auction
+     * @notice Use surplus coins to destroy debt that was in a debt auction
      * @param rad Amount of coins/debt to destroy (number with 45 decimals)
     **/
     function cancelAuctionedDebtWithSurplus(uint256 rad) external {
@@ -299,7 +310,7 @@ contract AccountingEngine {
     // Debt auction
     /**
      * @notice Start a debt auction (print protocol tokens in exchange for coins so that the
-     *         system can accumulate surplus)
+     *         system can be recapitalized)
      * @dev We can only auction debt that is not already being auctioned and is not locked in the debt queue
     **/
     function auctionDebt() external returns (uint256 id) {
@@ -318,7 +329,7 @@ contract AccountingEngine {
     /**
      * @notice Start a surplus auction
      * @dev We can only auction surplus if we wait at least 'surplusAuctionDelay' seconds since the last
-     *      auction trigger, if we keep enough surplus in the buffer and if there is no bad debt left to settle
+     *      surplus auction trigger, if we keep enough surplus in the buffer and if there is no bad debt left to settle
     **/
     function auctionSurplus() external returns (uint256 id) {
         require(extraSurplusIsTransferred != 1, "AccountingEngine/surplus-transfer-no-auction");
@@ -346,7 +357,7 @@ contract AccountingEngine {
 
     // Extra surplus transfers/surplus auction alternative
     /**
-     * @notice Send surplus to an address as an alternative to auctions
+     * @notice Send surplus to an address as an alternative to surplus auctions
      * @dev We can only transfer surplus if we wait at least 'surplusTransferDelay' seconds since the last
      *      transfer, if we keep enough surplus in the buffer and if there is no bad debt left to settle
     **/
@@ -376,9 +387,9 @@ contract AccountingEngine {
 
     /**
      * @notice Disable this contract (normally called by Global Settlement)
-     * @dev When it's disabled, the contract will record the current timestamp. Afterwards,
+     * @dev When it's being disabled, the contract will record the current timestamp. Afterwards,
      *      the contract tries to settle as much debt as possible (if there's any) with any surplus that's
-     *      left in the system
+     *      left in the AccountingEngine
     **/
     function disableContract() external isAuthorized {
         require(contractEnabled == 1, "AccountingEngine/contract-not-enabled");

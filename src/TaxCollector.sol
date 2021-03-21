@@ -145,6 +145,11 @@ contract TaxCollector {
     }
 
     // --- Math ---
+    uint256 constant RAY           = 10 ** 27;
+    uint256 constant WHOLE_TAX_CUT = 10 ** 29;
+    uint256 constant ONE           = 1;
+    int256  constant INT256_MIN    = -2**255;
+
     function rpow(uint256 x, uint256 n, uint256 b) internal pure returns (uint256 z) {
       assembly {
         switch x case 0 {switch n case 0 {z := b} default {z := 0}}
@@ -168,11 +173,6 @@ contract TaxCollector {
         }
       }
     }
-    uint256 constant RAY           = 10 ** 27;
-    uint256 constant WHOLE_TAX_CUT = 10 ** 29;
-    uint256 constant ONE           = 1;
-    int256  constant INT256_MIN    = -2**255;
-
     function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
         z = x + y;
         require(z >= x, "TaxCollector/add-uint-uint-overflow");
