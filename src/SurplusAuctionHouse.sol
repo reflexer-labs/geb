@@ -353,7 +353,7 @@ contract RecyclingSurplusAuctionHouse {
         emit ModifyParameters(parameter, data);
     }
     /**
-     * @notice Modify addresses
+     * @notice Modify address parameters
      * @param parameter The name of the parameter modified
      * @param addr New address value
      */

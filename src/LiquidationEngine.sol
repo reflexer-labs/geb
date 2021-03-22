@@ -172,9 +172,11 @@ contract LiquidationEngine {
     // --- Init ---
     constructor(address safeEngine_) public {
         authorizedAccounts[msg.sender] = 1;
-        safeEngine = SAFEEngineLike(safeEngine_);
+
+        safeEngine               = SAFEEngineLike(safeEngine_);
         onAuctionSystemCoinLimit = uint256(-1);
-        contractEnabled = 1;
+        contractEnabled          = 1;
+
         emit AddAuthorization(msg.sender);
         emit ModifyParameters("onAuctionSystemCoinLimit", uint256(-1));
     }
@@ -250,7 +252,7 @@ contract LiquidationEngine {
         );
     }
     /**
-     * @notice Modify collateral auction integration
+     * @notice Modify collateral auction address
      * @param collateralType The collateral type we change parameters for
      * @param parameter The name of the integration modified
      * @param data New address for the integration contract
@@ -388,7 +390,7 @@ contract LiquidationEngine {
         mutex[collateralType][safe] = 0;
     }
     /**
-     * @notice Remove debt that was currently being auctioned
+     * @notice Remove debt that was being auctioned
      * @param rad The amount of debt to withdraw from currentOnAuctionSystemCoins
      */
     function removeCoinsFromAuction(uint256 rad) public isAuthorized {

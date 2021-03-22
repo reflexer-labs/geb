@@ -222,7 +222,6 @@ contract SAFEEngine {
     }
 
     // --- Administration ---
-
     /**
      * @notice Creates a brand new collateral type
      * @param collateralType Collateral type name (e.g ETH-A, TBTC-B)
@@ -274,7 +273,7 @@ contract SAFEEngine {
     // --- Fungibility ---
     /**
      * @notice Join/exit collateral into and and out of the system
-     * @param collateralType Collateral type we join/exit
+     * @param collateralType Collateral type to join/exit
      * @param account Account that gets credited/debited
      * @param wad Amount of collateral
      */

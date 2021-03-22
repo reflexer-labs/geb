@@ -120,6 +120,7 @@ contract TaxCollector {
     // Tax receiver data
     mapping (bytes32 => mapping(uint256 => TaxReceiver)) public secondaryTaxReceivers;
 
+    // The address that always receives some SF
     address    public primaryTaxReceiver;
     // Base stability fee charged to all collateral types
     uint256    public globalStabilityFee;                                                                 // [ray%]
