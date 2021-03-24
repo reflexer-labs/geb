@@ -146,10 +146,10 @@ contract TaxCollector {
     }
 
     // --- Math ---
-    uint256 constant RAY           = 10 ** 27;
-    uint256 constant WHOLE_TAX_CUT = 10 ** 29;
-    uint256 constant ONE           = 1;
-    int256  constant INT256_MIN    = -2**255;
+    uint256 public constant RAY           = 10 ** 27;
+    uint256 public constant WHOLE_TAX_CUT = 10 ** 29;
+    uint256 public constant ONE           = 1;
+    int256  public constant INT256_MIN    = -2**255;
 
     function rpow(uint256 x, uint256 n, uint256 b) internal pure returns (uint256 z) {
       assembly {
