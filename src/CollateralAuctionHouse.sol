@@ -1411,9 +1411,10 @@ contract IncreasingDiscountCollateralAuctionHouse {
     * @returns The upcoming discount that will be used in the targeted auction
     */
     function getNextCurrentDiscount(uint256 id) public view returns (uint256) {
+        if (bids[id].forgoneCollateralReceiver == address(0)) return 0;
         uint256 nextDiscount = bids[id].currentDiscount;
 
-        // If the increase deadline hasn't been passed yet and the current discount is still not at max
+        // If the increase deadline hasn't been passed yet and the current discount is not at or greater than max
         if (both(uint48(now) < bids[id].discountIncreaseDeadline, bids[id].currentDiscount > bids[id].maxDiscount)) {
             // Calculate the new current discount
             nextDiscount = rmultiply(
@@ -1422,15 +1423,15 @@ contract IncreasingDiscountCollateralAuctionHouse {
             );
 
             // If the new discount is greater than the max one
-            if (nextDiscount < bids[id].maxDiscount) {
+            if (nextDiscount <= bids[id].maxDiscount) {
               nextDiscount = bids[id].maxDiscount;
             }
         } else {
             // Determine the conditions when we can instantly set the current discount to max
-            bool currentZeroCanBeSet = both(bids[id].currentDiscount == 0, bids[id].maxDiscount > 0);
-            bool notDoneUpdating     = both(uint48(now) >= bids[id].discountIncreaseDeadline, bids[id].currentDiscount != bids[id].maxDiscount);
+            bool currentZeroMaxNonZero = both(bids[id].currentDiscount == 0, bids[id].maxDiscount > 0);
+            bool doneUpdating          = both(uint48(now) >= bids[id].discountIncreaseDeadline, bids[id].currentDiscount != bids[id].maxDiscount);
 
-            if (either(currentZeroCanBeSet, notDoneUpdating)) {
+            if (either(currentZeroMaxNonZero, doneUpdating)) {
               nextDiscount = bids[id].maxDiscount;
             }
         }
