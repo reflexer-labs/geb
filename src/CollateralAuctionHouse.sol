@@ -1426,7 +1426,7 @@ contract IncreasingDiscountCollateralAuctionHouse {
               nextDiscount = bids[id].maxDiscount;
             }
         } else {
-            // Calculate the conditions when we can instaly set the current discount to max
+            // Determine the conditions when we can instantly set the current discount to max
             bool currentZeroCanBeSet = both(bids[id].currentDiscount == 0, bids[id].maxDiscount > 0);
             bool notDoneUpdating     = both(uint48(now) >= bids[id].discountIncreaseDeadline, bids[id].currentDiscount != bids[id].maxDiscount);
 
