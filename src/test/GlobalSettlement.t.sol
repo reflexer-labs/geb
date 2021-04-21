@@ -212,7 +212,7 @@ contract GlobalSettlementTest is DSTest {
 
         safeEngine.modifyParameters(encodedName, "safetyPrice", ray(3 ether));
         safeEngine.modifyParameters(encodedName, "liquidationPrice", ray(3 ether));
-        safeEngine.modifyParameters(encodedName, "debtCeiling", rad(1000 ether));
+        safeEngine.modifyParameters(encodedName, "debtCeiling", rad(10000000 ether)); // 10M
 
         newCollateral.approve(address(collateralA));
         newCollateral.approve(address(safeEngine));
@@ -294,7 +294,7 @@ contract GlobalSettlementTest is DSTest {
         coinSavingsAccount = new CoinSavingsAccount(address(safeEngine));
 
         oracleRelayer = new OracleRelayer(address(safeEngine));
-        safeEngine.modifyParameters("globalDebtCeiling", rad(1000 ether));
+        safeEngine.modifyParameters("globalDebtCeiling", rad(10000000 ether));
         safeEngine.addAuthorization(address(oracleRelayer));
 
         stabilityFeeTreasury = new StabilityFeeTreasury(address(safeEngine), address(accountingEngine), address(systemCoinA));
@@ -1131,4 +1131,47 @@ contract GlobalSettlementTest is DSTest {
         assertEq(tokenCollateral("gold", address(ali)), 0.375 ether);
         assertEq(tokenCollateral("coal", address(ali)), 0.05 ether);
     }
+
+    // -- Scenario where calculateCashPrice() used to overflow
+   function test_calculateCashPrice_overflow() public {
+       CollateralType memory gold = init_collateral("gold", "gold");
+
+       Usr ali = new Usr(safeEngine, globalSettlement);
+
+       // make a SAFE:
+       address safe1 = address(ali);
+       gold.collateral.mint(500000000 ether);
+       gold.collateralA.join(safe1, 500000000 ether);
+       ali.modifySAFECollateralization("gold", safe1, safe1, safe1, 500000000 ether, 10000000 ether);
+       // ali's urn has 500_000_000 collateral, 10^7 debt (and 10^7 system coins since rate == RAY)
+
+       // global checks:
+       assertEq(safeEngine.globalDebt(), rad(10000000 ether));
+       assertEq(safeEngine.globalUnbackedDebt(), 0);
+
+       // collateral price is 5
+       gold.oracleSecurityModule.updateCollateralPrice(bytes32(5 * WAD));
+       globalSettlement.shutdownSystem();
+       globalSettlement.freezeCollateralType("gold");
+       globalSettlement.processSAFE("gold", safe1);
+
+       // local checks:
+       assertEq(generatedDebt("gold", safe1), 0);
+       assertEq(lockedCollateral("gold", safe1), 498000000 ether);
+       assertEq(safeEngine.debtBalance(address(accountingEngine)), rad(10000000 ether));
+
+       // global checks:
+       assertEq(safeEngine.globalDebt(), rad(10000000 ether));
+       assertEq(safeEngine.globalUnbackedDebt(), rad(10000000 ether));
+
+       // SAFE closing
+       ali.freeCollateral("gold");
+       assertEq(lockedCollateral("gold", safe1), 0);
+       assertEq(tokenCollateral("gold", safe1), 498000000 ether);
+       ali.exit(gold.collateralA, address(this), 498000000 ether);
+
+       hevm.warp(now + 1 hours);
+       globalSettlement.setOutstandingCoinSupply();
+       globalSettlement.calculateCashPrice("gold");
+   }
 }

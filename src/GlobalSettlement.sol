@@ -418,9 +418,9 @@ contract GlobalSettlement {
         uint256 redemptionAdjustedDebt = rmultiply(
           rmultiply(collateralTotalDebt[collateralType], accumulatedRate), finalCoinPerCollateralPrice[collateralType]
         );
-        collateralCashPrice[collateralType] = rdivide(
-          multiply(subtract(redemptionAdjustedDebt, collateralShortfall[collateralType]), RAY), outstandingCoinSupply
-        );
+        collateralCashPrice[collateralType] =
+          multiply(subtract(redemptionAdjustedDebt, collateralShortfall[collateralType]), RAY) / (outstandingCoinSupply / RAY);
+
         emit CalculateCashPrice(collateralType, collateralCashPrice[collateralType]);
     }
     /**
