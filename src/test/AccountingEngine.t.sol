@@ -207,13 +207,22 @@ contract AccountingEngineTest is DSTest {
         assertTrue(!can_auction_debt() );
     }
 
-    function test_no_debt_auction_pending_surplus() public {
+    function test_debt_auction_pending_surplus() public {
         popDebtFromQueue(200 ether);
 
         safeEngine.mint(address(accountingEngine), 100 ether);
         assertTrue(can_auction_debt());
 
         settleDebt(100 ether);
+        assertTrue(can_auction_debt());
+    }
+
+    function test_debt_auction_less_unauction_debt_than_bid_size() public {
+        accountingEngine.modifyParameters("debtAuctionBidSize", rad(150 ether));
+
+        popDebtFromQueue(200 ether);
+        safeEngine.mint(address(accountingEngine), 100 ether);
+
         assertTrue(can_auction_debt());
     }
 
