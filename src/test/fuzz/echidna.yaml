@@ -1,5 +1,5 @@
-seqLen: 5
-testLimit: 2000
+seqLen: 200
+testLimit: 500
 checkAsserts: true
 sender: ["0x10000", "0x20000", "0xabc00"]
 coverage: true
