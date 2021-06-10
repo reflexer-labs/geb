@@ -32,6 +32,7 @@ contract GeneralFuzz is StabilityFeeTreasuryMock {
 
 contract StatefulFuzzBase {
 
+   // --- Fuzzing Contracts ---
    StabilityFeeTreasuryMock stabilityFeeTreasury;
    CoinMock coin;
    CoinJoin systemcoin;
@@ -61,16 +62,16 @@ contract StatefulFuzzBase {
 
       
    // --- SetUp ---
-   modifier setUp() {
+   modifier setUp() virtual {
       if(!inited) baseSetup();
       _;
    }
-   function baseSetup() internal {
-      address safe_ = address(new SAFEEngine());
-      address coin_ = address(new CoinMock("Coin", "COIN", 99));
-      address systemcoin_ = address(new CoinJoin(safe_, coin_));
+   function baseSetup() internal virtual {
+      safeEngine = new SAFEEngine();
+      coin = new CoinMock("Coin", "COIN", 99);
+      systemcoin = new CoinJoin(address(safeEngine), address(coin));
       stabilityFeeTreasury = new StabilityFeeTreasuryMock();
-      stabilityFeeTreasury.setUp(safe_, msg.sender, systemcoin_);
+      stabilityFeeTreasury.setUp(address(safeEngine), msg.sender, address(systemcoin));
 
       //Setting basic variables, otherwise echidna fails to initialize
       stabilityFeeTreasury.modifyParameters("minimumFundsRequired",0);
@@ -133,8 +134,6 @@ contract StatefulFuzzBase {
 
 contract AllowanceFuzz is StatefulFuzzBase {
 
-   bool sanity = true;
-
    // --- Allowance Actions ---
    function setTotalAllowance(address account, uint256 rad) external setUp {
       stabilityFeeTreasury.setTotalAllowance(account, rad);
@@ -144,17 +143,51 @@ contract AllowanceFuzz is StatefulFuzzBase {
       stabilityFeeTreasury.setPerBlockAllowance(account, rad);
    }
 
-   function echidna_tt() public returns(bool) {
-      return true;
-   }
-
-   function echidna_sanity() public returns(bool) {
-      return sanity;
-   }
-
    function echidna_inited() public setUp returns(bool) {
       return inited;
    }
+}
 
+contract FullGovernanceFuzz is AllowanceFuzz {
 
+   modifier setUp() override {
+      if(!inited){
+         baseSetup();
+         safeEngine.createUnbackedDebt(bob, address(stabilityFeeTreasury), _rad(100 ether));
+      }
+      _;
+   }
+
+   function modifyExtraSusplusReciever(address addr) public setUp{
+      stabilityFeeTreasury.modifyParameters("extraSurplusReceiver", addr);
+   }
+
+   function modifyExpensesMultiplier(uint val) public setUp{
+      stabilityFeeTreasury.modifyParameters("expensesMultiplier", val);
+   }
+
+   function modifyTreasuryCapacity(uint val) public setUp{
+      stabilityFeeTreasury.modifyParameters("treasuryCapacity", val);
+   }
+
+   function modifyMinimumFundsRequired(uint val) public setUp {
+      stabilityFeeTreasury.modifyParameters("minimumFundsRequired", val);
+   }
+
+   function modifyPullFundsMinThreshold(uint val) public setUp {
+      stabilityFeeTreasury.modifyParameters("pullFundsMinThreshold", val);
+   }
+
+   function modifySurplusTransferDelay(uint val) public setUp{
+      surplusTransfersCount = 0;
+      stabilityFeeTreasury.modifyParameters("surplusTransferDelay", val);
+   }
+
+   function giveFunds(address account, uint256 rad) public setUp {
+      stabilityFeeTreasury.giveFunds(account, rad);
+   }
+
+   function takeFunds(address account, uint256 rad) external setUp {
+      stabilityFeeTreasury.takeFunds(account, rad);
+   }
 }

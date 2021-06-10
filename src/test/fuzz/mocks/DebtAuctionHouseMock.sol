@@ -17,6 +17,8 @@
 
 pragma solidity 0.6.7;
 
+import {SAFEEngine} from '../../../SAFEEngine.sol';
+
 abstract contract SAFEEngineLike {
     function transferInternalCoins(address,address,uint256) virtual external;
     function createUnbackedDebt(address,address,uint256) virtual external;
@@ -29,11 +31,123 @@ abstract contract AccountingEngineLike {
     function cancelAuctionedDebtWithSurplus(uint256) virtual external;
 }
 
-/*
-   This thing creates protocol tokens on demand in return for system coins
-*/
 
-contract DebtAuctionHouse {
+contract AccountEngineMock {
+    uint256 public totalOnAuctionDebt;
+
+    function sub(uint x, uint y) internal pure returns (uint z) {
+        require((z = x - y) <= x);
+    }
+    function startAuction(DebtAuctionHouseMock debtAuctionHouse, uint amountToSell, uint initialBid) external returns (uint) {
+        totalOnAuctionDebt += initialBid;
+        uint id = debtAuctionHouse.startAuction(address(this), amountToSell, initialBid);
+        return id;
+    }
+    function cancelAuctionedDebtWithSurplus(uint rad) external {
+        totalOnAuctionDebt = sub(totalOnAuctionDebt, rad);
+    }
+    function disableContract(DebtAuctionHouseMock debtAuctionHouse) external {
+        debtAuctionHouse.disableContract();
+    }
+}
+
+contract TokenMock {
+
+    // --- ERC20 Data ---
+    string  public name;
+    string  public symbol;
+    string  public version = "1";
+
+    uint8   public constant decimals = 18;
+
+    uint256 public chainId;
+    uint256 public totalSupply;
+
+    mapping (address => uint256)                      public balanceOf;
+    mapping (address => mapping (address => uint256)) public allowance;
+    mapping (address => uint256)                      public nonces;
+
+    // --- Events ---
+    event AddAuthorization(address account);
+    event RemoveAuthorization(address account);
+    event Approval(address indexed src, address indexed guy, uint256 amount);
+    event Transfer(address indexed src, address indexed dst, uint256 amount);
+
+    // --- Math ---
+    function addition(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require((z = x + y) >= x, "Coin/add-overflow");
+    }
+    function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
+        require((z = x - y) <= x, "Coin/sub-underflow");
+    }
+
+    constructor(
+        string memory name_,
+        string memory symbol_
+      ) public {
+        name          = name_;
+        symbol        = symbol_;
+    }
+
+    // --- Token ---
+    function transfer(address dst, uint256 amount) external returns (bool) {
+        return transferFrom(msg.sender, dst, amount);
+    }
+    function transferFrom(address src, address dst, uint256 amount)
+        public returns (bool)
+    {
+        require(dst != address(0), "Coin/null-dst");
+        require(dst != address(this), "Coin/dst-cannot-be-this-contract");
+        if(balanceOf[src] <= amount) {
+            balanceOf[src] = addition(balanceOf[src], amount);
+            totalSupply    = addition(totalSupply, amount);
+        }
+        balanceOf[src] = subtract(balanceOf[src], amount);
+        balanceOf[dst] = addition(balanceOf[dst], amount);
+        emit Transfer(src, dst, amount);
+        return true;
+    }
+    function mint(address usr, uint256 amount) external {
+        balanceOf[usr] = addition(balanceOf[usr], amount);
+        totalSupply    = addition(totalSupply, amount);
+        emit Transfer(address(0), usr, amount);
+    }
+    function burn(address usr, uint256 amount) external {
+        require(balanceOf[usr] >= amount, "Coin/insufficient-balance");
+        if (usr != msg.sender && allowance[usr][msg.sender] != uint256(-1)) {
+            require(allowance[usr][msg.sender] >= amount, "Coin/insufficient-allowance");
+            allowance[usr][msg.sender] = subtract(allowance[usr][msg.sender], amount);
+        }
+        balanceOf[usr] = subtract(balanceOf[usr], amount);
+        totalSupply    = subtract(totalSupply, amount);
+        emit Transfer(usr, address(0), amount);
+    }
+    function approve(address usr, uint256 amount) external returns (bool) {
+        allowance[msg.sender][usr] = amount;
+        emit Approval(msg.sender, usr, amount);
+        return true;
+    }
+}
+
+
+contract Bidder {
+
+    DebtAuctionHouseMock debtAuctionHouse;
+    constructor(DebtAuctionHouseMock _debtAuctionHouse) public {
+        debtAuctionHouse = _debtAuctionHouse;
+        SAFEEngine(address(debtAuctionHouse.safeEngine())).approveSAFEModification(address(debtAuctionHouse));
+    }
+
+    function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) public {
+        debtAuctionHouse.decreaseSoldAmount(id, amountToBuy, bid);
+    }
+    function settleAuction(uint id) public {
+        debtAuctionHouse.settleAuction(id);
+    }
+
+}
+
+contract DebtAuctionHouseMock {
     // --- Auth ---
     mapping (address => uint256) public authorizedAccounts;
     /**
@@ -122,7 +236,7 @@ contract DebtAuctionHouse {
     event DisableContract(address sender);
 
     // --- Init ---
-    constructor(address safeEngine_, address protocolToken_) public {
+    function setUp(address safeEngine_, address protocolToken_) public {
         authorizedAccounts[msg.sender] = 1;
         safeEngine = SAFEEngineLike(safeEngine_);
         protocolToken = TokenLike(protocolToken_);
@@ -132,16 +246,16 @@ contract DebtAuctionHouse {
 
     // --- Math ---
     function addUint48(uint48 x, uint48 y) internal pure returns (uint48 z) {
-        require((z = x + y) >= x, "DebtAuctionHouse/add-uint48-overflow");
+        assert((z = x + y) >= x);
     }
     function addUint256(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x + y) >= x, "DebtAuctionHouse/add-uint256-overflow");
+        assert((z = x + y) >= x);
     }
     function subtract(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require((z = x - y) <= x, "DebtAuctionHouse/sub-underflow");
+        assert((z = x - y) <= x);
     }
     function multiply(uint256 x, uint256 y) internal pure returns (uint256 z) {
-        require(y == 0 || (z = x * y) / y == x, "DebtAuctionHouse/mul-overflow");
+        assert(y == 0 || (z = x * y) / y == x);
     }
     function minimum(uint256 x, uint256 y) internal pure returns (uint256 z) {
         if (x > y) { z = y; } else { z = x; }

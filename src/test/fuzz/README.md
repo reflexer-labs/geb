@@ -555,8 +555,130 @@ assertion in pullFunds: failed!💥
 
 The boundary is around 10e35 system coins, which is nearly impossible to ever exist, therefore this failure isn't concerning.
 
-Overall, this fuzzing wasn't that much helpful, since most of the operations with large number will end up reverting in the SafeEngine contract, which remained unmodified.
+Overall, this fuzzing wasn't that much helpful, since most of the operations with large number will end up reverting on the SafeEngine contract, which remained unmodified. We can get more revealing results by fuzzing the SafeEngine itself.
 
 ### 2. Allowance Fuzz
 
-In this setting, we'll fuzz the public functions of the stability fee treasury plus the functions to set allowances, so the fuzzer has more room to work with. Additionaly, two functions were added to transfer coins to the contract itself. The contract used can be found on `StabilityFeeTreasuryFuzz:AllowanceFuzz`
+In this setting, we'll fuzz the public functions of the stability fee treasury plus the functions to set allowances, so the fuzzer has more room to work with. Additionally, two functions were added to transfer coins to the contract itself. The contract used can be found on `StabilityFeeTreasuryFuzz:AllowanceFuzz`
+
+We will still check assertions on this run, however, it's unlikely to reach any additional overflow.
+
+Results:
+
+```
+echidna_always_has_minimumFundsRequired: passed! 🎉
+echidna_systemCoin_is_never_null: passed! 🎉
+echidna_inited: passed! 🎉
+echidna_contract_is_enabled: passed! 🎉
+echidna_extraSurplusReceiver_is_never_null: passed! 🎉
+echidna_surplus_transfer_interval_is_always_respected: passed! 🎉
+echidna_treasury_does_not_have_allowance: passed! 🎉
+assertion in pullFunds: passed! 🎉
+assertion in setPerBlockAllowance: passed! 🎉
+assertion in setTotalAllowance: passed! 🎉
+assertion in transferSurplusFunds: passed! 🎉
+assertion in depositCoinToTreasury: passed! 🎉
+assertion in depositUnbackedToTreasury: passed! 🎉
+
+Seed: -1390021045754529775
+```
+
+#### Conclusion
+
+No useful conclusions can be drawn for this run.
+
+### 3. Full Governance Fuzz
+
+In this third phase, we'll open all governance functions to the fuzzing addresses, allowing it to set the parameters to any value. It's expected that some of the previous existing assertions will fail.
+
+Results:
+
+```
+echidna_always_has_minimumFundsRequired: failed!💥
+  Call sequence:
+    modifyTreasuryCapacity(100932278458766812330236041672749364716347500281)
+    modifyMinimumFundsRequired(100196248315583705946035902871048561839458627834)
+
+echidna_systemCoin_is_never_null: passed! 🎉
+echidna_inited: passed! 🎉
+echidna_contract_is_enabled: passed! 🎉
+echidna_extraSurplusReceiver_is_never_null: passed! 🎉
+echidna_surplus_transfer_interval_is_always_respected: failed!💥
+  Call sequence:
+    modifySurplusTransferDelay(1528037010)
+
+echidna_treasury_does_not_have_allowance: passed! 🎉
+
+Seed: -5419963541718201980
+
+```
+
+This failures highlights some possible issues with governance. For example, if the `MinimumFundsRequired` is modified to a value below the current existing funds, the contract will enter an undesired state. Although there aren't that many consequences, we might want to fix this edge case be adding a requirement statement in the `modifyParameters` function.
+
+A similar effect, although not discovered by fuzzing, could be done by modifying the `treasuryCapacity` to a value smaller than the current calculated capacity, possibly changing slightly the behavior of `transferSurplusFunds`
+
+#### Conclusion
+
+This run highlights some scenarios where the contract might enter an undesired state through governance actions.
+
+## DebtAuctionHouse
+
+### 1. Plain code fuzz
+
+Goal: Check for simple math boundaries by changing the math section of the code to include assertions instead of requires and by removing some of the allowances requirements. Run with checkAsserts turned on.
+
+Results:
+
+```
+assertion in AUCTION_HOUSE_TYPE: passed! 🎉
+assertion in protocolToken: passed! 🎉
+assertion in authorizedAccounts: passed! 🎉
+assertion in settleAuction: failed!💥
+  Call sequence:
+    settleAuction(0)
+
+assertion in addAuthorization: passed! 🎉
+assertion in contractEnabled: passed! 🎉
+assertion in bids: passed! 🎉
+assertion in auctionsStarted: passed! 🎉
+assertion in startAuction: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in safeEngine: passed! 🎉
+assertion in totalAuctionLength: passed! 🎉
+assertion in amountSoldIncrease: passed! 🎉
+assertion in activeDebtAuctions: passed! 🎉
+assertion in disableContract: passed! 🎉
+assertion in terminateAuctionPrematurely: passed! 🎉
+assertion in removeAuthorization: passed! 🎉
+assertion in accountingEngine: passed! 🎉
+assertion in restartAuction: failed!💥
+  Call sequence:
+    startAuction(0x0,77734681540746035813401975242459757532797326125725959483038,0) from: 0x0000000000000000000000000000000000010000
+    *wait* Time delay: 174115 seconds Block delay: 2642
+    restartAuction(1) from: 0x0000000000000000000000000000000000010000
+
+assertion in bidDuration: passed! 🎉
+assertion in bidDecrease: passed! 🎉
+assertion in startAuctionUnprotected: failed!💥
+  Call sequence:
+    modifyParameters("totalAuctionLength\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",115792089237316195423570985008687907853269984665640564039457584007913129639935)
+    startAuctionUnprotected(0x0,0,0)
+
+assertion in modifyParameters: passed! 🎉
+assertion in decreaseSoldAmount: failed!💥
+  Call sequence:
+    startAuction(0x0,115906825127440241515393496365484292651770739579030225903390,0)
+    startAuctionUnprotected(0x0,0,0)
+    decreaseSoldAmount(1,0,0)
+
+
+Seed: 4128948578005944261
+```
+
+### 2. StateFull Fuzz
+
+In this run, we create the basics infrastructure for interacting with the auction house, disabling the `check asserts` option.
+
+This will make the fuzzer find its way into creating, bidding and settling auctions.
+
+Results:
