@@ -1,45 +1,12 @@
 pragma solidity 0.6.7;
 
-import "./mocks/DebtAuctionHouseMock.sol";
-
-contract GeneralFuzz is DebtAuctionHouseMock {
-
-    constructor () public {
-        SAFEEngine safeEngine_ = new SAFEEngine();
-        accountingEngine = address(new AccountEngineMock());
-        TokenMock tokenMock = new TokenMock("Mock", "Mock");
-        setUp(address(safeEngine_), address(tokenMock));
-
-        safeEngine.createUnbackedDebt(address(0x8), address(this), 10000 ether * 10**27);
-
-        // Authorizing Echidna Accounts
-        authorizedAccounts[address(0x10000)] = 1;
-        authorizedAccounts[address(0x20000)] = 1;
-    }
-
-    function startAuctionUnprotected(address incomeReceiver,uint256 amountToSell,uint256 initialBid) public returns (uint256 id){
-        require(contractEnabled == 1, "DebtAuctionHouse/contract-not-enabled");
-        require(auctionsStarted < uint256(-1), "DebtAuctionHouse/overflow");
-        id = ++auctionsStarted;
-
-        bids[id].bidAmount = initialBid;
-        bids[id].amountToSell = amountToSell;
-        bids[id].highBidder = incomeReceiver;
-        bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
-
-        activeDebtAuctions = addUint256(activeDebtAuctions, 1);
-
-        emit StartAuction(id, auctionsStarted, amountToSell, initialBid, incomeReceiver, bids[id].auctionDeadline, activeDebtAuctions);
-    }
-}
-
+import "./mocks/SurplusAuctionHouseMock.sol";
 
 contract StatefulFuzzBase {
 
     // --- Fuzzing Contracts ---
-    DebtAuctionHouseMock auctionHouse;
+    SurplusAuctionHouseLike auctionHouse;
     SAFEEngine safeEngine;
-    AccountEngineMock accountingEngine;
     TokenMock tokenMock;
 
     // --- Auction Players ---
@@ -62,7 +29,6 @@ contract StatefulFuzzBase {
 
     function baseSetup() internal virtual {
       safeEngine = new SAFEEngine();
-      accountingEngine = new AccountEngineMock();
       tokenMock = new TokenMock("Mock", "Mock");
       auctionHouse = new DebtAuctionHouseMock();
       auctionHouse.setUp(address(safeEngine), address(tokenMock));
@@ -147,7 +113,7 @@ contract StatefulFuzzBase {
 
     //--- Base Auction Actions ---
     function startAuction(uint amountToSell, uint initialBid) external setUp {
-       uint id = accountingEngine.startAuction(auctionHouse, amountToSell, initialBid);
+       uint id = auctionHouse.startAuction(amountToSell, initialBid);
        startedAuctions[id] = true;
     }
 
@@ -193,24 +159,5 @@ contract StatefulFuzzBase {
             bidders.push(newBidder);
             safeEngine.createUnbackedDebt(address(0x8), address(newBidder), 10000 ether * 10**27);
         }
-    }
-}
-
-contract GovernanceFuzz is StatefulFuzzBase{
-
-    function modifyBidDecrease(uint256 val) external {
-        auctionHouse.modifyParameters("bidDecrease", val);
-    }
-
-    function modifyAmountSoldIncrease(uint256 val) external {
-        auctionHouse.modifyParameters("amountSoldIncrease", val);
-    }
-
-    function modifyDidDuration(uint256 val) external {
-        auctionHouse.modifyParameters("bidDuration", val);
-    }
-
-    function modifyTotalAuctionLength(uint256 val) external {
-        auctionHouse.modifyParameters("totalAuctionLength", val);
     }
 }

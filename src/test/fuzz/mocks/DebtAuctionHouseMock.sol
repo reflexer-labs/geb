@@ -138,8 +138,8 @@ contract Bidder {
         SAFEEngine(address(debtAuctionHouse.safeEngine())).approveSAFEModification(address(debtAuctionHouse));
     }
 
-    function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) public {
-        debtAuctionHouse.decreaseSoldAmount(id, amountToBuy, bid);
+    function increaseBidSize(uint id, uint amountToBuy, uint bid) public {
+        debtAuctionHouse.increaseBidSize(id, amountToBuy, bid);
     }
     function settleAuction(uint id) public {
         debtAuctionHouse.settleAuction(id);
@@ -318,7 +318,7 @@ contract DebtAuctionHouseMock {
      * @param id ID of the auction to restart
      */
     function restartAuction(uint256 id) external {
-        require(id <= auctionsStarted, "DebtAuctionHouse/auction-never-started");
+        require(id <= auctionsStarted && id > 0, "DebtAuctionHouse/auction-never-started");
         require(bids[id].auctionDeadline < now, "DebtAuctionHouse/not-finished");
         require(bids[id].bidExpiry == 0, "DebtAuctionHouse/bid-already-placed");
         bids[id].amountToSell = multiply(amountSoldIncrease, bids[id].amountToSell) / ONE;

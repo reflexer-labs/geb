@@ -224,8 +224,7 @@ contract DebtAuctionHouse {
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "DebtAuctionHouse/bid-already-expired");
         require(bids[id].auctionDeadline > now, "DebtAuctionHouse/auction-already-expired");
 
-        // require(bid == bids[id].bidAmount, "DebtAuctionHouse/not-matching-bid");
-        bid = bids[id].bidAmount;
+        require(bid == bids[id].bidAmount, "DebtAuctionHouse/not-matching-bid");
         require(amountToBuy <  bids[id].amountToSell, "DebtAuctionHouse/amount-bought-not-lower");
         require(multiply(bidDecrease, amountToBuy) <= multiply(bids[id].amountToSell, ONE), "DebtAuctionHouse/insufficient-decrease");
 

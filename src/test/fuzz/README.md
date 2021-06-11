@@ -679,18 +679,17 @@ Seed: 4128948578005944261
 
 This run does shine some light on the mathematical boundaries accepted by the contract. Let's go through each one:
 
-* assertion in settleAuction: failed!
-A simple case when you try to subtract the active auction counter, it would underflow(0-1);
+-   assertion in settleAuction: failed!
+    A simple case when you try to subtract the active auction counter, it would underflow(0-1);
 
-* assertion in restartAuction: failed
-For this error to happen, the amount to sell would need to be in the magnitude of 10e65, which very unlikely to happen.
+-   assertion in restartAuction: failed
+    For this error to happen, the amount to sell would need to be in the magnitude of 10e65, which very unlikely to happen.
 
-* assertion in startAuctionUnprotected
-This modifies the length of the auction to the magnitude of 1e50 years, which is a very confortable margin.
+-   assertion in startAuctionUnprotected
+    This modifies the length of the auction to the magnitude of 1e50 years, which is a very confortable margin.
 
-* decreaseSoldAmount
-A requirement would be to have 1e29 wei of assests on sale, which is also a quite unlikely margin.
-
+-   decreaseSoldAmount
+    A requirement would be to have 1e29 wei of assests on sale, which is also a quite unlikely margin.
 
 ### 2. StateFull Fuzz
 
@@ -720,8 +719,30 @@ echidna_started_auctions_arent_null: passed! 🎉
 Seed: 4303483714758132403
 
 ```
+
 #### Conclusion
+
 The fuzzer found an issue that you can restart the bid 0, even though it was never started and the first valid bid would have id 1. Although this puts the contract in an unexpected state, it doesn't seem to have any security consequences in the contract.
 
+### 2. Governance Fuzz
 
+On this run, the fuzzer is allowed to perform some governance actions, to see what are the possible effects of badly set parameters.
 
+Results:
+```
+HouseFuzz.sol:GovernanceFuzz
+echidna_account_engine: passed! 🎉
+echidna_activeAuctions: passed! 🎉
+echidna_amountSoldIncrease: passed! 🎉
+echidna_sanity: passed! 🎉
+echidna_safe_engine: passed! 🎉
+echidna_bidDuration: passed! 🎉
+echidna_contract_is_enabled: passed! 🎉
+echidna_restardedOnlyStarted: passed! 🎉
+echidna_totalAuctionLength: passed! 🎉
+echidna_bidDecrease: passed! 🎉
+echidna_protocolToken: passed! 🎉
+echidna_started_auctions_arent_null: passed! 🎉
+
+Seed: 1698267665994827084
+```
