@@ -34,8 +34,22 @@ abstract contract TokenLike {
 
 
 abstract contract SurplusAuctionHouseLike {
-    SAFEEngineLike public safeEngine;
-
+    SAFEEngineLike  public safeEngine;
+    TokenLike       public protocolToken;
+    uint256         public bidIncrease; 
+    uint48          public bidDuration;             
+    uint48          public totalAuctionLength;
+    uint256         public auctionsStarted;
+    uint256         public contractEnabled;
+    struct Bid {
+        uint256 bidAmount;
+        uint256 amountToSell;
+        address highBidder;
+        uint48  bidExpiry;
+        uint48  auctionDeadline;
+    }
+    mapping (uint256 => Bid) public bids;
+    function setUp(address safeEngine_, address protocolToken_) public virtual;
     function modifyParameters(bytes32 parameter, uint256 data) external virtual;
     function startAuction(uint256 amountToSell, uint256 initialBid) external virtual returns (uint256 id);
     function restartAuction(uint256 id) external virtual;
@@ -224,7 +238,7 @@ contract BurningSurplusAuctionHouseMock {
     event TerminateAuctionPrematurely(uint256 indexed id, address sender, address highBidder, uint256 bidAmount);
 
     // --- Init ---
-    constructor(address safeEngine_, address protocolToken_) public {
+    function setUp(address safeEngine_, address protocolToken_) public {
         authorizedAccounts[msg.sender] = 1;
         safeEngine = SAFEEngineLike(safeEngine_);
         protocolToken = TokenLike(protocolToken_);
@@ -431,7 +445,7 @@ contract RecyclingSurplusAuctionHouseMock {
     event TerminateAuctionPrematurely(uint256 indexed id, address sender, address highBidder, uint256 bidAmount);
 
     // --- Init ---
-    constructor(address safeEngine_, address protocolToken_) public {
+    function setUp(address safeEngine_, address protocolToken_) public {
         authorizedAccounts[msg.sender] = 1;
         safeEngine = SAFEEngineLike(safeEngine_);
         protocolToken = TokenLike(protocolToken_);
@@ -640,7 +654,7 @@ contract PostSettlementSurplusAuctionHouseMock {
     event SettleAuction(uint256 indexed id);
 
     // --- Init ---
-    constructor(address safeEngine_, address protocolToken_) public {
+    function setUp(address safeEngine_, address protocolToken_) public {
         authorizedAccounts[msg.sender] = 1;
         safeEngine = SAFEEngineLike(safeEngine_);
         protocolToken = TokenLike(protocolToken_);

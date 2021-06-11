@@ -30,12 +30,6 @@ contract StatefulFuzzBase {
     function baseSetup() internal virtual {
       safeEngine = new SAFEEngine();
       tokenMock = new TokenMock("Mock", "Mock");
-      auctionHouse = new DebtAuctionHouseMock();
-      auctionHouse.setUp(address(safeEngine), address(tokenMock));
-
-      safeEngine.addAuthorization(address(auctionHouse));
-      auctionHouse.modifyParameters("accountingEngine", address(accountingEngine));
-
       inited = true;
    }
 
@@ -53,10 +47,6 @@ contract StatefulFuzzBase {
         return auctionHouse.contractEnabled() == 1;
     }
 
-    function echidna_account_engine() public setUp returns(bool) {
-        return auctionHouse.accountingEngine() != address(0);
-    }
-
     function echidna_protocolToken() public setUp returns(bool) {
         return address(auctionHouse.protocolToken()) != address(0);
     }
@@ -65,12 +55,8 @@ contract StatefulFuzzBase {
         return address(auctionHouse.safeEngine()) != address(0);
     }
 
-    function echidna_bidDecrease() public setUp returns(bool) {
-        return auctionHouse.bidDecrease() == 1.05E18;
-    }
-
-    function echidna_amountSoldIncrease() public setUp returns(bool) {
-        return auctionHouse.amountSoldIncrease() == 1.50E18;
+    function echidna_bidIncrease() public setUp returns(bool) {
+        return auctionHouse.bidIncrease() == 1.05E18;
     }
 
     function echidna_bidDuration() public setUp returns(bool) {
@@ -102,15 +88,6 @@ contract StatefulFuzzBase {
         return true;
     }
 
-    function echidna_activeAuctions() public setUp returns(bool) {
-        uint totalAuctions = auctionHouse.auctionsStarted();
-        uint closed = 0;
-        for (uint256 i = 0; i < totalAuctions; i++) {
-            if (settledAuctions[i]) closed++; //auction already closed
-        }
-        return totalAuctions - closed == auctionHouse.activeDebtAuctions();
-    }
-
     //--- Base Auction Actions ---
     function startAuction(uint amountToSell, uint initialBid) external setUp {
        uint id = auctionHouse.startAuction(amountToSell, initialBid);
@@ -124,10 +101,10 @@ contract StatefulFuzzBase {
         restartedAuctions.push(id);
     }
 
-    function decreaseSoldAmount(uint256 id, uint256 amountToBuy, uint256 bid) external setUp {
+    function increaseBidSize(uint256 id, uint256 amountToBuy, uint256 bid) external setUp {
         // To make the most of echidna, we'll covert the id to one of the open auctions
         id = id > auctionHouse.auctionsStarted() ? id % auctionHouse.auctionsStarted() : id;
-        auctionHouse.decreaseSoldAmount(id, amountToBuy, bid);
+        auctionHouse.increaseBidSize(id, amountToBuy, bid);
     }
 
     function settleAuction(uint256 id) external setUp {
@@ -145,10 +122,10 @@ contract StatefulFuzzBase {
         auctionHouse.terminateAuctionPrematurely(id);
     }
 
-    function decreaseSoldAmountWithBidder(uint8 bidder, uint256 id, uint256 amountToBuy, uint256 bid) external setUp {
+    function increaseBidSizeWithBidder(uint8 bidder, uint256 id, uint256 amountToBuy, uint256 bid) external setUp {
         // To make the most of echidna, we'll covert the id to one of the open auctions
         id = id > auctionHouse.auctionsStarted() ? id % auctionHouse.auctionsStarted() : id;
-        bidders[bidder % bidders.length].decreaseSoldAmount(id, amountToBuy, bid);
+        bidders[bidder % bidders.length].increaseBidSize(id, amountToBuy, bid);
     }
 
     //--- Fuzzing Actions ---
@@ -160,4 +137,41 @@ contract StatefulFuzzBase {
             safeEngine.createUnbackedDebt(address(0x8), address(newBidder), 10000 ether * 10**27);
         }
     }
+}
+
+
+contract BurningFuzz is StatefulFuzzBase {
+
+     function baseSetup() internal override {
+        super.baseSetup();
+        auctionHouse = SurplusAuctionHouseLike(address(new BurningSurplusAuctionHouseMock()));
+        auctionHouse.setUp(address(safeEngine), address(tokenMock));
+
+        safeEngine.addAuthorization(address(auctionHouse));
+   }
+
+}
+
+contract RecyclingFuzz is StatefulFuzzBase {
+
+     function baseSetup() internal override {
+        super.baseSetup();
+        auctionHouse = SurplusAuctionHouseLike(address(new RecyclingSurplusAuctionHouseMock()));
+        auctionHouse.setUp(address(safeEngine), address(tokenMock));
+
+        safeEngine.addAuthorization(address(auctionHouse));
+   }
+
+}
+
+contract PostSettlementFuzz is StatefulFuzzBase {
+
+     function baseSetup() internal override {
+        super.baseSetup();
+        auctionHouse = SurplusAuctionHouseLike(address(new PostSettlementSurplusAuctionHouseMock()));
+        auctionHouse.setUp(address(safeEngine), address(tokenMock));
+
+        safeEngine.addAuthorization(address(auctionHouse));
+   }
+
 }

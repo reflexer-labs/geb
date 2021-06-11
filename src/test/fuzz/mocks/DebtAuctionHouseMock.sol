@@ -138,8 +138,8 @@ contract Bidder {
         SAFEEngine(address(debtAuctionHouse.safeEngine())).approveSAFEModification(address(debtAuctionHouse));
     }
 
-    function increaseBidSize(uint id, uint amountToBuy, uint bid) public {
-        debtAuctionHouse.increaseBidSize(id, amountToBuy, bid);
+    function decreaseSoldAmount(uint id, uint amountToBuy, uint bid) public {
+        debtAuctionHouse.decreaseSoldAmount(id, amountToBuy, bid);
     }
     function settleAuction(uint id) public {
         debtAuctionHouse.settleAuction(id);
