@@ -675,6 +675,23 @@ assertion in decreaseSoldAmount: failed!💥
 Seed: 4128948578005944261
 ```
 
+#### Conclusion
+
+This run does shine some light on the mathematical boundaries accepted by the contract. Let's go through each one:
+
+* assertion in settleAuction: failed!
+A simple case when you try to subtract the active auction counter, it would underflow(0-1);
+
+* assertion in restartAuction: failed
+For this error to happen, the amount to sell would need to be in the magnitude of 10e65, which very unlikely to happen.
+
+* assertion in startAuctionUnprotected
+This modifies the length of the auction to the magnitude of 1e50 years, which is a very confortable margin.
+
+* decreaseSoldAmount
+A requirement would be to have 1e29 wei of assests on sale, which is also a quite unlikely margin.
+
+
 ### 2. StateFull Fuzz
 
 In this run, we create the basics infrastructure for interacting with the auction house, disabling the `check asserts` option.
@@ -682,3 +699,29 @@ In this run, we create the basics infrastructure for interacting with the auctio
 This will make the fuzzer find its way into creating, bidding and settling auctions.
 
 Results:
+
+```
+echidna_account_engine: passed! 🎉
+echidna_activeAuctions: passed! 🎉
+echidna_amountSoldIncrease: passed! 🎉
+echidna_sanity: passed! 🎉
+echidna_safe_engine: passed! 🎉
+echidna_bidDuration: passed! 🎉
+echidna_contract_is_enabled: passed! 🎉
+echidna_restardedOnlyStarted: failed!💥
+  Call sequence:
+    restartAuction(0)
+
+echidna_totalAuctionLength: passed! 🎉
+echidna_bidDecrease: passed! 🎉
+echidna_protocolToken: passed! 🎉
+echidna_started_auctions_arent_null: passed! 🎉
+
+Seed: 4303483714758132403
+
+```
+#### Conclusion
+The fuzzer found an issue that you can restart the bid 0, even though it was never started and the first valid bid would have id 1. Although this puts the contract in an unexpected state, it doesn't seem to have any security consequences in the contract.
+
+
+
