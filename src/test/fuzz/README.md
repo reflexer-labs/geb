@@ -729,6 +729,7 @@ The fuzzer found an issue that you can restart the bid 0, even though it was nev
 On this run, the fuzzer is allowed to perform some governance actions, to see what are the possible effects of badly set parameters.
 
 Results:
+
 ```
 HouseFuzz.sol:GovernanceFuzz
 echidna_account_engine: passed! 🎉
@@ -746,3 +747,81 @@ echidna_started_auctions_arent_null: passed! 🎉
 
 Seed: 1698267665994827084
 ```
+
+#### Conclusion
+
+No further insights were gained from this run.
+
+## Surplus Auction Houses
+
+In this section, we'll batch the three surplus auction houses(`BurningSurplusAuctionHouse`, `RecyclingSurplusAuctionHouse`, `PostSettlementSurplusAuctionHouse`) together because they share a lot of the same architecture.
+
+### 1. Plain code fuzz
+
+### 2. Stateful Fuzz
+
+Fuzzing each contract individually, allowing the fuzzer to perform every possible action, except the governance protected ones. Echidna is allowed to create and bid on auctions, as well settle them.
+
+Results:
+
+-   Burning Fuzz
+
+```
+echidna_sanity: passed! 🎉
+echidna_safe_engine: passed! 🎉
+echidna_bidDuration: passed! 🎉
+echidna_contract_is_enabled: passed! 🎉
+echidna_restardedOnlyStarted: failed!💥
+  Call sequence:
+    restartAuction(0)
+
+echidna_totalAuctionLength: passed! 🎉
+echidna_bidIncrease: passed! 🎉
+echidna_protocolToken: passed! 🎉
+echidna_started_auctions_arent_null: passed! 🎉
+
+Seed: 3429254500745831879
+
+```
+
+-   Burning Fuzz
+
+```
+echidna_sanity: passed! 🎉
+echidna_safe_engine: passed! 🎉
+echidna_bidDuration: passed! 🎉
+echidna_contract_is_enabled: passed! 🎉
+echidna_restardedOnlyStarted: failed!💥
+  Call sequence:
+    restartAuction(0)
+
+echidna_totalAuctionLength: passed! 🎉
+echidna_bidIncrease: passed! 🎉
+echidna_protocolToken: passed! 🎉
+echidna_started_auctions_arent_null: passed! 🎉
+
+Seed: -3805287122352836403
+
+```
+
+-   PostSettlement Fuzz
+
+```
+echidna_sanity: passed! 🎉
+echidna_safe_engine: passed! 🎉
+echidna_bidDuration: passed! 🎉
+echidna_contract_is_enabled: failed with no transactions made ⁉️
+echidna_restardedOnlyStarted: failed!💥
+  Call sequence:
+    restartAuction(0)
+
+echidna_totalAuctionLength: passed! 🎉
+echidna_bidIncrease: passed! 🎉
+echidna_protocolToken: passed! 🎉
+echidna_started_auctions_arent_null: passed! 🎉
+
+Seed: 6968832900734577861
+
+```
+
+#### Conclusion
