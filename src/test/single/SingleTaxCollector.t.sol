@@ -3,8 +3,8 @@ pragma experimental ABIEncoderV2;
 
 import "ds-test/test.sol";
 
-import {TaxCollector} from "../TaxCollector.sol";
-import {SAFEEngine} from "../SAFEEngine.sol";
+import {TaxCollector} from "../../single/TaxCollector.sol";
+import {SAFEEngine} from "../../single/SAFEEngine.sol";
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
@@ -21,7 +21,7 @@ abstract contract SAFEEngineLike {
     );
 }
 
-contract TaxCollectorTest is DSTest {
+contract SingleTaxCollectorTest is DSTest {
     Hevm hevm;
     TaxCollector taxCollector;
     SAFEEngine safeEngine;

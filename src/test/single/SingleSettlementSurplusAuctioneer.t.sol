@@ -2,11 +2,12 @@ pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
 import {DSDelegateToken} from "ds-token/delegate.sol";
-import {PostSettlementSurplusAuctionHouse} from "../SurplusAuctionHouse.sol";
-import "../SettlementSurplusAuctioneer.sol";
-import {TestSAFEEngine as SAFEEngine} from './SAFEEngine.t.sol';
-import {CoinJoin} from '../BasicTokenAdapters.sol';
-import {Coin} from "../Coin.sol";
+
+import {PostSettlementSurplusAuctionHouse} from "../../single/SurplusAuctionHouse.sol";
+import "../../single/SettlementSurplusAuctioneer.sol";
+import {TestSAFEEngine as SAFEEngine} from './SingleSAFEEngine.t.sol';
+import {CoinJoin} from '../../shared/BasicTokenAdapters.sol';
+import {Coin} from "../../shared/Coin.sol";
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
@@ -36,7 +37,7 @@ contract AccountingEngine {
     }
 }
 
-contract SettlementSurplusAuctioneerTest is DSTest {
+contract SingleSettlementSurplusAuctioneerTest is DSTest {
     Hevm hevm;
 
     SettlementSurplusAuctioneer surplusAuctioneer;

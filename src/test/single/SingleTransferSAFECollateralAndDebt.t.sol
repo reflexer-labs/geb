@@ -2,7 +2,7 @@ pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
 
-import {SAFEEngine} from '../SAFEEngine.sol';
+import {SAFEEngine} from '../../single/SAFEEngine.sol';
 
 contract Usr {
     SAFEEngine public safeEngine;
@@ -77,7 +77,7 @@ contract Usr {
     function pass() public {}
 }
 
-contract TransferSAFECollateralAndDebtTest is DSTest {
+contract SingleTransferSAFECollateralAndDebtTest is DSTest {
     SAFEEngine safeEngine;
     Usr ali;
     Usr bob;
