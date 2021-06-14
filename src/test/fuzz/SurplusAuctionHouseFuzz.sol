@@ -139,6 +139,19 @@ contract StatefulFuzzBase {
     }
 }
 
+contract GovernanceFuzz is StatefulFuzzBase {
+    function modifyBidDecrease(uint256 val) external {
+        auctionHouse.modifyParameters("bidDecrease", val);
+    }
+
+    function modifyBidDuration(uint256 val) external {
+        auctionHouse.modifyParameters("bidDuration", val);
+    }
+
+    function modifyTotalAuctionLength(uint256 val) external {
+        auctionHouse.modifyParameters("totalAuctionLength", val);
+    }
+}
 
 contract BurningFuzz is StatefulFuzzBase {
 
@@ -173,5 +186,39 @@ contract PostSettlementFuzz is StatefulFuzzBase {
 
         safeEngine.addAuthorization(address(auctionHouse));
    }
+}
 
+contract BurningGovernanceFuzz is GovernanceFuzz {
+
+     function baseSetup() internal override {
+        super.baseSetup();
+        auctionHouse = SurplusAuctionHouseLike(address(new BurningSurplusAuctionHouseMock()));
+        auctionHouse.setUp(address(safeEngine), address(tokenMock));
+
+        safeEngine.addAuthorization(address(auctionHouse));
+   }
+
+}
+
+contract RecyclingGovernanceFuzz is GovernanceFuzz {
+
+     function baseSetup() internal override {
+        super.baseSetup();
+        auctionHouse = SurplusAuctionHouseLike(address(new RecyclingSurplusAuctionHouseMock()));
+        auctionHouse.setUp(address(safeEngine), address(tokenMock));
+
+        safeEngine.addAuthorization(address(auctionHouse));
+   }
+
+}
+
+contract PostSettlementGovernanceFuzz is GovernanceFuzz {
+
+     function baseSetup() internal override {
+        super.baseSetup();
+        auctionHouse = SurplusAuctionHouseLike(address(new PostSettlementSurplusAuctionHouseMock()));
+        auctionHouse.setUp(address(safeEngine), address(tokenMock));
+
+        safeEngine.addAuthorization(address(auctionHouse));
+   }
 }

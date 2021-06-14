@@ -825,3 +825,102 @@ Seed: 6968832900734577861
 ```
 
 #### Conclusion
+
+All the fuzzed contracts returned similar results to the Debt Auction House, raising attention only to the possibility of restarting a non-started auction weith id `0`. Otherwise, no more insights can be derived from this run, as most of the logic is the same as the other auction houses.
+
+As another note, the test `echidna_contract_is_enabled` on `PostSettlement Fuzz` failed because this specific contract does not have a `contractEnabled` variable, therefore it always returns false.
+
+### 2. Governance Fuzz
+
+In this run, we give the fuzzer the possibility of performing a few of the governance actions.
+
+Results:
+
+-   Burning Governance
+
+```
+echidna_sanity: passed! 🎉
+echidna_safe_engine: passed! 🎉
+echidna_bidDuration: failed!💥
+  Call sequence:
+    restartAuction(0)
+    modifyBidDuration(0)
+
+echidna_contract_is_enabled: passed! 🎉
+echidna_restardedOnlyStarted: failed!💥
+  Call sequence:
+    restartAuction(0)
+
+echidna_totalAuctionLength: failed!💥
+  Call sequence:
+    restartAuction(0)
+    modifyTotalAuctionLength(0)
+
+echidna_bidIncrease: passed! 🎉
+echidna_protocolToken: passed! 🎉
+echidna_started_auctions_arent_null: passed! 🎉
+
+Seed: -337846313838681555
+```
+
+-   Recycling Governance Fuzz
+
+```
+echidna_sanity: passed! 🎉
+echidna_safe_engine: passed! 🎉
+echidna_bidDuration: failed!💥
+  Call sequence:
+    restartAuction(0)
+    modifyBidDuration(0)
+
+echidna_contract_is_enabled: passed! 🎉
+echidna_restardedOnlyStarted: failed!💥
+  Call sequence:
+    restartAuction(0)
+
+echidna_totalAuctionLength: failed!💥
+  Call sequence:
+    restartAuction(0)
+    modifyTotalAuctionLength(0)
+
+echidna_bidIncrease: passed! 🎉
+echidna_protocolToken: passed! 🎉
+echidna_started_auctions_arent_null: passed! 🎉
+
+Seed: 4971600650093521888
+```
+
+-   PostStellement Governance Fuzz
+
+```
+ionHouseFuzz.sol:PostSettlementGovernanceFuzz
+echidna_sanity: passed! 🎉
+echidna_safe_engine: passed! 🎉
+echidna_bidDuration: failed!💥
+  Call sequence:
+    restartAuction(0)
+    modifyBidDuration(0)
+
+echidna_contract_is_enabled: failed with no transactions made ⁉️
+echidna_restardedOnlyStarted: failed!💥
+  Call sequence:
+    restartAuction(0)
+
+echidna_totalAuctionLength: failed!💥
+  Call sequence:
+    restartAuction(0)
+    modifyTotalAuctionLength(0)
+
+echidna_bidIncrease: passed! 🎉
+echidna_protocolToken: passed! 🎉
+echidna_started_auctions_arent_null: passed! 🎉
+
+Seed: 7015492352463702073
+
+```
+
+#### Conclusion
+
+This fuzzing yielded the expected results, affecting only the tests scenarios in which the governance has the power to change.
+
+A interesting note is that there's no bound to which values are allowed to be modified, making it possible to change the duration of a bid to either `0` or to a extremely large number, making auction never effectively start or un-finishable. A proposed adjustment is to define reasonable boundaries and limit the governance changes.
