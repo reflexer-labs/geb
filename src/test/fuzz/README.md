@@ -758,6 +758,115 @@ In this section, we'll batch the three surplus auction houses(`BurningSurplusAuc
 
 ### 1. Plain code fuzz
 
+-   Burning Surplus Auction
+
+```
+assertion in bidIncrease: passed! 🎉
+assertion in AUCTION_HOUSE_TYPE: passed! 🎉
+assertion in protocolToken: passed! 🎉
+assertion in authorizedAccounts: passed! 🎉
+assertion in settleAuction: passed! 🎉
+assertion in addAuthorization: passed! 🎉
+assertion in contractEnabled: passed! 🎉
+assertion in bids: passed! 🎉
+assertion in startAuction: passed! 🎉
+assertion in auctionsStarted: passed! 🎉
+assertion in increaseBidSize: failed!💥
+  Call sequence:
+    startAuction(0,0)
+    increaseBidSize(1,11,118657721143608488720758714298571044685221186723258702512074)
+
+assertion in SURPLUS_AUCTION_TYPE: passed! 🎉
+assertion in safeEngine: passed! 🎉
+assertion in totalAuctionLength: passed! 🎉
+assertion in setUp: passed! 🎉
+assertion in disableContract: passed! 🎉
+assertion in terminateAuctionPrematurely: passed! 🎉
+assertion in removeAuthorization: passed! 🎉
+assertion in restartAuction: passed! 🎉
+assertion in bidDuration: passed! 🎉
+
+Seed: -5729121038517305206
+
+```
+
+-   Recycling Surplus Auction
+
+```
+assertion in bidIncrease: passed! 🎉
+assertion in AUCTION_HOUSE_TYPE: passed! 🎉
+assertion in protocolToken: passed! 🎉
+assertion in authorizedAccounts: passed! 🎉
+assertion in settleAuction: passed! 🎉
+assertion in addAuthorization: passed! 🎉
+assertion in contractEnabled: passed! 🎉
+assertion in bids: passed! 🎉
+assertion in startAuction: passed! 🎉
+assertion in auctionsStarted: passed! 🎉
+assertion in increaseBidSize: passed! 🎉
+assertion in SURPLUS_AUCTION_TYPE: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in safeEngine: passed! 🎉
+assertion in totalAuctionLength: passed! 🎉
+assertion in setUp: passed! 🎉
+assertion in disableContract: passed! 🎉
+assertion in terminateAuctionPrematurely: passed! 🎉
+assertion in removeAuthorization: passed! 🎉
+assertion in restartAuction: failed!💥
+  Call sequence:
+    modifyParameters("totalAuctionLength\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",115792089237316195423570985008687907853269984665640564039457584007913129639935)
+    restartAuction(0)
+
+assertion in protocolTokenBidReceiver: passed! 🎉
+assertion in bidDuration: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+
+Seed: 4747728837205116181
+```
+
+```
+assertion in bidIncrease: passed! 🎉
+assertion in AUCTION_HOUSE_TYPE: passed! 🎉
+assertion in protocolToken: passed! 🎉
+assertion in authorizedAccounts: passed! 🎉
+assertion in settleAuction: passed! 🎉
+assertion in addAuthorization: passed! 🎉
+assertion in bids: passed! 🎉
+assertion in startAuction: failed!💥
+  Call sequence:
+    modifyParameters("totalAuctionLength\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",115792089237316195423570985008687907853269984665640564039457584007913129639935)
+    startAuction(0,0)
+
+assertion in auctionsStarted: passed! 🎉
+assertion in increaseBidSize: failed!💥
+  Call sequence:
+    startAuction(0,0)
+    increaseBidSize(1,18278669769997,116058827562717934193141055380986954127848981061841538165663)
+
+assertion in safeEngine: passed! 🎉
+assertion in totalAuctionLength: passed! 🎉
+assertion in setUp: passed! 🎉
+assertion in removeAuthorization: passed! 🎉
+assertion in restartAuction: failed!💥
+  Call sequence:
+    modifyParameters("totalAuctionLength\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL\NUL",115792089237316195423570985008687907853269984665640564039457584007913129639935)
+    restartAuction(0)
+
+assertion in bidDuration: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+
+Seed: 3424067764475950047
+
+```
+
+#### Conclusion
+
+Analysing the results we can derive what are the boundaries of all of the surplus contracts.
+
+The largest possible bid increase seems to be in the order of 10e55, which is more than enough and it's quite unlikely that it'll ever reach this limit.
+
+Similarly, there's a limit length close to 2^256 seconds, which should never be used. It might be appropriate to put a hard limit on this value to disallow the governance to create endless auctions.
+
 ### 2. Stateful Fuzz
 
 Fuzzing each contract individually, allowing the fuzzer to perform every possible action, except the governance protected ones. Echidna is allowed to create and bid on auctions, as well settle them.

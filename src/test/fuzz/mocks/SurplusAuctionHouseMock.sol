@@ -136,6 +136,17 @@ contract TokenMock {
         emit Approval(msg.sender, usr, amount);
         return true;
     }
+
+    // --- Alias ---
+    function push(address usr, uint256 amount) external {
+        transferFrom(msg.sender, usr, amount);
+    }
+    function pull(address usr, uint256 amount) external {
+        transferFrom(usr, msg.sender, amount);
+    }
+    function move(address src, address dst, uint256 amount) external {
+        transferFrom(src, dst, amount);
+    }
 }
 
 
@@ -285,7 +296,6 @@ contract BurningSurplusAuctionHouseMock {
         bids[id].auctionDeadline = addUint48(uint48(now), totalAuctionLength);
 
         safeEngine.transferInternalCoins(msg.sender, address(this), amountToSell);
-
         emit StartAuction(id, auctionsStarted, amountToSell, initialBid, bids[id].auctionDeadline);
     }
     /**
@@ -541,7 +551,7 @@ contract RecyclingSurplusAuctionHouseMock {
 
         bids[id].bidAmount = bid;
         bids[id].bidExpiry = addUint48(uint48(now), bidDuration);
-
+        
         emit IncreaseBidSize(id, msg.sender, amountToBuy, bid, bids[id].bidExpiry);
     }
     /**
@@ -700,6 +710,7 @@ contract PostSettlementSurplusAuctionHouseMock {
 
         safeEngine.transferInternalCoins(msg.sender, address(this), amountToSell);
 
+       
         emit StartAuction(id, auctionsStarted, amountToSell, initialBid, bids[id].auctionDeadline);
     }
     /**
@@ -723,19 +734,19 @@ contract PostSettlementSurplusAuctionHouseMock {
         require(bids[id].bidExpiry > now || bids[id].bidExpiry == 0, "PostSettlementSurplusAuctionHouse/bid-already-expired");
         require(bids[id].auctionDeadline > now, "PostSettlementSurplusAuctionHouse/auction-already-expired");
 
-        require(amountToBuy == bids[id].amountToSell, "PostSettlementSurplusAuctionHouse/amounts-not-matching");
+        amountToBuy = bids[id].amountToSell;
+        // require(amountToBuy == bids[id].amountToSell, "PostSettlementSurplusAuctionHouse/amounts-not-matching");
         require(bid > bids[id].bidAmount, "PostSettlementSurplusAuctionHouse/bid-not-higher");
         require(multiply(bid, ONE) >= multiply(bidIncrease, bids[id].bidAmount), "PostSettlementSurplusAuctionHouse/insufficient-increase");
 
-        if (msg.sender != bids[id].highBidder) {
-            protocolToken.move(msg.sender, bids[id].highBidder, bids[id].bidAmount);
-            bids[id].highBidder = msg.sender;
-        }
-        protocolToken.move(msg.sender, address(this), bid - bids[id].bidAmount);
+        // if (msg.sender != bids[id].highBidder) {
+        //     protocolToken.move(msg.sender, bids[id].highBidder, bids[id].bidAmount);
+        //     bids[id].highBidder = msg.sender;
+        // }
+        // protocolToken.move(msg.sender, address(this), bid - bids[id].bidAmount);
 
         bids[id].bidAmount = bid;
         bids[id].bidExpiry = addUint48(uint48(now), bidDuration);
-
         emit IncreaseBidSize(id, msg.sender, amountToBuy, bid, bids[id].bidExpiry);
     }
     /**

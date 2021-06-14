@@ -2,6 +2,78 @@ pragma solidity 0.6.7;
 
 import "./mocks/SurplusAuctionHouseMock.sol";
 
+
+contract GeneralBurningFuzz is BurningSurplusAuctionHouseMock {
+
+    constructor () public {
+        SAFEEngine safeEngine_ = new SAFEEngine();
+        TokenMock tokenMock = new TokenMock("Mock", "Mock");
+        setUp(address(safeEngine_), address(tokenMock));
+
+        // Give coins to sender accounts
+        SAFEEngine(address(safeEngine)).createUnbackedDebt(address(0x8), address(0x00a329C0648769a73afAC7F9381e08fb43DBEA70), 1000000000000 ether * 10**27);
+        SAFEEngine(address(safeEngine)).createUnbackedDebt(address(0x8), address(0x10000), 1000000000000 ether * 10**27);
+        SAFEEngine(address(safeEngine)).createUnbackedDebt(address(0x8), address(0x20000), 1000000000000 ether * 10**27);
+
+        tokenMock.mint(address(0x00a329C0648769a73afAC7F9381e08fb43DBEA70), 100000000000 ether);
+        tokenMock.mint(address(0x10000), 100000000000 ether);
+        tokenMock.mint(address(0x20000), 100000000000 ether);
+
+        // Authorizing Echidna Accounts
+        authorizedAccounts[address(0x10000)] = 1;
+        authorizedAccounts[address(0x20000)] = 1;
+        authorizedAccounts[address(0x00a329C0648769a73afAC7F9381e08fb43DBEA70)] = 1;
+
+    }
+}
+contract GeneralRecyclingFuzz is RecyclingSurplusAuctionHouseMock {
+
+    constructor () public {
+        SAFEEngine safeEngine_ = new SAFEEngine();
+        TokenMock tokenMock = new TokenMock("Mock", "Mock");
+        setUp(address(safeEngine_), address(tokenMock));
+        protocolTokenBidReceiver = address(0x8);
+
+        // Give coins to sender accounts
+        SAFEEngine(address(safeEngine)).createUnbackedDebt(address(0x8), address(0x00a329C0648769a73afAC7F9381e08fb43DBEA70), 1000000000000 ether * 10**27);
+        SAFEEngine(address(safeEngine)).createUnbackedDebt(address(0x8), address(0x10000), 1000000000000 ether * 10**27);
+        SAFEEngine(address(safeEngine)).createUnbackedDebt(address(0x8), address(0x20000), 1000000000000 ether * 10**27);
+
+        tokenMock.mint(address(0x00a329C0648769a73afAC7F9381e08fb43DBEA70), 100000000000 ether);
+        tokenMock.mint(address(0x10000), 100000000000 ether);
+        tokenMock.mint(address(0x20000), 100000000000 ether);
+
+        // Authorizing Echidna Accounts
+        authorizedAccounts[address(0x10000)] = 1;
+        authorizedAccounts[address(0x20000)] = 1;
+        authorizedAccounts[address(0x00a329C0648769a73afAC7F9381e08fb43DBEA70)] = 1;
+
+    }
+}
+
+contract GeneralPostSettlementFuzz is PostSettlementSurplusAuctionHouseMock {
+
+    constructor () public {
+        SAFEEngine safeEngine_ = new SAFEEngine();
+        TokenMock tokenMock = new TokenMock("Mock", "Mock");
+        setUp(address(safeEngine_), address(tokenMock));
+
+        // Give coins to sender accounts
+        SAFEEngine(address(safeEngine)).createUnbackedDebt(address(0x8), address(0x00a329C0648769a73afAC7F9381e08fb43DBEA70), 1000000000000 ether * 10**27);
+        SAFEEngine(address(safeEngine)).createUnbackedDebt(address(0x8), address(0x10000), 1000000000000 ether * 10**27);
+        SAFEEngine(address(safeEngine)).createUnbackedDebt(address(0x8), address(0x20000), 1000000000000 ether * 10**27);
+
+        tokenMock.mint(address(0x00a329C0648769a73afAC7F9381e08fb43DBEA70), 100000000000 ether);
+        tokenMock.mint(address(0x10000), 100000000000 ether);
+        tokenMock.mint(address(0x20000), 100000000000 ether);
+
+        // Authorizing Echidna Accounts
+        authorizedAccounts[address(0x10000)] = 1;
+        authorizedAccounts[address(0x20000)] = 1;
+        authorizedAccounts[address(0x00a329C0648769a73afAC7F9381e08fb43DBEA70)] = 1;
+    }
+}
+
 contract StatefulFuzzBase {
 
     // --- Fuzzing Contracts ---
