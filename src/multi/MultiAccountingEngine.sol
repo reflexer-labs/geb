@@ -26,10 +26,6 @@ abstract contract SAFEEngineLike {
     function denySAFEModification(bytes32,address) virtual external;
 }
 
-abstract contract ProtocolTokenAuthorityLike {
-    function authorizedAccounts(address) virtual public view returns (uint256);
-}
-
 contract MultiAccountingEngine {
     // --- Auth ---
     mapping (bytes32 => mapping(address => uint256)) public authorizedAccounts;
@@ -70,7 +66,7 @@ contract MultiAccountingEngine {
     }
     /**
      * @notice Remove a system component
-      @param component Component to auth
+      @param component Component to deauth
      */
     function removeSystemComponent(address component) external {
         require(manager == msg.sender, "MultiAccountingEngine/invalid-manager");
@@ -88,8 +84,8 @@ contract MultiAccountingEngine {
     /**
     * @param coinName The name of the coin to check auth for
     **/
-    modifier systemComponentOrAuthorized(bytes32 coinName) {
-        require(either(authorizedAccounts[coinName][msg.sender] == 1, systemComponents[msg.sender] == 1), "MultiAccountingEngine/account-not-authorized");
+    modifier systemComponent(bytes32 coinName) {
+        require(systemComponents[msg.sender] == 1, "MultiAccountingEngine/account-not-authorized");
         _;
     }
 
@@ -98,6 +94,8 @@ contract MultiAccountingEngine {
     SAFEEngineLike               public safeEngine;
     // Manager address
     address                      public manager;
+    // The address that gets coins when transferPostSettlementSurplus() is called
+    address                      public postSettlementSurplusDrain;
 
     // Addresses that receive surplus
     mapping (bytes32 => address) public extraSurplusReceiver;
@@ -119,9 +117,13 @@ contract MultiAccountingEngine {
     mapping (bytes32 => uint256) public surplusTransferAmount;           // [rad]
     // Amount of stability fees that need to accrue in this contract before any transfer can start
     mapping (bytes32 => uint256) public surplusBuffer;                   // [rad]
+    // When a coin was disabled
+    mapping (bytes32 => uint256) public disableTimestamp;                // [unix timestamp]
 
     // Delay after which debt can be popped from debtQueue
     uint256 public popDebtDelay;                                         // [seconds]
+    // Time to wait (post settlement) until any remaining surplus can be transferred out so GlobalSettlement can finalize
+    uint256 public disableCooldown;                                      // [seconds]
 
     // --- Events ---
     event AddAuthorization(bytes32 indexed coinName, address account);
@@ -129,23 +131,31 @@ contract MultiAccountingEngine {
     event AddSystemComponent(address component);
     event RemoveSystemComponent(address component);
     event ModifyParameters(bytes32 indexed parameter, address data);
-    event ModifyParameters(bytes32 indexed parameter, uint256 data);
     event ModifyParameters(bytes32 indexed coinName, bytes32 indexed parameter, uint256 data);
     event ModifyParameters(bytes32 indexed coinName, bytes32 indexed parameter, address data);
     event PushDebtToQueue(bytes32 indexed coinName, uint256 indexed timestamp, uint256 debtQueueBlock, uint256 totalQueuedDebt);
     event PopDebtFromQueue(bytes32 indexed coinName, uint256 indexed timestamp, uint256 debtQueueBlock, uint256 totalQueuedDebt);
     event SettleDebt(bytes32 indexed coinName, uint256 rad, uint256 coinBalance, uint256 debtBalance);
     event DisableCoin(bytes32 indexed coinName, uint256 indexed coinBalance, uint256 debtBalance);
-    event TransferExtraSurplus(bytes32 indexed coinName, address indexed extraSurplusReceiver, uint256 coinBalance);
     event InitializeCoin(bytes32 indexed coinName, uint256 surplusTransferAmount, uint256 surplusBuffer);
     event SetManager(address manager);
+    event TransferPostSettlementSurplus(bytes32 indexed coinName, address postSettlementSurplusDrain, uint256 coinBalance, uint256 debtBalance);
+    event TransferExtraSurplus(bytes32 indexed coinName, address indexed extraSurplusReceiver, uint256 coinBalance);
 
     // --- Init ---
     constructor(
-      address safeEngine_
+      address safeEngine_,
+      address postSettlementSurplusDrain_,
+      uint256 popDebtDelay_,
+      uint256 disableCooldown_
     ) public {
-        manager    = msg.sender;
-        safeEngine = SAFEEngineLike(safeEngine_);
+        require(popDebtDelay_ > 0, "MultiAccountingEngine/null-pop-debt-delay");
+        require(disableCooldown_ > 0, "MultiAccountingEngine/null-disable-cooldown");
+        manager                    = msg.sender;
+        popDebtDelay               = popDebtDelay_;
+        disableCooldown            = disableCooldown_;
+        postSettlementSurplusDrain = postSettlementSurplusDrain_;
+        safeEngine                 = SAFEEngineLike(safeEngine_);
     }
 
     // --- Boolean Logic ---
@@ -193,16 +203,6 @@ contract MultiAccountingEngine {
         emit SetManager(manager);
     }
     /**
-     * @notice Modify a manager specific uint256 param
-     * @param parameter The name of the parameter modified
-     * @param data New value for the parameter
-     */
-    function modifyParameters(bytes32 parameter, uint256 data) external {
-        require(manager == msg.sender, "MultiAccountingEngine/invalid-manager");
-        if (parameter == "popDebtDelay") popDebtDelay = data;
-        emit ModifyParameters(parameter, data);
-    }
-    /**
      * @notice Modify a general uint256 param
      * @param coinName The name of the coin to change a param for
      * @param parameter The name of the parameter modified
@@ -229,6 +229,7 @@ contract MultiAccountingEngine {
     // --- Getters ---
     /*
     * @notice Returns the amount of bad debt that is not in the debtQueue
+    * @param coinName The name of the coin to get the unqueued debt for
     */
     function unqueuedDebt(bytes32 coinName) public view returns (uint256) {
         return subtract(safeEngine.debtBalance(coinName, address(this)), totalQueuedDebt[coinName]);
@@ -309,12 +310,14 @@ contract MultiAccountingEngine {
      *      left in the MultiAccountingEngine
      * @param coinName The name of the coin to disable
     **/
-    function disableContract(bytes32 coinName) external systemComponentOrAuthorized(coinName) {
+    function disableCoin(bytes32 coinName) external systemComponent(coinName) {
         require(coinEnabled[coinName] == 1, "MultiAccountingEngine/coin-not-enabled");
         require(coinInitialized[coinName] == 1, "MultiAccountingEngine/coin-not-init");
 
-        coinEnabled[coinName]     = 0;
-        totalQueuedDebt[coinName] = 0;
+        coinEnabled[coinName]          = 0;
+        totalQueuedDebt[coinName]      = 0;
+        extraSurplusReceiver[coinName] = address(0);
+        disableTimestamp[coinName]     = now;
 
         safeEngine.settleDebt(
           coinName, minimum(safeEngine.coinBalance(coinName, address(this)), safeEngine.debtBalance(coinName, address(this)))
@@ -322,6 +325,30 @@ contract MultiAccountingEngine {
 
         emit DisableCoin(
           coinName, safeEngine.coinBalance(coinName, address(this)), safeEngine.debtBalance(coinName, address(this))
+        );
+    }
+    /**
+     * @notice Transfer any remaining surplus after the disable cooldown has passed. Meant to be a backup in case GlobalSettlement
+               has a bug, governance doesn't have power over the system and there's still surplus left in the AccountingEngine
+               which then blocks GlobalSettlement.setOutstandingCoinSupply.
+     * @dev Transfer any remaining surplus after disableCooldown seconds have passed since disabling a coin
+    **/
+    function transferPostSettlementSurplus(bytes32 coinName) external {
+        require(coinEnabled[coinName] == 0, "MultiAccountingEngine/coin-not-disabled");
+        require(coinInitialized[coinName] == 1, "MultiAccountingEngine/coin-not-init");
+        require(addition(disableTimestamp[coinName], disableCooldown) <= now, "MultiAccountingEngine/cooldown-not-passed");
+
+        safeEngine.settleDebt(
+          coinName, minimum(safeEngine.coinBalance(coinName, address(this)), safeEngine.debtBalance(coinName, address(this)))
+        );
+        safeEngine.transferInternalCoins(
+          coinName, address(this), postSettlementSurplusDrain, safeEngine.coinBalance(coinName, address(this))
+        );
+        emit TransferPostSettlementSurplus(
+          coinName,
+          postSettlementSurplusDrain,
+          safeEngine.coinBalance(coinName, address(this)),
+          safeEngine.debtBalance(coinName, address(this))
         );
     }
 }
