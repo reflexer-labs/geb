@@ -306,6 +306,7 @@ contract MultiGlobalSettlement {
         collateralHolder[coinName] = address(new SettlementCollateralHolder(address(safeEngine)));
 
         emit InitializeCoin(coinName);
+        emit AddAuthorization(coinName, msg.sender);
     }
     /*
     * @notify Modify an address parameter

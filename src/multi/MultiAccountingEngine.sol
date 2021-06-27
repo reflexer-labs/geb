@@ -74,18 +74,11 @@ contract MultiAccountingEngine {
         emit RemoveSystemComponent(component);
     }
     /**
+    /**
     * @notice Checks whether msg.sender is a system component
     **/
     modifier isSystemComponent {
         require(systemComponents[msg.sender] == 1, "MultiAccountingEngine/account-not-component");
-        _;
-    }
-
-    /**
-    * @param coinName The name of the coin to check auth for
-    **/
-    modifier systemComponent(bytes32 coinName) {
-        require(systemComponents[msg.sender] == 1, "MultiAccountingEngine/account-not-authorized");
         _;
     }
 
@@ -177,6 +170,9 @@ contract MultiAccountingEngine {
     // --- Administration ---
     /**
      * @notice Initialize a new coin
+     * @param coinName The name of the coin
+     * @param surplusTransferAmount_ The amount of extra surplus coinName transferred out of this contract
+     * @param surplusBuffer_ The initial surplus buffer for coinName
      */
     function initializeCoin(bytes32 coinName, uint256 surplusTransferAmount_, uint256 surplusBuffer_) external {
         require(coinInitialized[coinName] == 0, "MultiAccountingEngine/already-init");
@@ -192,6 +188,7 @@ contract MultiAccountingEngine {
         surplusBuffer[coinName]         = surplusBuffer_;
 
         emit InitializeCoin(coinName, surplusTransferAmount_, surplusBuffer_);
+        emit AddAuthorization(coinName, msg.sender);
     }
     /**
      * @notice Set the manager address
@@ -310,7 +307,7 @@ contract MultiAccountingEngine {
      *      left in the MultiAccountingEngine
      * @param coinName The name of the coin to disable
     **/
-    function disableCoin(bytes32 coinName) external systemComponent(coinName) {
+    function disableCoin(bytes32 coinName) external isSystemComponent {
         require(coinEnabled[coinName] == 1, "MultiAccountingEngine/coin-not-enabled");
         require(coinInitialized[coinName] == 1, "MultiAccountingEngine/coin-not-init");
 
