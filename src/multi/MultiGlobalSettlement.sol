@@ -372,21 +372,28 @@ contract MultiGlobalSettlement {
         CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
         (, uint256 accumulatedRate,,,,) = safeEngine.collateralTypes(coinName, collateralType);
 
-        uint256 bidAmount                 = collateralAuctionHouse.bidAmount(auctionId);
         uint256 raisedAmount              = collateralAuctionHouse.raisedAmount(auctionId);
         uint256 collateralToSell          = collateralAuctionHouse.remainingAmountToSell(auctionId);
         address forgoneCollateralReceiver = collateralAuctionHouse.forgoneCollateralReceiver(auctionId);
         uint256 amountToRaise             = collateralAuctionHouse.amountToRaise(auctionId);
 
         safeEngine.createUnbackedDebt(coinName, address(accountingEngine), address(accountingEngine), subtract(amountToRaise, raisedAmount));
-        safeEngine.createUnbackedDebt(coinName, address(accountingEngine), address(this), bidAmount);
+        safeEngine.createUnbackedDebt(coinName, address(accountingEngine), address(this), collateralAuctionHouse.bidAmount(auctionId));
         safeEngine.approveSAFEModification(coinName, address(collateralAuctionHouse));
         collateralAuctionHouse.terminateAuctionPrematurely(auctionId);
 
-        uint256 debt_ = subtract(amountToRaise, raisedAmount) / accumulatedRate;
-        collateralTotalDebt[coinName][collateralType] = addition(collateralTotalDebt[coinName][collateralType], debt_);
-        require(int256(collateralToSell) >= 0 && int256(debt_) >= 0, "MultiGlobalSettlement/overflow");
-        safeEngine.confiscateSAFECollateralAndDebt(coinName, collateralType, forgoneCollateralReceiver, address(this), address(accountingEngine), int256(collateralToSell), int256(debt_));
+        collateralTotalDebt[coinName][collateralType] =
+          addition(collateralTotalDebt[coinName][collateralType], subtract(amountToRaise, raisedAmount) / accumulatedRate);
+        require(int256(collateralToSell) >= 0 && int256(subtract(amountToRaise, raisedAmount) / accumulatedRate) >= 0, "MultiGlobalSettlement/overflow");
+        safeEngine.confiscateSAFECollateralAndDebt(
+          coinName,
+          collateralType,
+          forgoneCollateralReceiver,
+          address(this),
+          address(accountingEngine),
+          int256(collateralToSell),
+          int256(subtract(amountToRaise, raisedAmount) / accumulatedRate)
+        );
         emit FastTrackAuction(coinName, collateralType, auctionId, collateralTotalDebt[coinName][collateralType]);
     }
     /**
