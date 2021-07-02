@@ -6,6 +6,7 @@ import "ds-token/delegate.sol";
 
 import {SAFEEngine} from '../SAFEEngine.sol';
 import {LiquidationEngine} from '../LiquidationEngine.sol';
+import {LiquidationPool} from '../LiquidationPool.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
 import {TaxCollector} from '../TaxCollector.sol';
 import '../BasicTokenAdapters.sol';
@@ -134,7 +135,9 @@ contract SaveSAFETest is DSTest {
     TestSAFEEngine safeEngine;
     TestAccountingEngine accountingEngine;
     LiquidationEngine liquidationEngine;
+    LiquidationPool liquidationPool;
     DSDelegateToken gold;
+    CoinJoin systemCoinA;
     TaxCollector taxCollector;
 
     BasicCollateralJoin collateralA;
@@ -187,6 +190,9 @@ contract SaveSAFETest is DSTest {
 
         protocolToken = new DSDelegateToken('GOV', 'GOV');
         protocolToken.mint(100 ether);
+        gold = new DSDelegateToken("GEM", "GEM");
+        gold.mint(1000 ether);
+        systemCoinA = new CoinJoin(address(safeEngine), address(gold));
 
         safeEngine = new TestSAFEEngine();
         safeEngine = safeEngine;
@@ -207,13 +213,13 @@ contract SaveSAFETest is DSTest {
         taxCollector.modifyParameters("primaryTaxReceiver", address(accountingEngine));
         safeEngine.addAuthorization(address(taxCollector));
 
+        liquidationPool = new LiquidationPool(address(systemCoinA), "gold");
         liquidationEngine = new LiquidationEngine(address(safeEngine));
+        liquidationPool.addAuthorization(address(liquidationEngine));
         liquidationEngine.modifyParameters("accountingEngine", address(accountingEngine));
+        liquidationEngine.modifyParameters("liquidationPool", address(liquidationPool));
         safeEngine.addAuthorization(address(liquidationEngine));
         accountingEngine.addAuthorization(address(liquidationEngine));
-
-        gold = new DSDelegateToken("GEM", "GEM");
-        gold.mint(1000 ether);
 
         safeEngine.initializeCollateralType("gold");
         collateralA = new BasicCollateralJoin(address(safeEngine), "gold", address(gold));

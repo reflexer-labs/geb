@@ -6,6 +6,7 @@ import "ds-token/delegate.sol";
 
 import {SAFEEngine} from '../SAFEEngine.sol';
 import {LiquidationEngine} from '../LiquidationEngine.sol';
+import {LiquidationPool} from '../LiquidationPool.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
 import {TaxCollector} from '../TaxCollector.sol';
 import '../BasicTokenAdapters.sol';
@@ -699,7 +700,9 @@ contract LiquidationTest is DSTest {
     TestSAFEEngine safeEngine;
     TestAccountingEngine accountingEngine;
     LiquidationEngine liquidationEngine;
+    LiquidationPool liquidationPool;
     DSDelegateToken gold;
+    CoinJoin systemCoinA;
     TaxCollector taxCollector;
 
     BasicCollateralJoin collateralA;
@@ -758,6 +761,10 @@ contract LiquidationTest is DSTest {
         safeEngine = new TestSAFEEngine();
         safeEngine = safeEngine;
 
+        gold = new DSDelegateToken("GEM", '');
+        gold.mint(1000 ether);
+        systemCoinA = new CoinJoin(address(safeEngine), address(gold));
+
         surplusAuctionHouse = new PostSettlementSurplusAuctionHouse(address(safeEngine), address(protocolToken));
         debtAuctionHouse = new DebtAuctionHouse(address(safeEngine), address(protocolToken));
 
@@ -774,8 +781,12 @@ contract LiquidationTest is DSTest {
         taxCollector.modifyParameters("primaryTaxReceiver", address(accountingEngine));
         safeEngine.addAuthorization(address(taxCollector));
 
+        liquidationPool = new LiquidationPool(address(systemCoinA), "gold");
         liquidationEngine = new LiquidationEngine(address(safeEngine));
         liquidationEngine.modifyParameters("accountingEngine", address(accountingEngine));
+        liquidationPool.addAuthorization(address(liquidationEngine));
+        liquidationEngine.modifyParameters("liquidationPool", address(liquidationPool));
+        liquidationPool.addAuthorization(address(liquidationEngine));
         safeEngine.addAuthorization(address(liquidationEngine));
         accountingEngine.addAuthorization(address(liquidationEngine));
 
