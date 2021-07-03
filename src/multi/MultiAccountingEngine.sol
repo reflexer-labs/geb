@@ -87,6 +87,8 @@ contract MultiAccountingEngine {
     SAFEEngineLike               public safeEngine;
     // Manager address
     address                      public manager;
+    // Address of the deployer
+    address                      public deployer;
     // The address that gets coins when transferPostSettlementSurplus() is called
     address                      public postSettlementSurplusDrain;
 
@@ -131,7 +133,6 @@ contract MultiAccountingEngine {
     event SettleDebt(bytes32 indexed coinName, uint256 rad, uint256 coinBalance, uint256 debtBalance);
     event DisableCoin(bytes32 indexed coinName, uint256 indexed coinBalance, uint256 debtBalance);
     event InitializeCoin(bytes32 indexed coinName, uint256 surplusTransferAmount, uint256 surplusBuffer);
-    event SetManager(address manager);
     event TransferPostSettlementSurplus(bytes32 indexed coinName, address postSettlementSurplusDrain, uint256 coinBalance, uint256 debtBalance);
     event TransferExtraSurplus(bytes32 indexed coinName, address indexed extraSurplusReceiver, uint256 coinBalance);
 
@@ -145,6 +146,7 @@ contract MultiAccountingEngine {
         require(popDebtDelay_ > 0, "MultiAccountingEngine/null-pop-debt-delay");
         require(disableCooldown_ > 0, "MultiAccountingEngine/null-disable-cooldown");
         manager                    = msg.sender;
+        deployer                   = msg.sender;
         popDebtDelay               = popDebtDelay_;
         disableCooldown            = disableCooldown_;
         postSettlementSurplusDrain = postSettlementSurplusDrain_;
@@ -175,6 +177,7 @@ contract MultiAccountingEngine {
      * @param surplusBuffer_ The initial surplus buffer for coinName
      */
     function initializeCoin(bytes32 coinName, uint256 surplusTransferAmount_, uint256 surplusBuffer_) external {
+        require(deployer == msg.sender, "MultiAccountingEngine/caller-not-deployer");
         require(coinInitialized[coinName] == 0, "MultiAccountingEngine/already-init");
         require(surplusTransferAmount_ > 0, "MultiAccountingEngine/null-transfer-amount");
         require(surplusBuffer_ > 0, "MultiAccountingEngine/null-surplus-buffer");
@@ -191,13 +194,20 @@ contract MultiAccountingEngine {
         emit AddAuthorization(coinName, msg.sender);
     }
     /**
-     * @notice Set the manager address
+     * @notice Set an address param
+     * @param parameter The name of the parameter to change
      * @param data The new manager
      */
-    function modifyParameters(bytes32, address data) external {
+    function modifyParameters(bytes32 parameter, address data) external {
         require(manager == msg.sender, "MultiAccountingEngine/invalid-manager");
-        manager = data;
-        emit SetManager(manager);
+        if (parameter == "manager") {
+          manager = data;
+        } else if (parameter == "deployer") {
+          require(data != address(0), "MultiAccountingEngine/null-deployer");
+          deployer = data;
+        }
+        else revert("MultiAccountingEngine/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
     }
     /**
      * @notice Modify a general uint256 param

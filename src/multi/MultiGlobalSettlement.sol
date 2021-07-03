@@ -205,6 +205,8 @@ contract MultiGlobalSettlement {
 
     // Manager address
     address                  public manager;
+    // Address of the deployer
+    address                  public deployer;
     // The amount of time post settlement during which no processing takes place
     uint256                  public shutdownCooldown;
 
@@ -257,6 +259,7 @@ contract MultiGlobalSettlement {
         require(addition(now, shutdownCooldown_) <= uint(-1), "MultiGlobalSettlement/large-shutdown-cooldown");
 
         manager          = msg.sender;
+        deployer         = msg.sender;
         shutdownCooldown = shutdownCooldown_;
     }
 
@@ -295,6 +298,7 @@ contract MultiGlobalSettlement {
      * @param coinName The name of the coin to initialize
      */
     function initializeCoin(bytes32 coinName) external {
+        require(deployer == msg.sender, "MultiGlobalSettlement/caller-not-deployer");
         require(coinInitialized[coinName] == 0, "MultiGlobalSettlement/already-init");
         require(address(safeEngine) != address(0), "MultiGlobalSettlement/null-safe-engine");
 
@@ -320,6 +324,10 @@ contract MultiGlobalSettlement {
         else if (parameter == "accountingEngine") accountingEngine = AccountingEngineLike(data);
         else if (parameter == "oracleRelayer") oracleRelayer = OracleRelayerLike(data);
         else if (parameter == "manager") manager = data;
+        else if (parameter == "deployer") {
+          require(data != address(0), "MultiGlobalSettlement/null-deployer");
+          deployer = data;
+        }
         else revert("MultiGlobalSettlement/modify-unrecognized-parameter");
         emit ModifyParameters(parameter, data);
     }

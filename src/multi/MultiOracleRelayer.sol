@@ -94,6 +94,8 @@ contract MultiOracleRelayer {
     SAFEEngineLike public safeEngine;
     // The manager address
     address        public manager;
+    // Address of the deployer
+    address        public deployer;
 
     // Mapping of coin states
     mapping (bytes32 => uint256) public  coinEnabled;
@@ -116,13 +118,13 @@ contract MultiOracleRelayer {
     event AddSystemComponent(address component);
     event RemoveSystemComponent(address component);
     event DisableCoin(bytes32 indexed coinName);
-    event SetManager(address manager);
     event ModifyParameters(
         bytes32 indexed coinName,
         bytes32 collateralType,
         bytes32 parameter,
         address addr
     );
+    event ModifyParameters(bytes32 indexed parameter, address data);
     event ModifyParameters(bytes32 indexed coinName, bytes32 parameter, uint256 data);
     event ModifyParameters(
         bytes32 indexed coinName,
@@ -150,6 +152,7 @@ contract MultiOracleRelayer {
         require(safeEngine_ != address(0), "MultiOracleRelayer/null-safe-engine");
         safeEngine = SAFEEngineLike(safeEngine_);
         manager    = msg.sender;
+        deployer   = msg.sender;
     }
 
     // --- Math ---
@@ -209,6 +212,7 @@ contract MultiOracleRelayer {
         uint256 redemptionRateUpperBound_,
         uint256 redemptionRateLowerBound_
     ) external {
+        require(deployer == msg.sender, "MultiOracleRelayer/caller-not-deployer");
         require(coinInitialized[coinName] == 0, "MultiOracleRelayer/already-init");
         require(redemptionPrice_ > 0, "MultiOracleRelayer/null-red-price");
         require(redemptionRateUpperBound_ > RAY, "MultiOracleRelayer/invalid-red-rate-upper-bound");
@@ -326,13 +330,20 @@ contract MultiOracleRelayer {
         );
     }
     /**
-     * @notice Set the manager address
+     * @notice Set an address param
+     * @param parameter The name of the parameter to change
      * @param data The new manager
      */
-    function modifyParameters(bytes32, address data) external {
+    function modifyParameters(bytes32 parameter, address data) external {
         require(manager == msg.sender, "MultiOracleRelayer/invalid-manager");
-        manager = data;
-        emit SetManager(manager);
+        if (parameter == "manager") {
+          manager = data;
+        } else if (parameter == "deployer") {
+          require(data != address(0), "MultiOracleRelayer/null-deployer");
+          deployer = data;
+        }
+        else revert("MultiOracleRelayer/modify-unrecognized-param");
+        emit ModifyParameters(parameter, data);
     }
 
     // --- Redemption Price Update ---
