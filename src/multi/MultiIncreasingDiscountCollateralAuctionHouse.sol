@@ -29,7 +29,7 @@ abstract contract OracleLike {
     function getResultWithValidity() virtual public view returns (uint256, bool);
 }
 abstract contract LiquidationEngineLike {
-    function removeCoinsFromAuction(bytes32,uint256) virtual public;
+    function removeCoinsFromAuction(bytes32,bytes32,uint256) virtual public;
 }
 
 /*
@@ -703,9 +703,9 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
         // Remove coins from the liquidation buffer
         bool soldAll = either(bids[id].amountToRaise == 0, bids[id].amountToSell == 0);
         if (soldAll) {
-            liquidationEngine.removeCoinsFromAuction(coinName, remainingToRaise);
+            liquidationEngine.removeCoinsFromAuction(coinName, collateralType, remainingToRaise);
         } else {
-            liquidationEngine.removeCoinsFromAuction(coinName, multiply(adjustedBid, RAY));
+            liquidationEngine.removeCoinsFromAuction(coinName, collateralType, multiply(adjustedBid, RAY));
         }
 
         // If the auction raised the whole amount or all collateral was sold,
@@ -729,7 +729,7 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
      */
     function terminateAuctionPrematurely(uint256 id) external isAuthorized {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "MultiIncreasingDiscountCollateralAuctionHouse/inexistent-auction");
-        liquidationEngine.removeCoinsFromAuction(coinName, bids[id].amountToRaise);
+        liquidationEngine.removeCoinsFromAuction(coinName, collateralType, bids[id].amountToRaise);
         safeEngine.transferCollateral(collateralType, address(this), msg.sender, bids[id].amountToSell);
         delete bids[id];
         emit TerminateAuctionPrematurely(id, msg.sender, bids[id].amountToSell);

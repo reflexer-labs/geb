@@ -74,11 +74,19 @@ contract MultiAccountingEngine {
         emit RemoveSystemComponent(component);
     }
     /**
-    /**
     * @notice Checks whether msg.sender is a system component
     **/
     modifier isSystemComponent {
         require(systemComponents[msg.sender] == 1, "MultiAccountingEngine/account-not-component");
+        _;
+    }
+
+    /**
+     * @notice Checks whether a coin is initialized
+     */
+    modifier coinIsInitialized(bytes32 coinName) {
+        require(coinInitialized[coinName] == 1, "MultiAccountingEngine/coin-not-init");
+
         _;
     }
 
@@ -250,7 +258,7 @@ contract MultiAccountingEngine {
      * @param coinName The name of the coin to push debt for
      * @param debtBlock Amount of debt to push
      */
-    function pushDebtToQueue(bytes32 coinName, uint256 debtBlock) external isSystemComponent {
+    function pushDebtToQueue(bytes32 coinName, uint256 debtBlock) external isSystemComponent coinIsInitialized(coinName) {
         debtQueue[coinName][now]  = addition(debtQueue[coinName][now], debtBlock);
         totalQueuedDebt[coinName] = addition(totalQueuedDebt[coinName], debtBlock);
         emit PushDebtToQueue(coinName, now, debtQueue[coinName][now], totalQueuedDebt[coinName]);
@@ -262,7 +270,7 @@ contract MultiAccountingEngine {
      * @param coinName The name of the coin to pop debt for
      * @param debtBlockTimestamp Timestamp of the block of debt that should be popped out
      */
-    function popDebtFromQueue(bytes32 coinName, uint256 debtBlockTimestamp) external {
+    function popDebtFromQueue(bytes32 coinName, uint256 debtBlockTimestamp) external coinIsInitialized(coinName) {
         require(addition(debtBlockTimestamp, popDebtDelay) <= now, "MultiAccountingEngine/pop-debt-delay-not-passed");
         require(debtQueue[coinName][debtBlockTimestamp] > 0, "MultiAccountingEngine/null-debt-block");
         totalQueuedDebt[coinName] = subtract(totalQueuedDebt[coinName], debtQueue[coinName][debtBlockTimestamp]);
@@ -279,7 +287,7 @@ contract MultiAccountingEngine {
      * @param rad Amount of coins/debt to destroy (number with 45 decimals)
      * @param coinName The name of the coin to settle debt for
     **/
-    function settleDebt(bytes32 coinName, uint256 rad) public {
+    function settleDebt(bytes32 coinName, uint256 rad) public coinIsInitialized(coinName) {
         require(rad <= safeEngine.coinBalance(coinName, address(this)), "MultiAccountingEngine/insufficient-surplus");
         require(rad <= unqueuedDebt(coinName), "MultiAccountingEngine/insufficient-debt");
         safeEngine.settleDebt(coinName, rad);
@@ -293,7 +301,7 @@ contract MultiAccountingEngine {
      *      transfer, if we keep enough surplus in the buffer and if there is no bad debt left to settle
      * @param coinName The name of the coin to transfer surplus for
     **/
-    function transferExtraSurplus(bytes32 coinName) external {
+    function transferExtraSurplus(bytes32 coinName) external coinIsInitialized(coinName) {
         require(extraSurplusReceiver[coinName] != address(0), "MultiAccountingEngine/null-surplus-receiver");
         require(surplusTransferAmount[coinName] > 0, "MultiAccountingEngine/null-amount-to-transfer");
         settleDebt(coinName, unqueuedDebt(coinName));

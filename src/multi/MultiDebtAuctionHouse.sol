@@ -297,7 +297,7 @@ contract MultiDebtAuctionHouse {
     // --- Shutdown ---
     /**
     * @notice Disable the auction house
-    * @param engine New accounting engine
+    * @param engine New accounting engine that receives unbacked debt
     */
     function disableContract(address engine) external isAuthorized {
         contractEnabled    = 0;
