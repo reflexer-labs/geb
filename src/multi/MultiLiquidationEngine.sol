@@ -490,6 +490,7 @@ contract MultiLiquidationEngine {
             // i.e. the maximum amountToRaise is roughly 100 trillion system coins.
             uint256 amountToRaise_ = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
 
+            // Try to liquidate with the pool. If it can't be done, 
             if (!liquidateWithPool(coinName, collateralType, amountToRaise_, collateralToSell)) {
               currentOnAuctionSystemCoins[coinName] = addition(currentOnAuctionSystemCoins[coinName], amountToRaise_);
 
@@ -546,11 +547,14 @@ contract MultiLiquidationEngine {
     ) internal returns (bool) {
         address liquidationPool = collateralTypes[coinName][collateralType].liquidationPool;
         if (liquidationPool == address(0)) return false;
+
+        // Check if the pool can liquidate everything
         try LiquidationPoolLike(liquidationPool).canLiquidate(coinName, collateralType, debtAmount, collateralAmount) returns (bool canLiquidate) {
           if (!canLiquidate) return false;
 
           uint256 selfCollateralBalance = safeEngine.tokenCollateral(collateralType, address(this));
 
+          // If the pool can liquidate, start the process
           try LiquidationPoolLike(liquidationPool).liquidateSAFE(
             coinName,
             collateralType,
@@ -558,10 +562,10 @@ contract MultiLiquidationEngine {
             collateralAmount,
             address(accountingEngine)
           ) returns (bool liquidated) {
-            if (!liquidated) return false;
+            // If it couldn't be liquidated or if the collateral hasn't been fully transferred to the pool, revert
             selfCollateralBalance = subtract(selfCollateralBalance, safeEngine.tokenCollateral(collateralType, address(this)));
 
-            if (selfCollateralBalance < collateralAmount) {
+            if (either(!liquidated, selfCollateralBalance < collateralAmount)) {
               revert("MultiLiquidationEngine/invalid-pool-liquidation");
             }
 
