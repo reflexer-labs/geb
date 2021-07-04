@@ -30,7 +30,12 @@ abstract contract CollateralAuctionHouseLike {
 abstract contract SAFESaviourLike {
     function saveSAFE(address,bytes32,address) virtual external returns (bool,uint256,uint256);
 }
+abstract contract LiquidationPoolLike {
+    function canLiquidate(bytes32,bytes32,uint256,uint256) virtual external returns (bool);
+    function liquidateSAFE(bytes32,bytes32,uint256,uint256,address) virtual external returns (bool);
+}
 abstract contract SAFEEngineLike {
+    function tokenCollateral(bytes32,address) virtual public view returns (uint256);
     function collateralTypes(bytes32,bytes32) virtual public view returns (
         uint256 debtAmount,        // [wad]
         uint256 accumulatedRate,   // [ray]
@@ -134,6 +139,8 @@ contract MultiLiquidationEngine {
 
     // --- Data ---
     struct CollateralType {
+        // Liquidation pool
+        address liquidationPool;
         // Address of the collateral auction house handling liquidations for this collateral type
         address collateralAuctionHouse;
         // Penalty applied to every liquidation involving this collateral type. Discourages SAFE users from bidding on their own SAFEs
@@ -176,6 +183,14 @@ contract MultiLiquidationEngine {
     event ConnectSAFESaviour(bytes32 indexed coinName, address saviour);
     event DisconnectSAFESaviour(bytes32 indexed coinName, address saviour);
     event UpdateCurrentOnAuctionSystemCoins(uint256 currentOnAuctionSystemCoins);
+    event FailLiquidationPoolLiquidate(
+      bytes32 indexed coinName,
+      bytes32 collateralType,
+      uint256 debtAmount,
+      uint256 collateralAmount,
+      bytes revertReason
+    );
+    event FailLiquidationPoolCanLiquidate(bytes32 indexed coinName, bytes32 collateralType, bytes revertReason);
     event ModifyParameters(bytes32 indexed coinName, bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 indexed coinName, address data);
     event ModifyParameters(
@@ -329,7 +344,7 @@ contract MultiLiquidationEngine {
         );
     }
     /**
-     * @notice Modify collateral auction address
+     * @notice Modify address params
      * @param coinName The name of the coin
      * @param collateralType The collateral type we change parameters for
      * @param parameter The name of the integration modified
@@ -344,6 +359,10 @@ contract MultiLiquidationEngine {
         if (parameter == "collateralAuctionHouse") {
             safeEngine.denySAFEModification(coinName, collateralTypes[coinName][collateralType].collateralAuctionHouse);
             collateralTypes[coinName][collateralType].collateralAuctionHouse = data;
+            safeEngine.approveSAFEModification(coinName, data);
+        } else if (parameter == "liquidationPool") {
+            safeEngine.denySAFEModification(coinName, collateralTypes[coinName][collateralType].liquidationPool);
+            collateralTypes[coinName][collateralType].liquidationPool = data;
             safeEngine.approveSAFEModification(coinName, data);
         }
         else revert("MultiLiquidationEngine/modify-unrecognized-param");
@@ -467,20 +486,23 @@ contract MultiLiquidationEngine {
           accountingEngine.pushDebtToQueue(coinName, multiply(limitAdjustedDebt, accumulatedRate));
 
           {
-            // This calcuation will overflow if multiply(limitAdjustedDebt, accumulatedRate) exceeds ~10^14,
+            // This calculation will overflow if multiply(limitAdjustedDebt, accumulatedRate) exceeds ~10^14,
             // i.e. the maximum amountToRaise is roughly 100 trillion system coins.
             uint256 amountToRaise_ = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
-            currentOnAuctionSystemCoins[coinName] = addition(currentOnAuctionSystemCoins[coinName], amountToRaise_);
 
-            auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
-              { forgoneCollateralReceiver: safe
-              , initialBidder: address(accountingEngine)
-              , amountToRaise: amountToRaise_
-              , collateralToSell: collateralToSell
-              , initialBid: 0
-             });
+            if (!liquidateWithPool(coinName, collateralType, amountToRaise_, collateralToSell)) {
+              currentOnAuctionSystemCoins[coinName] = addition(currentOnAuctionSystemCoins[coinName], amountToRaise_);
 
-             emit UpdateCurrentOnAuctionSystemCoins(currentOnAuctionSystemCoins[coinName]);
+              auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
+                { forgoneCollateralReceiver: safe
+                , initialBidder: address(accountingEngine)
+                , amountToRaise: amountToRaise_
+                , collateralToSell: collateralToSell
+                , initialBid: 0
+               });
+
+               emit UpdateCurrentOnAuctionSystemCoins(currentOnAuctionSystemCoins[coinName]);
+            }
           }
 
           emit Liquidate(
@@ -506,6 +528,52 @@ contract MultiLiquidationEngine {
         require(msg.sender == collateralTypes[coinName][collateralType].collateralAuctionHouse, "MultiLiquidationEngine/invalid-caller");
         currentOnAuctionSystemCoins[coinName] = subtract(currentOnAuctionSystemCoins[coinName], rad);
         emit UpdateCurrentOnAuctionSystemCoins(currentOnAuctionSystemCoins[coinName]);
+    }
+
+    // --- Internal Logic ---
+    /**
+     * @notice Liquidate a SAFE using a liquidation pool
+     * @param coinName The name of the coin held in the SAFE
+     * @param collateralType The collateral type being sold off
+     * @param debtAmount The amount of system coins being requested
+     * @param collateralAmount The amount of collateral being sold
+     */
+    function liquidateWithPool(
+      bytes32 coinName,
+      bytes32 collateralType,
+      uint256 debtAmount,
+      uint256 collateralAmount
+    ) internal returns (bool) {
+        address liquidationPool = collateralTypes[coinName][collateralType].liquidationPool;
+        if (liquidationPool == address(0)) return false;
+        try LiquidationPoolLike(liquidationPool).canLiquidate(coinName, collateralType, debtAmount, collateralAmount) returns (bool canLiquidate) {
+          if (!canLiquidate) return false;
+
+          uint256 selfCollateralBalance = safeEngine.tokenCollateral(collateralType, address(this));
+
+          try LiquidationPoolLike(liquidationPool).liquidateSAFE(
+            coinName,
+            collateralType,
+            debtAmount,
+            collateralAmount,
+            address(accountingEngine)
+          ) returns (bool liquidated) {
+            if (!liquidated) return false;
+            selfCollateralBalance = subtract(selfCollateralBalance, safeEngine.tokenCollateral(collateralType, address(this)));
+
+            if (selfCollateralBalance < collateralAmount) {
+              revert("MultiLiquidationEngine/invalid-pool-liquidation");
+            }
+
+            return true;
+          } catch(bytes memory failLiquidateReason) {
+            emit FailLiquidationPoolLiquidate(coinName, collateralType, debtAmount, collateralAmount, failLiquidateReason);
+            return false;
+          }
+        } catch(bytes memory failCanLiquidateReason) {
+          emit FailLiquidationPoolCanLiquidate(coinName, collateralType, failCanLiquidateReason);
+          return false;
+        }
     }
 
     // --- Getters ---
