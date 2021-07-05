@@ -34,7 +34,6 @@ contract MultiTaxCollector {
      * @param account Account to add auth to
      */
     function addAuthorization(bytes32 coinName, address account) external isAuthorized(coinName) {
-        require(coinEnabled[coinName] == 1, "MultiTaxCollector/coin-not-enabled");
         authorizedAccounts[coinName][account] = 1;
         emit AddAuthorization(coinName, account);
     }
@@ -73,7 +72,7 @@ contract MultiTaxCollector {
       bytes32 parameter,
       uint256 data
     );
-    event ModifyParameters(bytes32 parameter, uint256 data);
+    event ModifyParameters(bytes32 indexed coinName, bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 parameter, address data);
     event ModifyParameters(
       bytes32 indexed coinName,
@@ -106,6 +105,7 @@ contract MultiTaxCollector {
     );
     event CollectTax(bytes32 indexed coinName, bytes32 indexed collateralType, uint256 latestAccumulatedRate, int256 deltaRate);
     event DistributeTax(bytes32 indexed coinName, bytes32 indexed collateralType, address indexed target, int256 taxCut);
+    event InitializeCoin(bytes32 indexed coinName);
 
     // --- Data ---
     struct CollateralType {
@@ -153,7 +153,11 @@ contract MultiTaxCollector {
     mapping(bytes32 => LinkedList.List) internal secondaryReceiverList;
 
     // Portion of tax that goes to the core receiver
-    uint256        constant public coreReceiverTaxCut;
+    uint256        public coreReceiverTaxCut;
+    // Manager address
+    address        public manager;
+    // Address of the deployer
+    address        public deployer;
     // The address that always receives some SF
     address        public primaryTaxReceiver;
     // The core receiver that gets a portion of all (positive) tax
@@ -329,7 +333,7 @@ contract MultiTaxCollector {
           deployer = data;
         } else if (parameter == "coreReceiver") {
           require(data != address(0), "MultiTaxCollector/null-core-receiver");
-          coreReceiverTaxCut = data;
+          coreReceiver = data;
         }
         else revert("MultiTaxCollector/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
@@ -411,13 +415,13 @@ contract MultiTaxCollector {
           "MultiTaxCollector/tax-cut-exceeds-hundred"
         );
 
-        secondaryReceiverNonce[coinName]                                                       = addition(secondaryReceiverNonce[coinName], 1);
-        latestSecondaryReceiver[coinName]                                                      = secondaryReceiverNonce[coinName];
-        usedSecondaryReceiver[coinName][receiverAccount]                                       = ONE;
-        secondaryReceiverAllotedTax[coinName][collateralType]                                  = addition(secondaryReceiverAllotedTax[coinName][collateralType], taxPercentage);
-        secondaryTaxReceivers[coinName][collateralType][latestSecondaryReceiver].taxPercentage = taxPercentage;
-        secondaryReceiverAccounts[coinName][latestSecondaryReceiver]                           = receiverAccount;
-        secondaryReceiverRevenueSources[coinName][receiverAccount]                             = ONE;
+        secondaryReceiverNonce[coinName]                                                                 = addition(secondaryReceiverNonce[coinName], 1);
+        latestSecondaryReceiver[coinName]                                                                = secondaryReceiverNonce[coinName];
+        usedSecondaryReceiver[coinName][receiverAccount]                                                 = ONE;
+        secondaryReceiverAllotedTax[coinName][collateralType]                                            = addition(secondaryReceiverAllotedTax[coinName][collateralType], taxPercentage);
+        secondaryTaxReceivers[coinName][collateralType][latestSecondaryReceiver[coinName]].taxPercentage = taxPercentage;
+        secondaryReceiverAccounts[coinName][latestSecondaryReceiver[coinName]]                           = receiverAccount;
+        secondaryReceiverRevenueSources[coinName][receiverAccount]                                       = ONE;
         secondaryReceiverList[coinName].push(latestSecondaryReceiver[coinName], false);
         emit AddSecondaryReceiver(
           coinName,
@@ -442,7 +446,7 @@ contract MultiTaxCollector {
             secondaryTaxReceivers[coinName][collateralType][position].taxPercentage
           );
 
-          if (secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[position]] == 1) {
+          if (secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[coinName][position]] == 1) {
             if (position == latestSecondaryReceiver[coinName]) {
               (, uint256 prevReceiver) = secondaryReceiverList[coinName].prev(latestSecondaryReceiver[coinName]);
               latestSecondaryReceiver[coinName] = prevReceiver;
@@ -450,10 +454,10 @@ contract MultiTaxCollector {
             secondaryReceiverList[coinName].del(position);
             delete(usedSecondaryReceiver[coinName][secondaryReceiverAccounts[coinName][position]]);
             delete(secondaryTaxReceivers[coinName][collateralType][position]);
-            delete(secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[position]]);
+            delete(secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[coinName][position]]);
             delete(secondaryReceiverAccounts[coinName][position]);
           } else if (secondaryTaxReceivers[coinName][collateralType][position].taxPercentage > 0) {
-            secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[position]] =
+            secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[coinName][position]] =
               subtract(secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[coinName][position]], 1);
             delete(secondaryTaxReceivers[coinName][collateralType][position]);
           }
@@ -464,8 +468,8 @@ contract MultiTaxCollector {
           );
           require(addition(coreReceiverTaxCut, secondaryReceiverAllotedTax_) < WHOLE_TAX_CUT, "MultiTaxCollector/tax-cut-too-big");
           if (secondaryTaxReceivers[coinName][collateralType][position].taxPercentage == 0) {
-            secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[position]] = addition(
-              secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[position]],
+            secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[coinName][position]] = addition(
+              secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[coinName][position]],
               1
             );
           }
@@ -478,7 +482,7 @@ contract MultiTaxCollector {
           secondaryReceiverNonce[coinName],
           latestSecondaryReceiver[coinName],
           secondaryReceiverAllotedTax[coinName][collateralType],
-          secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[position]]
+          secondaryReceiverRevenueSources[coinName][secondaryReceiverAccounts[coinName][position]]
         );
     }
 
@@ -511,7 +515,7 @@ contract MultiTaxCollector {
         uint256 debtAmount;
         for (uint256 i = start; i <= end; i++) {
           if (now > collateralTypes[coinName][collateralList[coinName][i]].updateTime) {
-            (debtAmount, ) = safeEngine.collateralTypes(coinName, collateralList[i]);
+            (debtAmount, ) = safeEngine.collateralTypes(coinName, collateralList[coinName][i]);
             (, deltaRate)  = taxSingleOutcome(coinName, collateralList[coinName][i]);
             rad = addition(rad, multiply(debtAmount, deltaRate));
           }
@@ -534,8 +538,8 @@ contract MultiTaxCollector {
           rmultiply(
             rpow(
               addition(
-                globalStabilityFee,
-                collateralTypes[coinName][collateralType].stabilityFee
+                uint256(globalStabilityFee[coinName]),
+                uint256(collateralTypes[coinName][collateralType].stabilityFee)
               ),
               subtract(
                 now,
@@ -552,7 +556,7 @@ contract MultiTaxCollector {
      * @param coinName The name of the coin
      */
     function secondaryReceiversAmount(bytes32 coinName) public view returns (uint256) {
-        return secondaryReceiverList.range();
+        return secondaryReceiverList[coinName].range();
     }
     /**
      * @notice Get the collateralList length
@@ -563,10 +567,11 @@ contract MultiTaxCollector {
     }
     /**
      * @notice Check if a tax receiver is at a certain position in the list
+     * @param coinName The name of the coin
      */
-    function isSecondaryReceiver(uint256 _receiver) public view returns (bool) {
+    function isSecondaryReceiver(bytes32 coinName, uint256 _receiver) public view returns (bool) {
         if (_receiver == 0) return false;
-        return secondaryReceiverList.isNode(_receiver);
+        return secondaryReceiverList[coinName].isNode(_receiver);
     }
 
     // --- Tax (Stability Fee) Collection ---
@@ -579,7 +584,7 @@ contract MultiTaxCollector {
     function taxMany(bytes32 coinName, uint256 start, uint256 end) external coinIsInitialized(coinName) {
         require(both(start <= end, end < collateralList[coinName].length), "MultiTaxCollector/invalid-indexes");
         for (uint256 i = start; i <= end; i++) {
-            taxSingle(collateralList[coinName][i]);
+            taxSingle(coinName, collateralList[coinName][i]);
         }
     }
     /**
@@ -618,7 +623,7 @@ contract MultiTaxCollector {
             distributeTax(
               coinName,
               collateralType,
-              secondaryReceiverAccounts[currentSecondaryReceiver],
+              secondaryReceiverAccounts[coinName][currentSecondaryReceiver],
               currentSecondaryReceiver,
               debtAmount,
               deltaRate
@@ -662,7 +667,7 @@ contract MultiTaxCollector {
             deltaAllotedTax = subtract(deltaAllotedTax, coreReceiverTaxCut);
           }
 
-          currentTaxCut = multiply(deltaAllotedTax, coreReceiverTaxCut) / int256(WHOLE_TAX_CUT);
+          currentTaxCut = multiply(deltaAllotedTax, deltaRate) / int256(WHOLE_TAX_CUT);
         } else if (receiver == coreReceiver) {
           if (deltaRate < 0) return;
           currentTaxCut = multiply(int256(coreReceiverTaxCut), deltaRate) / int256(WHOLE_TAX_CUT);
@@ -681,12 +686,14 @@ contract MultiTaxCollector {
           offer/take SF to/from them
         **/
         if (currentTaxCut != 0) {
+          bool validForNegativeRate = both(currentTaxCut < 0, secondaryTaxReceivers[coinName][collateralType][receiverListPosition].canTakeBackTax > 0);
+
           if (
             either(
               receiver == primaryTaxReceiver,
               either(
                 deltaRate >= 0,
-                both(currentTaxCut < 0, secondaryTaxReceivers[coinName][collateralType][receiverListPosition].canTakeBackTax > 0)
+                validForNegativeRate
               )
             )
           ) {
