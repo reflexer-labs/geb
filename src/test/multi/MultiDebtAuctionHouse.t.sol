@@ -104,14 +104,21 @@ contract MultiDebtAuctionHouseTest is DSTest {
     Hevm hevm;
 
     MultiDebtAuctionHouse debtAuctionHouse;
+    MultiDebtAuctionHouse secondDebtAuctionHouse;
+
     MultiSAFEEngine safeEngine;
     DSDelegateToken protocolToken;
 
     address ali;
     address bob;
+
+    address charlie;
+    address dan;
+
     address accountingEngine;
 
     bytes32 coinName = "MAI";
+    bytes32 secondCoinName = "BAI";
 
     function settleDebt(uint) public pure { }  // arbitrary callback
 
@@ -121,27 +128,43 @@ contract MultiDebtAuctionHouseTest is DSTest {
 
         safeEngine = new MultiSAFEEngine();
         safeEngine.initializeCoin(coinName, uint(-1));
+        safeEngine.initializeCoin(secondCoinName, uint(-1));
 
         protocolToken = new DSDelegateToken('', '');
 
         accountingEngine = address(new Gal(safeEngine));
         Gal(accountingEngine).initializeCoin(coinName);
+        Gal(accountingEngine).initializeCoin(secondCoinName);
 
         debtAuctionHouse = new MultiDebtAuctionHouse(coinName, address(safeEngine), address(protocolToken), accountingEngine);
+        secondDebtAuctionHouse = new MultiDebtAuctionHouse(secondCoinName, address(safeEngine), address(protocolToken), accountingEngine);
 
         ali = address(new Guy(debtAuctionHouse));
         bob = address(new Guy(debtAuctionHouse));
 
+        charlie = address(new Guy(secondDebtAuctionHouse));
+        dan = address(new Guy(secondDebtAuctionHouse));
+
         debtAuctionHouse.addAuthorization(accountingEngine);
+        secondDebtAuctionHouse.addAuthorization(accountingEngine);
 
         safeEngine.approveSAFEModification(coinName, address(debtAuctionHouse));
+        safeEngine.approveSAFEModification(secondCoinName, address(secondDebtAuctionHouse));
+
         safeEngine.addAuthorization(coinName, address(debtAuctionHouse));
+        safeEngine.addAuthorization(secondCoinName, address(secondDebtAuctionHouse));
+
         protocolToken.approve(address(debtAuctionHouse));
+        protocolToken.approve(address(secondDebtAuctionHouse));
 
         safeEngine.createUnbackedDebt(coinName, address(accountingEngine), address(this), 1000 ether);
+        safeEngine.createUnbackedDebt(secondCoinName, address(accountingEngine), address(this), 1000 ether);
 
         safeEngine.transferInternalCoins(coinName, address(this), ali, 200 ether);
         safeEngine.transferInternalCoins(coinName, address(this), bob, 200 ether);
+
+        safeEngine.transferInternalCoins(secondCoinName, address(this), charlie, 200 ether);
+        safeEngine.transferInternalCoins(secondCoinName, address(this), dan, 200 ether);
     }
 
     function test_startAuction() public {
@@ -165,6 +188,90 @@ contract MultiDebtAuctionHouseTest is DSTest {
         assertTrue(guy == accountingEngine);
         assertEq(uint256(bidExpiry), 0);
         assertEq(uint256(end), now + debtAuctionHouse.totalAuctionLength());
+    }
+    function test_startAuction_two_coins() public {
+        assertEq(safeEngine.coinBalance(coinName, accountingEngine), 0);
+        assertEq(safeEngine.coinBalance(secondCoinName, accountingEngine), 0);
+
+        assertEq(protocolToken.balanceOf(accountingEngine), 0 ether);
+
+        debtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
+        debtAuctionHouse.modifyParameters("debtAuctionBidSize", 5000 ether);
+
+        secondDebtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
+        secondDebtAuctionHouse.modifyParameters("debtAuctionBidSize", 5000 ether);
+
+        uint256 firstHouseId = Gal(accountingEngine).startAuction(debtAuctionHouse, 5000 ether);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), firstHouseId);
+        assertEq(debtAuctionHouse.totalOnAuctionDebt(), 5000 ether);
+
+        uint256 secondHouseId = Gal(accountingEngine).startAuction(secondDebtAuctionHouse, 5000 ether);
+        assertEq(secondDebtAuctionHouse.activeDebtAuctions(), secondHouseId);
+        assertEq(secondDebtAuctionHouse.totalOnAuctionDebt(), 5000 ether);
+
+        // no value transferred
+        assertEq(safeEngine.coinBalance(coinName, accountingEngine), 0);
+        assertEq(safeEngine.coinBalance(secondCoinName, accountingEngine), 0);
+        assertEq(protocolToken.balanceOf(accountingEngine), 0 ether);
+
+        // auction created with appropriate values
+        assertEq(debtAuctionHouse.auctionsStarted(), firstHouseId);
+        assertEq(secondDebtAuctionHouse.auctionsStarted(), secondHouseId);
+
+        (uint256 bid, uint256 amountToSell, address guy, uint48 bidExpiry, uint48 end) = debtAuctionHouse.bids(firstHouseId);
+        assertEq(bid, 5000 ether);
+        assertEq(amountToSell, 200 ether);
+        assertTrue(guy == accountingEngine);
+        assertEq(uint256(bidExpiry), 0);
+        assertEq(uint256(end), now + debtAuctionHouse.totalAuctionLength());
+
+        (bid, amountToSell, guy, bidExpiry, end) = secondDebtAuctionHouse.bids(secondHouseId);
+        assertEq(bid, 5000 ether);
+        assertEq(amountToSell, 200 ether);
+        assertTrue(guy == accountingEngine);
+        assertEq(uint256(bidExpiry), 0);
+        assertEq(uint256(end), now + secondDebtAuctionHouse.totalAuctionLength());
+    }
+    function test_start_auction_leftover_accounting_surplus() public {
+        safeEngine.transferInternalCoins(coinName, address(this), accountingEngine, 500 ether);
+
+        assertEq(safeEngine.coinBalance(coinName, accountingEngine), 500 ether);
+        assertEq(safeEngine.debtBalance(coinName, accountingEngine), 1000 ether);
+        assertEq(protocolToken.balanceOf(accountingEngine), 0 ether);
+
+        debtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
+        debtAuctionHouse.modifyParameters("debtAuctionBidSize", 5000 ether);
+
+        uint256 id = Gal(accountingEngine).startAuction(debtAuctionHouse, 5000 ether);
+        assertEq(debtAuctionHouse.activeDebtAuctions(), id);
+        assertEq(debtAuctionHouse.totalOnAuctionDebt(), 5000 ether);
+
+        // no value transferred
+        assertEq(safeEngine.coinBalance(coinName, accountingEngine), 0);
+        assertEq(safeEngine.debtBalance(coinName, accountingEngine), 500 ether);
+        assertEq(protocolToken.balanceOf(accountingEngine), 0 ether);
+
+        // auction created with appropriate values
+        assertEq(debtAuctionHouse.auctionsStarted(), id);
+        (uint256 bid, uint256 amountToSell, address guy, uint48 bidExpiry, uint48 end) = debtAuctionHouse.bids(id);
+        assertEq(bid, 5000 ether);
+        assertEq(amountToSell, 200 ether);
+        assertTrue(guy == accountingEngine);
+        assertEq(uint256(bidExpiry), 0);
+        assertEq(uint256(end), now + debtAuctionHouse.totalAuctionLength());
+    }
+    function testFail_start_auction_leftover_surplus_after_settling() public {
+        safeEngine.createUnbackedDebt(coinName, address(0x1), address(this), 1200 ether);
+        safeEngine.transferInternalCoins(coinName, address(this), accountingEngine, 2000 ether);
+
+        assertEq(safeEngine.coinBalance(coinName, accountingEngine), 500 ether);
+        assertEq(safeEngine.debtBalance(coinName, accountingEngine), 1000 ether);
+        assertEq(protocolToken.balanceOf(accountingEngine), 0 ether);
+
+        debtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
+        debtAuctionHouse.modifyParameters("debtAuctionBidSize", 5000 ether);
+
+        uint256 id = Gal(accountingEngine).startAuction(debtAuctionHouse, 5000 ether);
     }
     function test_decreaseSoldAmount() public {
         debtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
@@ -200,6 +307,57 @@ contract MultiDebtAuctionHouseTest is DSTest {
         assertEq(protocolToken.totalSupply(), 80 ether);
         // bob gets the winnings
         assertEq(protocolToken.balanceOf(bob), 80 ether);
+    }
+    function test_decreaseSoldAmount_two_coins() public {
+        debtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
+        debtAuctionHouse.modifyParameters("debtAuctionBidSize", 10 ether);
+
+        secondDebtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
+        secondDebtAuctionHouse.modifyParameters("debtAuctionBidSize", 10 ether);
+
+        uint firstHouseId  = Gal(accountingEngine).startAuction(debtAuctionHouse, 10 ether);
+        uint secondHouseId = Gal(accountingEngine).startAuction(secondDebtAuctionHouse, 10 ether);
+
+        Guy(ali).decreaseSoldAmount(firstHouseId, 100 ether, 10 ether);
+        Guy(charlie).decreaseSoldAmount(secondHouseId, 100 ether, 10 ether);
+
+        // bid taken from bidder
+        assertEq(safeEngine.coinBalance(coinName, ali), 190 ether);
+        assertEq(safeEngine.coinBalance(secondCoinName, charlie), 190 ether);
+
+        // accountingEngine receives payment
+        assertEq(safeEngine.coinBalance(coinName, accountingEngine), 0);
+        assertEq(safeEngine.debtBalance(coinName, accountingEngine), 990 ether);
+        assertEq(Gal(accountingEngine).unqueuedDebt(coinName), 0 ether);
+        assertEq(debtAuctionHouse.totalOnAuctionDebt(), 0 ether);
+
+        assertEq(safeEngine.coinBalance(secondCoinName, accountingEngine), 0);
+        assertEq(safeEngine.debtBalance(secondCoinName, accountingEngine), 990 ether);
+        assertEq(Gal(accountingEngine).unqueuedDebt(secondCoinName), 0 ether);
+        assertEq(secondDebtAuctionHouse.totalOnAuctionDebt(), 0 ether);
+
+        Guy(bob).decreaseSoldAmount(firstHouseId, 80 ether, 10 ether);
+        Guy(dan).decreaseSoldAmount(secondHouseId, 80 ether, 10 ether);
+
+        // bid taken from bidder
+        assertEq(safeEngine.coinBalance(coinName, bob), 190 ether);
+        assertEq(safeEngine.coinBalance(secondCoinName, dan), 190 ether);
+
+        // prev bidder refunded
+        assertEq(safeEngine.coinBalance(coinName, ali), 200 ether);
+        assertEq(safeEngine.coinBalance(secondCoinName, charlie), 200 ether);
+
+        // accountingEngine receives no more
+        assertEq(safeEngine.coinBalance(coinName, accountingEngine), 0);
+        assertEq(safeEngine.debtBalance(coinName, accountingEngine), 990 ether);
+
+        assertEq(safeEngine.coinBalance(secondCoinName, accountingEngine), 0);
+        assertEq(safeEngine.debtBalance(secondCoinName, accountingEngine), 990 ether);
+
+        hevm.warp(now + 5 weeks);
+        assertEq(protocolToken.totalSupply(),  0 ether);
+        protocolToken.setOwner(address(debtAuctionHouse));
+        Guy(bob).settleAuction(firstHouseId);
     }
     function test_decrease_sold_amount_totalOnAuctionDebt_less_than_bid() public {
         debtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
@@ -239,6 +397,59 @@ contract MultiDebtAuctionHouseTest is DSTest {
         // bob gets the winnings
         assertEq(protocolToken.balanceOf(bob), 80 ether);
     }
+    function test_decrease_sold_amount_totalOnAuctionDebt_less_than_bid_two_coins() public {
+        debtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
+        debtAuctionHouse.modifyParameters("debtAuctionBidSize", 10 ether);
+
+        secondDebtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
+        secondDebtAuctionHouse.modifyParameters("debtAuctionBidSize", 10 ether);
+
+        uint firstHouseId = Gal(accountingEngine).startAuction(debtAuctionHouse, 10 ether);
+        assertEq(safeEngine.coinBalance(coinName, accountingEngine),  0 ether);
+        assertEq(Gal(accountingEngine).unqueuedDebt(coinName), 10 ether);
+        assertEq(debtAuctionHouse.totalOnAuctionDebt(), 10 ether);
+
+        uint secondHouseId = Gal(accountingEngine).startAuction(secondDebtAuctionHouse, 10 ether);
+        assertEq(safeEngine.coinBalance(secondCoinName, accountingEngine),  0 ether);
+        assertEq(Gal(accountingEngine).unqueuedDebt(secondCoinName), 10 ether);
+        assertEq(secondDebtAuctionHouse.totalOnAuctionDebt(), 10 ether);
+
+        Guy(ali).decreaseSoldAmount(firstHouseId, 100 ether, 10 ether);
+        Guy(charlie).decreaseSoldAmount(secondHouseId, 100 ether, 10 ether);
+
+        // bid taken from bidder
+        assertEq(safeEngine.coinBalance(coinName, ali), 190 ether);
+        assertEq(safeEngine.coinBalance(secondCoinName, charlie), 190 ether);
+
+        // accountingEngine receives payment
+        assertEq(safeEngine.coinBalance(coinName, accountingEngine), 0);
+        assertEq(safeEngine.debtBalance(coinName, accountingEngine), 990 ether);
+        assertEq(debtAuctionHouse.totalOnAuctionDebt(), 0);
+        assertEq(Gal(accountingEngine).unqueuedDebt(coinName), 0);
+
+        assertEq(safeEngine.coinBalance(secondCoinName, accountingEngine), 0);
+        assertEq(safeEngine.debtBalance(secondCoinName, accountingEngine), 990 ether);
+        assertEq(secondDebtAuctionHouse.totalOnAuctionDebt(), 0);
+        assertEq(Gal(accountingEngine).unqueuedDebt(secondCoinName), 0);
+
+        Guy(bob).decreaseSoldAmount(firstHouseId, 80 ether, 10 ether);
+        Guy(dan).decreaseSoldAmount(secondHouseId, 80 ether, 10 ether);
+
+        // bid taken from bidder
+        assertEq(safeEngine.coinBalance(coinName, bob), 190 ether);
+        assertEq(safeEngine.coinBalance(secondCoinName, dan), 190 ether);
+
+        // prev bidder refunded
+        assertEq(safeEngine.coinBalance(coinName, ali), 200 ether);
+        assertEq(safeEngine.coinBalance(secondCoinName, charlie), 200 ether);
+
+        // accountingEngine receives no more
+        assertEq(safeEngine.coinBalance(coinName, accountingEngine), 0);
+        assertEq(safeEngine.debtBalance(coinName, accountingEngine), 990 ether);
+
+        assertEq(safeEngine.coinBalance(secondCoinName, accountingEngine), 0);
+        assertEq(safeEngine.debtBalance(secondCoinName, accountingEngine), 990 ether);
+    }
     function test_restart_auction() public {
         debtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
         debtAuctionHouse.modifyParameters("debtAuctionBidSize", 10 ether);
@@ -260,7 +471,6 @@ contract MultiDebtAuctionHouseTest is DSTest {
         assertEq(_amountToSell, 300 ether);
         assertTrue( Guy(ali).try_decreaseSoldAmount(id, 100 ether, 10 ether));
     }
-
     function test_no_deal_after_settlement() public {
         debtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
         debtAuctionHouse.modifyParameters("debtAuctionBidSize", 10 ether);
@@ -276,7 +486,6 @@ contract MultiDebtAuctionHouseTest is DSTest {
         assertEq(debtAuctionHouse.activeDebtAuctions(), id);
         assertTrue(!Guy(ali).try_settleAuction(id));
     }
-
     function test_terminate_prematurely() public {
         debtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
         debtAuctionHouse.modifyParameters("debtAuctionBidSize", 10 ether);
@@ -320,7 +529,6 @@ contract MultiDebtAuctionHouseTest is DSTest {
         assertEq(uint256(_bidExpiry), 0);
         assertEq(uint256(_end), 0);
     }
-
     function test_terminate_prematurely_no_bids() public {
         debtAuctionHouse.modifyParameters("initialDebtAuctionMintedTokens", 200 ether);
         debtAuctionHouse.modifyParameters("debtAuctionBidSize", 10 ether);
