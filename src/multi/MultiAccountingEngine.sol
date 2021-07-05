@@ -22,8 +22,6 @@ abstract contract SAFEEngineLike {
     function debtBalance(bytes32,address) virtual public view returns (uint256);
     function settleDebt(bytes32,uint256) virtual external;
     function transferInternalCoins(bytes32,address,address,uint256) virtual external;
-    function approveSAFEModification(bytes32,address) virtual external;
-    function denySAFEModification(bytes32,address) virtual external;
 }
 
 contract MultiAccountingEngine {

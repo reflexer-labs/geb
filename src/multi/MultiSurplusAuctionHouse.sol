@@ -20,8 +20,6 @@ pragma solidity 0.6.7;
 abstract contract SAFEEngineLike {
     function transferInternalCoins(bytes32,address,address,uint256) virtual external;
     function coinBalance(bytes32,address) virtual external view returns (uint256);
-    function approveSAFEModification(bytes32,address) virtual external;
-    function denySAFEModification(bytes32,address) virtual external;
 }
 abstract contract TokenLike {
     function approve(address,uint256) virtual public returns (bool);

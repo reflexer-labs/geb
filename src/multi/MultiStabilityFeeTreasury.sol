@@ -18,7 +18,6 @@
 pragma solidity 0.6.7;
 
 abstract contract SAFEEngineLike {
-    function approveSAFEModification(bytes32,address) virtual external;
     function denySAFEModification(bytes32,address) virtual external;
     function transferInternalCoins(bytes32,address,address,uint256) virtual external;
     function settleDebt(bytes32,uint256) virtual external;
