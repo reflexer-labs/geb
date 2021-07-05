@@ -77,7 +77,7 @@ contract MultiSAFEEngine {
     * @notice Checks whether msg.sender is a system component or an authed address for a specific coin
     **/
     modifier isSystemComponentOrAuth(bytes32 coinName) {
-        require(systemComponents[msg.sender] == 1, "MultiSAFEEngine/account-not-component-or-auth");
+        require(either(systemComponents[msg.sender] == 1, authorizedAccounts[coinName][msg.sender] == 1), "MultiSAFEEngine/account-not-component-or-auth");
         _;
     }
 

@@ -264,7 +264,7 @@ contract MultiDebtAuctionHouse {
         require(amountToBuy <  bids[id].amountToSell, "MultiDebtAuctionHouse/amount-bought-not-lower");
         require(multiply(bidDecrease, amountToBuy) <= multiply(bids[id].amountToSell, ONE), "MultiDebtAuctionHouse/insufficient-decrease");
 
-        safeEngine.transferInternalCoins(coinName, msg.sender, address(accountingEngine), bid);
+        safeEngine.transferInternalCoins(coinName, msg.sender, bids[id].highBidder, bid);
 
         // on first bid submitted, clear as much debt as possible
         if (bids[id].bidExpiry == 0) {
