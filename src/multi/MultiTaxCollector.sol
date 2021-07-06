@@ -439,7 +439,8 @@ contract MultiTaxCollector {
      * @param position Receiver's position in the tax receiver list
      * @param taxPercentage Percentage of SF offered to the tax receiver (ray%)
      */
-    function modifySecondaryReceiver(bytes32 coinName, bytes32 collateralType, uint256 position, uint256 taxPercentage) internal {
+    function modifySecondaryReceiver(bytes32 coinName, bytes32 collateralType, uint256 position, uint256 taxPercentage)
+      internal coinIsInitialized(coinName) {
         if (taxPercentage == 0) {
           secondaryReceiverAllotedTax[coinName][collateralType] = subtract(
             secondaryReceiverAllotedTax[coinName][collateralType],
