@@ -191,6 +191,13 @@ contract MultiStabilityFeeTreasury {
     /**
      * @notice Initialize a new coin
      * @param coinName The name of the coin to initialize
+     * @param coinJoin_ The coin join address for the coin
+     * @param extraSurplusReceiver_ The address that receives extra coins when transferSurplusFunds is called
+     * @param expensesMultiplier_ The expenses multiplier for this coin
+     * @param treasuryCapacity_ The max capacity for this coin
+     * @param minimumFundsRequired_ The min amount of coins that must stay in the treasury
+     * @param pullFundsMinThreshold_ Min threshold for pulling funds from this treasury
+     * @param surplusTransferDelay_ Delay between two consencutive transferSurplusFunds for this coin
      */
     function initializeCoin(
         bytes32 coinName,

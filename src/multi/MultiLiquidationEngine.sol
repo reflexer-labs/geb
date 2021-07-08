@@ -294,6 +294,9 @@ contract MultiLiquidationEngine {
           require(data > 0, "MultiLiquidationEngine/null-on-auction-coin-limit");
           onAuctionSystemCoinLimit[coinName] = data;
         }
+        else if (parameter == "currentOnAuctionSystemCoins") {
+          currentOnAuctionSystemCoins[coinName] = data;
+        }
         else revert("MultiLiquidationEngine/modify-unrecognized-param");
         emit ModifyParameters(coinName, parameter, data);
     }
@@ -363,6 +366,7 @@ contract MultiLiquidationEngine {
         } else if (parameter == "liquidationPool") {
             safeEngine.denySAFEModification(coinName, collateralTypes[coinName][collateralType].liquidationPool);
             collateralTypes[coinName][collateralType].liquidationPool = data;
+            require(LiquidationPoolLike(data).canLiquidate(coinName, collateralType, uint(-1), uint(-1)), "MultiLiquidationEngine/faulty-liq-pool");
             safeEngine.approveSAFEModification(coinName, data);
         }
         else revert("MultiLiquidationEngine/modify-unrecognized-param");
@@ -490,7 +494,7 @@ contract MultiLiquidationEngine {
             // i.e. the maximum amountToRaise is roughly 100 trillion system coins.
             uint256 amountToRaise_ = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
 
-            // Try to liquidate with the pool. If it can't be done, 
+            // Try to liquidate with the pool. If it can't be done,
             if (!liquidateWithPool(coinName, collateralType, amountToRaise_, collateralToSell)) {
               currentOnAuctionSystemCoins[coinName] = addition(currentOnAuctionSystemCoins[coinName], amountToRaise_);
 

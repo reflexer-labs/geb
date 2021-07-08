@@ -104,7 +104,7 @@ contract SingleStabilityFeeTreasuryTest is DSTest {
         assertEq(safeEngine.coinBalance(address(alice)), 0);
         assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(200 ether));
     }
-    function test_modify_accounting_engine() public {
+    function test_modify_extra_surplus_receiver() public {
         stabilityFeeTreasury.modifyParameters("extraSurplusReceiver", bob);
         assertEq(stabilityFeeTreasury.extraSurplusReceiver(), bob);
     }

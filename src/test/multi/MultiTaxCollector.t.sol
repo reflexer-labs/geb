@@ -450,462 +450,884 @@ contract MultiTaxCollectorTest is DSTest {
         taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 2);
         taxCollector.modifyParameters(coinName, "i", 1, ray(1 ether), address(this));
 
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(1 ether), address(this));
+
         assertEq(taxCollector.secondaryReceiverAllotedTax(coinName, "i"), ray(1 ether));
         assertEq(taxCollector.latestSecondaryReceiver(coinName), 1);
         assertEq(taxCollector.usedSecondaryReceiver(coinName, address(this)), 1);
         assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, address(this)), 1);
         assertEq(taxCollector.secondaryReceiverAccounts(coinName, 1), address(this));
 
+        assertEq(taxCollector.secondaryReceiverAllotedTax(secondCoinName, "i"), ray(1 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 1);
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 1), address(this));
+
         (uint canTakeBackTax, uint taxPercentage) = taxCollector.secondaryTaxReceivers(coinName, "i", 1);
         assertEq(canTakeBackTax, 0);
         assertEq(taxPercentage, ray(1 ether));
         assertEq(taxCollector.latestSecondaryReceiver(coinName), 1);
+
+        (canTakeBackTax, taxPercentage) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 1);
+        assertEq(canTakeBackTax, 0);
+        assertEq(taxPercentage, ray(1 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 1);
     }
-    /* function test_modify_tax_receiver_cut() public {
-        taxCollector.modifyParameters("maxSecondaryReceivers", 1);
-        taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
-        taxCollector.modifyParameters("i", 1, ray(99.9 ether), address(this));
-        uint Cut = taxCollector.secondaryReceiverAllotedTax("i");
-        assertEq(Cut, ray(99.9 ether));
-        (,uint cut) = taxCollector.secondaryTaxReceivers("i", 1);
-        assertEq(cut, ray(99.9 ether));
+    function test_modify_tax_receiver_cut() public {
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 1);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(1 ether), address(this));
+        taxCollector.modifyParameters(coinName, "i", 1, ray(99.9 ether) - coreReceiverTaxCut, address(this));
+
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 1);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(1 ether), address(this));
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(98.9 ether) - coreReceiverTaxCut, address(this));
+
+        uint Cut = taxCollector.secondaryReceiverAllotedTax(coinName, "i");
+        assertEq(Cut, ray(99.9 ether) - coreReceiverTaxCut);
+
+        Cut = taxCollector.secondaryReceiverAllotedTax(secondCoinName, "i");
+        assertEq(Cut, ray(98.9 ether) - coreReceiverTaxCut);
+
+        (,uint cut) = taxCollector.secondaryTaxReceivers(coinName, "i", 1);
+        assertEq(cut, ray(99.9 ether) - coreReceiverTaxCut);
+
+        (, cut) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 1);
+        assertEq(cut, ray(98.9 ether) - coreReceiverTaxCut);
     }
     function test_remove_some_tax_secondaryTaxReceivers() public {
         // Add
-        taxCollector.modifyParameters("maxSecondaryReceivers", 2);
-        taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
-        taxCollector.modifyParameters("i", 2, ray(98 ether), ali);
-        assertEq(taxCollector.secondaryReceiverAllotedTax("i"), ray(99 ether));
-        assertEq(taxCollector.latestSecondaryReceiver(), 2);
-        assertEq(taxCollector.usedSecondaryReceiver(ali), 1);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(ali), 1);
-        assertEq(taxCollector.secondaryReceiverAccounts(2), ali);
-        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 1);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 1);
-        assertEq(taxCollector.secondaryReceiverAccounts(1), address(this));
-        (uint take, uint cut) = taxCollector.secondaryTaxReceivers("i", 2);
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(1 ether), address(this));
+        taxCollector.modifyParameters(coinName, "i", 2, ray(98 ether) - coreReceiverTaxCut, ali);
+
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(0.5 ether), address(this));
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(99 ether) - coreReceiverTaxCut, ali);
+
+        assertEq(taxCollector.secondaryReceiverAllotedTax(coinName, "i"), ray(98 ether) - coreReceiverTaxCut + ray(1 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, ali), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, ali), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 2), ali);
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 1), address(this));
+
+        assertEq(taxCollector.secondaryReceiverAllotedTax(secondCoinName, "i"), ray(99 ether) - coreReceiverTaxCut + ray(0.5 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, ali), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, ali), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 2), ali);
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 1), address(this));
+
+        (uint take, uint cut) = taxCollector.secondaryTaxReceivers(coinName, "i", 2);
         assertEq(take, 0);
-        assertEq(cut, ray(98 ether));
-        assertEq(taxCollector.latestSecondaryReceiver(), 2);
+        assertEq(cut, ray(98 ether) - coreReceiverTaxCut);
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 2);
+
+        (take, cut) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 2);
+        assertEq(take, 0);
+        assertEq(cut, ray(99 ether) - coreReceiverTaxCut);
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 2);
+
         // Remove
-        taxCollector.modifyParameters("i", 1, 0, address(this));
-        assertEq(taxCollector.secondaryReceiverAllotedTax("i"), ray(98 ether));
-        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 0);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 0);
-        assertEq(taxCollector.secondaryReceiverAccounts(1), address(0));
-        (take, cut) = taxCollector.secondaryTaxReceivers("i", 1);
+        taxCollector.modifyParameters(coinName, "i", 1, 0, address(this));
+        taxCollector.modifyParameters(secondCoinName, "i", 1, 0, address(this));
+
+        assertEq(taxCollector.secondaryReceiverAllotedTax(coinName, "i"), ray(98 ether) - coreReceiverTaxCut);
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 1), address(0));
+
+        assertEq(taxCollector.secondaryReceiverAllotedTax(secondCoinName, "i"), ray(99 ether) - coreReceiverTaxCut);
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 1), address(0));
+
+        (take, cut) = taxCollector.secondaryTaxReceivers(coinName, "i", 1);
         assertEq(take, 0);
         assertEq(cut, 0);
-        assertEq(taxCollector.latestSecondaryReceiver(), 2);
-        assertEq(taxCollector.usedSecondaryReceiver(ali), 1);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(ali), 1);
-        assertEq(taxCollector.secondaryReceiverAccounts(2), ali);
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, ali), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, ali), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 2), ali);
+
+        (take, cut) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 1);
+        assertEq(take, 0);
+        assertEq(cut, 0);
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, ali), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, ali), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 2), ali);
     }
     function test_remove_all_secondaryTaxReceivers() public {
         // Add
-        taxCollector.modifyParameters("maxSecondaryReceivers", 2);
-        taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
-        taxCollector.modifyParameters("i", 2, ray(98 ether), ali);
-        assertEq(taxCollector.secondaryReceiverAccounts(1), address(this));
-        assertEq(taxCollector.secondaryReceiverAccounts(2), ali);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 1);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(ali), 1);
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(1 ether), address(this));
+        taxCollector.modifyParameters(coinName, "i", 2, ray(98 ether) - coreReceiverTaxCut, ali);
+
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(1 ether), address(this));
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(98 ether) - coreReceiverTaxCut, ali);
+
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 1), address(this));
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 2), ali);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, ali), 1);
+
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 1), address(this));
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 2), ali);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, ali), 1);
+
         // Remove
-        taxCollector.modifyParameters("i", 2, 0, ali);
-        taxCollector.modifyParameters("i", 1, 0, address(this));
-        uint Cut = taxCollector.secondaryReceiverAllotedTax("i");
+        taxCollector.modifyParameters(coinName, "i", 2, 0, ali);
+        taxCollector.modifyParameters(coinName, "i", 1, 0, address(this));
+
+        taxCollector.modifyParameters(secondCoinName, "i", 2, 0, ali);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, 0, address(this));
+
+        uint Cut = taxCollector.secondaryReceiverAllotedTax(coinName, "i");
         assertEq(Cut, 0);
-        assertEq(taxCollector.usedSecondaryReceiver(ali), 0);
-        assertEq(taxCollector.usedSecondaryReceiver(address(0)), 0);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(ali), 0);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 0);
-        assertEq(taxCollector.secondaryReceiverAccounts(2), address(0));
-        assertEq(taxCollector.secondaryReceiverAccounts(1), address(0));
-        (uint take, uint cut) = taxCollector.secondaryTaxReceivers("i", 1);
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, ali), 0);
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, address(0)), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, ali), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 2), address(0));
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 1), address(0));
+
+        Cut = taxCollector.secondaryReceiverAllotedTax(secondCoinName, "i");
+        assertEq(Cut, 0);
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, ali), 0);
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, address(0)), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, ali), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 2), address(0));
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 1), address(0));
+
+        (uint take, uint cut) = taxCollector.secondaryTaxReceivers(coinName, "i", 1);
         assertEq(take, 0);
         assertEq(cut, 0);
-        assertEq(taxCollector.latestSecondaryReceiver(), 0);
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 0);
+
+        (take, cut) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 1);
+        assertEq(take, 0);
+        assertEq(cut, 0);
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 0);
     }
     function test_add_remove_add_secondaryTaxReceivers() public {
         // Add
-        taxCollector.modifyParameters("maxSecondaryReceivers", 2);
-        taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
-        assertTrue(taxCollector.isSecondaryReceiver(1));
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(1 ether), address(this));
+        assertTrue(taxCollector.isSecondaryReceiver(coinName, 1));
+
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(1 ether), address(this));
+        assertTrue(taxCollector.isSecondaryReceiver(secondCoinName, 1));
+
         // Remove
-        taxCollector.modifyParameters("i", 1, 0, address(this));
-        assertTrue(!taxCollector.isSecondaryReceiver(1));
+        taxCollector.modifyParameters(coinName, "i", 1, 0, address(this));
+        assertTrue(!taxCollector.isSecondaryReceiver(coinName, 1));
+
+        taxCollector.modifyParameters(secondCoinName, "i", 1, 0, address(this));
+        assertTrue(!taxCollector.isSecondaryReceiver(secondCoinName, 1));
+
         // Add again
-        taxCollector.modifyParameters("i", 2, ray(1 ether), address(this));
-        assertEq(taxCollector.secondaryReceiverAllotedTax("i"), ray(1 ether));
-        assertEq(taxCollector.latestSecondaryReceiver(), 2);
-        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 1);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 1);
-        assertEq(taxCollector.secondaryReceiverAccounts(2), address(this));
-        assertEq(taxCollector.secondaryReceiversAmount(), 1);
-        assertTrue(taxCollector.isSecondaryReceiver(2));
-        (uint take, uint cut) = taxCollector.secondaryTaxReceivers("i", 2);
+        taxCollector.modifyParameters(coinName, "i", 2, ray(1 ether), address(this));
+        assertEq(taxCollector.secondaryReceiverAllotedTax(coinName, "i"), ray(1 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 2), address(this));
+        assertEq(taxCollector.secondaryReceiversAmount(coinName), 1);
+        assertTrue(taxCollector.isSecondaryReceiver(coinName, 2));
+
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(1 ether), address(this));
+        assertEq(taxCollector.secondaryReceiverAllotedTax(secondCoinName, "i"), ray(1 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 2), address(this));
+        assertEq(taxCollector.secondaryReceiversAmount(secondCoinName), 1);
+        assertTrue(taxCollector.isSecondaryReceiver(secondCoinName, 2));
+
+        (uint take, uint cut) = taxCollector.secondaryTaxReceivers(coinName, "i", 2);
         assertEq(take, 0);
         assertEq(cut, ray(1 ether));
+
+        (take, cut) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 2);
+        assertEq(take, 0);
+        assertEq(cut, ray(1 ether));
+
         // Remove again
-        taxCollector.modifyParameters("i", 2, 0, address(this));
-        assertEq(taxCollector.secondaryReceiverAllotedTax("i"), 0);
-        assertEq(taxCollector.latestSecondaryReceiver(), 0);
-        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 0);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 0);
-        assertEq(taxCollector.secondaryReceiverAccounts(2), address(0));
-        assertTrue(!taxCollector.isSecondaryReceiver(2));
-        (take, cut) = taxCollector.secondaryTaxReceivers("i", 2);
+        taxCollector.modifyParameters(coinName, "i", 2, 0, address(this));
+        assertEq(taxCollector.secondaryReceiverAllotedTax(coinName, "i"), 0);
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 0);
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 2), address(0));
+        assertTrue(!taxCollector.isSecondaryReceiver(coinName, 2));
+
+        taxCollector.modifyParameters(secondCoinName, "i", 2, 0, address(this));
+        assertEq(taxCollector.secondaryReceiverAllotedTax(secondCoinName, "i"), 0);
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 0);
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 2), address(0));
+        assertTrue(!taxCollector.isSecondaryReceiver(secondCoinName, 2));
+
+        (take, cut) = taxCollector.secondaryTaxReceivers(coinName, "i", 2);
+        assertEq(take, 0);
+        assertEq(cut, 0);
+
+        (take, cut) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 2);
         assertEq(take, 0);
         assertEq(cut, 0);
     }
     function test_multi_collateral_types_receivers() public {
-        taxCollector.modifyParameters("maxSecondaryReceivers", 1);
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 1);
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 1);
 
-        safeEngine.initializeCollateralType("j");
-        draw("j", 100 ether);
-        taxCollector.initializeCollateralType("j");
+        safeEngine.initializeCollateralType(coinName, "j");
+        safeEngine.initializeCollateralType(secondCoinName, "j");
 
-        taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
-        taxCollector.modifyParameters("j", 1, ray(1 ether), address(0));
+        safeEngine.addCollateralJoin("j", address(this));
 
-        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 1);
-        assertEq(taxCollector.secondaryReceiverAccounts(1), address(this));
-        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 2);
-        assertEq(taxCollector.latestSecondaryReceiver(), 1);
+        taxCollector.initializeCollateralType(coinName, "j");
+        taxCollector.initializeCollateralType(secondCoinName, "j");
 
-        taxCollector.modifyParameters("i", 1, 0, address(0));
+        draw(coinName, "j", 100 ether);
+        draw(secondCoinName, "j", 100 ether);
 
-        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 1);
-        assertEq(taxCollector.secondaryReceiverAccounts(1), address(this));
-        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 1);
-        assertEq(taxCollector.latestSecondaryReceiver(), 1);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(1 ether), address(this));
+        taxCollector.modifyParameters(coinName, "j", 1, ray(1 ether), address(0));
 
-        taxCollector.modifyParameters("j", 1, 0, address(0));
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(1 ether), address(this));
+        taxCollector.modifyParameters(secondCoinName, "j", 1, ray(1 ether), address(0));
 
-        assertEq(taxCollector.usedSecondaryReceiver(address(this)), 0);
-        assertEq(taxCollector.secondaryReceiverAccounts(1), address(0));
-        assertEq(taxCollector.secondaryReceiverRevenueSources(address(this)), 0);
-        assertEq(taxCollector.latestSecondaryReceiver(), 0);
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 1), address(this));
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, address(this)), 2);
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 1);
+
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 1), address(this));
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, address(this)), 2);
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 1);
+
+        taxCollector.modifyParameters(coinName, "i", 1, 0, address(0));
+        taxCollector.modifyParameters(secondCoinName, "i", 1, 0, address(0));
+
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 1), address(this));
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, address(this)), 1);
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 1);
+
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, address(this)), 1);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 1), address(this));
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, address(this)), 1);
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 1);
+
+        taxCollector.modifyParameters(coinName, "j", 1, 0, address(0));
+        taxCollector.modifyParameters(secondCoinName, "j", 1, 0, address(0));
+
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 1), address(0));
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, address(this)), 0);
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 0);
+
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, address(this)), 0);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 1), address(0));
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, address(this)), 0);
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 0);
     }
     function test_toggle_receiver_take() public {
         // Add
-        taxCollector.modifyParameters("maxSecondaryReceivers", 2);
-        taxCollector.modifyParameters("i", 1, ray(1 ether), address(this));
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(1 ether), address(this));
+
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(1 ether), address(this));
+
         // Toggle
-        taxCollector.modifyParameters("i", 1, 1);
-        (uint take,) = taxCollector.secondaryTaxReceivers("i", 1);
+        taxCollector.modifyParameters(coinName, "i", 1, 1);
+        (uint take,) = taxCollector.secondaryTaxReceivers(coinName, "i", 1);
         assertEq(take, 1);
 
-        taxCollector.modifyParameters("i", 1, 5);
-        (take,) = taxCollector.secondaryTaxReceivers("i", 1);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, 1);
+        (take,) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 1);
+        assertEq(take, 1);
+
+        taxCollector.modifyParameters(coinName, "i", 1, 5);
+        (take,) = taxCollector.secondaryTaxReceivers(coinName, "i", 1);
         assertEq(take, 5);
 
-        taxCollector.modifyParameters("i", 1, 0);
-        (take,) = taxCollector.secondaryTaxReceivers("i", 1);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, 5);
+        (take,) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 1);
+        assertEq(take, 5);
+
+        taxCollector.modifyParameters(coinName, "i", 1, 0);
+        (take,) = taxCollector.secondaryTaxReceivers(coinName, "i", 1);
+        assertEq(take, 0);
+
+        taxCollector.modifyParameters(secondCoinName, "i", 1, 0);
+        (take,) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 1);
         assertEq(take, 0);
     }
     function test_add_secondaryTaxReceivers_single_collateral_type_collect_tax_positive() public {
-        taxCollector.initializeCollateralType("i");
-        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 1050000000000000000000000000);
 
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
-        taxCollector.modifyParameters("maxSecondaryReceivers", 2);
-        taxCollector.modifyParameters("i", 1, ray(40 ether), bob);
-        taxCollector.modifyParameters("i", 2, ray(45 ether), char);
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(40 ether) - coreReceiverTaxCut / 2, bob);
+        taxCollector.modifyParameters(coinName, "i", 2, ray(45 ether) - coreReceiverTaxCut / 2, char);
 
-        assertEq(taxCollector.latestSecondaryReceiver(), 2);
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(40 ether) - coreReceiverTaxCut / 2, bob);
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(45 ether) - coreReceiverTaxCut / 2, char);
+
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 2);
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 2);
+
         hevm.warp(now + 10);
-        (, int currentRates) = taxCollector.taxSingleOutcome("i");
-        taxCollector.taxSingle("i");
-        assertEq(taxCollector.latestSecondaryReceiver(), 2);
+        (, int currentRates) = taxCollector.taxSingleOutcome(coinName, "i");
+        taxCollector.taxSingle(coinName, "i");
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 2);
 
-        assertEq(wad(safeEngine.coinBalance(ali)), 9433419401661621093);
-        assertEq(wad(safeEngine.coinBalance(bob)), 25155785071097656250);
-        assertEq(wad(safeEngine.coinBalance(char)), 28300258204984863281);
+        (, currentRates) = taxCollector.taxSingleOutcome(secondCoinName, "i");
+        taxCollector.taxSingle(secondCoinName, "i");
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 2);
 
-        assertEq(wad(safeEngine.coinBalance(ali)) * ray(100 ether) / uint(currentRates), 1499999999999999999880);
-        assertEq(wad(safeEngine.coinBalance(bob)) * ray(100 ether) / uint(currentRates), 4000000000000000000000);
-        assertEq(wad(safeEngine.coinBalance(char)) * ray(100 ether) / uint(currentRates), 4499999999999999999960);
+        assertEq(wad(safeEngine.coinBalance(coinName, ali)), 9433419401661621093);
+        assertEq(wad(safeEngine.coinBalance(coinName, bob)), 18866838803323242187);
+        assertEq(wad(safeEngine.coinBalance(coinName, char)), 22011311937210449218);
+
+        assertEq(wad(safeEngine.coinBalance(coinName, ali)) * ray(100 ether) / uint(currentRates), 1499999999999999999880);
+        assertEq(wad(safeEngine.coinBalance(coinName, bob)) * ray(100 ether) / uint(currentRates), 2999999999999999999920);
+        assertEq(wad(safeEngine.coinBalance(coinName, char)) * ray(100 ether) / uint(currentRates), 3499999999999999999880);
+
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, ali)), 9433419401661621093);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, bob)), 18866838803323242187);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, char)), 22011311937210449218);
+
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, ali)) * ray(100 ether) / uint(currentRates), 1499999999999999999880);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, bob)) * ray(100 ether) / uint(currentRates), 2999999999999999999920);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, char)) * ray(100 ether) / uint(currentRates), 3499999999999999999880);
     }
     function testFail_tax_when_safe_engine_is_disabled() public {
-        taxCollector.initializeCollateralType("i");
-        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 1050000000000000000000000000);
 
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
-        taxCollector.modifyParameters("maxSecondaryReceivers", 2);
-        taxCollector.modifyParameters("i", 1, ray(40 ether), bob);
-        taxCollector.modifyParameters("i", 2, ray(45 ether), char);
 
-        safeEngine.disableContract();
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(40 ether) - coreReceiverTaxCut / 2, bob);
+        taxCollector.modifyParameters(coinName, "i", 2, ray(45 ether) - coreReceiverTaxCut / 2, char);
+
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(40 ether) - coreReceiverTaxCut / 2, bob);
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(45 ether) - coreReceiverTaxCut / 2, char);
+
+        safeEngine.disableCoin(secondCoinName);
+
         hevm.warp(now + 10);
-        taxCollector.taxSingle("i");
+        taxCollector.taxSingle(coinName, "i");
+        taxCollector.taxSingle(secondCoinName, "i");
     }
+
+
+
     function test_add_secondaryTaxReceivers_multi_collateral_types_collect_tax_positive() public {
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
-        taxCollector.modifyParameters("maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 2);
 
-        taxCollector.initializeCollateralType("i");
-        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 1050000000000000000000000000);
 
-        safeEngine.initializeCollateralType("j");
-        draw("j", 100 ether);
-        taxCollector.initializeCollateralType("j");
-        taxCollector.modifyParameters("j", "stabilityFee", 1050000000000000000000000000);
+        safeEngine.initializeCollateralType(coinName, "j");
+        safeEngine.initializeCollateralType(secondCoinName, "j");
 
-        taxCollector.modifyParameters("i", 1, ray(40 ether), bob);
-        taxCollector.modifyParameters("i", 2, ray(45 ether), char);
+        safeEngine.addCollateralJoin("j", address(this));
+
+        taxCollector.initializeCollateralType(coinName, "j");
+        taxCollector.initializeCollateralType(secondCoinName, "j");
+
+        draw(coinName, "j", 100 ether);
+        draw(secondCoinName, "j", 100 ether);
+
+        taxCollector.modifyParameters(coinName, "j", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(secondCoinName, "j", "stabilityFee", 1050000000000000000000000000);
+
+        taxCollector.modifyParameters(coinName, "i", 1, ray(40 ether) - coreReceiverTaxCut / 2, bob);
+        taxCollector.modifyParameters(coinName, "i", 2, ray(45 ether) - coreReceiverTaxCut / 2, char);
+
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(40 ether) - coreReceiverTaxCut / 2, bob);
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(45 ether) - coreReceiverTaxCut / 2, char);
 
         hevm.warp(now + 10);
-        taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
+        taxCollector.taxMany(coinName, 0, taxCollector.collateralListLength(coinName) - 1);
+        taxCollector.taxMany(secondCoinName, 0, taxCollector.collateralListLength(secondCoinName) - 1);
 
-        assertEq(wad(safeEngine.coinBalance(ali)), 72322882079405761718);
-        assertEq(wad(safeEngine.coinBalance(bob)), 25155785071097656250);
-        assertEq(wad(safeEngine.coinBalance(char)), 28300258204984863281);
+        assertEq(wad(safeEngine.coinBalance(coinName, ali)), 59744989543856933593);
+        assertEq(wad(safeEngine.coinBalance(coinName, bob)), 18866838803323242187);
+        assertEq(wad(safeEngine.coinBalance(coinName, char)), 22011311937210449218);
 
-        taxCollector.modifyParameters("j", 1, ray(25 ether), bob);
-        taxCollector.modifyParameters("j", 2, ray(33 ether), char);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, ali)), 59744989543856933593);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, bob)), 18866838803323242187);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, char)), 22011311937210449218);
+
+        taxCollector.modifyParameters(coinName, "j", 1, ray(25 ether), bob);
+        taxCollector.modifyParameters(coinName, "j", 2, ray(33 ether), char);
+
+        taxCollector.modifyParameters(secondCoinName, "j", 1, ray(25 ether), bob);
+        taxCollector.modifyParameters(secondCoinName, "j", 2, ray(33 ether), char);
 
         hevm.warp(now + 10);
-        taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
+        taxCollector.taxMany(coinName, 0, taxCollector.collateralListLength(coinName) - 1);
+        taxCollector.taxMany(secondCoinName, 0, taxCollector.collateralListLength(secondCoinName) - 1);
 
-        assertEq(wad(safeEngine.coinBalance(ali)), 130713857546323549197);
-        assertEq(wad(safeEngine.coinBalance(bob)), 91741985164951273550);
-        assertEq(wad(safeEngine.coinBalance(char)), 108203698317609204041);
+        assertEq(wad(safeEngine.coinBalance(coinName, ali)), 97647903443435146518);
+        assertEq(wad(safeEngine.coinBalance(coinName, bob)), 75209008113507072210);
+        assertEq(wad(safeEngine.coinBalance(coinName, char)), 91670721266165002702);
 
-        assertEq(taxCollector.secondaryReceiverAllotedTax("i"), ray(85 ether));
-        assertEq(taxCollector.latestSecondaryReceiver(), 2);
-        assertEq(taxCollector.usedSecondaryReceiver(bob), 1);
-        assertEq(taxCollector.usedSecondaryReceiver(char), 1);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(bob), 2);
-        assertEq(taxCollector.secondaryReceiverRevenueSources(char), 2);
-        assertEq(taxCollector.secondaryReceiverAccounts(1), bob);
-        assertEq(taxCollector.secondaryReceiverAccounts(2), char);
-        assertEq(taxCollector.secondaryReceiversAmount(), 2);
-        assertTrue(taxCollector.isSecondaryReceiver(1));
-        assertTrue(taxCollector.isSecondaryReceiver(2));
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, ali)), 97647903443435146518);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, bob)), 75209008113507072210);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, char)), 91670721266165002702);
 
-        (uint take, uint cut) = taxCollector.secondaryTaxReceivers("i", 1);
+        assertEq(taxCollector.secondaryReceiverAllotedTax(coinName, "i"), ray(65 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(coinName), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, bob), 1);
+        assertEq(taxCollector.usedSecondaryReceiver(coinName, char), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, bob), 2);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(coinName, char), 2);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 1), bob);
+        assertEq(taxCollector.secondaryReceiverAccounts(coinName, 2), char);
+        assertEq(taxCollector.secondaryReceiversAmount(coinName), 2);
+        assertTrue(taxCollector.isSecondaryReceiver(coinName, 1));
+        assertTrue(taxCollector.isSecondaryReceiver(coinName, 2));
+
+        assertEq(taxCollector.secondaryReceiverAllotedTax(secondCoinName, "i"), ray(65 ether));
+        assertEq(taxCollector.latestSecondaryReceiver(secondCoinName), 2);
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, bob), 1);
+        assertEq(taxCollector.usedSecondaryReceiver(secondCoinName, char), 1);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, bob), 2);
+        assertEq(taxCollector.secondaryReceiverRevenueSources(secondCoinName, char), 2);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 1), bob);
+        assertEq(taxCollector.secondaryReceiverAccounts(secondCoinName, 2), char);
+        assertEq(taxCollector.secondaryReceiversAmount(secondCoinName), 2);
+        assertTrue(taxCollector.isSecondaryReceiver(secondCoinName, 1));
+        assertTrue(taxCollector.isSecondaryReceiver(secondCoinName, 2));
+
+        (uint take, uint cut) = taxCollector.secondaryTaxReceivers(coinName, "i", 1);
         assertEq(take, 0);
-        assertEq(cut, ray(40 ether));
+        assertEq(cut, ray(30 ether));
 
-        (take, cut) = taxCollector.secondaryTaxReceivers("i", 2);
+        (take, cut) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 1);
         assertEq(take, 0);
-        assertEq(cut, ray(45 ether));
+        assertEq(cut, ray(30 ether));
 
-        (take, cut) = taxCollector.secondaryTaxReceivers("j", 1);
+        (take, cut) = taxCollector.secondaryTaxReceivers(coinName, "i", 2);
+        assertEq(take, 0);
+        assertEq(cut, ray(35 ether));
+
+        (take, cut) = taxCollector.secondaryTaxReceivers(secondCoinName, "i", 2);
+        assertEq(take, 0);
+        assertEq(cut, ray(35 ether));
+
+        (take, cut) = taxCollector.secondaryTaxReceivers(coinName, "j", 1);
         assertEq(take, 0);
         assertEq(cut, ray(25 ether));
 
-        (take, cut) = taxCollector.secondaryTaxReceivers("j", 2);
+        (take, cut) = taxCollector.secondaryTaxReceivers(secondCoinName, "j", 1);
+        assertEq(take, 0);
+        assertEq(cut, ray(25 ether));
+
+        (take, cut) = taxCollector.secondaryTaxReceivers(coinName, "j", 2);
+        assertEq(take, 0);
+        assertEq(cut, ray(33 ether));
+
+        (take, cut) = taxCollector.secondaryTaxReceivers(secondCoinName, "j", 2);
         assertEq(take, 0);
         assertEq(cut, ray(33 ether));
     }
     function test_add_secondaryTaxReceivers_single_collateral_type_toggle_collect_tax_negative() public {
-        taxCollector.initializeCollateralType("i");
-        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 1050000000000000000000000000);
 
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
-        taxCollector.modifyParameters("maxSecondaryReceivers", 2);
-        taxCollector.modifyParameters("i", 1, ray(5 ether), bob);
-        taxCollector.modifyParameters("i", 2, ray(10 ether), char);
-        taxCollector.modifyParameters("i", 1, 1);
-        taxCollector.modifyParameters("i", 2, 1);
+
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(5 ether), bob);
+        taxCollector.modifyParameters(coinName, "i", 2, ray(10 ether), char);
+        taxCollector.modifyParameters(coinName, "i", 1, 1);
+        taxCollector.modifyParameters(coinName, "i", 2, 1);
+
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(5 ether), bob);
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(10 ether), char);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, 1);
+        taxCollector.modifyParameters(secondCoinName, "i", 2, 1);
 
         hevm.warp(now + 5);
-        taxCollector.taxSingle("i");
+        taxCollector.taxSingle(coinName, "i");
+        taxCollector.taxSingle(secondCoinName, "i");
 
-        assertEq(wad(safeEngine.coinBalance(ali)), 23483932812500000000);
-        assertEq(wad(safeEngine.coinBalance(bob)), 1381407812500000000);
-        assertEq(wad(safeEngine.coinBalance(char)), 2762815625000000000);
+        assertEq(wad(safeEngine.coinBalance(coinName, ali)), 17958301562500000000);
+        assertEq(wad(safeEngine.coinBalance(coinName, bob)), 1381407812500000000);
+        assertEq(wad(safeEngine.coinBalance(coinName, char)), 2762815625000000000);
 
-        taxCollector.modifyParameters("i", "stabilityFee", 900000000000000000000000000);
-        taxCollector.modifyParameters("i", 1, ray(10 ether), bob);
-        taxCollector.modifyParameters("i", 2, ray(20 ether), char);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, ali)), 17958301562500000000);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, bob)), 1381407812500000000);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, char)), 2762815625000000000);
+
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 900000000000000000000000000);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(10 ether), bob);
+        taxCollector.modifyParameters(coinName, "i", 2, ray(20 ether), char);
+
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 900000000000000000000000000);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(10 ether), bob);
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(20 ether), char);
 
         hevm.warp(now + 5);
-        taxCollector.taxSingle("i");
+        taxCollector.taxSingle(coinName, "i");
+        taxCollector.taxSingle(secondCoinName, "i");
 
-        assertEq(wad(safeEngine.coinBalance(ali)), 0);
-        assertEq(wad(safeEngine.coinBalance(bob)), 0);
-        assertEq(wad(safeEngine.coinBalance(char)), 0);
+        assertEq(wad(safeEngine.coinBalance(coinName, ali)), 0);
+        assertEq(wad(safeEngine.coinBalance(coinName, bob)), 0);
+        assertEq(wad(safeEngine.coinBalance(coinName, char)), 0);
+
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, ali)), 0);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, bob)), 0);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, char)), 0);
     }
     function test_add_secondaryTaxReceivers_multi_collateral_types_toggle_collect_tax_negative() public {
-        taxCollector.initializeCollateralType("i");
-        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 1050000000000000000000000000);
 
-        safeEngine.initializeCollateralType("j");
-        draw("j", 100 ether);
-        taxCollector.initializeCollateralType("j");
-        taxCollector.modifyParameters("j", "stabilityFee", 1050000000000000000000000000);
+        safeEngine.initializeCollateralType(coinName, "j");
+        safeEngine.initializeCollateralType(secondCoinName, "j");
+
+        safeEngine.addCollateralJoin("j", address(this));
+
+        taxCollector.initializeCollateralType(coinName, "j");
+        taxCollector.initializeCollateralType(secondCoinName, "j");
+
+        draw(coinName, "j", 100 ether);
+        draw(secondCoinName, "j", 100 ether);
+
+        taxCollector.modifyParameters(coinName, "j", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(secondCoinName, "j", "stabilityFee", 1050000000000000000000000000);
 
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
-        taxCollector.modifyParameters("maxSecondaryReceivers", 2);
-        taxCollector.modifyParameters("i", 1, ray(5 ether), bob);
-        taxCollector.modifyParameters("i", 2, ray(10 ether), char);
-        taxCollector.modifyParameters("i", 1, 1);
-        taxCollector.modifyParameters("i", 2, 1);
+
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(5 ether), bob);
+        taxCollector.modifyParameters(coinName, "i", 2, ray(10 ether), char);
+        taxCollector.modifyParameters(coinName, "i", 1, 1);
+        taxCollector.modifyParameters(coinName, "i", 2, 1);
+
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(5 ether), bob);
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(10 ether), char);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, 1);
+        taxCollector.modifyParameters(secondCoinName, "i", 2, 1);
 
         hevm.warp(now + 5);
-        taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
+        taxCollector.taxMany(coinName, 0, taxCollector.collateralListLength(coinName) - 1);
+        taxCollector.taxMany(secondCoinName, 0, taxCollector.collateralListLength(secondCoinName) - 1);
 
-        taxCollector.modifyParameters("i", "stabilityFee", 900000000000000000000000000);
-        taxCollector.modifyParameters("j", "stabilityFee", 900000000000000000000000000);
-        taxCollector.modifyParameters("i", 1, ray(10 ether), bob);
-        taxCollector.modifyParameters("i", 2, ray(20 ether), char);
-        taxCollector.modifyParameters("j", 1, ray(10 ether), bob);
-        taxCollector.modifyParameters("j", 2, ray(20 ether), char);
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 900000000000000000000000000);
+        taxCollector.modifyParameters(coinName, "j", "stabilityFee", 900000000000000000000000000);
+
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 900000000000000000000000000);
+        taxCollector.modifyParameters(secondCoinName, "j", "stabilityFee", 900000000000000000000000000);
+
+        taxCollector.modifyParameters(coinName, "i", 1, ray(10 ether), bob);
+        taxCollector.modifyParameters(coinName, "i", 2, ray(20 ether), char);
+        taxCollector.modifyParameters(coinName, "j", 1, ray(10 ether), bob);
+        taxCollector.modifyParameters(coinName, "j", 2, ray(20 ether), char);
+
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(10 ether), bob);
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(20 ether), char);
+        taxCollector.modifyParameters(secondCoinName, "j", 1, ray(10 ether), bob);
+        taxCollector.modifyParameters(secondCoinName, "j", 2, ray(20 ether), char);
 
         hevm.warp(now + 5);
-        taxCollector.taxMany(0, taxCollector.collateralListLength() - 1);
+        taxCollector.taxMany(coinName, 0, taxCollector.collateralListLength(coinName) - 1);
+        taxCollector.taxMany(coinName, 0, taxCollector.collateralListLength(secondCoinName) - 1);
 
-        assertEq(wad(safeEngine.coinBalance(ali)), 0);
-        assertEq(wad(safeEngine.coinBalance(bob)), 0);
-        assertEq(wad(safeEngine.coinBalance(char)), 0);
+        assertEq(wad(safeEngine.coinBalance(coinName, ali)), 0);
+        assertEq(wad(safeEngine.coinBalance(coinName, bob)), 0);
+        assertEq(wad(safeEngine.coinBalance(coinName, char)), 0);
+
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, ali)), 40060826562500000000);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, bob)), 1381407812500000000);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, char)), 2762815625000000000);
     }
     function test_add_secondaryTaxReceivers_no_toggle_collect_tax_negative() public {
         // Setup
-        taxCollector.initializeCollateralType("i");
-        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 1050000000000000000000000000);
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 1050000000000000000000000000);
 
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
-        taxCollector.modifyParameters("maxSecondaryReceivers", 2);
-        taxCollector.modifyParameters("i", 1, ray(5 ether), bob);
-        taxCollector.modifyParameters("i", 2, ray(10 ether), char);
+        taxCollector.modifyParameters(coinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(5 ether), bob);
+        taxCollector.modifyParameters(coinName, "i", 2, ray(10 ether), char);
+
+        taxCollector.modifyParameters(secondCoinName, "maxSecondaryReceivers", 2);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(5 ether), bob);
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(10 ether), char);
 
         hevm.warp(now + 5);
-        taxCollector.taxSingle("i");
+        taxCollector.taxSingle(coinName, "i");
+        taxCollector.taxSingle(secondCoinName, "i");
 
-        assertEq(wad(safeEngine.coinBalance(ali)), 23483932812500000000);
-        assertEq(wad(safeEngine.coinBalance(bob)), 1381407812500000000);
-        assertEq(wad(safeEngine.coinBalance(char)), 2762815625000000000);
+        assertEq(wad(safeEngine.coinBalance(coinName, ali)), 17958301562500000000);
+        assertEq(wad(safeEngine.coinBalance(coinName, bob)), 1381407812500000000);
+        assertEq(wad(safeEngine.coinBalance(coinName, char)), 2762815625000000000);
 
-        taxCollector.modifyParameters("i", "stabilityFee", 900000000000000000000000000);
-        taxCollector.modifyParameters("i", 1, ray(10 ether), bob);
-        taxCollector.modifyParameters("i", 2, ray(20 ether), char);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, ali)), 17958301562500000000);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, bob)), 1381407812500000000);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, char)), 2762815625000000000);
+
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 900000000000000000000000000);
+        taxCollector.modifyParameters(coinName, "i", 1, ray(10 ether), bob);
+        taxCollector.modifyParameters(coinName, "i", 2, ray(20 ether), char);
+
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 900000000000000000000000000);
+        taxCollector.modifyParameters(secondCoinName, "i", 1, ray(10 ether), bob);
+        taxCollector.modifyParameters(secondCoinName, "i", 2, ray(20 ether), char);
 
         hevm.warp(now + 5);
-        taxCollector.taxSingle("i");
+        taxCollector.taxSingle(coinName, "i");
+        taxCollector.taxSingle(secondCoinName, "i");
 
-        assertEq(wad(safeEngine.coinBalance(ali)), 0);
-        assertEq(wad(safeEngine.coinBalance(bob)), 1381407812500000000);
-        assertEq(wad(safeEngine.coinBalance(char)), 2762815625000000000);
+        assertEq(wad(safeEngine.coinBalance(coinName, ali)), 0);
+        assertEq(wad(safeEngine.coinBalance(coinName, bob)), 1381407812500000000);
+        assertEq(wad(safeEngine.coinBalance(coinName, char)), 2762815625000000000);
+
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, ali)), 0);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, bob)), 1381407812500000000);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, char)), 2762815625000000000);
     }
     function test_collectedManyTax() public {
-        safeEngine.initializeCollateralType("j");
-        draw("j", 100 ether);
+        safeEngine.initializeCollateralType(coinName, "j");
+        safeEngine.initializeCollateralType(secondCoinName, "j");
 
-        taxCollector.initializeCollateralType("i");
-        taxCollector.initializeCollateralType("j");
+        safeEngine.addCollateralJoin("j", address(this));
+
+        taxCollector.initializeCollateralType(coinName, "j");
+        taxCollector.initializeCollateralType(secondCoinName, "j");
+
+        draw(coinName, "j", 100 ether);
+        draw(secondCoinName, "j", 100 ether);
+
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
-        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
-        taxCollector.modifyParameters("j", "stabilityFee", 1000000000000000000000000000);  // 0% / second
-        taxCollector.modifyParameters("globalStabilityFee", uint(50000000000000000000000000));  // 5% / second
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
+        taxCollector.modifyParameters(coinName, "j", "stabilityFee", 1000000000000000000000000000);  // 0% / second
+        taxCollector.modifyParameters(coinName, "globalStabilityFee", uint(50000000000000000000000000));  // 5% / second
+
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
+        taxCollector.modifyParameters(secondCoinName, "j", "stabilityFee", 1000000000000000000000000000);  // 0% / second
+        taxCollector.modifyParameters(secondCoinName, "globalStabilityFee", uint(50000000000000000000000000));  // 5% / second
 
         hevm.warp(now + 1);
-        assertTrue(!taxCollector.collectedManyTax(0, 1));
+        assertTrue(!taxCollector.collectedManyTax(coinName, 0, 1));
+        assertTrue(!taxCollector.collectedManyTax(secondCoinName, 0, 1));
 
-        taxCollector.taxSingle("i");
-        assertTrue(taxCollector.collectedManyTax(0, 0));
-        assertTrue(!taxCollector.collectedManyTax(0, 1));
+        taxCollector.taxSingle(coinName, "i");
+        taxCollector.taxSingle(secondCoinName, "i");
+
+        assertTrue(taxCollector.collectedManyTax(coinName, 0, 0));
+        assertTrue(!taxCollector.collectedManyTax(coinName, 0, 1));
+
+        assertTrue(taxCollector.collectedManyTax(secondCoinName, 0, 0));
+        assertTrue(!taxCollector.collectedManyTax(secondCoinName, 0, 1));
     }
     function test_modify_stabilityFee() public {
-        taxCollector.initializeCollateralType("i");
         hevm.warp(now + 1);
-        taxCollector.taxSingle("i");
-        taxCollector.modifyParameters("i", "stabilityFee", 1);
+        taxCollector.taxSingle(coinName, "i");
+        taxCollector.taxSingle(secondCoinName, "i");
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 1);
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 1);
     }
     function testFail_modify_stabilityFee() public {
-        taxCollector.initializeCollateralType("i");
         hevm.warp(now + 1);
-        taxCollector.modifyParameters("i", "stabilityFee", 1);
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 1);
     }
     function test_taxManyOutcome_all_untaxed_positive_rates() public {
-        safeEngine.initializeCollateralType("j");
-        draw("i", 100 ether);
-        draw("j", 100 ether);
+        safeEngine.initializeCollateralType(coinName, "j");
+        safeEngine.initializeCollateralType(secondCoinName, "j");
 
-        taxCollector.initializeCollateralType("i");
-        taxCollector.initializeCollateralType("j");
+        safeEngine.addCollateralJoin("j", address(this));
+
+        taxCollector.initializeCollateralType(coinName, "j");
+        taxCollector.initializeCollateralType(secondCoinName, "j");
+
+        draw(coinName, "i", 100 ether);
+        draw(coinName, "j", 100 ether);
+
+        draw(secondCoinName, "i", 100 ether);
+        draw(secondCoinName, "j", 100 ether);
+
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
-        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
-        taxCollector.modifyParameters("j", "stabilityFee", 1030000000000000000000000000);  // 3% / second
-        taxCollector.modifyParameters("globalStabilityFee",  uint(50000000000000000000000000));  // 5% / second
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
+        taxCollector.modifyParameters(coinName, "j", "stabilityFee", 1030000000000000000000000000);  // 3% / second
+        taxCollector.modifyParameters(coinName, "globalStabilityFee",  uint(50000000000000000000000000));  // 5% / second
+
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
+        taxCollector.modifyParameters(secondCoinName, "j", "stabilityFee", 1030000000000000000000000000);  // 3% / second
+        taxCollector.modifyParameters(secondCoinName, "globalStabilityFee",  uint(50000000000000000000000000));  // 5% / second
 
         hevm.warp(now + 1);
-        (bool ok, int rad) = taxCollector.taxManyOutcome(0, 1);
+        (bool ok, int rad) = taxCollector.taxManyOutcome(coinName, 0, 1);
+        assertTrue(ok);
+        assertEq(uint(rad), 28 * 10 ** 45);
+
+        (ok, rad) = taxCollector.taxManyOutcome(secondCoinName, 0, 1);
         assertTrue(ok);
         assertEq(uint(rad), 28 * 10 ** 45);
     }
     function test_taxManyOutcome_some_untaxed_positive_rates() public {
-        safeEngine.initializeCollateralType("j");
-        draw("i", 100 ether);
-        draw("j", 100 ether);
+        safeEngine.initializeCollateralType(coinName, "j");
+        safeEngine.initializeCollateralType(secondCoinName, "j");
 
-        taxCollector.initializeCollateralType("i");
-        taxCollector.initializeCollateralType("j");
+        safeEngine.addCollateralJoin("j", address(this));
+
+        taxCollector.initializeCollateralType(coinName, "j");
+        taxCollector.initializeCollateralType(secondCoinName, "j");
+
+        draw(coinName, "i", 100 ether);
+        draw(coinName, "j", 100 ether);
+
+        draw(secondCoinName, "i", 100 ether);
+        draw(secondCoinName, "j", 100 ether);
+
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
-        taxCollector.modifyParameters("i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
-        taxCollector.modifyParameters("j", "stabilityFee", 1030000000000000000000000000);  // 3% / second
-        taxCollector.modifyParameters("globalStabilityFee",  uint(50000000000000000000000000));  // 5% / second
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
+        taxCollector.modifyParameters(coinName, "j", "stabilityFee", 1030000000000000000000000000);  // 3% / second
+        taxCollector.modifyParameters(coinName, "globalStabilityFee",  uint(50000000000000000000000000));  // 5% / second
+
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 1050000000000000000000000000);  // 5% / second
+        taxCollector.modifyParameters(secondCoinName, "j", "stabilityFee", 1030000000000000000000000000);  // 3% / second
+        taxCollector.modifyParameters(secondCoinName, "globalStabilityFee",  uint(50000000000000000000000000));  // 5% / second
 
         hevm.warp(now + 1);
-        taxCollector.taxSingle("i");
-        (bool ok, int rad) = taxCollector.taxManyOutcome(0, 1);
+        taxCollector.taxSingle(coinName, "i");
+        taxCollector.taxSingle(secondCoinName, "i");
+
+        (bool ok, int rad) = taxCollector.taxManyOutcome(coinName, 0, 1);
+        assertTrue(ok);
+        assertEq(uint(rad), 8 * 10 ** 45);
+
+        (ok, rad) = taxCollector.taxManyOutcome(secondCoinName, 0, 1);
         assertTrue(ok);
         assertEq(uint(rad), 8 * 10 ** 45);
     }
     function test_taxManyOutcome_all_untaxed_negative_rates() public {
-        safeEngine.initializeCollateralType("j");
-        draw("i", 100 ether);
-        draw("j", 100 ether);
+        safeEngine.initializeCollateralType(coinName, "j");
+        safeEngine.initializeCollateralType(secondCoinName, "j");
 
-        taxCollector.initializeCollateralType("i");
-        taxCollector.initializeCollateralType("j");
+        safeEngine.addCollateralJoin("j", address(this));
+
+        taxCollector.initializeCollateralType(coinName, "j");
+        taxCollector.initializeCollateralType(secondCoinName, "j");
+
+        draw(coinName, "i", 100 ether);
+        draw(coinName, "j", 100 ether);
+
+        draw(secondCoinName, "i", 100 ether);
+        draw(secondCoinName, "j", 100 ether);
+
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
-        taxCollector.modifyParameters("i", "stabilityFee", 950000000000000000000000000);  // -5% / second
-        taxCollector.modifyParameters("j", "stabilityFee", 930000000000000000000000000);  // -3% / second
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 950000000000000000000000000);  // -5% / second
+        taxCollector.modifyParameters(coinName, "j", "stabilityFee", 930000000000000000000000000);  // -3% / second
+
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 950000000000000000000000000);  // -5% / second
+        taxCollector.modifyParameters(secondCoinName, "j", "stabilityFee", 930000000000000000000000000);  // -3% / second
 
         hevm.warp(now + 1);
-        (bool ok, int rad) = taxCollector.taxManyOutcome(0, 1);
+        (bool ok, int rad) = taxCollector.taxManyOutcome(coinName, 0, 1);
+        assertTrue(!ok);
+        assertEq(rad, -17 * 10 ** 45);
+
+        (ok, rad) = taxCollector.taxManyOutcome(secondCoinName, 0, 1);
         assertTrue(!ok);
         assertEq(rad, -17 * 10 ** 45);
     }
     function test_taxManyOutcome_all_untaxed_mixed_rates() public {
-        safeEngine.initializeCollateralType("j");
-        draw("j", 100 ether);
+        safeEngine.initializeCollateralType(coinName, "j");
+        safeEngine.initializeCollateralType(secondCoinName, "j");
 
-        taxCollector.initializeCollateralType("i");
-        taxCollector.initializeCollateralType("j");
+        safeEngine.addCollateralJoin("j", address(this));
+
+        taxCollector.initializeCollateralType(coinName, "j");
+        taxCollector.initializeCollateralType(secondCoinName, "j");
+
+        draw(coinName, "j", 100 ether);
+        draw(secondCoinName, "j", 100 ether);
+
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
-        taxCollector.modifyParameters("i", "stabilityFee", 950000000000000000000000000);  // -5% / second
-        taxCollector.modifyParameters("j", "stabilityFee", 1050000000000000000000000000);  // 5% / second
+        taxCollector.modifyParameters(coinName, "i", "stabilityFee", 950000000000000000000000000);  // -5% / second
+        taxCollector.modifyParameters(coinName, "j", "stabilityFee", 1050000000000000000000000000);  // 5% / second
+
+        taxCollector.modifyParameters(secondCoinName, "i", "stabilityFee", 950000000000000000000000000);  // -5% / second
+        taxCollector.modifyParameters(secondCoinName, "j", "stabilityFee", 1050000000000000000000000000);  // 5% / second
 
         hevm.warp(now + 1);
-        (bool ok, int rad) = taxCollector.taxManyOutcome(0, 1);
+        (bool ok, int rad) = taxCollector.taxManyOutcome(coinName, 0, 1);
+        assertTrue(ok);
+        assertEq(rad, 0);
+
+        (ok, rad) = taxCollector.taxManyOutcome(secondCoinName, 0, 1);
         assertTrue(ok);
         assertEq(rad, 0);
     }
     function test_negative_tax_accumulated_goes_negative() public {
-        safeEngine.initializeCollateralType("j");
-        taxCollector.initializeCollateralType("j");
+        safeEngine.initializeCollateralType(coinName, "j");
+        safeEngine.initializeCollateralType(secondCoinName, "j");
+
+        safeEngine.addCollateralJoin("j", address(this));
+
+        taxCollector.initializeCollateralType(coinName, "j");
+        taxCollector.initializeCollateralType(secondCoinName, "j");
+
         taxCollector.modifyParameters("primaryTaxReceiver", ali);
 
-        draw("j", 100 ether);
-        safeEngine.transferInternalCoins(address(this), ali, safeEngine.coinBalance(address(this)));
-        assertEq(wad(safeEngine.coinBalance(ali)), 200 ether);
+        draw(coinName, "j", 100 ether);
+        draw(secondCoinName, "j", 100 ether);
 
-        taxCollector.modifyParameters("j", "stabilityFee", 999999706969857929985428567);  // -2.5% / day
+        safeEngine.transferInternalCoins(coinName, address(this), ali, safeEngine.coinBalance(coinName, address(this)));
+        assertEq(wad(safeEngine.coinBalance(coinName, ali)), 200 ether);
+
+        safeEngine.transferInternalCoins(secondCoinName, address(this), ali, safeEngine.coinBalance(secondCoinName, address(this)));
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, ali)), 200 ether);
+
+        taxCollector.modifyParameters(coinName, "j", "stabilityFee", 999999706969857929985428567);  // -2.5% / day
+        taxCollector.modifyParameters(secondCoinName, "j", "stabilityFee", 999999706969857929985428567);  // -2.5% / day
 
         hevm.warp(now + 3 days);
-        taxCollector.taxSingle("j");
-        assertEq(wad(safeEngine.coinBalance(ali)), 192.6859375 ether);
+        taxCollector.taxSingle(coinName, "j");
+        taxCollector.taxSingle(secondCoinName, "j");
 
-        (, uint accumulatedRate, , , ,) = safeEngine.collateralTypes("j");
+        assertEq(wad(safeEngine.coinBalance(coinName, ali)), 192.6859375 ether);
+        assertEq(wad(safeEngine.coinBalance(secondCoinName, ali)), 192.6859375 ether);
+
+        (, uint accumulatedRate, , , ,) = safeEngine.collateralTypes(coinName, "j");
         assertEq(accumulatedRate, 926859375000000000000022885);
-    } */
+
+        (, accumulatedRate, , , ,) = safeEngine.collateralTypes(secondCoinName, "j");
+        assertEq(accumulatedRate, 926859375000000000000022885);
+    }
 }

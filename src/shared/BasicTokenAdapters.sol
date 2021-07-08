@@ -362,10 +362,10 @@ contract MultiCoinJoin {
     event Join(address sender, address account, uint256 wad);
     event Exit(address sender, address account, uint256 wad);
 
-    constructor(bytes32 coinName, address safeEngine_, address systemCoin_) public {
+    constructor(bytes32 coinName_, address safeEngine_, address systemCoin_) public {
         authorizedAccounts[msg.sender] = 1;
         contractEnabled                = 1;
-        coinName                       = coinName;
+        coinName                       = coinName_;
         safeEngine                     = MultiSAFEEngineLike(safeEngine_);
         systemCoin                     = DSTokenLike(systemCoin_);
         decimals                       = 18;

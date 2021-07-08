@@ -268,7 +268,7 @@ contract MultiAccountingEngine {
      * @param coinName The name of the coin to pop debt for
      * @param debtBlockTimestamp Timestamp of the block of debt that should be popped out
      */
-    function popDebtFromQueue(bytes32 coinName, uint256 debtBlockTimestamp) external coinIsInitialized(coinName) {
+    function popDebtFromQueue(bytes32 coinName, uint256 debtBlockTimestamp) external {
         require(addition(debtBlockTimestamp, popDebtDelay) <= now, "MultiAccountingEngine/pop-debt-delay-not-passed");
         require(debtQueue[coinName][debtBlockTimestamp] > 0, "MultiAccountingEngine/null-debt-block");
         totalQueuedDebt[coinName] = subtract(totalQueuedDebt[coinName], debtQueue[coinName][debtBlockTimestamp]);

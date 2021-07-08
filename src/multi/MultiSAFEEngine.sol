@@ -138,15 +138,6 @@ contract MultiSAFEEngine {
         return either(safe == account, safeRights[coinName][safe][account] == 1);
     }
 
-    /**
-     * @notice Checks whether a coin is initialized
-     */
-    modifier coinIsInitialized(bytes32 coinName) {
-        require(coinInitialized[coinName] == 1, "MultiSAFEEngine/coin-not-init");
-
-        _;
-    }
-
     // --- Data ---
     struct CollateralType {
         // Total debt issued for this specific collateral type
