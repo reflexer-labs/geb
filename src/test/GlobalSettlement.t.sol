@@ -24,7 +24,7 @@ import "ds-token/delegate.sol";
 
 import {SAFEEngine} from '../SAFEEngine.sol';
 import {LiquidationEngine} from '../LiquidationEngine.sol';
-import {LiquidationPool} from '../LiquidationPool.sol';
+import {LiquidatingPeggedPool} from '../LiquidatingPeggedPool.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
 import {CoinSavingsAccount} from '../CoinSavingsAccount.sol';
 import {StabilityFeeTreasury}  from '../StabilityFeeTreasury.sol';
@@ -128,7 +128,7 @@ contract GlobalSettlementTest is DSTest {
     GlobalSettlement globalSettlement;
     AccountingEngine accountingEngine;
     LiquidationEngine liquidationEngine;
-    LiquidationPool liquidationPool;
+    LiquidatingPeggedPool liquidatingPeggedPool;
     OracleRelayer oracleRelayer;
     CoinSavingsAccount coinSavingsAccount;
     StabilityFeeTreasury stabilityFeeTreasury;
@@ -136,6 +136,8 @@ contract GlobalSettlementTest is DSTest {
 
     DSDelegateToken protocolToken;
     DSDelegateToken systemCoin;
+    DSDelegateToken silver;
+    BasicCollateralJoin tempCollateral;
     CoinJoin systemCoinA;
 
     struct CollateralType {
@@ -259,7 +261,9 @@ contract GlobalSettlementTest is DSTest {
         safeEngine = new SAFEEngine();
         protocolToken = new DSDelegateToken('GOV', 'GOV');
         systemCoin = new DSDelegateToken("Coin", "Coin");
+        silver = new DSDelegateToken("SIL", "SIL");
         systemCoinA = new CoinJoin(address(safeEngine), address(systemCoin));
+        tempCollateral = new BasicCollateralJoin(address(safeEngine), "silver", address(silver));
 
         surplusAuctionHouseOne = new BurningSurplusAuctionHouse(address(safeEngine), address(protocolToken));
 
@@ -287,11 +291,11 @@ contract GlobalSettlementTest is DSTest {
 
         debtAuctionHouse.addAuthorization(address(accountingEngine));
         debtAuctionHouse.modifyParameters("accountingEngine", address(accountingEngine));
-        liquidationPool = new LiquidationPool(address(systemCoinA), "gold");
+        liquidatingPeggedPool = new LiquidatingPeggedPool("USDR", "USDR", 99, address(systemCoinA), address(tempCollateral));
         liquidationEngine = new LiquidationEngine(address(safeEngine));
-        liquidationPool.addAuthorization(address(liquidationEngine));
+        liquidatingPeggedPool.addAuthorization(address(liquidationEngine));
         liquidationEngine.modifyParameters("accountingEngine", address(accountingEngine));
-        liquidationEngine.modifyParameters("liquidationPool", address(liquidationPool));
+        liquidationEngine.modifyParameters("liquidatingPeggedPool", address(liquidatingPeggedPool));
         safeEngine.addAuthorization(address(liquidationEngine));
         accountingEngine.addAuthorization(address(liquidationEngine));
 
@@ -314,7 +318,7 @@ contract GlobalSettlementTest is DSTest {
         oracleRelayer.addAuthorization(address(globalSettlement));
         coinSavingsAccount.addAuthorization(address(globalSettlement));
         liquidationEngine.addAuthorization(address(globalSettlement));
-        liquidationPool.addAuthorization(address(globalSettlement));
+        liquidatingPeggedPool.addAuthorization(address(globalSettlement));
         stabilityFeeTreasury.addAuthorization(address(globalSettlement));
         surplusAuctionHouseOne.addAuthorization(address(accountingEngine));
         debtAuctionHouse.addAuthorization(address(accountingEngine));
@@ -342,7 +346,7 @@ contract GlobalSettlementTest is DSTest {
         assertEq(globalSettlement.contractEnabled(), 1);
         assertEq(safeEngine.contractEnabled(), 1);
         assertEq(liquidationEngine.contractEnabled(), 1);
-        assertEq(liquidationPool.contractEnabled(), 1);
+        assertEq(liquidatingPeggedPool.contractEnabled(), 1);
         assertEq(oracleRelayer.contractEnabled(), 1);
         assertEq(accountingEngine.contractEnabled(), 1);
         assertEq(accountingEngine.debtAuctionHouse().contractEnabled(), 1);

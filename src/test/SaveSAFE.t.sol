@@ -6,7 +6,7 @@ import "ds-token/delegate.sol";
 
 import {SAFEEngine} from '../SAFEEngine.sol';
 import {LiquidationEngine} from '../LiquidationEngine.sol';
-import {LiquidationPool} from '../LiquidationPool.sol';
+import {LiquidatingPeggedPool} from '../LiquidatingPeggedPool.sol';
 import {AccountingEngine} from '../AccountingEngine.sol';
 import {TaxCollector} from '../TaxCollector.sol';
 import '../BasicTokenAdapters.sol';
@@ -135,7 +135,7 @@ contract SaveSAFETest is DSTest {
     TestSAFEEngine safeEngine;
     TestAccountingEngine accountingEngine;
     LiquidationEngine liquidationEngine;
-    LiquidationPool liquidationPool;
+    LiquidatingPeggedPool liquidatingPeggedPool;
     DSDelegateToken gold;
     CoinJoin systemCoinA;
     TaxCollector taxCollector;
@@ -213,19 +213,19 @@ contract SaveSAFETest is DSTest {
         taxCollector.modifyParameters("primaryTaxReceiver", address(accountingEngine));
         safeEngine.addAuthorization(address(taxCollector));
 
-        liquidationPool = new LiquidationPool(address(systemCoinA), "gold");
-        liquidationEngine = new LiquidationEngine(address(safeEngine));
-        liquidationPool.addAuthorization(address(liquidationEngine));
-        liquidationEngine.modifyParameters("accountingEngine", address(accountingEngine));
-        liquidationEngine.modifyParameters("liquidationPool", address(liquidationPool));
-        safeEngine.addAuthorization(address(liquidationEngine));
-        accountingEngine.addAuthorization(address(liquidationEngine));
-
         safeEngine.initializeCollateralType("gold");
         collateralA = new BasicCollateralJoin(address(safeEngine), "gold", address(gold));
         safeEngine.addAuthorization(address(collateralA));
         gold.approve(address(collateralA));
         collateralA.join(address(this), 1000 ether);
+
+        liquidatingPeggedPool = new LiquidatingPeggedPool("USDR", "USDR", 99, address(systemCoinA), address(collateralA));
+        liquidationEngine = new LiquidationEngine(address(safeEngine));
+        liquidatingPeggedPool.addAuthorization(address(liquidationEngine));
+        liquidationEngine.modifyParameters("accountingEngine", address(accountingEngine));
+        liquidationEngine.modifyParameters("liquidatingPeggedPool", address(liquidatingPeggedPool));
+        safeEngine.addAuthorization(address(liquidationEngine));
+        accountingEngine.addAuthorization(address(liquidationEngine));
 
         safeEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
         safeEngine.modifyParameters("gold", "debtCeiling", rad(1000 ether));

@@ -51,8 +51,8 @@ abstract contract SAFEEngineLike {
 abstract contract AccountingEngineLike {
     function pushDebtToQueue(uint256) virtual external;
 }
-abstract contract LiquidationPoolLike {
-    function liquidateSafe(uint256) virtual external returns (bool);
+abstract contract LiquidatingPeggedPoolLike {
+    function liquidateSafe(uint256, address, uint256) virtual external;
 }
 
 contract LiquidationEngine {
@@ -132,7 +132,7 @@ contract LiquidationEngine {
 
     SAFEEngineLike       public safeEngine;
     AccountingEngineLike public accountingEngine;
-    LiquidationPoolLike  public liquidationPool;
+    LiquidatingPeggedPoolLike  public liquidatingPeggedPool;
 
     // --- Events ---
     event AddAuthorization(address account);
@@ -230,7 +230,7 @@ contract LiquidationEngine {
      */
     function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "accountingEngine") accountingEngine = AccountingEngineLike(data);
-        else if (parameter == "liquidationPool") liquidationPool = LiquidationPoolLike(data);
+        else if (parameter == "liquidatingPeggedPool") liquidatingPeggedPool = LiquidatingPeggedPoolLike(data);
         else revert("LiquidationEngine/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
     }
@@ -378,10 +378,9 @@ contract LiquidationEngine {
             // i.e. the maximum amountToRaise is roughly 100 trillion system coins.
             uint256 amountToRaise_      = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
             currentOnAuctionSystemCoins = addition(currentOnAuctionSystemCoins, amountToRaise_);
-            if (liquidationPool.liquidateSafe(amountToRaise_)) {
-              safeEngine.transferCollateral(collateralType, address(this), address(liquidationPool), collateralToSell);
-            }
-            else{
+            safeEngine.approveSAFEModification(address(liquidatingPeggedPool));  // todo only do once
+            try liquidatingPeggedPool.liquidateSafe(amountToRaise_, address(this), collateralToSell) {}
+            catch {
               auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
                 { forgoneCollateralReceiver: safe
                 , initialBidder: address(accountingEngine)
