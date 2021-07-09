@@ -230,7 +230,10 @@ contract LiquidationEngine {
      */
     function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "accountingEngine") accountingEngine = AccountingEngineLike(data);
-        else if (parameter == "liquidatingPeggedPool") liquidatingPeggedPool = LiquidatingPeggedPoolLike(data);
+        else if (parameter == "liquidatingPeggedPool") {
+            liquidatingPeggedPool = LiquidatingPeggedPoolLike(data);
+            safeEngine.approveSAFEModification(address(liquidatingPeggedPool));
+        }
         else revert("LiquidationEngine/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
     }
@@ -378,7 +381,6 @@ contract LiquidationEngine {
             // i.e. the maximum amountToRaise is roughly 100 trillion system coins.
             uint256 amountToRaise_      = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
             currentOnAuctionSystemCoins = addition(currentOnAuctionSystemCoins, amountToRaise_);
-            safeEngine.approveSAFEModification(address(liquidatingPeggedPool));  // todo only do once
             try liquidatingPeggedPool.liquidateSafe(amountToRaise_, address(this), collateralToSell) {}
             catch {
               auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
