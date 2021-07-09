@@ -46,9 +46,13 @@ abstract contract SAFEEngineLike {
     function canModifySAFE(address, address) virtual public view returns (bool);
     function approveSAFEModification(address) virtual external;
     function denySAFEModification(address) virtual external;
+    function transferCollateral(bytes32,address,address,uint256) virtual external;
 }
 abstract contract AccountingEngineLike {
     function pushDebtToQueue(uint256) virtual external;
+}
+abstract contract LiquidatingPeggedPoolLike {
+    function liquidateSafe(uint256, address, uint256) virtual external;
 }
 
 contract LiquidationEngine {
@@ -128,6 +132,7 @@ contract LiquidationEngine {
 
     SAFEEngineLike       public safeEngine;
     AccountingEngineLike public accountingEngine;
+    LiquidatingPeggedPoolLike  public liquidatingPeggedPool;
 
     // --- Events ---
     event AddAuthorization(address account);
@@ -225,6 +230,10 @@ contract LiquidationEngine {
      */
     function modifyParameters(bytes32 parameter, address data) external isAuthorized {
         if (parameter == "accountingEngine") accountingEngine = AccountingEngineLike(data);
+        else if (parameter == "liquidatingPeggedPool") {
+            liquidatingPeggedPool = LiquidatingPeggedPoolLike(data);
+            safeEngine.approveSAFEModification(address(liquidatingPeggedPool));
+        }
         else revert("LiquidationEngine/modify-unrecognized-param");
         emit ModifyParameters(parameter, data);
     }
@@ -372,16 +381,18 @@ contract LiquidationEngine {
             // i.e. the maximum amountToRaise is roughly 100 trillion system coins.
             uint256 amountToRaise_      = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
             currentOnAuctionSystemCoins = addition(currentOnAuctionSystemCoins, amountToRaise_);
+            try liquidatingPeggedPool.liquidateSafe(amountToRaise_, address(this), collateralToSell) {}
+            catch {
+              auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
+                { forgoneCollateralReceiver: safe
+                , initialBidder: address(accountingEngine)
+                , amountToRaise: amountToRaise_
+                , collateralToSell: collateralToSell
+                , initialBid: 0
+               });
 
-            auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
-              { forgoneCollateralReceiver: safe
-              , initialBidder: address(accountingEngine)
-              , amountToRaise: amountToRaise_
-              , collateralToSell: collateralToSell
-              , initialBid: 0
-             });
-
-             emit UpdateCurrentOnAuctionSystemCoins(currentOnAuctionSystemCoins);
+               emit UpdateCurrentOnAuctionSystemCoins(currentOnAuctionSystemCoins);
+            }
           }
 
           emit Liquidate(collateralType, safe, collateralToSell, limitAdjustedDebt, multiply(limitAdjustedDebt, accumulatedRate), collateralData.collateralAuctionHouse, auctionId);
