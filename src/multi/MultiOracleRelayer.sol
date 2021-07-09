@@ -395,6 +395,7 @@ contract MultiOracleRelayer {
 
     /**
      * @notice Disable a specific coin
+     * @param coinName The name of the coin to disable
      */
     function disableCoin(bytes32 coinName) external isSystemComponent {
         coinEnabled[coinName]    = 0;

@@ -28,7 +28,7 @@ abstract contract CollateralAuctionHouseLike {
     ) virtual public returns (uint256);
 }
 abstract contract SAFESaviourLike {
-    function saveSAFE(address,bytes32,address) virtual external returns (bool,uint256,uint256);
+    function saveSAFE(bytes32,address,bytes32,address) virtual external returns (bool,uint256,uint256);
 }
 abstract contract LiquidationPoolLike {
     function canLiquidate(bytes32,bytes32,uint256,uint256) virtual external returns (bool);
@@ -122,7 +122,7 @@ contract MultiLiquidationEngine {
     **/
     function connectSAFESaviour(bytes32 coinName, address saviour) external isAuthorized(coinName) {
         (bool ok, uint256 collateralAdded, uint256 liquidatorReward) =
-          SAFESaviourLike(saviour).saveSAFE(address(this), "", address(0));
+          SAFESaviourLike(saviour).saveSAFE(coinName, address(this), "", address(0));
         require(ok, "MultiLiquidationEngine/saviour-not-ok");
         require(both(collateralAdded == uint256(-1), liquidatorReward == uint256(-1)), "MultiLiquidationEngine/invalid-amounts");
         safeSaviours[coinName][saviour] = 1;
@@ -445,7 +445,7 @@ contract MultiLiquidationEngine {
 
         if (chosenSAFESaviour[coinName][collateralType][safe] != address(0) &&
             safeSaviours[coinName][chosenSAFESaviour[coinName][collateralType][safe]] == 1) {
-          try SAFESaviourLike(chosenSAFESaviour[coinName][collateralType][safe]).saveSAFE(msg.sender, collateralType, safe)
+          try SAFESaviourLike(chosenSAFESaviour[coinName][collateralType][safe]).saveSAFE(coinName, msg.sender, collateralType, safe)
             returns (bool ok, uint256 collateralAddedOrDebtRepaid, uint256) {
             if (both(ok, collateralAddedOrDebtRepaid > 0)) {
               emit SaveSAFE(coinName, collateralType, safe, collateralAddedOrDebtRepaid);
