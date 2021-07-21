@@ -194,6 +194,7 @@ contract MultiDebtAuctionHouse {
      */
     function modifyParameters(bytes32 parameter, address addr) external isAuthorized {
         require(contractEnabled == 1, "MultiDebtAuctionHouse/contract-not-enabled");
+        require(addr != address(0), "MultiDebtAuctionHouse/null-address-param");
         if (parameter == "protocolToken") protocolToken = TokenLike(addr);
         else revert("MultiDebtAuctionHouse/modify-unrecognized-param");
         emit ModifyParameters(parameter, addr);

@@ -214,7 +214,7 @@ contract MultiOracleRelayer {
     ) external {
         require(deployer == msg.sender, "MultiOracleRelayer/caller-not-deployer");
         require(coinInitialized[coinName] == 0, "MultiOracleRelayer/already-init");
-        require(redemptionPrice_ > 0, "MultiOracleRelayer/null-red-price");
+        require(redemptionPrice_ > WAD, "MultiOracleRelayer/invalid-red-price");
         require(redemptionRateUpperBound_ > RAY, "MultiOracleRelayer/invalid-red-rate-upper-bound");
         require(redemptionRateLowerBound_ < RAY, "MultiOracleRelayer/invalid-red-rate-lower-bound");
 
@@ -368,7 +368,7 @@ contract MultiOracleRelayer {
      * @param coinName The name of the coin for which to fetch the redemption price
      */
     function redemptionPrice(bytes32 coinName) public returns (uint256) {
-        if (coinEnabled[coinName] == 0) return 0;
+        if (coinEnabled[coinName] == 0) return _redemptionPrice[coinName];
         if (now > redemptionPriceUpdateTime[coinName]) return updateRedemptionPrice(coinName);
         return _redemptionPrice[coinName];
     }

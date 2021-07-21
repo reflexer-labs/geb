@@ -443,7 +443,7 @@ contract MultiSAFEEngine {
     // --- SAFE Manipulation ---
     /**
      * @notice Add/remove collateral or put back/generate more debt in a SAFE
-     * @param coinName The name of the coin to mint
+     * @param coinName The name of the coin
      * @param collateralType Type of collateral to withdraw/deposit in and from the SAFE
      * @param safe Target SAFE
      * @param collateralSource Account we take collateral from/put collateral into

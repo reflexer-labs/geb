@@ -35,8 +35,7 @@ abstract contract SAFEEngineLike {
     function globalDebt(bytes32) virtual public returns (uint256);
     function transferInternalCoins(bytes32 coinName, address src, address dst, uint256 rad) virtual external;
     function approveSAFEModification(bytes32,address) virtual external;
-    function approveCollateralTransfer(bytes32,address) virtual external;
-    function transferCollateral(bytes32 collateralType, address src, address dst, uint256 wad) virtual external;
+    function transferCollateral(bytes32 coinName, bytes32 collateralType, address src, address dst, uint256 wad) virtual external;
     function confiscateSAFECollateralAndDebt(bytes32 coinName, bytes32 collateralType, address safe, address collateralSource, address debtDestination, int256 deltaCollateral, int256 deltaDebt) virtual external;
     function createUnbackedDebt(bytes32 coinName, address debtDestination, address coinDestination, uint256 rad) virtual external;
     function disableCoin(bytes32) virtual external;
@@ -307,7 +306,7 @@ contract MultiGlobalSettlement {
         coinInitialized[coinName]  = 1;
         coinEnabled[coinName]      = 1;
 
-        collateralHolder[coinName] = address(new SettlementCollateralHolder(address(safeEngine)));
+        collateralHolder[coinName] = address(new SettlementCollateralHolder(address(safeEngine), coinName));
 
         emit InitializeCoin(coinName);
         emit AddAuthorization(coinName, msg.sender);
@@ -510,6 +509,7 @@ contract MultiGlobalSettlement {
         require(collateralCashPrice[coinName][collateralType] != 0, "MultiGlobalSettlement/collateral-cash-price-not-defined");
         uint256 collateralAmount = rmultiply(coinsAmount, collateralCashPrice[coinName][collateralType]);
         safeEngine.transferCollateral(
+          coinName,
           collateralType,
           collateralHolder[coinName],
           msg.sender,
@@ -526,8 +526,8 @@ contract MultiGlobalSettlement {
 * @notice This thing keeps collateral for the GlobalSettlement contract
 */
 contract SettlementCollateralHolder {
-    constructor(address safeEngine) public {
+    constructor(address safeEngine, bytes32 coinName) public {
         require(safeEngine != address(0), "SettlementCollateralHolder/null-safe-engine");
-        SAFEEngineLike(safeEngine).approveCollateralTransfer(bytes32(0), msg.sender);
+        SAFEEngineLike(safeEngine).approveSAFEModification(coinName, msg.sender);
     }
 }
