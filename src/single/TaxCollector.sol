@@ -13,7 +13,7 @@
 
 pragma solidity 0.6.7;
 
-import "./LinkedList.sol";
+import "../shared/LinkedList.sol";
 
 abstract contract SAFEEngineLike {
     function collateralTypes(bytes32) virtual public view returns (

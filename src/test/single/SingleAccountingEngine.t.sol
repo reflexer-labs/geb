@@ -1,13 +1,13 @@
 pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
-import {DebtAuctionHouse as DAH} from './DebtAuctionHouse.t.sol';
-import {BurningSurplusAuctionHouse as SAH_ONE} from "./SurplusAuctionHouse.t.sol";
-import {PostSettlementSurplusAuctionHouse as SAH_TWO} from "./SurplusAuctionHouse.t.sol";
-import {TestSAFEEngine as SAFEEngine} from './SAFEEngine.t.sol';
-import {AccountingEngine} from '../AccountingEngine.sol';
-import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
-import {CoinJoin} from '../BasicTokenAdapters.sol';
+import {DebtAuctionHouse as DAH} from './SingleDebtAuctionHouse.t.sol';
+import {BurningSurplusAuctionHouse as SAH_ONE} from "./SingleSurplusAuctionHouse.t.sol";
+import {PostSettlementSurplusAuctionHouse as SAH_TWO} from "./SingleSurplusAuctionHouse.t.sol";
+import {TestSAFEEngine as SAFEEngine} from './SingleSAFEEngine.t.sol';
+import {AccountingEngine} from '../../single/AccountingEngine.sol';
+import {SettlementSurplusAuctioneer} from "../../single/SettlementSurplusAuctioneer.sol";
+import {CoinJoin} from '../../shared/BasicTokenAdapters.sol';
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
@@ -45,7 +45,7 @@ contract ProtocolTokenAuthority {
     }
 }
 
-contract AccountingEngineTest is DSTest {
+contract SingleAccountingEngineTest is DSTest {
     Hevm hevm;
 
     SAFEEngine  safeEngine;

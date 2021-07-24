@@ -82,7 +82,7 @@ contract DebtAuctionHouse {
     // Protocol token address
     TokenLike public protocolToken;
     // Accounting engine
-    address public accountingEngine;
+    address  public accountingEngine;
 
     uint256  constant ONE = 1.00E18;                                              // [wad]
     // Minimum bid increase compared to the last bid in order to take the new one in consideration

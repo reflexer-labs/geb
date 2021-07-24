@@ -1,4 +1,4 @@
-// GlobalSettlement.t.sol
+// SingleGlobalSettlement.t.sol
 
 // Copyright (C) 2017  DappHub, LLC
 // Copyright (C) 2018 Rain <rainbreak@riseup.net>
@@ -22,18 +22,18 @@ pragma solidity 0.6.7;
 import "ds-test/test.sol";
 import "ds-token/delegate.sol";
 
-import {SAFEEngine} from '../SAFEEngine.sol';
-import {LiquidationEngine} from '../LiquidationEngine.sol';
-import {AccountingEngine} from '../AccountingEngine.sol';
-import {CoinSavingsAccount} from '../CoinSavingsAccount.sol';
-import {StabilityFeeTreasury}  from '../StabilityFeeTreasury.sol';
-import {EnglishCollateralAuctionHouse, FixedDiscountCollateralAuctionHouse} from '../CollateralAuctionHouse.sol';
-import {BurningSurplusAuctionHouse} from '../SurplusAuctionHouse.sol';
-import {DebtAuctionHouse} from '../DebtAuctionHouse.sol';
-import {SettlementSurplusAuctioneer} from "../SettlementSurplusAuctioneer.sol";
-import {BasicCollateralJoin, CoinJoin} from '../BasicTokenAdapters.sol';
-import {GlobalSettlement}  from '../GlobalSettlement.sol';
-import {OracleRelayer} from '../OracleRelayer.sol';
+import {SAFEEngine} from '../../single/SAFEEngine.sol';
+import {LiquidationEngine} from '../../single/LiquidationEngine.sol';
+import {AccountingEngine} from '../../single/AccountingEngine.sol';
+import {CoinSavingsAccount} from '../../single/CoinSavingsAccount.sol';
+import {StabilityFeeTreasury} from '../../single/StabilityFeeTreasury.sol';
+import {EnglishCollateralAuctionHouse, FixedDiscountCollateralAuctionHouse} from '../../single/CollateralAuctionHouse.sol';
+import {BurningSurplusAuctionHouse} from '../../single/SurplusAuctionHouse.sol';
+import {DebtAuctionHouse} from '../../single/DebtAuctionHouse.sol';
+import {SettlementSurplusAuctioneer} from "../../single/SettlementSurplusAuctioneer.sol";
+import {BasicCollateralJoin, CoinJoin} from '../../shared/BasicTokenAdapters.sol';
+import {GlobalSettlement}  from '../../single/GlobalSettlement.sol';
+import {OracleRelayer} from '../../single/OracleRelayer.sol';
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
@@ -120,7 +120,7 @@ contract Feed {
     }
 }
 
-contract GlobalSettlementTest is DSTest {
+contract SingleGlobalSettlementTest is DSTest {
     Hevm hevm;
 
     SAFEEngine safeEngine;

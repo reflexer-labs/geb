@@ -3,8 +3,8 @@ pragma experimental ABIEncoderV2;
 
 import "ds-test/test.sol";
 
-import {TaxCollector} from "../TaxCollector.sol";
-import {SAFEEngine} from "../SAFEEngine.sol";
+import {TaxCollector} from "../../single/TaxCollector.sol";
+import {SAFEEngine} from "../../single/SAFEEngine.sol";
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
@@ -21,7 +21,7 @@ abstract contract SAFEEngineLike {
     );
 }
 
-contract TaxCollectorTest is DSTest {
+contract SingleTaxCollectorTest is DSTest {
     Hevm hevm;
     TaxCollector taxCollector;
     SAFEEngine safeEngine;
@@ -711,5 +711,23 @@ contract TaxCollectorTest is DSTest {
         (bool ok, int rad) = taxCollector.taxManyOutcome(0, 1);
         assertTrue(ok);
         assertEq(rad, 0);
+    }
+    function test_negative_tax_accumulated_goes_negative() public {
+        safeEngine.initializeCollateralType("j");
+        taxCollector.initializeCollateralType("j");
+        taxCollector.modifyParameters("primaryTaxReceiver", ali);
+
+        draw("j", 100 ether);
+        safeEngine.transferInternalCoins(address(this), ali, safeEngine.coinBalance(address(this)));
+        assertEq(wad(safeEngine.coinBalance(ali)), 200 ether);
+
+        taxCollector.modifyParameters("j", "stabilityFee", 999999706969857929985428567);  // -2.5% / day
+
+        hevm.warp(now + 3 days);
+        taxCollector.taxSingle("j");
+        assertEq(wad(safeEngine.coinBalance(ali)), 192.6859375 ether);
+
+        (, uint accumulatedRate, , , ,) = safeEngine.collateralTypes("j");
+        assertEq(accumulatedRate, 926859375000000000000022885);
     }
 }

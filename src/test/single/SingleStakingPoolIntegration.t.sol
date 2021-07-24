@@ -2,9 +2,10 @@ pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
 import {DSDelegateToken} from "ds-token/delegate.sol";
-import {TestSAFEEngine as SAFEEngine} from './SAFEEngine.t.sol';
-import {DebtAuctionHouse as DAH} from './DebtAuctionHouse.t.sol';
-import {AccountingEngine} from '../AccountingEngine.sol';
+
+import {TestSAFEEngine as SAFEEngine} from './SingleSAFEEngine.t.sol';
+import {DebtAuctionHouse as DAH} from './SingleDebtAuctionHouse.t.sol';
+import {AccountingEngine} from '../../single/AccountingEngine.sol';
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
@@ -78,7 +79,7 @@ contract ProtocolTokenAuthority {
     }
 }
 
-contract StakingPoolIntegrationTest is DSTest {
+contract SingleStakingPoolIntegrationTest is DSTest {
     Hevm hevm;
 
     SAFEEngine safeEngine;

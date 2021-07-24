@@ -4,16 +4,16 @@ pragma experimental ABIEncoderV2;
 import "ds-test/test.sol";
 import "ds-token/delegate.sol";
 
-import {SAFEEngine} from '../SAFEEngine.sol';
-import {LiquidationEngine} from '../LiquidationEngine.sol';
-import {AccountingEngine} from '../AccountingEngine.sol';
-import {TaxCollector} from '../TaxCollector.sol';
-import '../BasicTokenAdapters.sol';
-import {OracleRelayer} from '../OracleRelayer.sol';
+import {SAFEEngine} from '../../single/SAFEEngine.sol';
+import {LiquidationEngine} from '../../single/LiquidationEngine.sol';
+import {AccountingEngine} from '../../single/AccountingEngine.sol';
+import {TaxCollector} from '../../single/TaxCollector.sol';
+import '../../shared/BasicTokenAdapters.sol';
+import {OracleRelayer} from '../../single/OracleRelayer.sol';
 
-import {EnglishCollateralAuctionHouse} from './CollateralAuctionHouse.t.sol';
-import {DebtAuctionHouse} from './DebtAuctionHouse.t.sol';
-import {PostSettlementSurplusAuctionHouse} from './SurplusAuctionHouse.t.sol';
+import {EnglishCollateralAuctionHouse} from './SingleCollateralAuctionHouse.t.sol';
+import {DebtAuctionHouse} from './SingleDebtAuctionHouse.t.sol';
+import {PostSettlementSurplusAuctionHouse} from './SingleSurplusAuctionHouse.t.sol';
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
@@ -128,7 +128,7 @@ contract GenuineSaviour {
     }
 }
 
-contract SaveSAFETest is DSTest {
+contract SingleSaveSAFETest is DSTest {
     Hevm hevm;
 
     TestSAFEEngine safeEngine;

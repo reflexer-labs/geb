@@ -20,10 +20,10 @@ pragma solidity 0.6.7;
 
 import "ds-test/test.sol";
 
-import {Coin} from '../Coin.sol';
-import {SAFEEngine} from '../SAFEEngine.sol';
-import {StabilityFeeTreasury} from '../StabilityFeeTreasury.sol';
-import {CoinJoin} from '../BasicTokenAdapters.sol';
+import {Coin} from '../../shared/Coin.sol';
+import {SAFEEngine} from '../../single/SAFEEngine.sol';
+import {StabilityFeeTreasury} from '../../single/StabilityFeeTreasury.sol';
+import {CoinJoin} from '../../shared/BasicTokenAdapters.sol';
 
 abstract contract Hevm {
     function warp(uint256) virtual public;
@@ -47,7 +47,7 @@ contract Usr {
     }
 }
 
-contract StabilityFeeTreasuryTest is DSTest {
+contract SingleStabilityFeeTreasuryTest is DSTest {
     Hevm hevm;
 
     SAFEEngine safeEngine;
@@ -104,7 +104,7 @@ contract StabilityFeeTreasuryTest is DSTest {
         assertEq(safeEngine.coinBalance(address(alice)), 0);
         assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(200 ether));
     }
-    function test_modify_accounting_engine() public {
+    function test_modify_extra_surplus_receiver() public {
         stabilityFeeTreasury.modifyParameters("extraSurplusReceiver", bob);
         assertEq(stabilityFeeTreasury.extraSurplusReceiver(), bob);
     }

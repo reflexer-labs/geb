@@ -20,11 +20,11 @@ pragma solidity 0.6.7;
 import "ds-test/test.sol";
 import "ds-token/delegate.sol";
 
-import {Coin} from "../Coin.sol";
-import {SAFEEngine} from '../SAFEEngine.sol';
-import {AccountingEngine} from '../AccountingEngine.sol';
-import {BasicCollateralJoin} from '../BasicTokenAdapters.sol';
-import {OracleRelayer} from '../OracleRelayer.sol';
+import {Coin} from "../../shared/Coin.sol";
+import {SAFEEngine} from '../../single/SAFEEngine.sol';
+import {AccountingEngine} from '../../single/AccountingEngine.sol';
+import {BasicCollateralJoin} from '../../shared/BasicTokenAdapters.sol';
+import {OracleRelayer} from '../../single/OracleRelayer.sol';
 
 contract Feed {
     bytes32 public priceFeedValue;
