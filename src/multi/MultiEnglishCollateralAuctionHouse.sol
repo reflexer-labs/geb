@@ -29,7 +29,7 @@ abstract contract OracleLike {
     function getResultWithValidity() virtual public view returns (uint256, bool);
 }
 abstract contract LiquidationEngineLike {
-    function removeCoinsFromAuction(bytes32,uint256) virtual public;
+    function removeCoinsFromAuction(bytes32,bytes32,uint256) virtual public;
 }
 
 /*
@@ -302,7 +302,7 @@ contract MultiEnglishCollateralAuctionHouse {
     function settleAuction(uint256 id) external {
         require(bids[id].bidExpiry != 0 && (bids[id].bidExpiry < now || bids[id].auctionDeadline < now), "MultiEnglishCollateralAuctionHouse/not-finished");
         safeEngine.transferCollateral(coinName, collateralType, address(this), bids[id].highBidder, bids[id].amountToSell);
-        liquidationEngine.removeCoinsFromAuction(coinName, bids[id].amountToRaise);
+        liquidationEngine.removeCoinsFromAuction(coinName, collateralType, bids[id].amountToRaise);
         delete bids[id];
         emit SettleAuction(id);
     }
@@ -314,7 +314,7 @@ contract MultiEnglishCollateralAuctionHouse {
     function terminateAuctionPrematurely(uint256 id) external isAuthorized {
         require(bids[id].highBidder != address(0), "MultiEnglishCollateralAuctionHouse/high-bidder-not-set");
         require(bids[id].bidAmount < bids[id].amountToRaise, "MultiEnglishCollateralAuctionHouse/already-decreasing-sold-amount");
-        liquidationEngine.removeCoinsFromAuction(coinName, bids[id].amountToRaise);
+        liquidationEngine.removeCoinsFromAuction(coinName, collateralType, bids[id].amountToRaise);
         safeEngine.transferCollateral(coinName, collateralType, address(this), msg.sender, bids[id].amountToSell);
         safeEngine.transferInternalCoins(coinName, msg.sender, bids[id].highBidder, bids[id].bidAmount);
         emit TerminateAuctionPrematurely(id, msg.sender, bids[id].bidAmount, bids[id].amountToSell);

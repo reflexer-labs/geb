@@ -423,7 +423,7 @@ contract MultiGlobalSettlementTest is DSTest {
         // SAFE closing
         ali.freeCollateral(firstCoinName, "gold");
         assertEq(lockedCollateral(firstCoinName, "gold", safe1), 0);
-        assertEq(tokenCollateral(firstCoinName, "gold", safe1), 2.5 ether);
+        assertEq(tokenCollateral("gold", safe1), 2.5 ether);
         ali.exit(gold.collateralA, address(this), 2.5 ether);
 
         hevm.warp(now + 1 hours);
@@ -432,7 +432,7 @@ contract MultiGlobalSettlementTest is DSTest {
         assertTrue(globalSettlement.collateralCashPrice(firstCoinName, "gold") != 0);
 
         // first coin redemption
-        ali.approveSAFEModification(address(globalSettlement));
+        ali.approveSAFEModification(firstCoinName, address(globalSettlement));
         ali.prepareCoinsForRedeeming(firstCoinName, 15 ether);
         accountingEngine.settleDebt(firstCoinName, rad(15 ether));
 
@@ -445,11 +445,11 @@ contract MultiGlobalSettlementTest is DSTest {
         // local checks:
         assertEq(coinBalance(firstCoinName, safe1), 0);
         uint fix = globalSettlement.collateralCashPrice(firstCoinName, "gold");
-        assertEq(tokenCollateral(firstCoinName, "gold", safe1), rmultiply(fix, 15 ether));
+        assertEq(tokenCollateral("gold", safe1), rmultiply(fix, 15 ether));
         ali.exit(gold.collateralA, address(this), uint(rmultiply(fix, 15 ether)));
 
         // second coin redemption
-        bob.approveSAFEModification(address(globalSettlement));
+        bob.approveSAFEModification(firstCoinName, address(globalSettlement));
         bob.prepareCoinsForRedeeming(firstCoinName, 3 ether);
         accountingEngine.settleDebt(firstCoinName, rad(3 ether));
 
@@ -461,11 +461,11 @@ contract MultiGlobalSettlementTest is DSTest {
 
         // local checks:
         assertEq(coinBalance(firstCoinName, safe2), 0);
-        assertEq(tokenCollateral(firstCoinName, "gold", safe2), rmultiply(fix, 3 ether));
+        assertEq(tokenCollateral("gold", safe2), rmultiply(fix, 3 ether));
         bob.exit(gold.collateralA, address(this), uint(rmultiply(fix, 3 ether)));
 
         // some dust remains in MultiGlobalSettlement because of rounding:
-        assertEq(tokenCollateral(firstCoinName, "gold", address(globalSettlement)), 1);
+        assertEq(tokenCollateral("gold", address(globalSettlement.collateralHolder(firstCoinName))), 1);
         assertEq(balanceOf(firstCoinName, "gold", address(gold.collateralA)), 1);
     }
 
@@ -473,6 +473,7 @@ contract MultiGlobalSettlementTest is DSTest {
     // -- undergoing auction at the time of shutdown
     function test_shutdown_fast_track_english_auction() public {
         CollateralType memory gold = init_collateral(firstCoinName, "gold", "gold");
+        gold.englishCollateralAuctionHouse.addAuthorization(address(globalSettlement));
 
         Usr ali = new Usr(safeEngine, globalSettlement);
 
@@ -485,7 +486,7 @@ contract MultiGlobalSettlementTest is DSTest {
         safeEngine.modifyParameters(firstCoinName, "gold", "liquidationPrice", ray(1 ether)); // now unsafe
 
         uint auction = liquidationEngine.liquidateSAFE(firstCoinName, "gold", safe1); // SAFE liquidated
-        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(15 ether));     // now there is bad debt
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(15 ether));        // now there is bad debt
         // get 1 coin from ali
         ali.transferInternalCoins(firstCoinName, address(ali), address(this), rad(1 ether));
         safeEngine.approveSAFEModification(firstCoinName, address(gold.englishCollateralAuctionHouse));
@@ -545,150 +546,158 @@ contract MultiGlobalSettlementTest is DSTest {
         assertEq(balanceOf(firstCoinName, "gold", address(gold.collateralA)), 0);
     }
 
-    /* function test_shutdown_fast_track_fixed_discount_auction() public {
-        CollateralType memory gold = init_collateral("gold", "gold");
+    function test_shutdown_fast_track_fixed_discount_auction() public {
+        CollateralType memory gold = init_collateral(firstCoinName, "gold", "gold");
+        gold.increasingDiscountCollateralAuctionHouse.addAuthorization(address(globalSettlement));
+
         // swap auction house in the liquidation engine
-        liquidationEngine.modifyParameters("gold", "collateralAuctionHouse", address(gold.increasingDiscountCollateralAuctionHouse));
+        liquidationEngine.modifyParameters(firstCoinName, "gold", "collateralAuctionHouse", address(gold.increasingDiscountCollateralAuctionHouse));
 
         Usr ali = new Usr(safeEngine, globalSettlement);
 
         // make a SAFE:
         address safe1 = address(ali);
         gold.collateralA.join(safe1, 10 ether);
-        ali.modifySAFECollateralization("gold", safe1, safe1, safe1, 10 ether, 15 ether);
+        ali.modifySAFECollateralization(firstCoinName, "gold", safe1, safe1, safe1, 10 ether, 15 ether);
 
-        safeEngine.modifyParameters("gold", "safetyPrice", ray(1 ether));
-        safeEngine.modifyParameters("gold", "liquidationPrice", ray(1 ether)); // now unsafe
+        safeEngine.modifyParameters(firstCoinName, "gold", "safetyPrice", ray(1 ether));
+        safeEngine.modifyParameters(firstCoinName, "gold", "liquidationPrice", ray(1 ether)); // now unsafe
 
-        uint auction = liquidationEngine.liquidateSAFE("gold", safe1); // SAFE liquidated
-        assertEq(safeEngine.globalUnbackedDebt(), rad(15 ether));      // now there is bad debt
+        uint auction = liquidationEngine.liquidateSAFE(firstCoinName, "gold", safe1); // SAFE liquidated
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(15 ether));      // now there is bad debt
         // get 5 coins from ali
-        ali.transferInternalCoins(address(ali), address(this), rad(5 ether));
-        safeEngine.approveSAFEModification(address(gold.increasingDiscountCollateralAuctionHouse));
+        ali.transferInternalCoins(firstCoinName, address(ali), address(this), rad(5 ether));
+        safeEngine.approveSAFEModification(firstCoinName, address(gold.increasingDiscountCollateralAuctionHouse));
         gold.increasingDiscountCollateralAuctionHouse.buyCollateral(auction, 5 ether);
 
-        assertEq(coinBalance(safe1), 10 ether);
+        assertEq(coinBalance(firstCoinName, safe1), 10 ether);
 
         // collateral price is 5
         gold.oracleSecurityModule.updateCollateralPrice(bytes32(5 * WAD));
-        globalSettlement.shutdownSystem();
-        globalSettlement.freezeCollateralType("gold");
+        globalSettlement.shutdownCoin(firstCoinName);
+        globalSettlement.freezeCollateralType(firstCoinName, "gold");
 
-        globalSettlement.fastTrackAuction("gold", auction);
-        assertEq(coinBalance(address(this)), 0);       // bid refunded
+        globalSettlement.fastTrackAuction(firstCoinName, "gold", auction);
+        assertEq(coinBalance(firstCoinName, address(this)), 0);       // bid refunded
 
-        globalSettlement.processSAFE("gold", safe1);
+        globalSettlement.processSAFE(firstCoinName, "gold", safe1);
 
         // local checks:
-        assertEq(generatedDebt("gold", safe1), 0);
-        assertEq(lockedCollateral("gold", safe1), 7973684210526315790);
-        assertEq(safeEngine.debtBalance(address(accountingEngine)), rad(20 ether));
+        assertEq(generatedDebt(firstCoinName, "gold", safe1), 0);
+        assertEq(lockedCollateral(firstCoinName, "gold", safe1), 7973684210526315790);
+        assertEq(safeEngine.debtBalance(firstCoinName, address(accountingEngine)), rad(20 ether));
 
         // balance the accountingEngine
-        accountingEngine.settleDebt(minimum(safeEngine.coinBalance(address(accountingEngine)), safeEngine.debtBalance(address(accountingEngine))));
+        accountingEngine.settleDebt(
+          firstCoinName,
+          minimum(
+            safeEngine.coinBalance(firstCoinName, address(accountingEngine)),
+            safeEngine.debtBalance(firstCoinName, address(accountingEngine))
+          )
+        );
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(10 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(10 ether));
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(10 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(10 ether));
 
         // SAFE closing
-        ali.freeCollateral("gold");
-        assertEq(lockedCollateral("gold", safe1), 0);
+        ali.freeCollateral(firstCoinName, "gold");
+        assertEq(lockedCollateral(firstCoinName, "gold", safe1), 0);
         assertEq(tokenCollateral("gold", safe1), 7973684210526315790);
         ali.exit(gold.collateralA, address(this), 7973684210526315790);
 
         hevm.warp(now + 1 hours);
-        globalSettlement.setOutstandingCoinSupply();
-        globalSettlement.calculateCashPrice("gold");
-        assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
+        globalSettlement.setOutstandingCoinSupply(firstCoinName);
+        globalSettlement.calculateCashPrice(firstCoinName, "gold");
+        assertTrue(globalSettlement.collateralCashPrice(firstCoinName, "gold") != 0);
 
         // coin redemption
-        ali.approveSAFEModification(address(globalSettlement));
-        ali.prepareCoinsForRedeeming(10 ether);
-        accountingEngine.settleDebt(rad(10 ether));
+        ali.approveSAFEModification(firstCoinName, address(globalSettlement));
+        ali.prepareCoinsForRedeeming(firstCoinName, 10 ether);
+        accountingEngine.settleDebt(firstCoinName, rad(10 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), 0);
-        assertEq(safeEngine.globalUnbackedDebt(), 0);
+        assertEq(safeEngine.globalDebt(firstCoinName), 0);
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), 0);
 
-        ali.redeemCollateral("gold", 10 ether);
+        ali.redeemCollateral(firstCoinName, "gold", 10 ether);
 
         // local checks:
-        assertEq(coinBalance(safe1), 0);
+        assertEq(coinBalance(firstCoinName, safe1), 0);
         assertEq(tokenCollateral("gold", safe1), 2000000000000000000);
         ali.exit(gold.collateralA, address(this), 2000000000000000000);
         gold.collateralA.exit(address(this), 26315789473684210);
 
         assertEq(tokenCollateral("gold", address(globalSettlement)), 0);
-        assertEq(balanceOf("gold", address(gold.collateralA)), 0);
+        assertEq(balanceOf(firstCoinName, "gold", address(gold.collateralA)), 0);
     }
 
     // -- Scenario where there is one over-collateralised SAFE
     // -- and there is a deficit in the MultiAccountingEngine
     function test_shutdown_collateralised_deficit() public {
-        CollateralType memory gold = init_collateral("gold", "gold");
+        CollateralType memory gold = init_collateral(firstCoinName, "gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
 
         // make a SAFE:
         address safe1 = address(ali);
         gold.collateralA.join(safe1, 10 ether);
-        ali.modifySAFECollateralization("gold", safe1, safe1, safe1, 10 ether, 15 ether);
+        ali.modifySAFECollateralization(firstCoinName, "gold", safe1, safe1, safe1, 10 ether, 15 ether);
 
         // create 1 unbacked coin and give to ali
-        safeEngine.createUnbackedDebt(address(accountingEngine), address(ali), rad(1 ether));
+        safeEngine.createUnbackedDebt(firstCoinName, address(accountingEngine), address(ali), rad(1 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(16 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(1 ether));
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(16 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(1 ether));
 
         // collateral price is 5
         gold.oracleSecurityModule.updateCollateralPrice(bytes32(5 * WAD));
-        globalSettlement.shutdownSystem();
-        globalSettlement.freezeCollateralType("gold");
-        globalSettlement.processSAFE("gold", safe1);
+        globalSettlement.shutdownCoin(firstCoinName);
+        globalSettlement.freezeCollateralType(firstCoinName, "gold");
+        globalSettlement.processSAFE(firstCoinName, "gold", safe1);
 
         // local checks:
-        assertEq(generatedDebt("gold", safe1), 0);
-        assertEq(lockedCollateral("gold", safe1), 7 ether);
-        assertEq(safeEngine.debtBalance(address(accountingEngine)), rad(16 ether));
+        assertEq(generatedDebt(firstCoinName, "gold", safe1), 0);
+        assertEq(lockedCollateral(firstCoinName, "gold", safe1), 7 ether);
+        assertEq(safeEngine.debtBalance(firstCoinName, address(accountingEngine)), rad(16 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(16 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(16 ether));
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(16 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(16 ether));
 
         // SAFE closing
-        ali.freeCollateral("gold");
-        assertEq(lockedCollateral("gold", safe1), 0);
+        ali.freeCollateral(firstCoinName, "gold");
+        assertEq(lockedCollateral(firstCoinName, "gold", safe1), 0);
         assertEq(tokenCollateral("gold", safe1), 7 ether);
         ali.exit(gold.collateralA, address(this), 7 ether);
 
         hevm.warp(now + 1 hours);
-        globalSettlement.setOutstandingCoinSupply();
-        globalSettlement.calculateCashPrice("gold");
-        assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
+        globalSettlement.setOutstandingCoinSupply(firstCoinName);
+        globalSettlement.calculateCashPrice(firstCoinName, "gold");
+        assertTrue(globalSettlement.collateralCashPrice(firstCoinName, "gold") != 0);
 
         // coin redemption
-        ali.approveSAFEModification(address(globalSettlement));
-        ali.prepareCoinsForRedeeming(16 ether);
-        accountingEngine.settleDebt(rad(16 ether));
+        ali.approveSAFEModification(firstCoinName, address(globalSettlement));
+        ali.prepareCoinsForRedeeming(firstCoinName, 16 ether);
+        accountingEngine.settleDebt(firstCoinName, rad(16 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), 0);
-        assertEq(safeEngine.globalUnbackedDebt(), 0);
+        assertEq(safeEngine.globalDebt(firstCoinName), 0);
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), 0);
 
-        ali.redeemCollateral("gold", 16 ether);
+        ali.redeemCollateral(firstCoinName, "gold", 16 ether);
 
         // local checks:
-        assertEq(coinBalance(safe1), 0);
+        assertEq(coinBalance(firstCoinName, safe1), 0);
         assertEq(tokenCollateral("gold", safe1), 3 ether);
         ali.exit(gold.collateralA, address(this), 3 ether);
 
         assertEq(tokenCollateral("gold", address(globalSettlement)), 0);
-        assertEq(balanceOf("gold", address(gold.collateralA)), 0);
+        assertEq(balanceOf(firstCoinName, "gold", address(gold.collateralA)), 0);
     }
 
     function test_shutdown_process_safe_has_bug() public {
-        CollateralType memory gold = init_collateral("gold", "gold");
+        CollateralType memory gold = init_collateral(firstCoinName, "gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
         Usr bob = new Usr(safeEngine, globalSettlement);
@@ -697,49 +706,49 @@ contract MultiGlobalSettlementTest is DSTest {
         // make a SAFE:
         address safe1 = address(ali);
         gold.collateralA.join(safe1, 10 ether);
-        ali.modifySAFECollateralization("gold", safe1, safe1, safe1, 10 ether, 15 ether);
+        ali.modifySAFECollateralization(firstCoinName, "gold", safe1, safe1, safe1, 10 ether, 15 ether);
 
         // transfer coins
-        ali.transferInternalCoins(address(ali), address(charlie), rad(2 ether));
+        ali.transferInternalCoins(firstCoinName, address(ali), address(charlie), rad(2 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(15 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), 0);
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(15 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), 0);
 
-        globalSettlement.shutdownSystem();
-        globalSettlement.freezeCollateralType("gold");
+        globalSettlement.shutdownCoin(firstCoinName);
+        globalSettlement.freezeCollateralType(firstCoinName, "gold");
 
         // local checks:
-        assertEq(globalSettlement.finalCoinPerCollateralPrice("gold"), ray(0.2 ether));
-        assertEq(generatedDebt("gold", safe1), 15 ether);
-        assertEq(lockedCollateral("gold", safe1), 10 ether);
-        assertEq(safeEngine.debtBalance(address(accountingEngine)), 0);
+        assertEq(globalSettlement.finalCoinPerCollateralPrice(firstCoinName, "gold"), ray(0.2 ether));
+        assertEq(generatedDebt(firstCoinName, "gold", safe1), 15 ether);
+        assertEq(lockedCollateral(firstCoinName, "gold", safe1), 10 ether);
+        assertEq(safeEngine.debtBalance(firstCoinName, address(accountingEngine)), 0);
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(15 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), 0);
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(15 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), 0);
 
         // transfer the remaining surplus with transferPostSettlementSurplus and continue the settlement process
         hevm.warp(now + 1 hours);
-        accountingEngine.transferPostSettlementSurplus();
-        assertEq(globalSettlement.outstandingCoinSupply(), 0);
-        globalSettlement.setOutstandingCoinSupply();
+        accountingEngine.transferPostSettlementSurplus(firstCoinName);
+        assertEq(globalSettlement.outstandingCoinSupply(firstCoinName), 0);
+        globalSettlement.setOutstandingCoinSupply(firstCoinName);
 
         // finish processing
-        globalSettlement.calculateCashPrice("gold");
-        assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
+        globalSettlement.calculateCashPrice(firstCoinName, "gold");
+        assertTrue(globalSettlement.collateralCashPrice(firstCoinName, "gold") != 0);
 
         // checks
         assertEq(safeEngine.tokenCollateral("gold", address(globalSettlement)), 0);
         assertEq(tokenCollateral("gold", address(ali)), 0);
         assertEq(tokenCollateral("gold", address(charlie)), 0);
 
-        charlie.approveSAFEModification(address(globalSettlement));
-        assertEq(safeEngine.coinBalance(address(charlie)), rad(2 ether));
+        charlie.approveSAFEModification(firstCoinName, address(globalSettlement));
+        assertEq(safeEngine.coinBalance(firstCoinName, address(charlie)), rad(2 ether));
     }
 
     function test_shutdown_overcollateralized_surplus_smaller_redemption() public {
-        CollateralType memory gold = init_collateral("gold", "gold");
+        CollateralType memory gold = init_collateral(firstCoinName, "gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
         Usr bob = new Usr(safeEngine, globalSettlement);
@@ -748,83 +757,83 @@ contract MultiGlobalSettlementTest is DSTest {
         // make a SAFE:
         address safe1 = address(ali);
         gold.collateralA.join(safe1, 10 ether);
-        ali.modifySAFECollateralization("gold", safe1, safe1, safe1, 10 ether, 15 ether);
+        ali.modifySAFECollateralization(firstCoinName, "gold", safe1, safe1, safe1, 10 ether, 15 ether);
 
         // create surplus and also transfer to charlie
-        ali.transferInternalCoins(address(ali), address(accountingEngine), rad(2 ether));
-        ali.transferInternalCoins(address(ali), address(charlie), rad(2 ether));
+        ali.transferInternalCoins(firstCoinName, address(ali), address(accountingEngine), rad(2 ether));
+        ali.transferInternalCoins(firstCoinName, address(ali), address(charlie), rad(2 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(15 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), 0);
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(15 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), 0);
 
         // collateral price is 5
         gold.oracleSecurityModule.updateCollateralPrice(bytes32(5 * WAD));
         // redemption price is 0.5
-        oracleRelayer.modifyParameters("redemptionPrice", ray(0.5 ether));
+        oracleRelayer.modifyParameters(firstCoinName, "redemptionPrice", ray(0.5 ether));
 
-        globalSettlement.shutdownSystem();
-        globalSettlement.freezeCollateralType("gold");
-        globalSettlement.processSAFE("gold", safe1);
+        globalSettlement.shutdownCoin(firstCoinName);
+        globalSettlement.freezeCollateralType(firstCoinName, "gold");
+        globalSettlement.processSAFE(firstCoinName, "gold", safe1);
 
         // local checks:
-        assertEq(globalSettlement.finalCoinPerCollateralPrice("gold"), ray(0.1 ether));
-        assertEq(generatedDebt("gold", safe1), 0);
-        assertEq(lockedCollateral("gold", safe1), 8.5 ether);
-        assertEq(safeEngine.debtBalance(address(accountingEngine)), rad(15 ether));
+        assertEq(globalSettlement.finalCoinPerCollateralPrice(firstCoinName, "gold"), ray(0.1 ether));
+        assertEq(generatedDebt(firstCoinName, "gold", safe1), 0);
+        assertEq(lockedCollateral(firstCoinName, "gold", safe1), 8.5 ether);
+        assertEq(safeEngine.debtBalance(firstCoinName, address(accountingEngine)), rad(15 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(15 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(15 ether));
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(15 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(15 ether));
 
         // SAFE closing
-        ali.freeCollateral("gold");
-        assertEq(lockedCollateral("gold", safe1), 0);
+        ali.freeCollateral(firstCoinName, "gold");
+        assertEq(lockedCollateral(firstCoinName, "gold", safe1), 0);
         assertEq(tokenCollateral("gold", safe1), 8.5 ether);
         ali.exit(gold.collateralA, address(this), 8.5 ether);
 
         hevm.warp(now + 1 hours);
-        accountingEngine.settleDebt(safeEngine.coinBalance(address(accountingEngine)));
-        assertEq(globalSettlement.outstandingCoinSupply(), 0);
-        globalSettlement.setOutstandingCoinSupply();
-        globalSettlement.calculateCashPrice("gold");
-        assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
-        assertEq(safeEngine.tokenCollateral("gold", address(globalSettlement)), 1.5 ether);
+        accountingEngine.settleDebt(firstCoinName, safeEngine.coinBalance(firstCoinName, address(accountingEngine)));
+        assertEq(globalSettlement.outstandingCoinSupply(firstCoinName), 0);
+        globalSettlement.setOutstandingCoinSupply(firstCoinName);
+        globalSettlement.calculateCashPrice(firstCoinName, "gold");
+        assertTrue(globalSettlement.collateralCashPrice(firstCoinName, "gold") != 0);
+        assertEq(safeEngine.tokenCollateral("gold", address(globalSettlement.collateralHolder(firstCoinName))), 1.5 ether);
 
         // coin redemption
         assertEq(tokenCollateral("gold", address(ali)), 0);
         assertEq(tokenCollateral("gold", address(charlie)), 0);
 
-        ali.approveSAFEModification(address(globalSettlement));
-        assertEq(safeEngine.coinBalance(address(ali)), rad(11 ether));
-        ali.prepareCoinsForRedeeming(11 ether);
+        ali.approveSAFEModification(firstCoinName, address(globalSettlement));
+        assertEq(safeEngine.coinBalance(firstCoinName, address(ali)), rad(11 ether));
+        ali.prepareCoinsForRedeeming(firstCoinName, 11 ether);
 
-        charlie.approveSAFEModification(address(globalSettlement));
-        assertEq(safeEngine.coinBalance(address(charlie)), rad(2 ether));
-        charlie.prepareCoinsForRedeeming(2 ether);
+        charlie.approveSAFEModification(firstCoinName, address(globalSettlement));
+        assertEq(safeEngine.coinBalance(firstCoinName, address(charlie)), rad(2 ether));
+        charlie.prepareCoinsForRedeeming(firstCoinName, 2 ether);
 
-        ali.redeemCollateral("gold", 11 ether);
-        charlie.redeemCollateral("gold", 2 ether);
+        ali.redeemCollateral(firstCoinName, "gold", 11 ether);
+        charlie.redeemCollateral(firstCoinName, "gold", 2 ether);
 
-        assertEq(safeEngine.globalDebt(), rad(13 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(13 ether));
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(13 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(13 ether));
 
         // local checks:
-        assertEq(coinBalance(safe1), 0);
+        assertEq(coinBalance(firstCoinName, safe1), 0);
         assertEq(tokenCollateral("gold", safe1), 1269230769230769230);
         ali.exit(gold.collateralA, address(this), tokenCollateral("gold", safe1));
 
         assertEq(tokenCollateral("gold", address(charlie)), 230769230769230769);
         charlie.exit(gold.collateralA, address(this), tokenCollateral("gold", address(charlie)));
 
-        assertEq(tokenCollateral("gold", address(globalSettlement)), 1);
-        assertEq(balanceOf("gold", address(gold.collateralA)), 1);
+        assertEq(tokenCollateral("gold", address(globalSettlement.collateralHolder(firstCoinName))), 1);
+        assertEq(balanceOf(firstCoinName, "gold", address(gold.collateralA)), 1);
 
-        assertEq(coinBalance(address(postSettlementSurplusDrain)), 0);
+        assertEq(coinBalance(firstCoinName, address(0)), 0);
     }
 
     function test_shutdown_overcollateralized_surplus_bigger_redemption() public {
-        CollateralType memory gold = init_collateral("gold", "gold");
+        CollateralType memory gold = init_collateral(firstCoinName, "gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
         Usr bob = new Usr(safeEngine, globalSettlement);
@@ -833,86 +842,86 @@ contract MultiGlobalSettlementTest is DSTest {
         // make a SAFE:
         address safe1 = address(ali);
         gold.collateralA.join(safe1, 10 ether);
-        ali.modifySAFECollateralization("gold", safe1, safe1, safe1, 10 ether, 15 ether);
+        ali.modifySAFECollateralization(firstCoinName, "gold", safe1, safe1, safe1, 10 ether, 15 ether);
 
         // create surplus and also transfer to charlie
-        ali.transferInternalCoins(address(ali), address(accountingEngine), rad(2 ether));
-        ali.transferInternalCoins(address(ali), address(charlie), rad(2 ether));
+        ali.transferInternalCoins(firstCoinName, address(ali), address(accountingEngine), rad(2 ether));
+        ali.transferInternalCoins(firstCoinName, address(ali), address(charlie), rad(2 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(15 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), 0);
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(15 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), 0);
 
         // collateral price is 5
         gold.oracleSecurityModule.updateCollateralPrice(bytes32(5 * WAD));
         // redemption price is 0.5
-        oracleRelayer.modifyParameters("redemptionPrice", ray(2 ether));
+        oracleRelayer.modifyParameters(firstCoinName, "redemptionPrice", ray(2 ether));
 
-        globalSettlement.shutdownSystem();
-        globalSettlement.freezeCollateralType("gold");
-        globalSettlement.processSAFE("gold", safe1);
+        globalSettlement.shutdownCoin(firstCoinName);
+        globalSettlement.freezeCollateralType(firstCoinName, "gold");
+        globalSettlement.processSAFE(firstCoinName, "gold", safe1);
 
         // local checks:
-        assertEq(globalSettlement.finalCoinPerCollateralPrice("gold"), ray(0.4 ether));
-        assertEq(generatedDebt("gold", safe1), 0);
-        assertEq(lockedCollateral("gold", safe1), 4 ether);
-        assertEq(safeEngine.debtBalance(address(accountingEngine)), rad(15 ether));
+        assertEq(globalSettlement.finalCoinPerCollateralPrice(firstCoinName, "gold"), ray(0.4 ether));
+        assertEq(generatedDebt(firstCoinName, "gold", safe1), 0);
+        assertEq(lockedCollateral(firstCoinName, "gold", safe1), 4 ether);
+        assertEq(safeEngine.debtBalance(firstCoinName, address(accountingEngine)), rad(15 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(15 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(15 ether));
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(15 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(15 ether));
 
         // SAFE closing
-        ali.freeCollateral("gold");
-        assertEq(lockedCollateral("gold", safe1), 0);
+        ali.freeCollateral(firstCoinName, "gold");
+        assertEq(lockedCollateral(firstCoinName, "gold", safe1), 0);
         assertEq(tokenCollateral("gold", safe1), 4 ether);
         ali.exit(gold.collateralA, address(this), 4 ether);
 
         hevm.warp(now + 1 hours);
-        accountingEngine.settleDebt(safeEngine.coinBalance(address(accountingEngine)));
-        assertEq(globalSettlement.outstandingCoinSupply(), 0);
-        globalSettlement.setOutstandingCoinSupply();
-        globalSettlement.calculateCashPrice("gold");
-        assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
-        assertEq(safeEngine.tokenCollateral("gold", address(globalSettlement)), 6 ether);
+        accountingEngine.settleDebt(firstCoinName, safeEngine.coinBalance(firstCoinName, address(accountingEngine)));
+        assertEq(globalSettlement.outstandingCoinSupply(firstCoinName), 0);
+        globalSettlement.setOutstandingCoinSupply(firstCoinName);
+        globalSettlement.calculateCashPrice(firstCoinName, "gold");
+        assertTrue(globalSettlement.collateralCashPrice(firstCoinName, "gold") != 0);
+        assertEq(safeEngine.tokenCollateral("gold", address(globalSettlement.collateralHolder(firstCoinName))), 6 ether);
 
         // coin redemption
         assertEq(tokenCollateral("gold", address(ali)), 0);
         assertEq(tokenCollateral("gold", address(charlie)), 0);
 
-        ali.approveSAFEModification(address(globalSettlement));
-        assertEq(safeEngine.coinBalance(address(ali)), rad(11 ether));
-        ali.prepareCoinsForRedeeming(11 ether);
+        ali.approveSAFEModification(firstCoinName, address(globalSettlement));
+        assertEq(safeEngine.coinBalance(firstCoinName, address(ali)), rad(11 ether));
+        ali.prepareCoinsForRedeeming(firstCoinName, 11 ether);
 
-        charlie.approveSAFEModification(address(globalSettlement));
-        assertEq(safeEngine.coinBalance(address(charlie)), rad(2 ether));
-        charlie.prepareCoinsForRedeeming(2 ether);
+        charlie.approveSAFEModification(firstCoinName, address(globalSettlement));
+        assertEq(safeEngine.coinBalance(firstCoinName, address(charlie)), rad(2 ether));
+        charlie.prepareCoinsForRedeeming(firstCoinName, 2 ether);
 
-        ali.redeemCollateral("gold", 11 ether);
-        charlie.redeemCollateral("gold", 2 ether);
+        ali.redeemCollateral(firstCoinName, "gold", 11 ether);
+        charlie.redeemCollateral(firstCoinName, "gold", 2 ether);
 
-        assertEq(safeEngine.globalDebt(), rad(13 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(13 ether));
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(13 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(13 ether));
 
         // local checks:
-        assertEq(coinBalance(safe1), 0);
+        assertEq(coinBalance(firstCoinName, safe1), 0);
         assertEq(tokenCollateral("gold", safe1), 5076923076923076923);
         ali.exit(gold.collateralA, address(this), tokenCollateral("gold", safe1));
 
         assertEq(tokenCollateral("gold", address(charlie)), 923076923076923076);
         charlie.exit(gold.collateralA, address(this), tokenCollateral("gold", address(charlie)));
 
-        assertEq(tokenCollateral("gold", address(globalSettlement)), 1);
-        assertEq(balanceOf("gold", address(gold.collateralA)), 1);
+        assertEq(tokenCollateral("gold", address(globalSettlement.collateralHolder(firstCoinName))), 1);
+        assertEq(balanceOf(firstCoinName, "gold", address(gold.collateralA)), 1);
 
-        assertEq(coinBalance(address(postSettlementSurplusDrain)), 0);
+        assertEq(coinBalance(firstCoinName, address(0)), 0);
     }
 
     // -- Scenario where there is one over-collateralised SAFE
     // -- and one under-collateralised SAFE and there is a
     // -- surplus in the MultiAccountingEngine
     function test_shutdown_over_and_under_collateralised_surplus() public {
-        CollateralType memory gold = init_collateral("gold", "gold");
+        CollateralType memory gold = init_collateral(firstCoinName, "gold", "gold");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
         Usr bob = new Usr(safeEngine, globalSettlement);
@@ -920,98 +929,98 @@ contract MultiGlobalSettlementTest is DSTest {
         // make a SAFE:
         address safe1 = address(ali);
         gold.collateralA.join(safe1, 10 ether);
-        ali.modifySAFECollateralization("gold", safe1, safe1, safe1, 10 ether, 15 ether);
+        ali.modifySAFECollateralization(firstCoinName, "gold", safe1, safe1, safe1, 10 ether, 15 ether);
 
         // alice gives one coin to the accountingEngine, creating surplus
-        ali.transferInternalCoins(address(ali), address(accountingEngine), rad(1 ether));
-        assertEq(safeEngine.coinBalance(address(accountingEngine)), rad(1 ether));
+        ali.transferInternalCoins(firstCoinName, address(ali), address(accountingEngine), rad(1 ether));
+        assertEq(safeEngine.coinBalance(firstCoinName, address(accountingEngine)), rad(1 ether));
 
         // make a second SAFE:
         address safe2 = address(bob);
         gold.collateralA.join(safe2, 1 ether);
-        bob.modifySAFECollateralization("gold", safe2, safe2, safe2, 1 ether, 3 ether);
+        bob.modifySAFECollateralization(firstCoinName, "gold", safe2, safe2, safe2, 1 ether, 3 ether);
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(18 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), 0);
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(18 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), 0);
 
         // collateral price is 2
         gold.oracleSecurityModule.updateCollateralPrice(bytes32(2 * WAD));
-        globalSettlement.shutdownSystem();
-        globalSettlement.freezeCollateralType("gold");
-        globalSettlement.processSAFE("gold", safe1);  // over-collateralised
-        globalSettlement.processSAFE("gold", safe2);  // under-collateralised
+        globalSettlement.shutdownCoin(firstCoinName);
+        globalSettlement.freezeCollateralType(firstCoinName, "gold");
+        globalSettlement.processSAFE(firstCoinName, "gold", safe1);  // over-collateralised
+        globalSettlement.processSAFE(firstCoinName, "gold", safe2);  // under-collateralised
 
         // local checks
-        assertEq(generatedDebt("gold", safe1), 0);
-        assertEq(lockedCollateral("gold", safe1), 2.5 ether);
-        assertEq(generatedDebt("gold", safe2), 0);
-        assertEq(lockedCollateral("gold", safe2), 0);
-        assertEq(safeEngine.debtBalance(address(accountingEngine)), rad(18 ether));
+        assertEq(generatedDebt(firstCoinName, "gold", safe1), 0);
+        assertEq(lockedCollateral(firstCoinName, "gold", safe1), 2.5 ether);
+        assertEq(generatedDebt(firstCoinName, "gold", safe2), 0);
+        assertEq(lockedCollateral(firstCoinName, "gold", safe2), 0);
+        assertEq(safeEngine.debtBalance(firstCoinName, address(accountingEngine)), rad(18 ether));
 
         // global checks
-        assertEq(safeEngine.globalDebt(), rad(18 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(18 ether));
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(18 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(18 ether));
 
         // SAFE closing
-        ali.freeCollateral("gold");
-        assertEq(lockedCollateral("gold", safe1), 0);
+        ali.freeCollateral(firstCoinName, "gold");
+        assertEq(lockedCollateral(firstCoinName, "gold", safe1), 0);
         assertEq(tokenCollateral("gold", safe1), 2.5 ether);
         ali.exit(gold.collateralA, address(this), 2.5 ether);
 
         hevm.warp(now + 1 hours);
         // balance the accountingEngine using transferPostSettlementSurplus
-        accountingEngine.transferPostSettlementSurplus();
-        globalSettlement.setOutstandingCoinSupply();
-        globalSettlement.calculateCashPrice("gold");
-        assertTrue(globalSettlement.collateralCashPrice("gold") != 0);
+        accountingEngine.transferPostSettlementSurplus(firstCoinName);
+        globalSettlement.setOutstandingCoinSupply(firstCoinName);
+        globalSettlement.calculateCashPrice(firstCoinName, "gold");
+        assertTrue(globalSettlement.collateralCashPrice(firstCoinName, "gold") != 0);
 
         // first coin redemption
-        ali.approveSAFEModification(address(globalSettlement));
-        ali.prepareCoinsForRedeeming(coinBalance(address(ali)));
-        accountingEngine.settleDebt(rad(14 ether));
+        ali.approveSAFEModification(firstCoinName, address(globalSettlement));
+        ali.prepareCoinsForRedeeming(firstCoinName, coinBalance(firstCoinName, address(ali)));
+        accountingEngine.settleDebt(firstCoinName, rad(14 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), rad(3 ether));
-        assertEq(safeEngine.globalUnbackedDebt(), rad(3 ether));
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(3 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(3 ether));
 
-        ali.redeemCollateral("gold", 14 ether);
+        ali.redeemCollateral(firstCoinName, "gold", 14 ether);
 
         // local checks:
-        assertEq(coinBalance(safe1), 0);
-        uint256 fix = globalSettlement.collateralCashPrice("gold");
+        assertEq(coinBalance(firstCoinName, safe1), 0);
+        uint256 fix = globalSettlement.collateralCashPrice(firstCoinName, "gold");
         assertEq(tokenCollateral("gold", safe1), uint(rmultiply(fix, 14 ether)));
         ali.exit(gold.collateralA, address(this), uint(rmultiply(fix, 14 ether)));
 
         // second coin redemption
-        bob.approveSAFEModification(address(globalSettlement));
-        bob.prepareCoinsForRedeeming(3 ether);
-        accountingEngine.settleDebt(rad(3 ether));
+        bob.approveSAFEModification(firstCoinName, address(globalSettlement));
+        bob.prepareCoinsForRedeeming(firstCoinName, 3 ether);
+        accountingEngine.settleDebt(firstCoinName, rad(3 ether));
 
         // global checks:
-        assertEq(safeEngine.globalDebt(), 0);
-        assertEq(safeEngine.globalUnbackedDebt(), 0);
+        assertEq(safeEngine.globalDebt(firstCoinName), 0);
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), 0);
 
-        bob.redeemCollateral("gold", 3 ether);
+        bob.redeemCollateral(firstCoinName, "gold", 3 ether);
 
         // local checks:
-        assertEq(coinBalance(safe2), 0);
+        assertEq(coinBalance(firstCoinName, safe2), 0);
         assertEq(tokenCollateral("gold", safe2), rmultiply(fix, 3 ether));
         bob.exit(gold.collateralA, address(this), uint(rmultiply(fix, 3 ether)));
 
         // nothing left in the MultiGlobalSettlement
         assertEq(tokenCollateral("gold", address(globalSettlement)), 0);
-        assertEq(balanceOf("gold", address(gold.collateralA)), 0);
+        assertEq(balanceOf(firstCoinName, "gold", address(gold.collateralA)), 0);
 
-        assertEq(coinBalance(address(postSettlementSurplusDrain)), 0);
+        assertEq(coinBalance(firstCoinName, address(0)), 0);
     }
 
     // -- Scenario where there is one over-collateralised and one
     // -- under-collateralised SAFE of different collateral types
     // -- and no MultiAccountingEngine deficit or surplus
     function test_shutdown_net_undercollateralised_multiple_collateralTypes() public {
-        CollateralType memory gold = init_collateral("gold", "gold");
-        CollateralType memory coal = init_collateral("coal", "coal");
+        CollateralType memory gold = init_collateral(firstCoinName, "gold", "gold");
+        CollateralType memory coal = init_collateral(firstCoinName, "coal", "coal");
 
         Usr ali = new Usr(safeEngine, globalSettlement);
         Usr bob = new Usr(safeEngine, globalSettlement);
@@ -1019,85 +1028,85 @@ contract MultiGlobalSettlementTest is DSTest {
         // make a SAFE:
         address safe1 = address(ali);
         gold.collateralA.join(safe1, 10 ether);
-        ali.modifySAFECollateralization("gold", safe1, safe1, safe1, 10 ether, 15 ether);
+        ali.modifySAFECollateralization(firstCoinName, "gold", safe1, safe1, safe1, 10 ether, 15 ether);
 
         // make a second SAFE:
         address safe2 = address(bob);
         coal.collateralA.join(safe2, 1 ether);
-        safeEngine.modifyParameters("coal", "safetyPrice", ray(5 ether));
-        bob.modifySAFECollateralization("coal", safe2, safe2, safe2, 1 ether, 5 ether);
+        safeEngine.modifyParameters(firstCoinName, "coal", "safetyPrice", ray(5 ether));
+        bob.modifySAFECollateralization(firstCoinName, "coal", safe2, safe2, safe2, 1 ether, 5 ether);
 
         gold.oracleSecurityModule.updateCollateralPrice(bytes32(2 * WAD));
         // safe1 has 20 coin of lockedCollateral and 15 coin of tab
         coal.oracleSecurityModule.updateCollateralPrice(bytes32(2 * WAD));
         // safe2 has 2 coin of lockedCollateral and 5 coin of tab
-        globalSettlement.shutdownSystem();
-        globalSettlement.freezeCollateralType("gold");
-        globalSettlement.freezeCollateralType("coal");
-        globalSettlement.processSAFE("gold", safe1);  // over-collateralised
-        globalSettlement.processSAFE("coal", safe2);  // under-collateralised
+        globalSettlement.shutdownCoin(firstCoinName);
+        globalSettlement.freezeCollateralType(firstCoinName, "gold");
+        globalSettlement.freezeCollateralType(firstCoinName, "coal");
+        globalSettlement.processSAFE(firstCoinName, "gold", safe1);  // over-collateralised
+        globalSettlement.processSAFE(firstCoinName, "coal", safe2);  // under-collateralised
 
         hevm.warp(now + 1 hours);
-        globalSettlement.setOutstandingCoinSupply();
-        globalSettlement.calculateCashPrice("gold");
-        globalSettlement.calculateCashPrice("coal");
+        globalSettlement.setOutstandingCoinSupply(firstCoinName);
+        globalSettlement.calculateCashPrice(firstCoinName, "gold");
+        globalSettlement.calculateCashPrice(firstCoinName, "coal");
 
-        ali.approveSAFEModification(address(globalSettlement));
-        bob.approveSAFEModification(address(globalSettlement));
+        ali.approveSAFEModification(firstCoinName, address(globalSettlement));
+        bob.approveSAFEModification(firstCoinName, address(globalSettlement));
 
-        assertEq(safeEngine.globalDebt(),             rad(20 ether));
-        assertEq(safeEngine.globalUnbackedDebt(),             rad(20 ether));
-        assertEq(safeEngine.debtBalance(address(accountingEngine)),  rad(20 ether));
+        assertEq(safeEngine.globalDebt(firstCoinName), rad(20 ether));
+        assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(20 ether));
+        assertEq(safeEngine.debtBalance(firstCoinName, address(accountingEngine)), rad(20 ether));
 
-        assertEq(globalSettlement.collateralTotalDebt("gold"), 15 ether);
-        assertEq(globalSettlement.collateralTotalDebt("coal"),  5 ether);
+        assertEq(globalSettlement.collateralTotalDebt(firstCoinName, "gold"), 15 ether);
+        assertEq(globalSettlement.collateralTotalDebt(firstCoinName, "coal"),  5 ether);
 
-        assertEq(globalSettlement.collateralShortfall("gold"),  0.0 ether);
-        assertEq(globalSettlement.collateralShortfall("coal"),  1.5 ether);
+        assertEq(globalSettlement.collateralShortfall(firstCoinName, "gold"),  0.0 ether);
+        assertEq(globalSettlement.collateralShortfall(firstCoinName, "coal"),  1.5 ether);
 
         // there are 7.5 gold and 1 coal
         // the gold is worth 15 coin and the coal is worth 2 coin
         // the total collateral pool is worth 17 coin
         // the total outstanding debt is 20 coin
         // each coin should get (15/2)/20 gold and (2/2)/20 coal
-        assertEq(globalSettlement.collateralCashPrice("gold"), ray(0.375 ether));
-        assertEq(globalSettlement.collateralCashPrice("coal"), ray(0.050 ether));
+        assertEq(globalSettlement.collateralCashPrice(firstCoinName, "gold"), ray(0.375 ether));
+        assertEq(globalSettlement.collateralCashPrice(firstCoinName, "coal"), ray(0.050 ether));
 
         assertEq(tokenCollateral("gold", address(ali)), 0 ether);
-        ali.prepareCoinsForRedeeming(1 ether);
-        ali.redeemCollateral("gold", 1 ether);
+        ali.prepareCoinsForRedeeming(firstCoinName, 1 ether);
+        ali.redeemCollateral(firstCoinName, "gold", 1 ether);
         assertEq(tokenCollateral("gold", address(ali)), 0.375 ether);
 
-        bob.prepareCoinsForRedeeming(1 ether);
-        bob.redeemCollateral("coal", 1 ether);
+        bob.prepareCoinsForRedeeming(firstCoinName, 1 ether);
+        bob.redeemCollateral(firstCoinName, "coal", 1 ether);
         assertEq(tokenCollateral("coal", address(bob)), 0.05 ether);
 
         ali.exit(gold.collateralA, address(ali), 0.375 ether);
         bob.exit(coal.collateralA, address(bob), 0.05  ether);
-        ali.prepareCoinsForRedeeming(1 ether);
-        ali.redeemCollateral("gold", 1 ether);
-        ali.redeemCollateral("coal", 1 ether);
+        ali.prepareCoinsForRedeeming(firstCoinName, 1 ether);
+        ali.redeemCollateral(firstCoinName, "gold", 1 ether);
+        ali.redeemCollateral(firstCoinName, "coal", 1 ether);
         assertEq(tokenCollateral("gold", address(ali)), 0.375 ether);
         assertEq(tokenCollateral("coal", address(ali)), 0.05 ether);
 
         ali.exit(gold.collateralA, address(ali), 0.375 ether);
         ali.exit(coal.collateralA, address(ali), 0.05  ether);
 
-        ali.prepareCoinsForRedeeming(1 ether);
-        ali.redeemCollateral("gold", 1 ether);
-        assertEq(globalSettlement.coinsUsedToRedeem("gold", address(ali)), 3 ether);
-        assertEq(globalSettlement.coinsUsedToRedeem("coal", address(ali)), 1 ether);
-        ali.prepareCoinsForRedeeming(1 ether);
-        ali.redeemCollateral("coal", 1 ether);
-        assertEq(globalSettlement.coinsUsedToRedeem("gold", address(ali)), 3 ether);
-        assertEq(globalSettlement.coinsUsedToRedeem("coal", address(ali)), 2 ether);
+        ali.prepareCoinsForRedeeming(firstCoinName, 1 ether);
+        ali.redeemCollateral(firstCoinName, "gold", 1 ether);
+        assertEq(globalSettlement.coinsUsedToRedeem(firstCoinName, "gold", address(ali)), 3 ether);
+        assertEq(globalSettlement.coinsUsedToRedeem(firstCoinName, "coal", address(ali)), 1 ether);
+        ali.prepareCoinsForRedeeming(firstCoinName, 1 ether);
+        ali.redeemCollateral(firstCoinName, "coal", 1 ether);
+        assertEq(globalSettlement.coinsUsedToRedeem(firstCoinName, "gold", address(ali)), 3 ether);
+        assertEq(globalSettlement.coinsUsedToRedeem(firstCoinName, "coal", address(ali)), 2 ether);
         assertEq(tokenCollateral("gold", address(ali)), 0.375 ether);
         assertEq(tokenCollateral("coal", address(ali)), 0.05 ether);
     }
 
     // -- Scenario where calculateCashPrice() used to overflow
    function test_calculateCashPrice_overflow() public {
-       CollateralType memory gold = init_collateral("gold", "gold");
+       CollateralType memory gold = init_collateral(firstCoinName, "gold", "gold");
 
        Usr ali = new Usr(safeEngine, globalSettlement);
 
@@ -1105,36 +1114,36 @@ contract MultiGlobalSettlementTest is DSTest {
        address safe1 = address(ali);
        gold.collateral.mint(500000000 ether);
        gold.collateralA.join(safe1, 500000000 ether);
-       ali.modifySAFECollateralization("gold", safe1, safe1, safe1, 500000000 ether, 10000000 ether);
+       ali.modifySAFECollateralization(firstCoinName, "gold", safe1, safe1, safe1, 500000000 ether, 10000000 ether);
        // ali's urn has 500_000_000 collateral, 10^7 debt (and 10^7 system coins since rate == RAY)
 
        // global checks:
-       assertEq(safeEngine.globalDebt(), rad(10000000 ether));
-       assertEq(safeEngine.globalUnbackedDebt(), 0);
+       assertEq(safeEngine.globalDebt(firstCoinName), rad(10000000 ether));
+       assertEq(safeEngine.globalUnbackedDebt(firstCoinName), 0);
 
        // collateral price is 5
        gold.oracleSecurityModule.updateCollateralPrice(bytes32(5 * WAD));
-       globalSettlement.shutdownSystem();
-       globalSettlement.freezeCollateralType("gold");
-       globalSettlement.processSAFE("gold", safe1);
+       globalSettlement.shutdownCoin(firstCoinName);
+       globalSettlement.freezeCollateralType(firstCoinName, "gold");
+       globalSettlement.processSAFE(firstCoinName, "gold", safe1);
 
        // local checks:
-       assertEq(generatedDebt("gold", safe1), 0);
-       assertEq(lockedCollateral("gold", safe1), 498000000 ether);
-       assertEq(safeEngine.debtBalance(address(accountingEngine)), rad(10000000 ether));
+       assertEq(generatedDebt(firstCoinName, "gold", safe1), 0);
+       assertEq(lockedCollateral(firstCoinName, "gold", safe1), 498000000 ether);
+       assertEq(safeEngine.debtBalance(firstCoinName, address(accountingEngine)), rad(10000000 ether));
 
        // global checks:
-       assertEq(safeEngine.globalDebt(), rad(10000000 ether));
-       assertEq(safeEngine.globalUnbackedDebt(), rad(10000000 ether));
+       assertEq(safeEngine.globalDebt(firstCoinName), rad(10000000 ether));
+       assertEq(safeEngine.globalUnbackedDebt(firstCoinName), rad(10000000 ether));
 
        // SAFE closing
-       ali.freeCollateral("gold");
-       assertEq(lockedCollateral("gold", safe1), 0);
+       ali.freeCollateral(firstCoinName, "gold");
+       assertEq(lockedCollateral(firstCoinName, "gold", safe1), 0);
        assertEq(tokenCollateral("gold", safe1), 498000000 ether);
        ali.exit(gold.collateralA, address(this), 498000000 ether);
 
        hevm.warp(now + 1 hours);
-       globalSettlement.setOutstandingCoinSupply();
-       globalSettlement.calculateCashPrice("gold");
-   } */
+       globalSettlement.setOutstandingCoinSupply(firstCoinName);
+       globalSettlement.calculateCashPrice(firstCoinName, "gold");
+   }
 }

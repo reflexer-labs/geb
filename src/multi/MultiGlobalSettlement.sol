@@ -42,6 +42,7 @@ abstract contract SAFEEngineLike {
 }
 abstract contract LiquidationEngineLike {
     function collateralTypes(bytes32,bytes32) virtual public view returns (
+        address liquidationPool,
         address collateralAuctionHouse,
         uint256 liquidationPenalty,     // [wad]
         uint256 liquidationQuantity     // [rad]
@@ -375,9 +376,9 @@ contract MultiGlobalSettlement {
     function fastTrackAuction(bytes32 coinName, bytes32 collateralType, uint256 auctionId) external {
         require(finalCoinPerCollateralPrice[coinName][collateralType] != 0, "MultiGlobalSettlement/final-collateral-price-not-defined");
 
-        (address auctionHouse_,,)       = liquidationEngine.collateralTypes(coinName, collateralType);
+        (,address auctionHouse_,,)        = liquidationEngine.collateralTypes(coinName, collateralType);
         CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
-        (, uint256 accumulatedRate,,,,) = safeEngine.collateralTypes(coinName, collateralType);
+        (, uint256 accumulatedRate,,,,)   = safeEngine.collateralTypes(coinName, collateralType);
 
         uint256 raisedAmount              = collateralAuctionHouse.raisedAmount(auctionId);
         uint256 collateralToSell          = collateralAuctionHouse.remainingAmountToSell(auctionId);
