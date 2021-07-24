@@ -47,7 +47,7 @@ contract Usr {
     }
 }
 
-contract SingleMultiStabilityFeeTreasuryTest is DSTest {
+contract MultiStabilityFeeTreasuryTest is DSTest {
     Hevm hevm;
 
     MultiSAFEEngine safeEngine;
@@ -432,151 +432,152 @@ contract SingleMultiStabilityFeeTreasuryTest is DSTest {
         usr.pullFunds(secondCoinName, address(stabilityFeeTreasury), address(stabilityFeeTreasury), address(secondSystemCoin), 1 ether);
         assertEq(safeEngine.coinBalance(secondCoinName, address(stabilityFeeTreasury)), rad(200 ether));
     }
-
-
-    /* function test_pull_funds_under_block_limit() public {
-        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
-        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
-        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
-        (uint total, ) = stabilityFeeTreasury.getAllowance(address(usr));
+    function test_pull_funds_under_block_limit() public {
+        stabilityFeeTreasury.setPerBlockAllowance(coinName, address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(coinName, address(usr), rad(10 ether));
+        usr.pullFunds(coinName, address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
+        (uint total, ) = stabilityFeeTreasury.getAllowance(coinName, address(usr));
         assertEq(total, rad(9.1 ether));
-        assertEq(stabilityFeeTreasury.pulledPerBlock(address(usr), block.number), rad(0.9 ether));
+        assertEq(stabilityFeeTreasury.pulledPerBlock(coinName, address(usr), block.number), rad(0.9 ether));
         assertEq(systemCoin.balanceOf(address(usr)), 0);
         assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
-        assertEq(safeEngine.coinBalance(address(usr)), rad(0.9 ether));
-        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(199.1 ether));
-        assertEq(stabilityFeeTreasury.expensesAccumulator(), rad(0.9 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(usr)), rad(0.9 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)), rad(199.1 ether));
+        assertEq(stabilityFeeTreasury.expensesAccumulator(coinName), rad(0.9 ether));
     }
     function testFail_pull_funds_when_funds_below_pull_threshold() public {
-        stabilityFeeTreasury.modifyParameters("pullFundsMinThreshold", safeEngine.coinBalance(address(stabilityFeeTreasury)) + 1);
-        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
-        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
-        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
+        stabilityFeeTreasury.modifyParameters(coinName, "pullFundsMinThreshold", safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)) + 1);
+        stabilityFeeTreasury.setPerBlockAllowance(coinName, address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(coinName, address(usr), rad(10 ether));
+        usr.pullFunds(coinName, address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
     }
     function testFail_pull_funds_more_debt_than_coin() public {
-        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
-        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
-        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(address(stabilityFeeTreasury)) + 1);
-        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
+        stabilityFeeTreasury.setPerBlockAllowance(coinName, address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(coinName, address(usr), rad(10 ether));
+        safeEngine.createUnbackedDebt(coinName, address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)) + 1);
+        usr.pullFunds(coinName, address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
     }
     function testFail_pull_funds_more_debt_than_coin_post_join() public {
         systemCoin.transfer(address(stabilityFeeTreasury), 100 ether);
-        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
-        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
-        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(address(stabilityFeeTreasury)) + rad(100 ether) + 1);
-        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
+        stabilityFeeTreasury.setPerBlockAllowance(coinName, address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(coinName, address(usr), rad(10 ether));
+        safeEngine.createUnbackedDebt(coinName, address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)) + rad(100 ether) + 1);
+        usr.pullFunds(coinName, address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
     }
     function test_pull_funds_less_debt_than_coin() public {
-        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
-        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
-        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(address(stabilityFeeTreasury)) - rad(1 ether));
-        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
+        stabilityFeeTreasury.setPerBlockAllowance(coinName, address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(coinName, address(usr), rad(10 ether));
+        safeEngine.createUnbackedDebt(coinName, address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)) - rad(1 ether));
+        usr.pullFunds(coinName, address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
 
-        (uint total, ) = stabilityFeeTreasury.getAllowance(address(usr));
+        (uint total, ) = stabilityFeeTreasury.getAllowance(coinName, address(usr));
         assertEq(total, rad(9.1 ether));
-        assertEq(stabilityFeeTreasury.pulledPerBlock(address(usr), block.number), rad(0.9 ether));
+        assertEq(stabilityFeeTreasury.pulledPerBlock(coinName, address(usr), block.number), rad(0.9 ether));
         assertEq(systemCoin.balanceOf(address(usr)), 0);
         assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
-        assertEq(safeEngine.coinBalance(address(usr)), rad(0.9 ether));
-        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(0.1 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(usr)), rad(0.9 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)), rad(0.1 ether));
     }
     function test_less_debt_than_coin_post_join() public {
         systemCoin.transfer(address(stabilityFeeTreasury), 100 ether);
-        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
-        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
-        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(address(stabilityFeeTreasury)) - rad(1 ether));
-        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
+        stabilityFeeTreasury.setPerBlockAllowance(coinName, address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(coinName, address(usr), rad(10 ether));
+        safeEngine.createUnbackedDebt(coinName, address(stabilityFeeTreasury), address(this), safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)) - rad(1 ether));
+        usr.pullFunds(coinName, address(stabilityFeeTreasury), address(usr), address(systemCoin), 0.9 ether);
 
-        (uint total, ) = stabilityFeeTreasury.getAllowance(address(usr));
+        (uint total, ) = stabilityFeeTreasury.getAllowance(coinName, address(usr));
         assertEq(total, rad(9.1 ether));
-        assertEq(stabilityFeeTreasury.pulledPerBlock(address(usr), block.number), rad(0.9 ether));
+        assertEq(stabilityFeeTreasury.pulledPerBlock(coinName, address(usr), block.number), rad(0.9 ether));
         assertEq(systemCoin.balanceOf(address(usr)), 0);
         assertEq(systemCoin.balanceOf(address(stabilityFeeTreasury)), 0);
-        assertEq(safeEngine.coinBalance(address(usr)), rad(0.9 ether));
-        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(100.1 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(usr)), rad(0.9 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)), rad(100.1 ether));
     }
     function testFail_pull_funds_above_block_limit() public {
-        stabilityFeeTreasury.setPerBlockAllowance(address(usr), rad(1 ether));
-        stabilityFeeTreasury.setTotalAllowance(address(usr), rad(10 ether));
-        usr.pullFunds(address(stabilityFeeTreasury), address(usr), address(systemCoin), 10 ether);
+        stabilityFeeTreasury.setPerBlockAllowance(coinName, address(usr), rad(1 ether));
+        stabilityFeeTreasury.setTotalAllowance(coinName, address(usr), rad(10 ether));
+        usr.pullFunds(coinName, address(stabilityFeeTreasury), address(usr), address(systemCoin), 10 ether);
     }
     function testFail_transferSurplusFunds_before_surplusTransferDelay() public {
-        stabilityFeeTreasury.modifyParameters("surplusTransferDelay", 10 minutes);
+        stabilityFeeTreasury.modifyParameters(coinName, "surplusTransferDelay", 10 minutes);
         hevm.warp(now + 9 minutes);
-        stabilityFeeTreasury.transferSurplusFunds();
+        stabilityFeeTreasury.transferSurplusFunds(coinName);
     }
     function test_transferSurplusFunds_after_expenses() public {
         address charlie = address(0x12345);
-        stabilityFeeTreasury.modifyParameters("extraSurplusReceiver", charlie);
+        stabilityFeeTreasury.modifyParameters(coinName, "extraSurplusReceiver", charlie);
 
-        stabilityFeeTreasury.modifyParameters("surplusTransferDelay", 10 minutes);
-        stabilityFeeTreasury.giveFunds(alice, rad(40 ether));
+        stabilityFeeTreasury.modifyParameters(coinName, "treasuryCapacity", rad(30 ether));
+        stabilityFeeTreasury.modifyParameters(coinName, "minimumFundsRequired", 0);
+        stabilityFeeTreasury.modifyParameters(coinName, "surplusTransferDelay", 10 minutes);
+
+        stabilityFeeTreasury.giveFunds(coinName, alice, rad(40 ether));
         hevm.warp(now + 10 minutes);
-        stabilityFeeTreasury.transferSurplusFunds();
-        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(40 ether));
-        assertEq(safeEngine.coinBalance(address(alice)), rad(40 ether));
-        assertEq(safeEngine.coinBalance(address(charlie)), rad(120 ether));
+        stabilityFeeTreasury.transferSurplusFunds(coinName);
+        assertEq(safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(alice)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(charlie)), rad(120 ether));
         hevm.warp(now + 10 minutes);
-        stabilityFeeTreasury.transferSurplusFunds();
-        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), 0);
-        assertEq(safeEngine.coinBalance(address(alice)), rad(40 ether));
-        assertEq(safeEngine.coinBalance(address(charlie)), rad(160 ether));
+        stabilityFeeTreasury.transferSurplusFunds(coinName);
+        assertEq(safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)), 0);
+        assertEq(safeEngine.coinBalance(coinName, address(alice)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(charlie)), rad(160 ether));
     }
     function test_transferSurplusFunds_after_expenses_with_treasuryCapacity_and_minimumFundsRequired() public {
         address charlie = address(0x12345);
-        stabilityFeeTreasury.modifyParameters("extraSurplusReceiver", charlie);
+        stabilityFeeTreasury.modifyParameters(coinName, "extraSurplusReceiver", charlie);
 
-        stabilityFeeTreasury.modifyParameters("treasuryCapacity", rad(30 ether));
-        stabilityFeeTreasury.modifyParameters("minimumFundsRequired", rad(10 ether));
-        stabilityFeeTreasury.modifyParameters("surplusTransferDelay", 10 minutes);
-        stabilityFeeTreasury.giveFunds(alice, rad(40 ether));
+        stabilityFeeTreasury.modifyParameters(coinName, "treasuryCapacity", rad(30 ether));
+        stabilityFeeTreasury.modifyParameters(coinName, "minimumFundsRequired", rad(10 ether));
+        stabilityFeeTreasury.modifyParameters(coinName, "surplusTransferDelay", 10 minutes);
+        stabilityFeeTreasury.giveFunds(coinName, alice, rad(40 ether));
         hevm.warp(now + 10 minutes);
-        stabilityFeeTreasury.transferSurplusFunds();
-        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(40 ether));
-        assertEq(safeEngine.coinBalance(address(alice)), rad(40 ether));
-        assertEq(safeEngine.coinBalance(address(charlie)), rad(120 ether));
+        stabilityFeeTreasury.transferSurplusFunds(coinName);
+        assertEq(safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(alice)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(charlie)), rad(120 ether));
         hevm.warp(now + 10 minutes);
-        stabilityFeeTreasury.transferSurplusFunds();
-        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(10 ether));
-        assertEq(safeEngine.coinBalance(address(alice)), rad(40 ether));
-        assertEq(safeEngine.coinBalance(address(charlie)), rad(150 ether));
+        stabilityFeeTreasury.transferSurplusFunds(coinName);
+        assertEq(safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)), rad(10 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(alice)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(charlie)), rad(150 ether));
     }
     function testFail_transferSurplusFunds_more_debt_than_coin() public {
         address charlie = address(0x12345);
-        stabilityFeeTreasury.modifyParameters("extraSurplusReceiver", charlie);
+        stabilityFeeTreasury.modifyParameters(coinName, "extraSurplusReceiver", charlie);
 
-        stabilityFeeTreasury.modifyParameters("treasuryCapacity", rad(30 ether));
-        stabilityFeeTreasury.modifyParameters("minimumFundsRequired", rad(10 ether));
-        stabilityFeeTreasury.modifyParameters("surplusTransferDelay", 10 minutes);
+        stabilityFeeTreasury.modifyParameters(coinName, "treasuryCapacity", rad(30 ether));
+        stabilityFeeTreasury.modifyParameters(coinName, "minimumFundsRequired", rad(10 ether));
+        stabilityFeeTreasury.modifyParameters(coinName, "surplusTransferDelay", 10 minutes);
 
-        stabilityFeeTreasury.giveFunds(alice, rad(40 ether));
-        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), rad(161 ether));
+        stabilityFeeTreasury.giveFunds(coinName, alice, rad(40 ether));
+        safeEngine.createUnbackedDebt(coinName, address(stabilityFeeTreasury), address(this), rad(161 ether));
 
-        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(160 ether));
-        assertEq(safeEngine.debtBalance(address(stabilityFeeTreasury)), rad(161 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)), rad(160 ether));
+        assertEq(safeEngine.debtBalance(coinName, address(stabilityFeeTreasury)), rad(161 ether));
 
         hevm.warp(now + 10 minutes);
-        stabilityFeeTreasury.transferSurplusFunds();
+        stabilityFeeTreasury.transferSurplusFunds(coinName);
     }
     function test_transferSurplusFunds_less_debt_than_coin() public {
         address charlie = address(0x12345);
-        stabilityFeeTreasury.modifyParameters("extraSurplusReceiver", charlie);
+        stabilityFeeTreasury.modifyParameters(coinName, "extraSurplusReceiver", charlie);
 
-        stabilityFeeTreasury.modifyParameters("treasuryCapacity", rad(30 ether));
-        stabilityFeeTreasury.modifyParameters("minimumFundsRequired", rad(10 ether));
-        stabilityFeeTreasury.modifyParameters("surplusTransferDelay", 10 minutes);
+        stabilityFeeTreasury.modifyParameters(coinName, "treasuryCapacity", rad(30 ether));
+        stabilityFeeTreasury.modifyParameters(coinName, "minimumFundsRequired", rad(10 ether));
+        stabilityFeeTreasury.modifyParameters(coinName, "surplusTransferDelay", 10 minutes);
 
-        stabilityFeeTreasury.giveFunds(alice, rad(40 ether));
-        safeEngine.createUnbackedDebt(address(stabilityFeeTreasury), address(this), rad(50 ether));
+        stabilityFeeTreasury.giveFunds(coinName, alice, rad(40 ether));
+        safeEngine.createUnbackedDebt(coinName, address(stabilityFeeTreasury), address(this), rad(50 ether));
 
-        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(160 ether));
-        assertEq(safeEngine.debtBalance(address(stabilityFeeTreasury)), rad(50 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)), rad(160 ether));
+        assertEq(safeEngine.debtBalance(coinName, address(stabilityFeeTreasury)), rad(50 ether));
 
         hevm.warp(now + 10 minutes);
-        stabilityFeeTreasury.transferSurplusFunds();
+        stabilityFeeTreasury.transferSurplusFunds(coinName);
 
-        assertEq(safeEngine.coinBalance(address(stabilityFeeTreasury)), rad(40 ether));
-        assertEq(safeEngine.coinBalance(address(alice)), rad(40 ether));
-        assertEq(safeEngine.coinBalance(address(charlie)), rad(70 ether));
-    } */
+        assertEq(safeEngine.coinBalance(coinName, address(stabilityFeeTreasury)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(alice)), rad(40 ether));
+        assertEq(safeEngine.coinBalance(coinName, address(charlie)), rad(70 ether));
+    }
 }
