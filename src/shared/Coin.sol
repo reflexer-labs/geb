@@ -232,7 +232,13 @@ contract Coin {
     }
 }
 
-contract OptimismCoin {
+interface IL2StandardERC20 {
+    function l1Token() external returns (address);
+    function mint(address _to, uint256 _amount) external;
+    function burn(address _from, uint256 _amount) external;
+}
+
+contract OptimismCoin is IL2StandardERC20 {
     // --- Auth ---
     mapping (address => uint256) public authorizedAccounts;
     /**
@@ -280,7 +286,7 @@ contract OptimismCoin {
     uint256 public totalSupply;
 
     // L1 Coin address
-    address public l1Token;
+    address public override l1Token;
     // L2 bridge that's allowed to mint/burn
     address public l2Bridge;
 
@@ -376,7 +382,7 @@ contract OptimismCoin {
     * @param usr The address for which to mint coins
     * @param amount The amount of coins to mint
     */
-    function mint(address usr, uint256 amount) external isAuthorized {
+    function mint(address usr, uint256 amount) external override isAuthorized {
         balanceOf[usr] = addition(balanceOf[usr], amount);
         totalSupply    = addition(totalSupply, amount);
         emit Transfer(address(0), usr, amount);
@@ -386,7 +392,7 @@ contract OptimismCoin {
     * @param usr The address that will have its coins burned
     * @param amount The amount of coins to burn
     */
-    function burn(address usr, uint256 amount) external {
+    function burn(address usr, uint256 amount) external override isAuthorized {
         require(balanceOf[usr] >= amount, "Coin/insufficient-balance");
         if (usr != msg.sender && allowance[usr][msg.sender] != uint256(-1)) {
             require(allowance[usr][msg.sender] >= amount, "Coin/insufficient-allowance");
@@ -468,5 +474,17 @@ contract OptimismCoin {
         uint256 wad = allowed ? uint256(-1) : 0;
         allowance[holder][spender] = wad;
         emit Approval(holder, spender, wad);
+    }
+
+    // --- Optimism Specific ---
+    /**
+    * @notice Returns whether the token corresponds to the Optimism L2 token interface
+    **/
+    function supportsInterface(bytes4 _interfaceId) public pure returns (bool) {
+        bytes4 firstSupportedInterface = bytes4(keccak256("supportsInterface(bytes4)")); // ERC165
+        bytes4 secondSupportedInterface = IL2StandardERC20.l1Token.selector
+            ^ IL2StandardERC20.mint.selector
+            ^ IL2StandardERC20.burn.selector;
+        return _interfaceId == firstSupportedInterface || _interfaceId == secondSupportedInterface;
     }
 }
