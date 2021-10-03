@@ -18,8 +18,9 @@
 pragma solidity 0.6.7;
 
 abstract contract SAFEEngineLike {
+    function collateralFamily(bytes32, bytes32) virtual public view returns (uint256);
     function transferInternalCoins(bytes32,address,address,uint256) virtual external;
-    function transferCollateral(bytes32,bytes32,address,address,uint256) virtual external;
+    function transferCollateral(bytes32,bytes32,bytes32,address,address,uint256) virtual external;
 }
 abstract contract OracleRelayerLike {
     function redemptionPrice(bytes32) virtual public returns (uint256);
@@ -65,6 +66,8 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
 
     // --- Data ---
     struct Bid {
+        // Sub-collateral that's part of the main collateral's family
+        bytes32 subCollateral;
         // How much collateral is sold in an auction
         uint256 amountToSell;                                                                                         // [wad]
         // Total/max amount of coins to raise
@@ -134,6 +137,7 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
     event AddAuthorization(address account);
     event RemoveAuthorization(address account);
     event StartAuction(
+        bytes32 subCollateral,
         uint256 id,
         uint256 auctionsStarted,
         uint256 amountToSell,
@@ -151,6 +155,15 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
     event BuyCollateral(uint256 indexed id, uint256 wad, uint256 boughtCollateral);
     event SettleAuction(uint256 indexed id, uint256 leftoverCollateral);
     event TerminateAuctionPrematurely(uint256 indexed id, address sender, uint256 collateralAmount);
+
+    // --- Modifiers ---
+    /**
+     * @notice Checks whether a sub-collateral is part of a collateral family
+     */
+    modifier isSubCollateral(bytes32 subCollateral) {
+        require(safeEngine.collateralFamily(collateralType, subCollateral) == 1, "MultiIncreasingDiscountCollateralAuctionHouse/not-in-family");
+        _;
+    }
 
     // --- Init ---
     constructor(address safeEngine_, address liquidationEngine_, bytes32 coinName_, bytes32 collateralType_) public {
@@ -542,6 +555,7 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
     // --- Core Auction Logic ---
     /**
      * @notice Start a new collateral auction
+     * @param subCollateral Sub-collateral that's part of the main collateral's family
      * @param forgoneCollateralReceiver Who receives leftover collateral that is not auctioned
      * @param auctionIncomeRecipient Who receives the amount raised in the auction
      * @param amountToRaise Total amount of coins to raise (rad)
@@ -549,12 +563,13 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
      * @param initialBid Unused
      */
     function startAuction(
+        bytes32 subCollateral,
         address forgoneCollateralReceiver,
         address auctionIncomeRecipient,
         uint256 amountToRaise,
         uint256 amountToSell,
         uint256 initialBid
-    ) public isAuthorized returns (uint256 id) {
+    ) public isAuthorized isSubCollateral(subCollateral) returns (uint256 id) {
         require(auctionsStarted < uint256(-1), "MultiIncreasingDiscountCollateralAuctionHouse/overflow");
         require(amountToSell > 0, "MultiIncreasingDiscountCollateralAuctionHouse/no-collateral-for-sale");
         require(amountToRaise > 0, "MultiIncreasingDiscountCollateralAuctionHouse/nothing-to-raise");
@@ -563,6 +578,7 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
 
         uint48 discountIncreaseDeadline      = addUint48(uint48(now), uint48(maxDiscountUpdateRateTimeline));
 
+        bids[id].subCollateral               = subCollateral;
         bids[id].currentDiscount             = minDiscount;
         bids[id].maxDiscount                 = maxDiscount;
         bids[id].perSecondDiscountUpdateRate = perSecondDiscountUpdateRate;
@@ -573,9 +589,10 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
         bids[id].auctionIncomeRecipient      = auctionIncomeRecipient;
         bids[id].amountToRaise               = amountToRaise;
 
-        safeEngine.transferCollateral(coinName, collateralType, msg.sender, address(this), amountToSell);
+        safeEngine.transferCollateral(coinName, collateralType, subCollateral, msg.sender, address(this), amountToSell);
 
         emit StartAuction(
+          subCollateral,
           id,
           auctionsStarted,
           amountToSell,
@@ -695,7 +712,7 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
 
         // transfer the bid to the income recipient and the collateral to the bidder
         safeEngine.transferInternalCoins(coinName, msg.sender, bids[id].auctionIncomeRecipient, multiply(adjustedBid, RAY));
-        safeEngine.transferCollateral(coinName, collateralType, address(this), msg.sender, boughtCollateral);
+        safeEngine.transferCollateral(coinName, collateralType, bids[id].subCollateral, address(this), msg.sender, boughtCollateral);
 
         // Emit the buy event
         emit BuyCollateral(id, adjustedBid, boughtCollateral);
@@ -711,7 +728,7 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
         // If the auction raised the whole amount or all collateral was sold,
         // send remaining collateral to the forgone receiver
         if (soldAll) {
-            safeEngine.transferCollateral(coinName, collateralType, address(this), bids[id].forgoneCollateralReceiver, bids[id].amountToSell);
+            safeEngine.transferCollateral(coinName, collateralType, bids[id].subCollateral, address(this), bids[id].forgoneCollateralReceiver, bids[id].amountToSell);
             delete bids[id];
             emit SettleAuction(id, bids[id].amountToSell);
         }
@@ -730,12 +747,15 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
     function terminateAuctionPrematurely(uint256 id) external isAuthorized {
         require(both(bids[id].amountToSell > 0, bids[id].amountToRaise > 0), "MultiIncreasingDiscountCollateralAuctionHouse/inexistent-auction");
         liquidationEngine.removeCoinsFromAuction(coinName, collateralType, bids[id].amountToRaise);
-        safeEngine.transferCollateral(coinName, collateralType, address(this), msg.sender, bids[id].amountToSell);
+        safeEngine.transferCollateral(coinName, collateralType, bids[id].subCollateral, address(this), msg.sender, bids[id].amountToSell);
         delete bids[id];
         emit TerminateAuctionPrematurely(id, msg.sender, bids[id].amountToSell);
     }
 
     // --- Getters ---
+    function subCollateral(uint256 id) public view returns (bytes32) {
+        return bids[id].subCollateral;
+    }
     function bidAmount(uint256 id) public view returns (uint256) {
         return 0;
     }

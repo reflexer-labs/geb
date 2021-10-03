@@ -19,6 +19,7 @@
 pragma solidity 0.6.7;
 
 abstract contract SAFEEngineLike {
+    function collateralFamily(bytes32, bytes32) virtual public view returns (bytes32);
     function coinBalance(bytes32,address) virtual public view returns (uint256);
     function collateralTypes(bytes32,bytes32) virtual public view returns (
         uint256 debtAmount,        // [wad]
@@ -28,15 +29,15 @@ abstract contract SAFEEngineLike {
         uint256 debtFloor,         // [rad]
         uint256 liquidationPrice   // [ray]
     );
-    function safes(bytes32,bytes32,address) virtual public view returns (
+    function safes(bytes32,bytes32,bytes32,address) virtual public view returns (
         uint256 lockedCollateral, // [wad]
         uint256 generatedDebt     // [wad]
     );
     function globalDebt(bytes32) virtual public returns (uint256);
     function transferInternalCoins(bytes32 coinName, address src, address dst, uint256 rad) virtual external;
     function approveSAFEModification(bytes32,address) virtual external;
-    function transferCollateral(bytes32 coinName, bytes32 collateralType, address src, address dst, uint256 wad) virtual external;
-    function confiscateSAFECollateralAndDebt(bytes32 coinName, bytes32 collateralType, address safe, address collateralSource, address debtDestination, int256 deltaCollateral, int256 deltaDebt) virtual external;
+    function transferCollateral(bytes32 coinName, bytes32 collateralType, bytes32 subCollateral, address src, address dst, uint256 wad) virtual external;
+    function confiscateSAFECollateralAndDebt(bytes32 coinName, bytes32 collateralType, bytes32 subCollateral, address safe, address collateralSource, address debtDestination, int256 deltaCollateral, int256 deltaDebt) virtual external;
     function createUnbackedDebt(bytes32 coinName, address debtDestination, address coinDestination, uint256 rad) virtual external;
     function disableCoin(bytes32) virtual external;
 }
@@ -56,6 +57,7 @@ abstract contract AccountingEngineLike {
     function disableCoin(bytes32) virtual external;
 }
 abstract contract CollateralAuctionHouseLike {
+    function subCollateral(uint256 id) virtual public view returns (bytes32);
     function bidAmount(uint256 id) virtual public view returns (uint256);
     function raisedAmount(uint256 id) virtual public view returns (uint256);
     function remainingAmountToSell(uint256 id) virtual public view returns (uint256);
@@ -91,7 +93,7 @@ abstract contract OracleRelayerLike {
       b. `outstandingCoinSupply` (after including system surplus / deficit)
     We determine (a) by processing all under-collateralised SAFEs with
     `processSAFE`
-    3. `processSAFE(coinName, collateralType, safe)`:
+    3. `processSAFE(coinName, collateralType, subCollateral, safe)`:
        - cancels SAFE debt
        - any excess collateral remains
        - backing collateral taken
@@ -119,7 +121,7 @@ abstract contract OracleRelayerLike {
     per-auction basis.
     When a SAFE has been processed and has no debt remaining, the
     remaining collateral can be removed.
-    5. `freeCollateral(coinName, collateralType)`:
+    5. `freeCollateral(coinName, collateralType, subCollateral)`:
         - remove collateral from the caller's SAFE
         - owner can call as needed
     After the processing period has elapsed, we enable calculation of
@@ -139,9 +141,9 @@ abstract contract OracleRelayerLike {
     coins cannot be transferred out of the bag. More coin can be added to a bag later.
     8. `prepareCoinsForRedeeming(coinName, coinAmount)`:
         - put some coins into a bag in order to 'redeemCollateral'. The bigger the bag, the more collateral the user can claim.
-    9. `redeemCollateral(coinName, collateralType, collateralAmount)`:
-        - exchange some coin from your bag for tokens from a specific collateral type
-        - the amount of collateral available to redeem is limited by how big your bag is
+    9. `redeemCollateral(coinName, collateralType, subCollateral, collateralAmount)`:
+        - exchange some coin from your bag for tokens from a specific sub-collateral from a collateral type
+        - the amount of sub-collateral available to redeem is limited by how big your bag is
 */
 
 contract MultiGlobalSettlement {
@@ -211,9 +213,9 @@ contract MultiGlobalSettlement {
     uint256                  public shutdownCooldown;
 
     // Mapping of coin states
-    mapping (bytes32 => uint256) public coinEnabled;
+    mapping(bytes32 => uint256) public coinEnabled;
     // Whether a coin has been initialized or not
-    mapping (bytes32 => uint256) public coinInitialized;
+    mapping(bytes32 => uint256) public coinInitialized;
 
     // The timestamp when settlement was triggered for a specific coin
     mapping(bytes32 => uint256) public shutdownTime;                                                 // [timestamp]
@@ -246,12 +248,21 @@ contract MultiGlobalSettlement {
     event InitializeCoin(bytes32 indexed coinName);
     event FreezeCollateralType(bytes32 indexed coinName, bytes32 indexed collateralType, uint256 finalCoinPerCollateralPrice);
     event FastTrackAuction(bytes32 indexed coinName, bytes32 indexed collateralType, uint256 auctionId, uint256 collateralTotalDebt);
-    event ProcessSAFE(bytes32 indexed coinName, bytes32 indexed collateralType, address safe, uint256 collateralShortfall);
-    event FreeCollateral(bytes32 indexed coinName, bytes32 indexed collateralType, address sender, int256 collateralAmount);
+    event ProcessSAFE(bytes32 indexed coinName, bytes32 indexed collateralType, bytes32 indexed subCollateral, address safe, uint256 collateralShortfall);
+    event FreeCollateral(bytes32 indexed coinName, bytes32 indexed collateralType, bytes32 indexed subCollateral, address sender, int256 collateralAmount);
     event SetOutstandingCoinSupply(bytes32 indexed coinName, uint256 outstandingCoinSupply);
     event CalculateCashPrice(bytes32 indexed coinName, bytes32 indexed collateralType, uint256 collateralCashPrice);
     event PrepareCoinsForRedeeming(bytes32 indexed coinName, address indexed sender, uint256 coinBag);
-    event RedeemCollateral(bytes32 indexed coinName, bytes32 indexed collateralType, address indexed sender, uint256 coinsAmount, uint256 collateralAmount);
+    event RedeemCollateral(bytes32 indexed coinName, bytes32 indexed collateralType, bytes32 indexed subCollateral, address indexed sender, uint256 coinsAmount, uint256 collateralAmount);
+
+    // --- Modifiers ---
+    /**
+     * @notice Checks whether a sub-collateral is part of a collateral family
+     */
+    modifier isSubCollateral(bytes32 collateralType, bytes32 subCollateral) {
+        require(safeEngine.collateralFamily(collateralType, subCollateral) == 1, "MultiGlobalSettlement/not-in-family");
+        _;
+    }
 
     // --- Init ---
     constructor(uint256 shutdownCooldown_) public {
@@ -384,6 +395,7 @@ contract MultiGlobalSettlement {
         uint256 collateralToSell          = collateralAuctionHouse.remainingAmountToSell(auctionId);
         address forgoneCollateralReceiver = collateralAuctionHouse.forgoneCollateralReceiver(auctionId);
         uint256 amountToRaise             = collateralAuctionHouse.amountToRaise(auctionId);
+        bytes32 subCollateral             = collateralAuctionHouse.subCollateral(auctionId);
 
         safeEngine.createUnbackedDebt(coinName, address(accountingEngine), address(accountingEngine), subtract(amountToRaise, raisedAmount));
         safeEngine.createUnbackedDebt(coinName, address(accountingEngine), address(this), collateralAuctionHouse.bidAmount(auctionId));
@@ -396,6 +408,7 @@ contract MultiGlobalSettlement {
         safeEngine.confiscateSAFECollateralAndDebt(
           coinName,
           collateralType,
+          subCollateral,
           forgoneCollateralReceiver,
           address(this),
           address(accountingEngine),
@@ -408,14 +421,16 @@ contract MultiGlobalSettlement {
      * @notice Cancel a SAFE's debt and leave any extra collateral in it
      * @param coinName The name of the coin to process a SAFE for
      * @param collateralType The collateral type associated with the SAFE
+     * @param subCollateral The sub-collateral associated with the collateral type
      * @param safe The SAFE to be processed
      */
-    function processSAFE(bytes32 coinName, bytes32 collateralType, address safe) external {
+    function processSAFE(bytes32 coinName, bytes32 collateralType, bytes32 subCollateral, address safe)
+      external isSubCollateral(collateralType, subCollateral) {
         require(finalCoinPerCollateralPrice[coinName][collateralType] != 0, "MultiGlobalSettlement/final-collateral-price-not-defined");
         (, uint256 accumulatedRate,,,,) = safeEngine.collateralTypes(coinName, collateralType);
-        (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(coinName, collateralType, safe);
+        (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(coinName, collateralType, subCollateral, safe);
 
-        uint256 amountOwed = rmultiply(rmultiply(safeDebt, accumulatedRate), finalCoinPerCollateralPrice[coinName][collateralType]);
+        uint256 amountOwed    = rmultiply(rmultiply(safeDebt, accumulatedRate), finalCoinPerCollateralPrice[coinName][collateralType]);
         uint256 minCollateral = minimum(safeCollateral, amountOwed);
         collateralShortfall[coinName][collateralType] = addition(
             collateralShortfall[coinName][collateralType],
@@ -426,6 +441,7 @@ contract MultiGlobalSettlement {
         safeEngine.confiscateSAFECollateralAndDebt(
             coinName,
             collateralType,
+            subCollateral,
             safe,
             collateralHolder[coinName],
             address(accountingEngine),
@@ -433,29 +449,32 @@ contract MultiGlobalSettlement {
             -int256(safeDebt)
         );
 
-        emit ProcessSAFE(coinName, collateralType, safe, collateralShortfall[coinName][collateralType]);
+        emit ProcessSAFE(coinName, collateralType, subCollateral, safe, collateralShortfall[coinName][collateralType]);
     }
     /**
      * @notice Remove collateral from the caller's SAFE
      * @param coinName The name of the coin to free collateral for
      * @param collateralType The collateral type to free
+     * @param subCollateral The sub-collateral type associated with the main collateral
      */
-    function freeCollateral(bytes32 coinName, bytes32 collateralType) external {
+    function freeCollateral(bytes32 coinName, bytes32 collateralType, bytes32 subCollateral)
+      external isSubCollateral(collateralType, subCollateral) {
         require(coinEnabled[coinName] == 0, "MultiGlobalSettlement/coin-not-disabled");
         require(coinInitialized[coinName] == 1, "MultiGlobalSettlement/coin-not-init");
-        (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(coinName, collateralType, msg.sender);
+        (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(coinName, collateralType, subCollateral, msg.sender);
         require(safeDebt == 0, "MultiGlobalSettlement/safe-debt-not-zero");
         require(safeCollateral <= 2**255, "MultiGlobalSettlement/overflow");
         safeEngine.confiscateSAFECollateralAndDebt(
           coinName,
           collateralType,
+          subCollateral,
           msg.sender,
           msg.sender,
           address(accountingEngine),
           -int256(safeCollateral),
           0
         );
-        emit FreeCollateral(coinName, collateralType, msg.sender, -int256(safeCollateral));
+        emit FreeCollateral(coinName, collateralType, subCollateral, msg.sender, -int256(safeCollateral));
     }
     /**
      * @notice Set the final outstanding supply of system coins
@@ -504,14 +523,17 @@ contract MultiGlobalSettlement {
      * @notice Redeem a specific collateral type using an amount of internal system coins from your bag
      * @param coinName The name of the coin to redeem collateral with
      * @param collateralType The collateral type to redeem
+     * @param subCollateral The sub-collateral that's part of the main collateral's family
      * @param coinsAmount The amount of internal coins to use from your bag
      */
-    function redeemCollateral(bytes32 coinName, bytes32 collateralType, uint256 coinsAmount) external {
+    function redeemCollateral(bytes32 coinName, bytes32 collateralType, bytes32 subCollateral, uint256 coinsAmount)
+      external isSubCollateral(collateralType, subCollateral) {
         require(collateralCashPrice[coinName][collateralType] != 0, "MultiGlobalSettlement/collateral-cash-price-not-defined");
         uint256 collateralAmount = rmultiply(coinsAmount, collateralCashPrice[coinName][collateralType]);
         safeEngine.transferCollateral(
           coinName,
           collateralType,
+          subCollateral,
           collateralHolder[coinName],
           msg.sender,
           collateralAmount
@@ -519,7 +541,7 @@ contract MultiGlobalSettlement {
         coinsUsedToRedeem[coinName][collateralType][msg.sender] =
           addition(coinsUsedToRedeem[coinName][collateralType][msg.sender], coinsAmount);
         require(coinsUsedToRedeem[coinName][collateralType][msg.sender] <= coinBag[coinName][msg.sender], "MultiGlobalSettlement/insufficient-bag-balance");
-        emit RedeemCollateral(coinName, collateralType, msg.sender, coinsAmount, collateralAmount);
+        emit RedeemCollateral(coinName, collateralType, subCollateral, msg.sender, coinsAmount, collateralAmount);
     }
 }
 

@@ -138,6 +138,14 @@ contract MultiSAFEEngine {
         return either(safe == account, safeRights[coinName][safe][account] == 1);
     }
 
+    /**
+     * @notice Checks whether a sub-collateral is part of a collateral family
+     */
+    modifier isSubCollateral(bytes32 collateralType, bytes32 subCollateral) {
+        require(collateralFamily[collateralType][subCollateral] == 1, "MultiSAFEEngine/not-in-family");
+        _;
+    }
+
     // --- Data ---
     struct CollateralType {
         // Total debt issued for this specific collateral type
@@ -160,28 +168,30 @@ contract MultiSAFEEngine {
         uint256 generatedDebt;     // [wad]
     }
 
-    // Data about each collateral type
-    mapping (bytes32 => mapping(bytes32 => CollateralType))                public collateralTypes;
-    // Data about each SAFE
-    mapping (bytes32 => mapping(bytes32 => mapping (address => SAFE )))    public safes;
-    // Balance of each collateral type
-    mapping (bytes32 => mapping (address => uint256))                      public tokenCollateral;  // [wad]
-    // Internal balance of system coins
-    mapping (bytes32 => mapping(address => uint256))                       public coinBalance;      // [rad]
-    // Amount of debt held by an account. Coins & debt are like matter and antimatter. They nullify each other
-    mapping (bytes32 => mapping(address => uint256))                       public debtBalance;      // [rad]
+    // Collateral => sub-collateral relations
+    mapping (bytes32 => mapping(bytes32 => uint256))                                       public collateralFamily;
+    // Data about each collateral type (coin name => collateral type => data)
+    mapping (bytes32 => mapping(bytes32 => CollateralType))                                public collateralTypes;
+    // Data about each SAFE (coin name => collateral type => sub-collateral => account => SAFE data)
+    mapping (bytes32 => mapping(bytes32 => mapping(bytes32 => mapping (address => SAFE)))) public safes;
+    // Balance of each sub-collateral (collateral type => sub-collateral => address => amount)
+    mapping (bytes32 => mapping(bytes32 => mapping(address => uint256)))                   public tokenCollateral;  // [wad]
+    // Internal balance of system coins (coin name => account => amount)
+    mapping (bytes32 => mapping(address => uint256))                                       public coinBalance;      // [rad]
+    // Amount of debt held by an account. Coins & debt are like matter and antimatter. They nullify each other (coin name => account => amount)
+    mapping (bytes32 => mapping(address => uint256))                                       public debtBalance;      // [rad]
 
-    // Total amount of debt that a single safe can generate
+    // Total amount of debt that a single safe can generate (collateral type => amount)
     mapping (bytes32 => uint256)  public safeDebtCeiling;     // [wad]
-    // Total amount of debt (coins) currently issued
+    // Total amount of debt (coins) currently issued (system coin => amount)
     mapping (bytes32 => uint256)  public globalDebt;          // [rad]
-    // 'Bad' debt that's not covered by collateral
+    // 'Bad' debt that's not covered by collateral (system coin => amount)
     mapping (bytes32 => uint256)  public globalUnbackedDebt;  // [rad]
-    // Maximum amount of debt that can be issued
+    // Maximum amount of debt that can be issued (system coin => amount)
     mapping (bytes32 => uint256)  public globalDebtCeiling;   // [rad]
-    // Mapping of coin states
+    // Mapping of coin states (system coin => 1/0)
     mapping (bytes32 => uint256)  public coinEnabled;
-    // Whether a coin has been initialized or not
+    // Whether a coin has been initialized or not (system coin => 1/0)
     mapping (bytes32 => uint256)  public coinInitialized;
 
     // Manager address
@@ -199,17 +209,19 @@ contract MultiSAFEEngine {
     event InitializeCoin(bytes32 indexed coinName, uint256 globalDebtCeiling);
     event ApproveSAFEModification(bytes32 indexed coinName, address sender, address account);
     event DenySAFEModification(bytes32 indexed coinName, address sender, address account);
+    event InitializeSubCollateral(bytes32 indexed coinName, bytes32 indexed collateralType, bytes32 indexed subCollateral)
     event InitializeCollateralType(bytes32 indexed coinName, bytes32 collateralType);
     event ModifyParameters(bytes32 indexed coinName, bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 indexed coinName, bytes32 collateralType, bytes32 parameter, uint256 data);
     event DisableCoin(bytes32 indexed coinName);
-    event ModifyCollateralBalance(bytes32 indexed collateralType, address indexed account, int256 wad);
-    event TransferCollateral(bytes32 indexed collateralType, address indexed src, address indexed dst, uint256 wad);
+    event ModifyCollateralBalance(bytes32 indexed collateralType, bytes32 indexed subCollateral, address indexed account, int256 wad);
+    event TransferCollateral(bytes32 indexed collateralType, bytes32 indexed subCollateral, address indexed src, address indexed dst, uint256 wad);
     event TransferInternalCoins(bytes32 indexed coinName, address indexed src, address indexed dst, uint256 rad);
     event ModifySAFECollateralization(
         bytes32 indexed coinName,
         bytes32 indexed collateralType,
-        address indexed safe,
+        bytes32 indexed subCollateral,
+        address safe,
         address collateralSource,
         address debtDestination,
         int256 deltaCollateral,
@@ -219,10 +231,11 @@ contract MultiSAFEEngine {
         uint256 globalDebt
     );
     event TransferSAFECollateralAndDebt(
-        bytes32 coinName,
+        bytes32 indexed coinName,
         bytes32 indexed collateralType,
-        address indexed src,
-        address indexed dst,
+        bytes32 indexed subCollateral,
+        address src,
+        address dst,
         int256 deltaCollateral,
         int256 deltaDebt,
         uint256 srcLockedCollateral,
@@ -233,7 +246,8 @@ contract MultiSAFEEngine {
     event ConfiscateSAFECollateralAndDebt(
         bytes32 indexed coinName,
         bytes32 indexed collateralType,
-        address indexed safe,
+        bytes32 indexed subCollateral,
+        address safe,
         address collateralCounterparty,
         address debtCounterparty,
         int256 deltaCollateral,
@@ -334,7 +348,7 @@ contract MultiSAFEEngine {
     /**
      * @notice Creates a brand new collateral type for a specific coin
      * @param coinName The name of the coin to initialize
-     * @param collateralType Collateral type name (e.g ETH-A, TBTC-B)
+     * @param collateralType Collateral type name (e.g ETH, TBTC, PUNK)
      */
     function initializeCollateralType(bytes32 coinName, bytes32 collateralType) external isAuthorized(coinName) {
         require(collateralTypes[coinName][collateralType].accumulatedRate == 0, "MultiSAFEEngine/collateral-type-already-exists");
@@ -388,21 +402,28 @@ contract MultiSAFEEngine {
     /**
      * @notice Join/exit collateral into and and out of the system
      * @param collateralType Collateral type to join/exit
+     * @param subCollateral Sub-collateral for the collateral type
      * @param account Account that gets credited/debited
      * @param wad Amount of collateral
      */
     function modifyCollateralBalance(
         bytes32 collateralType,
+        bytes32 subCollateral,
         address account,
         int256 wad
     ) external isCollateralJoin(collateralType) {
-        tokenCollateral[collateralType][account] = addition(tokenCollateral[collateralType][account], wad);
-        emit ModifyCollateralBalance(collateralType, account, wad);
+        if (collateralFamily[collateralType][subCollateral] == 0) {
+          collateralFamily[collateralType][subCollateral] = 1;
+          emit InitializeSubCollateral(collateralType, subCollateral);
+        }
+        tokenCollateral[collateralType][subCollateral][account] = addition(tokenCollateral[collateralType][subCollateral][account], wad);
+        emit ModifyCollateralBalance(collateralType, subCollateral, account, wad);
     }
     /**
      * @notice Transfer collateral between accounts
      * @param coinName The name of the coin that the accounts have
      * @param collateralType Collateral type transferred
+     * @param subCollateral Sub-collateral for the collateral type
      * @param src Collateral source
      * @param dst Collateral destination
      * @param wad Amount of collateral transferred
@@ -410,14 +431,15 @@ contract MultiSAFEEngine {
     function transferCollateral(
         bytes32 coinName,
         bytes32 collateralType,
+        bytes32 subCollateral,
         address src,
         address dst,
         uint256 wad
     ) external {
         require(canModifySAFE(coinName, src, msg.sender), "MultiSAFEEngine/not-allowed");
-        tokenCollateral[collateralType][src] = subtract(tokenCollateral[collateralType][src], wad);
-        tokenCollateral[collateralType][dst] = addition(tokenCollateral[collateralType][dst], wad);
-        emit TransferCollateral(collateralType, src, dst, wad);
+        tokenCollateral[collateralType][subCollateral][src] = subtract(tokenCollateral[collateralType][subCollateral][src], wad);
+        tokenCollateral[collateralType][subCollateral][dst] = addition(tokenCollateral[collateralType][subCollateral][dst], wad);
+        emit TransferCollateral(collateralType, subCollateral, src, dst, wad);
     }
     /**
      * @notice Transfer internal coins (does not affect external balances from Coin.sol)
@@ -444,7 +466,8 @@ contract MultiSAFEEngine {
     /**
      * @notice Add/remove collateral or put back/generate more debt in a SAFE
      * @param coinName The name of the coin
-     * @param collateralType Type of collateral to withdraw/deposit in and from the SAFE
+     * @param collateralType Main collateral type
+     * @param subCollateral Sub-collateral for the collateral type to withdraw/deposit in and from the SAFE
      * @param safe Target SAFE
      * @param collateralSource Account we take collateral from/put collateral into
      * @param debtDestination Account from which we credit/debit coins and debt
@@ -454,16 +477,17 @@ contract MultiSAFEEngine {
     function modifySAFECollateralization(
         bytes32 coinName,
         bytes32 collateralType,
+        bytes32 subCollateral,
         address safe,
         address collateralSource,
         address debtDestination,
         int256 deltaCollateral,
         int256 deltaDebt
-    ) external {
+    ) external isSubCollateral(collateralType, subCollateral) {
         // coin is enabled
         require(coinEnabled[coinName] == 1, "MultiSAFEEngine/coin-not-enabled");
 
-        SAFE memory safeData = safes[coinName][collateralType][safe];
+        SAFE memory safeData = safes[coinName][collateralType][subCollateral][safe];
         CollateralType memory collateralTypeData = collateralTypes[coinName][collateralType];
         // collateral type has been initialised
         require(collateralTypeData.accumulatedRate != 0, "MultiSAFEEngine/collateral-type-not-initialized");
@@ -485,10 +509,10 @@ contract MultiSAFEEngine {
           belowDebtCeilings = both(belowDebtCeilings, _globalDebt <= _globalDebtCeiling);
 
           require(
-            either(deltaDebt <= 0,belowDebtCeilings),
+            either(deltaDebt <= 0, belowDebtCeilings),
             "MultiSAFEEngine/ceiling-exceeded"
           );
-          // safe is either less risky than before, or it is safe
+          // SAFE is either less risky than before, or it is safe
           require(
             either(
               both(deltaDebt <= 0, deltaCollateral >= 0),
@@ -498,33 +522,34 @@ contract MultiSAFEEngine {
           );
         }
 
-        // safe is either more safe, or the owner consents
+        // SAFE is either more safe, or the owner consents
         require(either(both(deltaDebt <= 0, deltaCollateral >= 0), canModifySAFE(coinName, safe, msg.sender)), "MultiSAFEEngine/not-allowed-to-modify-safe");
         // collateral src consents
         require(either(deltaCollateral <= 0, canModifySAFE(coinName, collateralSource, msg.sender)), "MultiSAFEEngine/not-allowed-collateral-src");
         // debt dst consents
         require(either(deltaDebt >= 0, canModifySAFE(coinName, debtDestination, msg.sender)), "MultiSAFEEngine/not-allowed-debt-dst");
 
-        // safe has no debt, or a non-dusty amount
+        // SAFE has no debt, or a non-dusty amount
         require(either(safeData.generatedDebt == 0, totalDebtIssued >= collateralTypeData.debtFloor), "MultiSAFEEngine/dust");
 
-        // safe didn't go above the safe debt limit
+        // SAFE didn't go above the safe debt limit
         if (deltaDebt > 0) {
           require(safeData.generatedDebt <= safeDebtCeiling[coinName], "MultiSAFEEngine/above-debt-limit");
         }
 
-        tokenCollateral[collateralType][collateralSource] =
-          subtract(tokenCollateral[collateralType][collateralSource], deltaCollateral);
+        tokenCollateral[collateralType][subCollateral][collateralSource] =
+          subtract(tokenCollateral[collateralType][subCollateral][collateralSource], deltaCollateral);
 
         coinBalance[coinName][debtDestination] = addition(coinBalance[coinName][debtDestination], deltaAdjustedDebt);
 
-        safes[coinName][collateralType][safe]     = safeData;
-        collateralTypes[coinName][collateralType] = collateralTypeData;
+        safes[coinName][collateralType][subCollateral][safe] = safeData;
+        collateralTypes[coinName][collateralType]            = collateralTypeData;
 
         uint256 _globalDebt = globalDebt[coinName];
         emit ModifySAFECollateralization(
             coinName,
             collateralType,
+            subCollateral,
             safe,
             collateralSource,
             debtDestination,
@@ -540,7 +565,8 @@ contract MultiSAFEEngine {
     /**
      * @notice Transfer collateral and/or debt between SAFEs
      * @param coinName The name of the coin to transfer
-     * @param collateralType Collateral type transferred between SAFEs
+     * @param collateralType Collateral type
+     * @param subCollateral Sub-collateral for the collateral type transferred between SAFEs
      * @param src Source SAFE
      * @param dst Destination SAFE
      * @param deltaCollateral Amount of collateral to take/add into src and give/take from dst (wad)
@@ -549,13 +575,14 @@ contract MultiSAFEEngine {
     function transferSAFECollateralAndDebt(
         bytes32 coinName,
         bytes32 collateralType,
+        bytes32 subCollateral,
         address src,
         address dst,
         int256 deltaCollateral,
         int256 deltaDebt
-    ) external {
-        SAFE storage srcSAFE = safes[coinName][collateralType][src];
-        SAFE storage dstSAFE = safes[coinName][collateralType][dst];
+    ) external isSubCollateral(collateralType, subCollateral) {
+        SAFE storage srcSAFE = safes[coinName][collateralType][subCollateral][src];
+        SAFE storage dstSAFE = safes[coinName][collateralType][subCollateral][dst];
         CollateralType storage collateralType_ = collateralTypes[coinName][collateralType];
 
         srcSAFE.lockedCollateral = subtract(srcSAFE.lockedCollateral, deltaCollateral);
@@ -580,6 +607,7 @@ contract MultiSAFEEngine {
         emit TransferSAFECollateralAndDebt(
             coinName,
             collateralType,
+            subCollateral,
             src,
             dst,
             deltaCollateral,
@@ -596,7 +624,8 @@ contract MultiSAFEEngine {
      * @notice Normally used by the LiquidationEngine in order to confiscate collateral and
        debt from a SAFE and give them to someone else
      * @param coinName The name of the coin to confiscate
-     * @param collateralType Collateral type the SAFE has locked inside
+     * @param collateralType Collateral type
+     * @param subCollateral Subcollateral the SAFE has locked inside
      * @param safe Target SAFE
      * @param collateralCounterparty Who we take/give collateral to
      * @param debtCounterparty Who we take/give debt to
@@ -606,15 +635,16 @@ contract MultiSAFEEngine {
     function confiscateSAFECollateralAndDebt(
         bytes32 coinName,
         bytes32 collateralType,
+        bytes32 subCollateral,
         address safe,
         address collateralCounterparty,
         address debtCounterparty,
         int256 deltaCollateral,
         int256 deltaDebt
-    ) external isSystemComponent() {
+    ) external isSystemComponent(collateralType, subCollateral) {
         // Avoid stack too deep
         {
-          SAFE storage safe_ = safes[coinName][collateralType][safe];
+          SAFE storage safe_ = safes[coinName][collateralType][subCollateral][safe];
           safe_.lockedCollateral = addition(safe_.lockedCollateral, deltaCollateral);
           safe_.generatedDebt = addition(safe_.generatedDebt, deltaDebt);
         }
@@ -626,8 +656,8 @@ contract MultiSAFEEngine {
 
           int256 deltaTotalIssuedDebt = multiply(collateralType_.accumulatedRate, deltaDebt);
 
-          tokenCollateral[collateralType][collateralCounterparty] = subtract(
-            tokenCollateral[collateralType][collateralCounterparty],
+          tokenCollateral[collateralType][subCollateral][collateralCounterparty] = subtract(
+            tokenCollateral[collateralType][subCollateral][collateralCounterparty],
             deltaCollateral
           );
           debtBalance[coinName][debtCounterparty] = subtract(
@@ -644,6 +674,7 @@ contract MultiSAFEEngine {
         emit ConfiscateSAFECollateralAndDebt(
             coinName,
             collateralType,
+            subCollateral,
             safe,
             collateralCounterparty,
             debtCounterparty,
@@ -719,8 +750,14 @@ contract MultiSAFEEngine {
         int256 rateMultiplier
     ) external isSystemComponent() {
         require(coinEnabled[coinName] == 1, "MultiSAFEEngine/coin-not-enabled");
-        CollateralType storage collateralType_ = collateralTypes[coinName][collateralType];
-        collateralType_.accumulatedRate        = addition(collateralType_.accumulatedRate, rateMultiplier);
+        CollateralType memory collateralType_  = collateralTypes[coinName][collateralType];
+
+        uint256 newAccumulatedRate             = addition(collateralType_.accumulatedRate, rateMultiplier);
+        if (both(newAccumulatedRate == 0, collateralType_.accumulatedRate > 0)) {
+          newAccumulatedRate = 1;
+        }
+
+        collateralType_.accumulatedRate        = newAccumulatedRate;
         int256 deltaSurplus                    = multiply(collateralType_.debtAmount, rateMultiplier);
         coinBalance[coinName][surplusDst]      = addition(coinBalance[coinName][surplusDst], deltaSurplus);
         globalDebt[coinName]                   = addition(globalDebt[coinName], deltaSurplus);
