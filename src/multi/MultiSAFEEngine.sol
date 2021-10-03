@@ -209,13 +209,13 @@ contract MultiSAFEEngine {
     event InitializeCoin(bytes32 indexed coinName, uint256 globalDebtCeiling);
     event ApproveSAFEModification(bytes32 indexed coinName, address sender, address account);
     event DenySAFEModification(bytes32 indexed coinName, address sender, address account);
-    event InitializeSubCollateral(bytes32 indexed coinName, bytes32 indexed collateralType, bytes32 indexed subCollateral)
+    event InitializeSubCollateral(bytes32 indexed collateralType, bytes32 indexed subCollateral);
     event InitializeCollateralType(bytes32 indexed coinName, bytes32 collateralType);
     event ModifyParameters(bytes32 indexed coinName, bytes32 parameter, uint256 data);
     event ModifyParameters(bytes32 indexed coinName, bytes32 collateralType, bytes32 parameter, uint256 data);
     event DisableCoin(bytes32 indexed coinName);
     event ModifyCollateralBalance(bytes32 indexed collateralType, bytes32 indexed subCollateral, address indexed account, int256 wad);
-    event TransferCollateral(bytes32 indexed collateralType, bytes32 indexed subCollateral, address indexed src, address indexed dst, uint256 wad);
+    event TransferCollateral(bytes32 indexed collateralType, bytes32 indexed subCollateral, address indexed src, address dst, uint256 wad);
     event TransferInternalCoins(bytes32 indexed coinName, address indexed src, address indexed dst, uint256 rad);
     event ModifySAFECollateralization(
         bytes32 indexed coinName,
@@ -641,7 +641,7 @@ contract MultiSAFEEngine {
         address debtCounterparty,
         int256 deltaCollateral,
         int256 deltaDebt
-    ) external isSystemComponent(collateralType, subCollateral) {
+    ) external isSubCollateral(collateralType, subCollateral) {
         // Avoid stack too deep
         {
           SAFE storage safe_ = safes[coinName][collateralType][subCollateral][safe];

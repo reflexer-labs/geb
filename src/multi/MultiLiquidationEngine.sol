@@ -208,12 +208,19 @@ contract MultiLiquidationEngine {
       bytes32 parameter,
       address data
     );
+    event ModifyParameters(
+      bytes32 indexed coinName,
+      bytes32 collateralType,
+      bytes32 subCollateral,
+      bytes32 parameter,
+      address data
+    );
     event DisableCoin(bytes32 indexed coinName);
     event Liquidate(
       bytes32 indexed coinName,
       bytes32 indexed collateralType,
-      bytes32 indexed, subCollateral,
-      address indexed safe,
+      bytes32 indexed subCollateral,
+      address safe,
       uint256 collateralAmount,
       uint256 debtAmount,
       uint256 amountToRaise,
@@ -223,14 +230,13 @@ contract MultiLiquidationEngine {
       bytes32 indexed coinName,
       bytes32 indexed collateralType,
       bytes32 indexed subCollateral,
-      address indexed safe,
+      address safe,
       uint256 collateralAddedOrDebtRepaid
     );
     event FailedSAFESave(bytes32 indexed coinName, bytes failReason);
     event ProtectSAFE(
       bytes32 indexed coinName,
       bytes32 indexed collateralType,
-      bytes32 indexed subCollateral,
       address indexed safe,
       address saviour
     );
@@ -362,7 +368,7 @@ contract MultiLiquidationEngine {
         );
     }
     /**
-     * @notice Modify address params
+     * @notice Modify address params (main collaterals)
      * @param coinName The name of the coin
      * @param collateralType The collateral type we change parameters for
      * @param parameter The name of the integration modified
@@ -378,16 +384,41 @@ contract MultiLiquidationEngine {
             safeEngine.denySAFEModification(coinName, collateralTypes[coinName][collateralType].collateralAuctionHouse);
             collateralTypes[coinName][collateralType].collateralAuctionHouse = data;
             safeEngine.approveSAFEModification(coinName, data);
-        } else if (parameter == "liquidationPool") {
+        }
+        else revert("MultiLiquidationEngine/modify-unrecognized-param");
+        emit ModifyParameters(
+            coinName,
+            collateralType,
+            parameter,
+            data
+        );
+    }
+    /**
+     * @notice Modify address params (sub-collateral specific)
+     * @param coinName The name of the coin
+     * @param collateralType The collateral type we change parameters for
+     * @param subCollateral The sub-collateral of the main collateral type
+     * @param parameter The name of the integration modified
+     * @param data New address for the integration contract
+     */
+    function modifyParameters(
+        bytes32 coinName,
+        bytes32 collateralType,
+        bytes32 subCollateral,
+        bytes32 parameter,
+        address data
+    ) external isSubCollateral(collateralType, subCollateral) isAuthorized(coinName) {
+        if (parameter == "liquidationPool") {
             safeEngine.denySAFEModification(coinName, collateralTypes[coinName][collateralType].liquidationPool);
             collateralTypes[coinName][collateralType].liquidationPool = data;
-            require(LiquidationPoolLike(data).canLiquidate(coinName, collateralType, uint(-1), uint(-1)), "MultiLiquidationEngine/faulty-liq-pool");
+            require(LiquidationPoolLike(data).canLiquidate(coinName, collateralType, subCollateral, uint(-1), uint(-1)), "MultiLiquidationEngine/faulty-liq-pool");
             safeEngine.approveSAFEModification(coinName, data);
         }
         else revert("MultiLiquidationEngine/modify-unrecognized-param");
         emit ModifyParameters(
             coinName,
             collateralType,
+            subCollateral,
             parameter,
             data
         );
@@ -465,7 +496,7 @@ contract MultiLiquidationEngine {
           try SAFESaviourLike(chosenSAFESaviour[coinName][collateralType][safe]).saveSAFE(coinName, msg.sender, collateralType, subCollateral, safe)
             returns (bool ok, uint256 collateralAddedOrDebtRepaid, uint256) {
             if (both(ok, collateralAddedOrDebtRepaid > 0)) {
-              emit SaveSAFE(coinName, collateralType, safe, collateralAddedOrDebtRepaid);
+              emit SaveSAFE(coinName, collateralType, subCollateral, safe, collateralAddedOrDebtRepaid);
             }
           } catch (bytes memory revertReason) {
             emit FailedSAFESave(coinName, revertReason);
@@ -516,7 +547,7 @@ contract MultiLiquidationEngine {
               currentOnAuctionSystemCoins[coinName] = addition(currentOnAuctionSystemCoins[coinName], amountToRaise_);
 
               auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
-                { subCollateral: subCollateral,
+                { subCollateral: subCollateral
                 , forgoneCollateralReceiver: safe
                 , initialBidder: address(accountingEngine)
                 , amountToRaise: amountToRaise_

@@ -19,7 +19,7 @@
 pragma solidity 0.6.7;
 
 abstract contract SAFEEngineLike {
-    function collateralFamily(bytes32, bytes32) virtual public view returns (bytes32);
+    function collateralFamily(bytes32, bytes32) virtual public view returns (uint256);
     function coinBalance(bytes32,address) virtual public view returns (uint256);
     function collateralTypes(bytes32,bytes32) virtual public view returns (
         uint256 debtAmount,        // [wad]
@@ -253,7 +253,7 @@ contract MultiGlobalSettlement {
     event SetOutstandingCoinSupply(bytes32 indexed coinName, uint256 outstandingCoinSupply);
     event CalculateCashPrice(bytes32 indexed coinName, bytes32 indexed collateralType, uint256 collateralCashPrice);
     event PrepareCoinsForRedeeming(bytes32 indexed coinName, address indexed sender, uint256 coinBag);
-    event RedeemCollateral(bytes32 indexed coinName, bytes32 indexed collateralType, bytes32 indexed subCollateral, address indexed sender, uint256 coinsAmount, uint256 collateralAmount);
+    event RedeemCollateral(bytes32 indexed coinName, bytes32 indexed collateralType, bytes32 indexed subCollateral, address sender, uint256 coinsAmount, uint256 collateralAmount);
 
     // --- Modifiers ---
     /**
@@ -343,6 +343,48 @@ contract MultiGlobalSettlement {
         emit ModifyParameters(parameter, data);
     }
 
+    // --- Internal Logic ---
+    /**
+     * @notice Return an auction house contract
+     * @param coinName The coin name for which we return the auction house
+     * @param collateralType The main collateral type for which we return the auction house
+     */
+    function getAuctionHouse(
+        bytes32 coinName,
+        bytes32 collateralType
+    ) private view returns (CollateralAuctionHouseLike) {
+        (,address auctionHouse_,,) = liquidationEngine.collateralTypes(coinName, collateralType);
+        return CollateralAuctionHouseLike(auctionHouse_);
+    }
+    /**
+     * @notice Update collateralToDebt data while preparing an auction to be terminated
+     * @param coinName The name of the coin to fasttrack an auction for
+     * @param collateralType The collateral type associated with the auction contract
+     * @param auctionId The ID of the auction to be fast tracked
+     * @param accumulatedRate The accumulated rate of the target collateral types
+     * @param collateralAuctionHouse Auction house contract for the collateralType
+     */
+    function fastTrackAndUpdateCollateralToDebt(
+        bytes32 coinName,
+        bytes32 collateralType,
+        uint256 auctionId,
+        uint256 accumulatedRate,
+        CollateralAuctionHouseLike collateralAuctionHouse
+    ) private {
+        uint256 raisedAmount              = collateralAuctionHouse.raisedAmount(auctionId);
+        uint256 collateralToSell          = collateralAuctionHouse.remainingAmountToSell(auctionId);
+        address forgoneCollateralReceiver = collateralAuctionHouse.forgoneCollateralReceiver(auctionId);
+        uint256 amountToRaise             = collateralAuctionHouse.amountToRaise(auctionId);
+
+        safeEngine.createUnbackedDebt(coinName, address(accountingEngine), address(accountingEngine), subtract(amountToRaise, raisedAmount));
+        safeEngine.createUnbackedDebt(coinName, address(accountingEngine), address(this), collateralAuctionHouse.bidAmount(auctionId));
+        safeEngine.approveSAFEModification(coinName, address(collateralAuctionHouse));
+
+        collateralTotalDebt[coinName][collateralType] =
+          addition(collateralTotalDebt[coinName][collateralType], subtract(amountToRaise, raisedAmount) / accumulatedRate);
+        require(int256(collateralToSell) >= 0 && int256(subtract(amountToRaise, raisedAmount) / accumulatedRate) >= 0, "MultiGlobalSettlement/overflow");
+    }
+
     // --- Settlement ---
     /**
      * @notice Freeze the system and start the cooldown period
@@ -387,24 +429,28 @@ contract MultiGlobalSettlement {
     function fastTrackAuction(bytes32 coinName, bytes32 collateralType, uint256 auctionId) external {
         require(finalCoinPerCollateralPrice[coinName][collateralType] != 0, "MultiGlobalSettlement/final-collateral-price-not-defined");
 
-        (,address auctionHouse_,,)        = liquidationEngine.collateralTypes(coinName, collateralType);
-        CollateralAuctionHouseLike collateralAuctionHouse = CollateralAuctionHouseLike(auctionHouse_);
-        (, uint256 accumulatedRate,,,,)   = safeEngine.collateralTypes(coinName, collateralType);
+        CollateralAuctionHouseLike collateralAuctionHouse = getAuctionHouse(coinName, collateralType);
+        (, uint256 accumulatedRate,,,,)                   = safeEngine.collateralTypes(coinName, collateralType);
 
+        // Avoid stack too deep
+        fastTrackAndUpdateCollateralToDebt(
+          coinName,
+          collateralType,
+          auctionId,
+          accumulatedRate,
+          collateralAuctionHouse
+        );
+
+        // Fetch params before terminating the auction
+        address forgoneCollateralReceiver = collateralAuctionHouse.forgoneCollateralReceiver(auctionId);
         uint256 raisedAmount              = collateralAuctionHouse.raisedAmount(auctionId);
         uint256 collateralToSell          = collateralAuctionHouse.remainingAmountToSell(auctionId);
-        address forgoneCollateralReceiver = collateralAuctionHouse.forgoneCollateralReceiver(auctionId);
         uint256 amountToRaise             = collateralAuctionHouse.amountToRaise(auctionId);
         bytes32 subCollateral             = collateralAuctionHouse.subCollateral(auctionId);
 
-        safeEngine.createUnbackedDebt(coinName, address(accountingEngine), address(accountingEngine), subtract(amountToRaise, raisedAmount));
-        safeEngine.createUnbackedDebt(coinName, address(accountingEngine), address(this), collateralAuctionHouse.bidAmount(auctionId));
-        safeEngine.approveSAFEModification(coinName, address(collateralAuctionHouse));
+        // Terminate
         collateralAuctionHouse.terminateAuctionPrematurely(auctionId);
 
-        collateralTotalDebt[coinName][collateralType] =
-          addition(collateralTotalDebt[coinName][collateralType], subtract(amountToRaise, raisedAmount) / accumulatedRate);
-        require(int256(collateralToSell) >= 0 && int256(subtract(amountToRaise, raisedAmount) / accumulatedRate) >= 0, "MultiGlobalSettlement/overflow");
         safeEngine.confiscateSAFECollateralAndDebt(
           coinName,
           collateralType,
