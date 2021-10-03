@@ -19,7 +19,7 @@
 pragma solidity 0.6.7;
 
 abstract contract SAFEEngineLike {
-    function collateralFamily(bytes32, bytes32) virtual public view returns (uint256);
+    function collateralFamily(bytes32,bytes32) virtual public view returns (uint256);
     function coinBalance(bytes32,address) virtual public view returns (uint256);
     function collateralTypes(bytes32,bytes32) virtual public view returns (
         uint256 debtAmount,        // [wad]
@@ -233,10 +233,11 @@ contract MultiGlobalSettlement {
 
     // Bags of coins ready to be used for collateral redemption
     mapping (bytes32 => mapping(address => uint256))  public coinBag;                                // [wad]
-    // Amount of coins already used for collateral redemption by every address and for different collateral types
-    mapping (bytes32 => mapping(bytes32 => mapping (address => uint256))) public coinsUsedToRedeem;  // [wad]
     // Contracts that keep collateral for each individual coin
     mapping (bytes32 => address)                      public collateralHolder;
+
+    // Amount of coins already used for collateral redemption by every address and for different collateral types
+    mapping (bytes32 => mapping(bytes32 => mapping (address => uint256))) public coinsUsedToRedeem;  // [wad]
 
     // --- Events ---
     event AddAuthorization(bytes32 indexed coinName, address account);
