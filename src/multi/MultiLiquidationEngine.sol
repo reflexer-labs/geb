@@ -152,9 +152,9 @@ contract MultiLiquidationEngine {
     }
 
     // Collateral types included in the system for each individual system coin
-    mapping (bytes32 => mapping(bytes32 => CollateralType))                               public collateralTypes;
+    mapping (bytes32 => mapping(bytes32 => CollateralType))                                public collateralTypes;
     // Saviour contract chosen for each SAFE by its creator
-    mapping (bytes32 => mapping(bytes32 => mapping(address => address)))                  public chosenSAFESaviour;
+    mapping (bytes32 => mapping(bytes32 => mapping(address => address)))                   public chosenSAFESaviour;
     // Mutex used to block against re-entrancy when 'liquidateSAFE' passes execution to a saviour
     mapping (bytes32 => mapping(bytes32 => mapping(bytes32 => mapping(address => uint8)))) public mutex;
 
@@ -222,7 +222,6 @@ contract MultiLiquidationEngine {
       bytes32 indexed subCollateral,
       address safe,
       uint256 collateralAmount,
-      uint256 debtAmount,
       uint256 amountToRaise,
       uint256 auctionId
     );
@@ -240,15 +239,6 @@ contract MultiLiquidationEngine {
       address indexed safe,
       address saviour
     );
-
-    // --- Modifiers ---
-    /**
-     * @notice Checks whether a sub-collateral is part of a collateral family
-     */
-    modifier isSubCollateral(bytes32 collateralType, bytes32 subCollateral) {
-        require(safeEngine.collateralFamily(collateralType, subCollateral) == 1, "MultiLiquidationEngine/not-in-family");
-        _;
-    }
 
     // --- Init ---
     constructor(address safeEngine_) public {
@@ -407,7 +397,9 @@ contract MultiLiquidationEngine {
         bytes32 subCollateral,
         bytes32 parameter,
         address data
-    ) external isSubCollateral(collateralType, subCollateral) isAuthorized(coinName) {
+    ) external isAuthorized(coinName) {
+        require(safeEngine.collateralFamily(collateralType, subCollateral) == 1, "MultiLiquidationEngine/not-in-family");
+
         if (parameter == "liquidationPool") {
             safeEngine.denySAFEModification(coinName, collateralTypes[coinName][collateralType].liquidationPool);
             collateralTypes[coinName][collateralType].liquidationPool = data;
@@ -468,29 +460,42 @@ contract MultiLiquidationEngine {
      * @param safe The SAFE's address
      */
     function liquidateSAFE(bytes32 coinName, bytes32 collateralType, bytes32 subCollateral, address safe)
-      external isSubCollateral(collateralType, subCollateral) returns (uint256 auctionId) {
-        require(mutex[coinName][collateralType][subCollateral][safe] == 0, "MultiLiquidationEngine/non-null-mutex");
-        mutex[coinName][collateralType][subCollateral][safe] = 1;
-
-        (, uint256 accumulatedRate, , , uint256 debtFloor, uint256 liquidationPrice) =
-          safeEngine.collateralTypes(coinName, collateralType);
-        (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(coinName, collateralType, subCollateral, safe);
+      external returns (uint256 auctionId) {
+        // Avoid stack too deep
+        {
+          require(safeEngine.collateralFamily(collateralType, subCollateral) == 1, "MultiLiquidationEngine/not-in-family");
+          require(coinEnabled[coinName] == 1, "MultiLiquidationEngine/coin-not-enabled");
+          require(coinInitialized[coinName] == 1, "MultiLiquidationEngine/coin-not-init");
+          require(mutex[coinName][collateralType][subCollateral][safe] == 0, "MultiLiquidationEngine/non-null-mutex");
+          mutex[coinName][collateralType][subCollateral][safe] = 1;
+        }
 
         // Avoid stack too deep
         {
-          require(coinEnabled[coinName] == 1, "MultiLiquidationEngine/coin-not-enabled");
-          require(coinInitialized[coinName] == 1, "MultiLiquidationEngine/coin-not-init");
+          (, uint256 accumulatedRate, , , uint256 debtFloor, uint256 liquidationPrice) =
+            safeEngine.collateralTypes(coinName, collateralType);
+          (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(coinName, collateralType, subCollateral, safe);
+
           require(both(
             liquidationPrice > 0,
             multiply(safeCollateral, liquidationPrice) < multiply(safeDebt, accumulatedRate)
           ), "MultiLiquidationEngine/safe-not-unsafe");
+
+          bool underCoinLimit = (currentOnAuctionSystemCoins[coinName] < onAuctionSystemCoinLimit[coinName]);
+
+          uint256 remainingCoinLimit = onAuctionSystemCoinLimit[coinName] - currentOnAuctionSystemCoins[coinName];
+          require(remainingCoinLimit <= onAuctionSystemCoinLimit[coinName], "MultiLiquidationEngine/sub-underflow-coin-limit");
+
+          bool aboveDebtFloor = (remainingCoinLimit >= debtFloor);
+
           require(
-            both(currentOnAuctionSystemCoins[coinName] < onAuctionSystemCoinLimit[coinName],
-            subtract(onAuctionSystemCoinLimit[coinName], currentOnAuctionSystemCoins[coinName]) >= debtFloor),
+            both(underCoinLimit, aboveDebtFloor),
             "MultiLiquidationEngine/liquidation-limit-hit"
           );
         }
 
+        // Try to save the SAFE
+        (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(coinName, collateralType, subCollateral, safe);
         if (chosenSAFESaviour[coinName][collateralType][safe] != address(0) &&
             safeSaviours[coinName][chosenSAFESaviour[coinName][collateralType][safe]] == 1) {
           try SAFESaviourLike(chosenSAFESaviour[coinName][collateralType][safe]).saveSAFE(coinName, msg.sender, collateralType, subCollateral, safe)
@@ -509,7 +514,8 @@ contract MultiLiquidationEngine {
           require(both(newSafeCollateral >= safeCollateral, newSafeDebt <= safeDebt), "MultiLiquidationEngine/invalid-safe-saviour-operation");
         }
 
-        (, accumulatedRate, , , , liquidationPrice) = safeEngine.collateralTypes(coinName, collateralType);
+        (, uint256 accumulatedRate, , , uint256 debtFloor, uint256 liquidationPrice) =
+          safeEngine.collateralTypes(coinName, collateralType);
         (safeCollateral, safeDebt) = safeEngine.safes(coinName, collateralType, subCollateral, safe);
 
         if (both(liquidationPrice > 0, multiply(safeCollateral, liquidationPrice) < multiply(safeDebt, accumulatedRate))) {
@@ -517,7 +523,7 @@ contract MultiLiquidationEngine {
 
           uint256 limitAdjustedDebt;
           {
-            uint256 amountDebtToLiquidate = subtract(onAuctionSystemCoinLimit[coinName], currentOnAuctionSystemCoins[coinName]);
+            uint256 amountDebtToLiquidate = onAuctionSystemCoinLimit[coinName] - currentOnAuctionSystemCoins[coinName];
             amountDebtToLiquidate         = minimum(collateralData.liquidationQuantity, amountDebtToLiquidate);
             limitAdjustedDebt = minimum(
               safeDebt,
@@ -537,14 +543,16 @@ contract MultiLiquidationEngine {
           );
           accountingEngine.pushDebtToQueue(coinName, multiply(limitAdjustedDebt, accumulatedRate));
 
+          // Avoid stack too deep
           {
             // This calculation will overflow if multiply(limitAdjustedDebt, accumulatedRate) exceeds ~10^14,
             // i.e. the maximum amountToRaise is roughly 100 trillion system coins.
             uint256 amountToRaise_ = multiply(multiply(limitAdjustedDebt, accumulatedRate), collateralData.liquidationPenalty) / WAD;
+            bytes32 auxCoinName    = coinName;
 
-            // Try to liquidate with the pool. If it can't be done,
-            if (!liquidateWithPool(coinName, collateralType, subCollateral, amountToRaise_, collateralToSell)) {
-              currentOnAuctionSystemCoins[coinName] = addition(currentOnAuctionSystemCoins[coinName], amountToRaise_);
+            // Try to liquidate with the pool. If it can't be done, start a new auction
+            if (!liquidateWithPool(auxCoinName, collateralType, subCollateral, amountToRaise_, collateralToSell)) {
+              currentOnAuctionSystemCoins[auxCoinName] = addition(currentOnAuctionSystemCoins[auxCoinName], amountToRaise_);
 
               auctionId = CollateralAuctionHouseLike(collateralData.collateralAuctionHouse).startAuction(
                 { subCollateral: subCollateral
@@ -555,7 +563,7 @@ contract MultiLiquidationEngine {
                 , initialBid: 0
                });
 
-               emit UpdateCurrentOnAuctionSystemCoins(currentOnAuctionSystemCoins[coinName]);
+               emit UpdateCurrentOnAuctionSystemCoins(currentOnAuctionSystemCoins[auxCoinName]);
             }
           }
 
@@ -565,7 +573,6 @@ contract MultiLiquidationEngine {
             subCollateral,
             safe,
             collateralToSell,
-            limitAdjustedDebt,
             multiply(limitAdjustedDebt, accumulatedRate),
             auctionId
           );

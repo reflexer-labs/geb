@@ -691,6 +691,7 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
         uint256 boughtCollateral = getBoughtCollateral(
             id, collateralFsmPriceFeedValue, getCollateralMedianPrice(), systemCoinPriceFeedValue, adjustedBid, updateCurrentDiscount(id)
         );
+
         // check that the calculated amount is greater than zero
         require(boughtCollateral > 0, "MultiIncreasingDiscountCollateralAuctionHouse/null-bought-amount");
         // update the amount of collateral to sell
@@ -718,8 +719,7 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
         emit BuyCollateral(id, adjustedBid, boughtCollateral);
 
         // Remove coins from the liquidation buffer
-        bool soldAll = either(bids[id].amountToRaise == 0, bids[id].amountToSell == 0);
-        if (soldAll) {
+        if (either(bids[id].amountToRaise == 0, bids[id].amountToSell == 0)) {
             liquidationEngine.removeCoinsFromAuction(coinName, collateralType, remainingToRaise);
         } else {
             liquidationEngine.removeCoinsFromAuction(coinName, collateralType, multiply(adjustedBid, RAY));
@@ -727,7 +727,7 @@ contract MultiIncreasingDiscountCollateralAuctionHouse {
 
         // If the auction raised the whole amount or all collateral was sold,
         // send remaining collateral to the forgone receiver
-        if (soldAll) {
+        if (either(bids[id].amountToRaise == 0, bids[id].amountToSell == 0)) {
             safeEngine.transferCollateral(coinName, collateralType, bids[id].subCollateral, address(this), bids[id].forgoneCollateralReceiver, bids[id].amountToSell);
             delete bids[id];
             emit SettleAuction(id, bids[id].amountToSell);

@@ -357,6 +357,29 @@ contract MultiGlobalSettlement {
         return CollateralAuctionHouseLike(auctionHouse_);
     }
     /**
+     * @notice Record collateral shortfall coming from a SAFE being processed
+     * @param coinName The name of the coin to process a SAFE for
+     * @param collateralType The collateral type associated with the SAFE
+     * @param subCollateral The sub-collateral associated with the collateral type
+     * @param safe The SAFE to be processed
+     */
+    function recordCollateralShortfall(bytes32 coinName, bytes32 collateralType, bytes32 subCollateral, address safe)
+      private returns (uint256, uint256) {
+        (, uint256 accumulatedRate,,,,)            = safeEngine.collateralTypes(coinName, collateralType);
+        (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(coinName, collateralType, subCollateral, safe);
+
+        uint256 amountOwed    = rmultiply(rmultiply(safeDebt, accumulatedRate), finalCoinPerCollateralPrice[coinName][collateralType]);
+        uint256 minCollateral = minimum(safeCollateral, amountOwed);
+        require(minCollateral <= 2**255 && safeDebt <= 2**255, "MultiGlobalSettlement/record-shortfall-overflow");
+
+        collateralShortfall[coinName][collateralType] = addition(
+            collateralShortfall[coinName][collateralType],
+            subtract(amountOwed, minCollateral)
+        );
+
+        return (safeDebt, minCollateral);
+    }
+    /**
      * @notice Update collateralToDebt data while preparing an auction to be terminated
      * @param coinName The name of the coin to fasttrack an auction for
      * @param collateralType The collateral type associated with the auction contract
@@ -473,17 +496,11 @@ contract MultiGlobalSettlement {
     function processSAFE(bytes32 coinName, bytes32 collateralType, bytes32 subCollateral, address safe)
       external isSubCollateral(collateralType, subCollateral) {
         require(finalCoinPerCollateralPrice[coinName][collateralType] != 0, "MultiGlobalSettlement/final-collateral-price-not-defined");
-        (, uint256 accumulatedRate,,,,) = safeEngine.collateralTypes(coinName, collateralType);
-        (uint256 safeCollateral, uint256 safeDebt) = safeEngine.safes(coinName, collateralType, subCollateral, safe);
 
-        uint256 amountOwed    = rmultiply(rmultiply(safeDebt, accumulatedRate), finalCoinPerCollateralPrice[coinName][collateralType]);
-        uint256 minCollateral = minimum(safeCollateral, amountOwed);
-        collateralShortfall[coinName][collateralType] = addition(
-            collateralShortfall[coinName][collateralType],
-            subtract(amountOwed, minCollateral)
+        (uint256 safeDebt, uint256 minCollateral) = recordCollateralShortfall(
+          coinName, collateralType, subCollateral, safe
         );
 
-        require(minCollateral <= 2**255 && safeDebt <= 2**255, "MultiGlobalSettlement/overflow");
         safeEngine.confiscateSAFECollateralAndDebt(
             coinName,
             collateralType,

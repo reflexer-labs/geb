@@ -498,12 +498,18 @@ contract MultiSAFEEngine {
 
         int256 deltaAdjustedDebt = multiply(collateralTypeData.accumulatedRate, deltaDebt);
         uint256 totalDebtIssued  = multiply(collateralTypeData.accumulatedRate, safeData.generatedDebt);
-        globalDebt[coinName]     = addition(globalDebt[coinName], deltaAdjustedDebt);
+
+        // Avoid stack too deep
+        {
+          bytes32 auxCoinName     = coinName;
+          globalDebt[auxCoinName] = addition(globalDebt[auxCoinName], deltaAdjustedDebt);
+        }
 
         // either debt has decreased, or debt ceilings are not exceeded
         {
-          uint256 _globalDebt        = globalDebt[coinName];
-          uint256 _globalDebtCeiling = globalDebtCeiling[coinName];
+          bytes32 auxCoinName        = coinName;
+          uint256 _globalDebt        = globalDebt[auxCoinName];
+          uint256 _globalDebtCeiling = globalDebtCeiling[auxCoinName];
           bool belowDebtCeilings     =
             (multiply(collateralTypeData.debtAmount, collateralTypeData.accumulatedRate) <= collateralTypeData.debtCeiling);
           belowDebtCeilings = both(belowDebtCeilings, _globalDebt <= _globalDebtCeiling);
@@ -522,32 +528,44 @@ contract MultiSAFEEngine {
           );
         }
 
-        // SAFE is either more safe, or the owner consents
-        require(either(both(deltaDebt <= 0, deltaCollateral >= 0), canModifySAFE(coinName, safe, msg.sender)), "MultiSAFEEngine/not-allowed-to-modify-safe");
-        // collateral src consents
-        require(either(deltaCollateral <= 0, canModifySAFE(coinName, collateralSource, msg.sender)), "MultiSAFEEngine/not-allowed-collateral-src");
-        // debt dst consents
-        require(either(deltaDebt >= 0, canModifySAFE(coinName, debtDestination, msg.sender)), "MultiSAFEEngine/not-allowed-debt-dst");
-
-        // SAFE has no debt, or a non-dusty amount
-        require(either(safeData.generatedDebt == 0, totalDebtIssued >= collateralTypeData.debtFloor), "MultiSAFEEngine/dust");
+        // Avoid stack too deep
+        {
+          bytes32 auxCoinName = coinName;
+          // SAFE is either more safe, or the owner consents
+          require(either(both(deltaDebt <= 0, deltaCollateral >= 0), canModifySAFE(auxCoinName, safe, msg.sender)), "MultiSAFEEngine/not-allowed-to-modify-safe");
+          // collateral src consents
+          require(either(deltaCollateral <= 0, canModifySAFE(auxCoinName, collateralSource, msg.sender)), "MultiSAFEEngine/not-allowed-collateral-src");
+          // debt dst consents
+          require(either(deltaDebt >= 0, canModifySAFE(auxCoinName, debtDestination, msg.sender)), "MultiSAFEEngine/not-allowed-debt-dst");
+          // SAFE has no debt, or a non-dusty amount
+          require(either(safeData.generatedDebt == 0, totalDebtIssued >= collateralTypeData.debtFloor), "MultiSAFEEngine/dust");
+        }
 
         // SAFE didn't go above the safe debt limit
         if (deltaDebt > 0) {
-          require(safeData.generatedDebt <= safeDebtCeiling[coinName], "MultiSAFEEngine/above-debt-limit");
+          bytes32 auxCoinName = coinName;
+          require(safeData.generatedDebt <= safeDebtCeiling[auxCoinName], "MultiSAFEEngine/above-debt-limit");
         }
 
-        tokenCollateral[collateralType][subCollateral][collateralSource] =
-          subtract(tokenCollateral[collateralType][subCollateral][collateralSource], deltaCollateral);
+        // Avoid stack too deep
+        {
+          bytes32 auxCoinName       = coinName;
+          bytes32 auxCollateralType = collateralType;
+          bytes32 auxSubCollateral  = subCollateral;
 
-        coinBalance[coinName][debtDestination] = addition(coinBalance[coinName][debtDestination], deltaAdjustedDebt);
+          tokenCollateral[auxCollateralType][auxSubCollateral][collateralSource] =
+            subtract(tokenCollateral[auxCollateralType][auxSubCollateral][collateralSource], deltaCollateral);
 
-        safes[coinName][collateralType][subCollateral][safe] = safeData;
-        collateralTypes[coinName][collateralType]            = collateralTypeData;
+          coinBalance[auxCoinName][debtDestination] = addition(coinBalance[auxCoinName][debtDestination], deltaAdjustedDebt);
 
-        uint256 _globalDebt = globalDebt[coinName];
+          address auxSafe                                                  = safe;
+          safes[auxCoinName][auxCollateralType][auxSubCollateral][auxSafe] = safeData;
+          collateralTypes[auxCoinName][auxCollateralType]                  = collateralTypeData;
+        }
+
+        bytes32 auxCoinName = coinName;
         emit ModifySAFECollateralization(
-            coinName,
+            auxCoinName,
             collateralType,
             subCollateral,
             safe,
@@ -557,7 +575,7 @@ contract MultiSAFEEngine {
             deltaDebt,
             safeData.lockedCollateral,
             safeData.generatedDebt,
-            _globalDebt
+            globalDebt[auxCoinName]
         );
     }
 
@@ -594,7 +612,12 @@ contract MultiSAFEEngine {
         uint256 dstTotalDebtIssued = multiply(dstSAFE.generatedDebt, collateralType_.accumulatedRate);
 
         // both sides consent
-        require(both(canModifySAFE(coinName, src, msg.sender), canModifySAFE(coinName, dst, msg.sender)), "MultiSAFEEngine/not-allowed");
+        {
+          bytes32 auxCoinName = coinName;
+          bool srcConsent     = canModifySAFE(auxCoinName, src, msg.sender);
+          bool dstConsent     = canModifySAFE(auxCoinName, dst, msg.sender);
+          require(both(srcConsent, dstConsent), "MultiSAFEEngine/not-allowed");
+        }
 
         // both sides safe
         require(srcTotalDebtIssued <= multiply(srcSAFE.lockedCollateral, collateralType_.safetyPrice), "MultiSAFEEngine/not-safe-src");
@@ -719,10 +742,10 @@ contract MultiSAFEEngine {
         address coinDestination,
         uint256 rad
     ) external isSystemComponentOrAuth(coinName) {
-        debtBalance[coinName][debtDestination]  = addition(debtBalance[coinName][debtDestination], rad);
-        coinBalance[coinName][coinDestination]  = addition(coinBalance[coinName][coinDestination], rad);
-        globalUnbackedDebt[coinName]            = addition(globalUnbackedDebt[coinName], rad);
-        globalDebt[coinName]                    = addition(globalDebt[coinName], rad);
+        debtBalance[coinName][debtDestination] = addition(debtBalance[coinName][debtDestination], rad);
+        coinBalance[coinName][coinDestination] = addition(coinBalance[coinName][coinDestination], rad);
+        globalUnbackedDebt[coinName]           = addition(globalUnbackedDebt[coinName], rad);
+        globalDebt[coinName]                   = addition(globalDebt[coinName], rad);
         emit CreateUnbackedDebt(
             coinName,
             debtDestination,
