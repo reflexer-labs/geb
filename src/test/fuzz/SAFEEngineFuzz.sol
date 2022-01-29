@@ -163,7 +163,7 @@ contract FuzzSafes is DSTest {
         coin.setOwner(address(coinA));
     }
 
-    // test with dapp tools, for fuzzing turn it to internal.
+    // test with dapp tools
     function test_fuzz_setup() public {
         this.join(address(collateralA), 1000 ether);
         assertEq(safeEngine.tokenCollateral("gold", address(users[address(this)])), 1000 ether);

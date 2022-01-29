@@ -7,5 +7,6 @@ maxTimeDelay: 725760000 # 1200 weeks
 maxBlockDelay: 60480000 # around 1000 weeks of blocks
 testMaxGas: 12500000 # current block gas limit
 estimateGas: false
-filterFunctions: ["FuzzSafes.setUp()", "FuzzSafes.IS_TEST()", "FuzzSafes.failed()", "FuzzSafes.test_fuzz_setup()", "FuzzSafes.test_fuzz_debug()"] # removing ds-test functions
+filterFunctions: ["FuzzSafes.setUp()", "FuzzSafes.IS_TEST()", "FuzzSafes.failed()", "FuzzSafes.test_fuzz_setup()", "FuzzSafes.test_fuzz_debug()",
+                  "FuzzAccountingEngine.setUp()", "FuzzAccountingEngine.IS_TEST()", "FuzzAccountingEngine.failed()", "FuzzAccountingEngine.test_fuzz_setup2()", "FuzzAccountingEngine.test_fuzz_debug2()"] # removing ds-test functions
 filterBlacklist: true

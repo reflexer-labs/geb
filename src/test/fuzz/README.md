@@ -124,3 +124,97 @@ Seed: 8590206274387643523
 ```
 
 #### Conclusion: No issues noted.
+
+## Accounting Engine
+
+### 1. Fuzzing for overflows (FuzzBounds)
+
+As with the safeEngine above, this contract is very state dependent, so results here are limited, check next test for a stateful fuzz campaign
+
+```
+Analyzing contract: /src/test/fuzz/AccountingEngineFuzz.sol:FuzzBounds
+assertion in debtAuctionBidSize: passed! 🎉
+assertion in totalOnAuctionDebt: passed! 🎉
+assertion in authorizedAccounts: passed! 🎉
+assertion in settleDebt: passed! 🎉
+assertion in surplusBuffer: passed! 🎉
+assertion in totalQueuedDebt: passed! 🎉
+assertion in addAuthorization: passed! 🎉
+assertion in surplusTransferDelay: passed! 🎉
+assertion in debtQueue: passed! 🎉
+assertion in auctionDebt: passed! 🎉
+assertion in cancelAuctionedDebtWithSurplus: passed! 🎉
+assertion in contractEnabled: passed! 🎉
+assertion in transferExtraSurplus: passed! 🎉
+assertion in disableTimestamp: passed! 🎉
+assertion in extraSurplusReceiver: passed! 🎉
+assertion in popDebtDelay: passed! 🎉
+assertion in extraSurplusIsTransferred: passed! 🎉
+assertion in disableCooldown: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in safeEngine: passed! 🎉
+assertion in surplusAuctionDelay: passed! 🎉
+assertion in disableContract: passed! 🎉
+assertion in popDebtFromQueue: passed! 🎉
+assertion in removeAuthorization: passed! 🎉
+assertion in systemStakingPool: passed! 🎉
+assertion in surplusTransferAmount: passed! 🎉
+assertion in debtPoppers: passed! 🎉
+assertion in pushDebtToQueue: passed! 🎉
+assertion in debtAuctionHouse: passed! 🎉
+assertion in lastSurplusTransferTime: passed! 🎉
+assertion in protocolTokenAuthority: passed! 🎉
+assertion in surplusAuctionHouse: passed! 🎉
+assertion in canPrintProtocolTokens: passed! 🎉
+assertion in postSettlementSurplusDrain: passed! 🎉
+assertion in lastSurplusAuctionTime: passed! 🎉
+assertion in unqueuedUnauctionedDebt: passed! 🎉
+assertion in surplusAuctionAmountToSell: passed! 🎉
+assertion in transferPostSettlementSurplus: passed! 🎉
+assertion in initialDebtAuctionMintedTokens: passed! 🎉
+assertion in modifyParameters: passed! 🎉
+assertion in auctionSurplus: passed! 🎉
+
+Seed: -6412437326847682338
+```
+
+#### Conclusion: No exceptions noted
+
+
+### Fuzz (FuzzAccountingEngine)
+
+The following functions are called by the fuzzer:
+
+- internal (safeEngine) coin balance of accounting engine
+- internal (safeEngine) debt balance of accounting engine (unbacked)
+- push debt to queue
+- pop debt from queue
+- settle debt
+- auction debt
+- cancel auctioned debt with surplus
+- auction surplus
+
+For each of these actions the main state changes are checked through assertions (turn on checkAsserts on echidna.yaml to check these for every call).
+
+Properties are verified in between all calls:
+- unqueued unauction debt
+- cab print protocol tokens
+
+```
+Analyzing contract: /src/test/fuzz/AccountingEngineFuzz.sol:FuzzAccountingEngine
+echidna_unqueuedUnauctionedDebt: passed! 🎉
+echidna_canPrintProtocolTokens: passed! 🎉
+assertion in createUnbackedDebt: passed! 🎉
+assertion in settleDebt: passed! 🎉
+assertion in auctionDebt: passed! 🎉
+assertion in cancelAuctionedDebtWithSurplus: passed! 🎉
+assertion in popDebtFromQueue: passed! 🎉
+assertion in pushDebtToQueue: passed! 🎉
+assertion in mintCoinsToAccountingEngine: passed! 🎉
+assertion in unqueuedUnauctionedDebt: passed! 🎉
+assertion in auctionSurplus: passed! 🎉
+
+Seed: 4150059671670421081
+```
+
+#### Conclusion: No issues noted.
