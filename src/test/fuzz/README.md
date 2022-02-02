@@ -22,6 +22,8 @@ For all contracts being fuzzed, we tested the following:
 
 Echidna will generate random values and call all functions failing either for violated assertions, or for properties (functions starting with echidna_) that return false. Sequence of calls is limited by seqLen in the config file. Calls are also spaced over time (both block number and timestamp) in random ways. Once the fuzzer finds a new execution path, it will explore it by trying execution with values close to the ones that opened the new path.
 
+All campaigns outlined below are also compatible with dapp tools, running the test_fuzz_setup test will call all of the calls designed to be fuzzed and ensure they work (failures due to require/revert are not flagged by echidna so we used this test to ensure all calls work, dapp tools is also helpful for debugging exceptions found by the fuzzer, as echidna gives few details on what caused the failures except for the calls it made).
+
 # Results
 
 ## Safe Engine
@@ -215,6 +217,45 @@ assertion in unqueuedUnauctionedDebt: passed! 🎉
 assertion in auctionSurplus: passed! 🎉
 
 Seed: 4150059671670421081
+```
+
+#### Conclusion: No issues noted.
+
+## Global Settlement
+
+On this contract we did not run a plain fuzzing campaign, as this contract is very state dependent. The global settlement is a sequential process that involves several steps, so this campaign asks for a high seqlen and a large number of rounds, as the solver needs a high number of runs to find its way through the whole process (1mm minimum, we ran the final campaign with 2mm testLimit).
+
+# Fuzz (Contract FuzzGLobalSettlement)
+
+In this campaign we designed calls to all of the steps involved in the process, detailed below. The fuzzer will try them in all random order and will eventually find it's way through the working e2e path. in each of the calls (to globalSettlement only) we also test the main state changes, if any of them break they are flagged by the tool. Tests were made with only one collateral ("gold") as in production.
+
+- createSafe: Each call to this function will create a safe with random collateral and debt. Unlike in the previous campaigns for the safeEngine and accountingEngine each call will create a User contract and a safe, with  no relation to msg.sender, so we can have a high number of safes before shutting down the system. No assertions tested here (interaction is with SAFEEngine).
+- updateCollateralPrice: Will update the collateral price
+- shutdownSystem: Will call shutdownSystem in global settlement. If successful will assert all relevant contracts are disabled.
+- freezeCollateralType: Will freeze a given collateral if called after shutdown. We assert finalCoinPerCollateralPrice is calculated correctly.
+- processSAFE: Will call processSafe on global settlement and assert the safe ends with no debt and just the leftover collateral
+- freeCollateral: a Usr will call and free their collateral after the safe being processed.
+- exit: Exit collateral from the system
+- prepareCoinsForRedeeming: call to globalSettlement that will separate collateral that can later be redeemed
+- redeemCollateral: Final call from the user to redeem the collateral
+
+```
+Analyzing contract: /src/test/fuzz/GlobalSettlementFuzz.sol:FuzzGlobalSettlement
+assertion in calculateCashPrice: passed! 🎉
+assertion in setUp: passed! 🎉
+assertion in setOutstandingCoinSupply: passed! 🎉
+assertion in updateCollateralPrice: passed! 🎉
+assertion in settleDebt: passed! 🎉
+assertion in shutdownSystem: passed! 🎉
+assertion in redeemCollateral: passed! 🎉
+assertion in exit: passed! 🎉
+assertion in createSafe: passed! 🎉
+assertion in prepareCoinsForRedeeming: passed! 🎉
+assertion in freezeCollateralType: passed! 🎉
+assertion in processSAFE: passed! 🎉
+assertion in freeCollateral: passed! 🎉
+
+Seed: -5916996928213980917
 ```
 
 #### Conclusion: No issues noted.
