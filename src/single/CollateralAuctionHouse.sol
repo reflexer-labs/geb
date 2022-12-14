@@ -1038,9 +1038,9 @@ contract IncreasingDiscountCollateralAuctionHouse {
     // The last read redemption price
     uint256  public   lastReadRedemptionPrice;
     // Minimum discount (compared to the system coin's current redemption price) at which collateral is being sold
-    uint256  public   minDiscount = 0.95E18;                      // 5% discount                                      // [wad]
+    uint256  public   minDiscount = 1E18;                      // 0% discount                                         // [wad]
     // Maximum discount (compared to the system coin's current redemption price) at which collateral is being sold
-    uint256  public   maxDiscount = 0.95E18;                      // 5% discount                                      // [wad]
+    uint256  public   maxDiscount = 0.80E18;                      // 20% discount                                     // [wad]
     // Rate at which the discount will be updated in an auction
     uint256  public   perSecondDiscountUpdateRate = RAY;                                                              // [ray]
     // Max time over which the discount can be updated
@@ -1172,7 +1172,7 @@ contract IncreasingDiscountCollateralAuctionHouse {
      */
     function modifyParameters(bytes32 parameter, uint256 data) external isAuthorized {
         if (parameter == "minDiscount") {
-            require(both(data >= maxDiscount, data < WAD), "IncreasingDiscountCollateralAuctionHouse/invalid-min-discount");
+            require(both(data >= maxDiscount, data <= WAD), "IncreasingDiscountCollateralAuctionHouse/invalid-min-discount");
             minDiscount = data;
         }
         else if (parameter == "maxDiscount") {
@@ -1213,7 +1213,7 @@ contract IncreasingDiscountCollateralAuctionHouse {
         emit ModifyParameters(parameter, data);
     }
     /**
-     * @notice Modify an addres parameter
+     * @notice Modify an address parameter
      * @param parameter The parameter name
      * @param data New address for the parameter
      */
