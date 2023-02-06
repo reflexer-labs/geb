@@ -23,6 +23,7 @@ abstract contract SAFEEngineLike {
 }
 abstract contract OracleRelayerLike {
     function redemptionPrice() virtual public returns (uint256);
+    function lastRedemptionPrice() virtual public view returns (uint256);
 }
 abstract contract OracleLike {
     function priceSource() virtual public view returns (address);
@@ -1035,8 +1036,6 @@ contract IncreasingDiscountCollateralAuctionHouse {
     uint48   public   totalAuctionLength = uint48(-1);                                                                // [seconds]
     // Number of auctions started up until now
     uint256  public   auctionsStarted = 0;
-    // The last read redemption price
-    uint256  public   lastReadRedemptionPrice;
     // Minimum discount (compared to the system coin's current redemption price) at which collateral is being sold
     uint256  public   minDiscount = 1E18;                      // 0% discount                                         // [wad]
     // Maximum discount (compared to the system coin's current redemption price) at which collateral is being sold
@@ -1527,15 +1526,13 @@ contract IncreasingDiscountCollateralAuctionHouse {
      * @param wad New bid submitted
      */
     function getApproximateCollateralBought(uint256 id, uint256 wad) external view returns (uint256, uint256) {
-        if (lastReadRedemptionPrice == 0) return (0, wad);
-
         (bool validAuctionAndBid, uint256 adjustedBid) = getAdjustedBid(id, wad);
         if (!validAuctionAndBid) {
             return (0, adjustedBid);
         }
 
         // check that the oracle doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices(oracleRelayer.lastRedemptionPrice());
         if (collateralFsmPriceFeedValue == 0) {
           return (0, adjustedBid);
         }
@@ -1561,11 +1558,8 @@ contract IncreasingDiscountCollateralAuctionHouse {
             return (0, adjustedBid);
         }
 
-        // Read the redemption price
-        lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
-
         // check that the oracle doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices(oracleRelayer.redemptionPrice());
         if (collateralFsmPriceFeedValue == 0) {
           return (0, adjustedBid);
         }
@@ -1594,11 +1588,8 @@ contract IncreasingDiscountCollateralAuctionHouse {
             adjustedBid = addUint256(bids[id].amountToRaise / RAY, 1);
         }
 
-        // Read the redemption price
-        lastReadRedemptionPrice = oracleRelayer.redemptionPrice();
-
         // check that the collateral FSM doesn't return an invalid value
-        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices(lastReadRedemptionPrice);
+        (uint256 collateralFsmPriceFeedValue, uint256 systemCoinPriceFeedValue) = getCollateralFSMAndFinalSystemCoinPrices( oracleRelayer.redemptionPrice());
         require(collateralFsmPriceFeedValue > 0, "IncreasingDiscountCollateralAuctionHouse/collateral-fsm-invalid-value");
 
         // get the amount of collateral bought

@@ -267,6 +267,14 @@ contract OracleRelayer {
         return _redemptionPrice;
     }
 
+    /**
+     * @notice Fetch the last recorded redemptionPrice
+     * @dev To be used when having the absolute latest redemptionPrice is irrelevant
+     */
+    function lastRedemptionPrice() external view returns (uint256) {
+        return _redemptionPrice;
+    }
+
     // --- Update value ---
     /**
      * @notice Update the collateral price inside the system (inside SAFEEngine)
