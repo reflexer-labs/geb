@@ -1,0 +1,3072 @@
+{
+  "_format": "ethers-rs-sol-cache-3",
+  "paths": {
+    "artifacts": "out",
+    "build_infos": "out/build-info",
+    "sources": "src",
+    "tests": "test",
+    "scripts": "script",
+    "libraries": [
+      "lib"
+    ]
+  },
+  "files": {
+    "lib/ds-token/lib/ds-math/src/math.sol": {
+      "lastModificationDate": 1675707018321,
+      "contentHash": "8c550fcfa8bd4f7feb87aaf59c230caf",
+      "sourceName": "lib/ds-token/lib/ds-math/src/math.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">0.4.13",
+      "artifacts": {
+        "DSMath": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "math.sol/DSMath.json"
+        }
+      }
+    },
+    "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol": {
+      "lastModificationDate": 1675707021123,
+      "contentHash": "8c01a8e97f2125dc1916eff23852b7cf",
+      "sourceName": "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">=0.6.7",
+      "artifacts": {
+        "DSAuth": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "auth.sol/DSAuth.json"
+        },
+        "DSAuthEvents": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "auth.sol/DSAuthEvents.json"
+        },
+        "DSAuthority": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "auth.sol/DSAuthority.json"
+        }
+      }
+    },
+    "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol": {
+      "lastModificationDate": 1675707021814,
+      "contentHash": "cff077720b1444b4e848afcabf67cc2d",
+      "sourceName": "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">=0.4.23",
+      "artifacts": {
+        "DSNote": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "note.sol/DSNote.json"
+        }
+      }
+    },
+    "lib/ds-token/lib/ds-stop/src/stop.sol": {
+      "lastModificationDate": 1675707019045,
+      "contentHash": "6ab15ee97d2d16971c1eb621fbb73fa8",
+      "sourceName": "lib/ds-token/lib/ds-stop/src/stop.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol"
+      ],
+      "versionRequirement": ">=0.4.23",
+      "artifacts": {
+        "DSStop": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "stop.sol/DSStop.json"
+        }
+      }
+    },
+    "lib/ds-token/lib/ds-test/src/test.sol": {
+      "lastModificationDate": 1675707022502,
+      "contentHash": "e265b2085e38d6de5119dd51d1f06f97",
+      "sourceName": "lib/ds-token/lib/ds-test/src/test.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">=0.4.23",
+      "artifacts": {
+        "DSTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "test.sol/DSTest.json"
+        }
+      }
+    },
+    "lib/ds-token/lib/erc20/src/erc20.sol": {
+      "lastModificationDate": 1675707022519,
+      "contentHash": "91b67c77828ed3dad97bd48a2daaa1d3",
+      "sourceName": "lib/ds-token/lib/erc20/src/erc20.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": ">0.4.20",
+      "artifacts": {
+        "ERC20": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "erc20.sol/ERC20.json"
+        },
+        "ERC20Events": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "erc20.sol/ERC20Events.json"
+        }
+      }
+    },
+    "lib/ds-token/src/base.sol": {
+      "lastModificationDate": 1675707015676,
+      "contentHash": "f271824efa609369066315785c7aeaa8",
+      "sourceName": "lib/ds-token/src/base.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol"
+      ],
+      "versionRequirement": ">=0.4.23",
+      "artifacts": {
+        "DSTokenBase": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "base.sol/DSTokenBase.json"
+        }
+      }
+    },
+    "lib/ds-token/src/delegate.sol": {
+      "lastModificationDate": 1675707015676,
+      "contentHash": "c4b8c81f60a2de1970af35ed34133c41",
+      "sourceName": "lib/ds-token/src/delegate.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+        "lib/ds-token/lib/ds-stop/src/stop.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol",
+        "lib/ds-token/src/base.sol"
+      ],
+      "versionRequirement": ">=0.5.13",
+      "artifacts": {
+        "DSDelegateToken": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "delegate.sol/DSDelegateToken.json"
+        }
+      }
+    },
+    "src/multi/MultiAccountingEngine.sol": {
+      "lastModificationDate": 1675706992273,
+      "contentHash": "9ed330fa21c4c278127b1b427fb16266",
+      "sourceName": "src/multi/MultiAccountingEngine.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "MultiAccountingEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiAccountingEngine.sol/MultiAccountingEngine.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiAccountingEngine.sol/SAFEEngineLike.json"
+        }
+      }
+    },
+    "src/multi/MultiDebtAuctionHouse.sol": {
+      "lastModificationDate": 1675706992273,
+      "contentHash": "0c8e3a5985df6921d2f59d0cffba9294",
+      "sourceName": "src/multi/MultiDebtAuctionHouse.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "AccountingEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiDebtAuctionHouse.sol/AccountingEngineLike.json"
+        },
+        "MultiDebtAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiDebtAuctionHouse.sol/MultiDebtAuctionHouse.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiDebtAuctionHouse.sol/SAFEEngineLike.json"
+        },
+        "TokenLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiDebtAuctionHouse.sol/TokenLike.json"
+        }
+      }
+    },
+    "src/multi/MultiEnglishCollateralAuctionHouse.sol": {
+      "lastModificationDate": 1675706992273,
+      "contentHash": "822686d4233407d3dbf55bf53052a058",
+      "sourceName": "src/multi/MultiEnglishCollateralAuctionHouse.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "LiquidationEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiEnglishCollateralAuctionHouse.sol/LiquidationEngineLike.json"
+        },
+        "MultiEnglishCollateralAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiEnglishCollateralAuctionHouse.sol/MultiEnglishCollateralAuctionHouse.json"
+        },
+        "OracleLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiEnglishCollateralAuctionHouse.sol/OracleLike.json"
+        },
+        "OracleRelayerLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiEnglishCollateralAuctionHouse.sol/OracleRelayerLike.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiEnglishCollateralAuctionHouse.sol/SAFEEngineLike.json"
+        }
+      }
+    },
+    "src/multi/MultiGlobalSettlement.sol": {
+      "lastModificationDate": 1675706992274,
+      "contentHash": "a7d4e4c331e8ba845fa71acd86112ab7",
+      "sourceName": "src/multi/MultiGlobalSettlement.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "AccountingEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiGlobalSettlement.sol/AccountingEngineLike.json"
+        },
+        "CollateralAuctionHouseLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiGlobalSettlement.sol/CollateralAuctionHouseLike.json"
+        },
+        "LiquidationEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiGlobalSettlement.sol/LiquidationEngineLike.json"
+        },
+        "MultiGlobalSettlement": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiGlobalSettlement.sol/MultiGlobalSettlement.json"
+        },
+        "OracleLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiGlobalSettlement.sol/OracleLike.json"
+        },
+        "OracleRelayerLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiGlobalSettlement.sol/OracleRelayerLike.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiGlobalSettlement.sol/SAFEEngineLike.json"
+        },
+        "SettlementCollateralHolder": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiGlobalSettlement.sol/SettlementCollateralHolder.json"
+        },
+        "StabilityFeeTreasuryLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiGlobalSettlement.sol/StabilityFeeTreasuryLike.json"
+        }
+      }
+    },
+    "src/multi/MultiIncreasingDiscountCollateralAuctionHouse.sol": {
+      "lastModificationDate": 1675706992274,
+      "contentHash": "b29fece9c33e5512d1e0edd5d1757c71",
+      "sourceName": "src/multi/MultiIncreasingDiscountCollateralAuctionHouse.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "LiquidationEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiIncreasingDiscountCollateralAuctionHouse.sol/LiquidationEngineLike.json"
+        },
+        "MultiIncreasingDiscountCollateralAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiIncreasingDiscountCollateralAuctionHouse.sol/MultiIncreasingDiscountCollateralAuctionHouse.json"
+        },
+        "OracleLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiIncreasingDiscountCollateralAuctionHouse.sol/OracleLike.json"
+        },
+        "OracleRelayerLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiIncreasingDiscountCollateralAuctionHouse.sol/OracleRelayerLike.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiIncreasingDiscountCollateralAuctionHouse.sol/SAFEEngineLike.json"
+        }
+      }
+    },
+    "src/multi/MultiLiquidationEngine.sol": {
+      "lastModificationDate": 1675706992274,
+      "contentHash": "63dd1108ec382735b8add2286f85c1c9",
+      "sourceName": "src/multi/MultiLiquidationEngine.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "AccountingEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiLiquidationEngine.sol/AccountingEngineLike.json"
+        },
+        "CollateralAuctionHouseLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiLiquidationEngine.sol/CollateralAuctionHouseLike.json"
+        },
+        "LiquidationPoolLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiLiquidationEngine.sol/LiquidationPoolLike.json"
+        },
+        "MultiLiquidationEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiLiquidationEngine.sol/MultiLiquidationEngine.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiLiquidationEngine.sol/SAFEEngineLike.json"
+        },
+        "SAFESaviourLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiLiquidationEngine.sol/SAFESaviourLike.json"
+        }
+      }
+    },
+    "src/multi/MultiOracleRelayer.sol": {
+      "lastModificationDate": 1675706992274,
+      "contentHash": "b22ec456782fb97a729f9b26413683f7",
+      "sourceName": "src/multi/MultiOracleRelayer.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "MultiOracleRelayer": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiOracleRelayer.sol/MultiOracleRelayer.json"
+        },
+        "OracleLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiOracleRelayer.sol/OracleLike.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiOracleRelayer.sol/SAFEEngineLike.json"
+        }
+      }
+    },
+    "src/multi/MultiSAFEEngine.sol": {
+      "lastModificationDate": 1675706992274,
+      "contentHash": "d3b2c62761c77cf73c125907c49b3f0a",
+      "sourceName": "src/multi/MultiSAFEEngine.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "MultiSAFEEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiSAFEEngine.sol/MultiSAFEEngine.json"
+        }
+      }
+    },
+    "src/multi/MultiStabilityFeeTreasury.sol": {
+      "lastModificationDate": 1675706992274,
+      "contentHash": "932cd5b57cd13061d8b4a613e16906fe",
+      "sourceName": "src/multi/MultiStabilityFeeTreasury.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "CoinJoinLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiStabilityFeeTreasury.sol/CoinJoinLike.json"
+        },
+        "MultiStabilityFeeTreasury": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiStabilityFeeTreasury.sol/MultiStabilityFeeTreasury.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiStabilityFeeTreasury.sol/SAFEEngineLike.json"
+        },
+        "SystemCoinLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiStabilityFeeTreasury.sol/SystemCoinLike.json"
+        }
+      }
+    },
+    "src/multi/MultiSurplusAuctionHouse.sol": {
+      "lastModificationDate": 1675706992274,
+      "contentHash": "1362c100ce721a21f56fcc1e4701a08f",
+      "sourceName": "src/multi/MultiSurplusAuctionHouse.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "BurningMultiSurplusAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiSurplusAuctionHouse.sol/BurningMultiSurplusAuctionHouse.json"
+        },
+        "RecyclingMultiSurplusAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiSurplusAuctionHouse.sol/RecyclingMultiSurplusAuctionHouse.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiSurplusAuctionHouse.sol/SAFEEngineLike.json"
+        },
+        "TokenLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiSurplusAuctionHouse.sol/TokenLike.json"
+        }
+      }
+    },
+    "src/multi/MultiTaxCollector.sol": {
+      "lastModificationDate": 1675706992275,
+      "contentHash": "bf5a403a8368bd5b8b270d0621990156",
+      "sourceName": "src/multi/MultiTaxCollector.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "src/shared/LinkedList.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "MultiTaxCollector": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiTaxCollector.sol/MultiTaxCollector.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiTaxCollector.sol/SAFEEngineLike.json"
+        }
+      }
+    },
+    "src/shared/BasicTokenAdapters.sol": {
+      "lastModificationDate": 1675706992275,
+      "contentHash": "e16de83bfe932013f35a958b48405964",
+      "sourceName": "src/shared/BasicTokenAdapters.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "BasicCollateralJoin": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "BasicTokenAdapters.sol/BasicCollateralJoin.json"
+        },
+        "CoinJoin": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "BasicTokenAdapters.sol/CoinJoin.json"
+        },
+        "CollateralLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "BasicTokenAdapters.sol/CollateralLike.json"
+        },
+        "DSTokenLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "BasicTokenAdapters.sol/DSTokenLike.json"
+        },
+        "ETHJoin": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "BasicTokenAdapters.sol/ETHJoin.json"
+        },
+        "MultiBasicCollateralJoin": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "BasicTokenAdapters.sol/MultiBasicCollateralJoin.json"
+        },
+        "MultiCoinJoin": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "BasicTokenAdapters.sol/MultiCoinJoin.json"
+        },
+        "MultiETHJoin": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "BasicTokenAdapters.sol/MultiETHJoin.json"
+        },
+        "MultiSAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "BasicTokenAdapters.sol/MultiSAFEEngineLike.json"
+        },
+        "MultiSubCollateralJoin": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "BasicTokenAdapters.sol/MultiSubCollateralJoin.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "BasicTokenAdapters.sol/SAFEEngineLike.json"
+        }
+      }
+    },
+    "src/shared/Coin.sol": {
+      "lastModificationDate": 1675706992275,
+      "contentHash": "0cb42eecce5e332f9a8a4dc02c9963d2",
+      "sourceName": "src/shared/Coin.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "Coin": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "Coin.sol/Coin.json"
+        }
+      }
+    },
+    "src/shared/LinkedList.sol": {
+      "lastModificationDate": 1675706992275,
+      "contentHash": "602f7fa76252d647a44a0b7509cf2d56",
+      "sourceName": "src/shared/LinkedList.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "LinkedList": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "LinkedList.sol/LinkedList.json"
+        },
+        "StructLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "LinkedList.sol/StructLike.json"
+        }
+      }
+    },
+    "src/single/AccountingEngine.sol": {
+      "lastModificationDate": 1675706992275,
+      "contentHash": "adb6d75d39fc9ea69615ff07a25b66da",
+      "sourceName": "src/single/AccountingEngine.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "AccountingEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "AccountingEngine.sol/AccountingEngine.json"
+        },
+        "DebtAuctionHouseLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "AccountingEngine.sol/DebtAuctionHouseLike.json"
+        },
+        "ProtocolTokenAuthorityLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "AccountingEngine.sol/ProtocolTokenAuthorityLike.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "AccountingEngine.sol/SAFEEngineLike.json"
+        },
+        "SurplusAuctionHouseLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "AccountingEngine.sol/SurplusAuctionHouseLike.json"
+        },
+        "SystemStakingPoolLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "AccountingEngine.sol/SystemStakingPoolLike.json"
+        }
+      }
+    },
+    "src/single/CoinSavingsAccount.sol": {
+      "lastModificationDate": 1675706992275,
+      "contentHash": "b5bc0d6a3c0ffff92e0569c9af6b8325",
+      "sourceName": "src/single/CoinSavingsAccount.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "CoinSavingsAccount": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "CoinSavingsAccount.sol/CoinSavingsAccount.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "CoinSavingsAccount.sol/SAFEEngineLike.json"
+        }
+      }
+    },
+    "src/single/CollateralAuctionHouse.sol": {
+      "lastModificationDate": 1675706992275,
+      "contentHash": "10e03cf0a949042fdfafd2892305c2d6",
+      "sourceName": "src/single/CollateralAuctionHouse.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "EnglishCollateralAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "CollateralAuctionHouse.sol/EnglishCollateralAuctionHouse.json"
+        },
+        "FixedDiscountCollateralAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "CollateralAuctionHouse.sol/FixedDiscountCollateralAuctionHouse.json"
+        },
+        "IncreasingDiscountCollateralAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "CollateralAuctionHouse.sol/IncreasingDiscountCollateralAuctionHouse.json"
+        },
+        "LiquidationEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "CollateralAuctionHouse.sol/LiquidationEngineLike.json"
+        },
+        "OracleLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "CollateralAuctionHouse.sol/OracleLike.json"
+        },
+        "OracleRelayerLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "CollateralAuctionHouse.sol/OracleRelayerLike.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "CollateralAuctionHouse.sol/SAFEEngineLike.json"
+        }
+      }
+    },
+    "src/single/DebtAuctionHouse.sol": {
+      "lastModificationDate": 1675706992276,
+      "contentHash": "6cd29cc55ed1f9878508d40e26eab7f4",
+      "sourceName": "src/single/DebtAuctionHouse.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "AccountingEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "DebtAuctionHouse.sol/AccountingEngineLike.json"
+        },
+        "DebtAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "DebtAuctionHouse.sol/DebtAuctionHouse.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "DebtAuctionHouse.sol/SAFEEngineLike.json"
+        },
+        "TokenLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "DebtAuctionHouse.sol/TokenLike.json"
+        }
+      }
+    },
+    "src/single/GlobalSettlement.sol": {
+      "lastModificationDate": 1675706992276,
+      "contentHash": "19fa0376f69f5f6180366498841ea00b",
+      "sourceName": "src/single/GlobalSettlement.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "AccountingEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "GlobalSettlement.sol/AccountingEngineLike.json"
+        },
+        "CoinSavingsAccountLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "GlobalSettlement.sol/CoinSavingsAccountLike.json"
+        },
+        "CollateralAuctionHouseLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "GlobalSettlement.sol/CollateralAuctionHouseLike.json"
+        },
+        "GlobalSettlement": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "GlobalSettlement.sol/GlobalSettlement.json"
+        },
+        "LiquidationEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "GlobalSettlement.sol/LiquidationEngineLike.json"
+        },
+        "OracleLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "GlobalSettlement.sol/OracleLike.json"
+        },
+        "OracleRelayerLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "GlobalSettlement.sol/OracleRelayerLike.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "GlobalSettlement.sol/SAFEEngineLike.json"
+        },
+        "StabilityFeeTreasuryLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "GlobalSettlement.sol/StabilityFeeTreasuryLike.json"
+        }
+      }
+    },
+    "src/single/LiquidationEngine.sol": {
+      "lastModificationDate": 1675706992276,
+      "contentHash": "d05a1631b50d0b9ed52d63dc1007630c",
+      "sourceName": "src/single/LiquidationEngine.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "AccountingEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "LiquidationEngine.sol/AccountingEngineLike.json"
+        },
+        "CollateralAuctionHouseLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "LiquidationEngine.sol/CollateralAuctionHouseLike.json"
+        },
+        "LiquidationEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "LiquidationEngine.sol/LiquidationEngine.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "LiquidationEngine.sol/SAFEEngineLike.json"
+        },
+        "SAFESaviourLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "LiquidationEngine.sol/SAFESaviourLike.json"
+        }
+      }
+    },
+    "src/single/OracleRelayer.sol": {
+      "lastModificationDate": 1675706992276,
+      "contentHash": "e2493ef5ea4fe69a2b155b9c0a679cc1",
+      "sourceName": "src/single/OracleRelayer.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "OracleLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "OracleRelayer.sol/OracleLike.json"
+        },
+        "OracleRelayer": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "OracleRelayer.sol/OracleRelayer.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "OracleRelayer.sol/SAFEEngineLike.json"
+        }
+      }
+    },
+    "src/single/SAFEEngine.sol": {
+      "lastModificationDate": 1675706992276,
+      "contentHash": "32dc2c7cbe8354aa0cbdf50571a6126f",
+      "sourceName": "src/single/SAFEEngine.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "SAFEEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SAFEEngine.sol/SAFEEngine.json"
+        }
+      }
+    },
+    "src/single/SettlementSurplusAuctioneer.sol": {
+      "lastModificationDate": 1675706992276,
+      "contentHash": "ee060709a489524086ce33033ab37249",
+      "sourceName": "src/single/SettlementSurplusAuctioneer.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "AccountingEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SettlementSurplusAuctioneer.sol/AccountingEngineLike.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SettlementSurplusAuctioneer.sol/SAFEEngineLike.json"
+        },
+        "SettlementSurplusAuctioneer": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SettlementSurplusAuctioneer.sol/SettlementSurplusAuctioneer.json"
+        },
+        "SurplusAuctionHouseLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SettlementSurplusAuctioneer.sol/SurplusAuctionHouseLike.json"
+        }
+      }
+    },
+    "src/single/StabilityFeeTreasury.sol": {
+      "lastModificationDate": 1675706992276,
+      "contentHash": "da96bb447efe8cc31c3e35d034050229",
+      "sourceName": "src/single/StabilityFeeTreasury.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "CoinJoinLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "StabilityFeeTreasury.sol/CoinJoinLike.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "StabilityFeeTreasury.sol/SAFEEngineLike.json"
+        },
+        "StabilityFeeTreasury": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "StabilityFeeTreasury.sol/StabilityFeeTreasury.json"
+        },
+        "SystemCoinLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "StabilityFeeTreasury.sol/SystemCoinLike.json"
+        }
+      }
+    },
+    "src/single/SurplusAuctionHouse.sol": {
+      "lastModificationDate": 1675706992276,
+      "contentHash": "0b17bb18c61a5ae2bbc3d580fbf72d27",
+      "sourceName": "src/single/SurplusAuctionHouse.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "BurningSurplusAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SurplusAuctionHouse.sol/BurningSurplusAuctionHouse.json"
+        },
+        "MixedStratSurplusAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SurplusAuctionHouse.sol/MixedStratSurplusAuctionHouse.json"
+        },
+        "PostSettlementSurplusAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SurplusAuctionHouse.sol/PostSettlementSurplusAuctionHouse.json"
+        },
+        "RecyclingSurplusAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SurplusAuctionHouse.sol/RecyclingSurplusAuctionHouse.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SurplusAuctionHouse.sol/SAFEEngineLike.json"
+        },
+        "TokenLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SurplusAuctionHouse.sol/TokenLike.json"
+        }
+      }
+    },
+    "src/single/TaxCollector.sol": {
+      "lastModificationDate": 1675706992276,
+      "contentHash": "691aaa9668ef6557d2a3a00f712a3ac7",
+      "sourceName": "src/single/TaxCollector.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "src/shared/LinkedList.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "TaxCollector.sol/SAFEEngineLike.json"
+        },
+        "TaxCollector": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "TaxCollector.sol/TaxCollector.json"
+        }
+      }
+    },
+    "src/test/multi/MultiAccountingEngine.t.sol": {
+      "lastModificationDate": 1675706992277,
+      "contentHash": "6c20a9d0e70e6d57b19b4adcbc63daa5",
+      "sourceName": "src/test/multi/MultiAccountingEngine.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": null,
+      "artifacts": {
+        "MultiAccountingEngine.t": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiAccountingEngine.t.sol/MultiAccountingEngine.t.json"
+        }
+      }
+    },
+    "src/test/multi/MultiDebtAuctionHouse.t.sol": {
+      "lastModificationDate": 1675706992277,
+      "contentHash": "7cccc193994b1174b2433eee1a0e52bb",
+      "sourceName": "src/test/multi/MultiDebtAuctionHouse.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": null,
+      "artifacts": {
+        "MultiDebtAuctionHouse.t": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiDebtAuctionHouse.t.sol/MultiDebtAuctionHouse.t.json"
+        }
+      }
+    },
+    "src/test/multi/MultiGlobalSettlement.t.sol": {
+      "lastModificationDate": 1675706992277,
+      "contentHash": "a0245465cffcebf9c03b8c2d88639a9d",
+      "sourceName": "src/test/multi/MultiGlobalSettlement.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": null,
+      "artifacts": {
+        "MultiGlobalSettlement.t": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiGlobalSettlement.t.sol/MultiGlobalSettlement.t.json"
+        }
+      }
+    },
+    "src/test/multi/MultiIncreasingDiscountCollateralAuctionHouse.t.sol": {
+      "lastModificationDate": 1675706992277,
+      "contentHash": "bef5465b02e257f9f86db6c5978bd1da",
+      "sourceName": "src/test/multi/MultiIncreasingDiscountCollateralAuctionHouse.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": null,
+      "artifacts": {
+        "MultiIncreasingDiscountCollateralAuctionHouse.t": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiIncreasingDiscountCollateralAuctionHouse.t.sol/MultiIncreasingDiscountCollateralAuctionHouse.t.json"
+        }
+      }
+    },
+    "src/test/multi/MultiLiquidationPool.t.sol": {
+      "lastModificationDate": 1675706992277,
+      "contentHash": "4b576a0d5dd3b1702cf2b4a3f1410699",
+      "sourceName": "src/test/multi/MultiLiquidationPool.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": null,
+      "artifacts": {
+        "MultiLiquidationPool.t": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiLiquidationPool.t.sol/MultiLiquidationPool.t.json"
+        }
+      }
+    },
+    "src/test/multi/MultiSAFEEngine.t.sol": {
+      "lastModificationDate": 1675706992278,
+      "contentHash": "dec3c4ff0f73d541390ec1519f9e6b7a",
+      "sourceName": "src/test/multi/MultiSAFEEngine.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": null,
+      "artifacts": {
+        "MultiSAFEEngine.t": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiSAFEEngine.t.sol/MultiSAFEEngine.t.json"
+        }
+      }
+    },
+    "src/test/multi/MultiSaveSAFE.t.sol": {
+      "lastModificationDate": 1675706992278,
+      "contentHash": "a9e6d5f8c595a83a04d8a44e294539cb",
+      "sourceName": "src/test/multi/MultiSaveSAFE.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": null,
+      "artifacts": {
+        "MultiSaveSAFE.t": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiSaveSAFE.t.sol/MultiSaveSAFE.t.json"
+        }
+      }
+    },
+    "src/test/multi/MultiStabilityFeeTreasury.t.sol": {
+      "lastModificationDate": 1675706992278,
+      "contentHash": "510a87f1829eca9a10a105670c26ccec",
+      "sourceName": "src/test/multi/MultiStabilityFeeTreasury.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": null,
+      "artifacts": {
+        "MultiStabilityFeeTreasury.t": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiStabilityFeeTreasury.t.sol/MultiStabilityFeeTreasury.t.json"
+        }
+      }
+    },
+    "src/test/multi/MultiSurplusAuctionHouse.sol": {
+      "lastModificationDate": 1675706992278,
+      "contentHash": "e88c0e528bcb2b64eaa58e933ed4e582",
+      "sourceName": "src/test/multi/MultiSurplusAuctionHouse.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": null,
+      "artifacts": {
+        "MultiSurplusAuctionHouse": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiSurplusAuctionHouse.sol/MultiSurplusAuctionHouse.json"
+        }
+      }
+    },
+    "src/test/multi/MultiTaxCollector.t.sol": {
+      "lastModificationDate": 1675706992278,
+      "contentHash": "ff44e6212d08e36d75ccb1ab86fbedaa",
+      "sourceName": "src/test/multi/MultiTaxCollector.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": null,
+      "artifacts": {
+        "MultiTaxCollector.t": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiTaxCollector.t.sol/MultiTaxCollector.t.json"
+        }
+      }
+    },
+    "src/test/multi/MultiTransferSAFECollateralAndDebt.t.sol": {
+      "lastModificationDate": 1675706992279,
+      "contentHash": "43b944d906dca74ec8ef51e3ab47f707",
+      "sourceName": "src/test/multi/MultiTransferSAFECollateralAndDebt.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [],
+      "versionRequirement": null,
+      "artifacts": {
+        "MultiTransferSAFECollateralAndDebt.t": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "MultiTransferSAFECollateralAndDebt.t.sol/MultiTransferSAFECollateralAndDebt.t.json"
+        }
+      }
+    },
+    "src/test/shared/Coin.t.sol": {
+      "lastModificationDate": 1675706992279,
+      "contentHash": "7f7e13222f46162caae961aad1aeb792",
+      "sourceName": "src/test/shared/Coin.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+        "lib/ds-token/lib/ds-stop/src/stop.sol",
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol",
+        "lib/ds-token/src/base.sol",
+        "lib/ds-token/src/delegate.sol",
+        "src/shared/BasicTokenAdapters.sol",
+        "src/shared/Coin.sol",
+        "src/single/AccountingEngine.sol",
+        "src/single/OracleRelayer.sol",
+        "src/single/SAFEEngine.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "CoinTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "Coin.t.sol/CoinTest.json"
+        },
+        "Feed": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "Coin.t.sol/Feed.json"
+        },
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "Coin.t.sol/Hevm.json"
+        },
+        "TokenUser": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "Coin.t.sol/TokenUser.json"
+        }
+      }
+    },
+    "src/test/single/SingleAccountingEngine.t.sol": {
+      "lastModificationDate": 1675706992279,
+      "contentHash": "ab06240cb801fce14eccf94f4633e6e7",
+      "sourceName": "src/test/single/SingleAccountingEngine.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+        "lib/ds-token/lib/ds-stop/src/stop.sol",
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol",
+        "lib/ds-token/src/base.sol",
+        "lib/ds-token/src/delegate.sol",
+        "src/shared/BasicTokenAdapters.sol",
+        "src/shared/Coin.sol",
+        "src/shared/LinkedList.sol",
+        "src/single/AccountingEngine.sol",
+        "src/single/CollateralAuctionHouse.sol",
+        "src/single/DebtAuctionHouse.sol",
+        "src/single/LiquidationEngine.sol",
+        "src/single/OracleRelayer.sol",
+        "src/single/SAFEEngine.sol",
+        "src/single/SettlementSurplusAuctioneer.sol",
+        "src/single/SurplusAuctionHouse.sol",
+        "src/single/TaxCollector.sol",
+        "src/test/single/SingleCollateralAuctionHouse.t.sol",
+        "src/test/single/SingleDebtAuctionHouse.t.sol",
+        "src/test/single/SingleSAFEEngine.t.sol",
+        "src/test/single/SingleSurplusAuctionHouse.t.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "Gem": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleAccountingEngine.t.sol/Gem.json"
+        },
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleAccountingEngine.t.sol/Hevm.json"
+        },
+        "ProtocolTokenAuthority": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleAccountingEngine.t.sol/ProtocolTokenAuthority.json"
+        },
+        "SingleAccountingEngineTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleAccountingEngine.t.sol/SingleAccountingEngineTest.json"
+        },
+        "User": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleAccountingEngine.t.sol/User.json"
+        }
+      }
+    },
+    "src/test/single/SingleCoinSavingsAccount.t.sol": {
+      "lastModificationDate": 1675706992279,
+      "contentHash": "cf82ae2ff1e6ddeb3fa85c61bb701e32",
+      "sourceName": "src/test/single/SingleCoinSavingsAccount.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "src/single/CoinSavingsAccount.sol",
+        "src/single/SAFEEngine.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCoinSavingsAccount.t.sol/Hevm.json"
+        },
+        "SingleCoinSavingsAccountTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCoinSavingsAccount.t.sol/SingleCoinSavingsAccountTest.json"
+        }
+      }
+    },
+    "src/test/single/SingleCollateralAuctionHouse.t.sol": {
+      "lastModificationDate": 1675710689951,
+      "contentHash": "4c6b4b30e66bb0fbf6b4d23343e701b4",
+      "sourceName": "src/test/single/SingleCollateralAuctionHouse.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+        "lib/ds-token/lib/ds-stop/src/stop.sol",
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol",
+        "lib/ds-token/src/base.sol",
+        "lib/ds-token/src/delegate.sol",
+        "src/single/CollateralAuctionHouse.sol",
+        "src/single/OracleRelayer.sol",
+        "src/single/SAFEEngine.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "DummyLiquidationEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCollateralAuctionHouse.t.sol/DummyLiquidationEngine.json"
+        },
+        "Feed": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCollateralAuctionHouse.t.sol/Feed.json"
+        },
+        "Gal": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCollateralAuctionHouse.t.sol/Gal.json"
+        },
+        "Guy": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCollateralAuctionHouse.t.sol/Guy.json"
+        },
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCollateralAuctionHouse.t.sol/Hevm.json"
+        },
+        "PartiallyImplementedFeed": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCollateralAuctionHouse.t.sol/PartiallyImplementedFeed.json"
+        },
+        "RevertableMedian": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCollateralAuctionHouse.t.sol/RevertableMedian.json"
+        },
+        "SAFEEngine_": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCollateralAuctionHouse.t.sol/SAFEEngine_.json"
+        },
+        "SingleEnglishCollateralAuctionHouseTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCollateralAuctionHouse.t.sol/SingleEnglishCollateralAuctionHouseTest.json"
+        },
+        "SingleFixedDiscountCollateralAuctionHouseTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCollateralAuctionHouse.t.sol/SingleFixedDiscountCollateralAuctionHouseTest.json"
+        },
+        "SingleIncreasingDiscountCollateralAuctionHouseTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleCollateralAuctionHouse.t.sol/SingleIncreasingDiscountCollateralAuctionHouseTest.json"
+        }
+      }
+    },
+    "src/test/single/SingleDebtAuctionHouse.t.sol": {
+      "lastModificationDate": 1675706992279,
+      "contentHash": "fc4c86e087758e6113a2e15a7f258036",
+      "sourceName": "src/test/single/SingleDebtAuctionHouse.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+        "lib/ds-token/lib/ds-stop/src/stop.sol",
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol",
+        "lib/ds-token/src/base.sol",
+        "lib/ds-token/src/delegate.sol",
+        "src/single/DebtAuctionHouse.sol",
+        "src/single/SAFEEngine.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "Gal": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleDebtAuctionHouse.t.sol/Gal.json"
+        },
+        "Guy": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleDebtAuctionHouse.t.sol/Guy.json"
+        },
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleDebtAuctionHouse.t.sol/Hevm.json"
+        },
+        "SAFEEnginish": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleDebtAuctionHouse.t.sol/SAFEEnginish.json"
+        },
+        "SingleDebtAuctionHouseTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleDebtAuctionHouse.t.sol/SingleDebtAuctionHouseTest.json"
+        }
+      }
+    },
+    "src/test/single/SingleGlobalSettlement.t.sol": {
+      "lastModificationDate": 1675706992279,
+      "contentHash": "70ca59aeb92060afb9296a6c3374fb3b",
+      "sourceName": "src/test/single/SingleGlobalSettlement.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+        "lib/ds-token/lib/ds-stop/src/stop.sol",
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol",
+        "lib/ds-token/src/base.sol",
+        "lib/ds-token/src/delegate.sol",
+        "src/shared/BasicTokenAdapters.sol",
+        "src/single/AccountingEngine.sol",
+        "src/single/CoinSavingsAccount.sol",
+        "src/single/CollateralAuctionHouse.sol",
+        "src/single/DebtAuctionHouse.sol",
+        "src/single/GlobalSettlement.sol",
+        "src/single/LiquidationEngine.sol",
+        "src/single/OracleRelayer.sol",
+        "src/single/SAFEEngine.sol",
+        "src/single/SettlementSurplusAuctioneer.sol",
+        "src/single/StabilityFeeTreasury.sol",
+        "src/single/SurplusAuctionHouse.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "DSThing": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleGlobalSettlement.t.sol/DSThing.json"
+        },
+        "DummyFSM": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleGlobalSettlement.t.sol/DummyFSM.json"
+        },
+        "Feed": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleGlobalSettlement.t.sol/Feed.json"
+        },
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleGlobalSettlement.t.sol/Hevm.json"
+        },
+        "SingleGlobalSettlementTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleGlobalSettlement.t.sol/SingleGlobalSettlementTest.json"
+        },
+        "Usr": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleGlobalSettlement.t.sol/Usr.json"
+        }
+      }
+    },
+    "src/test/single/SingleSAFEEngine.t.sol": {
+      "lastModificationDate": 1675706992280,
+      "contentHash": "691093ad0be2da2effdc83c553c4d3db",
+      "sourceName": "src/test/single/SingleSAFEEngine.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+        "lib/ds-token/lib/ds-stop/src/stop.sol",
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol",
+        "lib/ds-token/src/base.sol",
+        "lib/ds-token/src/delegate.sol",
+        "src/shared/BasicTokenAdapters.sol",
+        "src/shared/Coin.sol",
+        "src/shared/LinkedList.sol",
+        "src/single/AccountingEngine.sol",
+        "src/single/CollateralAuctionHouse.sol",
+        "src/single/DebtAuctionHouse.sol",
+        "src/single/LiquidationEngine.sol",
+        "src/single/OracleRelayer.sol",
+        "src/single/SAFEEngine.sol",
+        "src/single/SurplusAuctionHouse.sol",
+        "src/single/TaxCollector.sol",
+        "src/test/single/SingleCollateralAuctionHouse.t.sol",
+        "src/test/single/SingleDebtAuctionHouse.t.sol",
+        "src/test/single/SingleSurplusAuctionHouse.t.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "EnglishCollateralAuctionHouseLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/EnglishCollateralAuctionHouseLike.json"
+        },
+        "Feed": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/Feed.json"
+        },
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/Hevm.json"
+        },
+        "HevmWarped": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/HevmWarped.json"
+        },
+        "ProtocolTokenAuthority": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/ProtocolTokenAuthority.json"
+        },
+        "SingleAccumulateRatesTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/SingleAccumulateRatesTest.json"
+        },
+        "SingleJoinTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/SingleJoinTest.json"
+        },
+        "SingleLiquidationTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/SingleLiquidationTest.json"
+        },
+        "SingleModifySAFECollateralizationTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/SingleModifySAFECollateralizationTest.json"
+        },
+        "SingleSAFEDebtLimitTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/SingleSAFEDebtLimitTest.json"
+        },
+        "TestAccountingEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/TestAccountingEngine.json"
+        },
+        "TestSAFEEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/TestSAFEEngine.json"
+        },
+        "Usr": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSAFEEngine.t.sol/Usr.json"
+        }
+      }
+    },
+    "src/test/single/SingleSaveSAFE.t.sol": {
+      "lastModificationDate": 1675706992280,
+      "contentHash": "651031114e438459df85d65873b6da52",
+      "sourceName": "src/test/single/SingleSaveSAFE.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+        "lib/ds-token/lib/ds-stop/src/stop.sol",
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol",
+        "lib/ds-token/src/base.sol",
+        "lib/ds-token/src/delegate.sol",
+        "src/shared/BasicTokenAdapters.sol",
+        "src/shared/Coin.sol",
+        "src/shared/LinkedList.sol",
+        "src/single/AccountingEngine.sol",
+        "src/single/CollateralAuctionHouse.sol",
+        "src/single/DebtAuctionHouse.sol",
+        "src/single/LiquidationEngine.sol",
+        "src/single/OracleRelayer.sol",
+        "src/single/SAFEEngine.sol",
+        "src/single/SurplusAuctionHouse.sol",
+        "src/single/TaxCollector.sol",
+        "src/test/single/SingleCollateralAuctionHouse.t.sol",
+        "src/test/single/SingleDebtAuctionHouse.t.sol",
+        "src/test/single/SingleSurplusAuctionHouse.t.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "FaultyReturnableSaviour": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSaveSAFE.t.sol/FaultyReturnableSaviour.json"
+        },
+        "Feed": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSaveSAFE.t.sol/Feed.json"
+        },
+        "GenuineSaviour": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSaveSAFE.t.sol/GenuineSaviour.json"
+        },
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSaveSAFE.t.sol/Hevm.json"
+        },
+        "MissingFunctionSaviour": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSaveSAFE.t.sol/MissingFunctionSaviour.json"
+        },
+        "ReentrantSaviour": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSaveSAFE.t.sol/ReentrantSaviour.json"
+        },
+        "RevertableSaviour": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSaveSAFE.t.sol/RevertableSaviour.json"
+        },
+        "SingleSaveSAFETest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSaveSAFE.t.sol/SingleSaveSAFETest.json"
+        },
+        "TestAccountingEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSaveSAFE.t.sol/TestAccountingEngine.json"
+        },
+        "TestSAFEEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSaveSAFE.t.sol/TestSAFEEngine.json"
+        }
+      }
+    },
+    "src/test/single/SingleSettlementSurplusAuctioneer.t.sol": {
+      "lastModificationDate": 1675706992280,
+      "contentHash": "175132a4d6e1029ca70983c75246aa36",
+      "sourceName": "src/test/single/SingleSettlementSurplusAuctioneer.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+        "lib/ds-token/lib/ds-stop/src/stop.sol",
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol",
+        "lib/ds-token/src/base.sol",
+        "lib/ds-token/src/delegate.sol",
+        "src/shared/BasicTokenAdapters.sol",
+        "src/shared/Coin.sol",
+        "src/shared/LinkedList.sol",
+        "src/single/AccountingEngine.sol",
+        "src/single/CollateralAuctionHouse.sol",
+        "src/single/DebtAuctionHouse.sol",
+        "src/single/LiquidationEngine.sol",
+        "src/single/OracleRelayer.sol",
+        "src/single/SAFEEngine.sol",
+        "src/single/SettlementSurplusAuctioneer.sol",
+        "src/single/SurplusAuctionHouse.sol",
+        "src/single/TaxCollector.sol",
+        "src/test/single/SingleCollateralAuctionHouse.t.sol",
+        "src/test/single/SingleDebtAuctionHouse.t.sol",
+        "src/test/single/SingleSAFEEngine.t.sol",
+        "src/test/single/SingleSurplusAuctionHouse.t.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "AccountingEngine": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSettlementSurplusAuctioneer.t.sol/AccountingEngine.json"
+        },
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSettlementSurplusAuctioneer.t.sol/Hevm.json"
+        },
+        "SingleSettlementSurplusAuctioneerTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSettlementSurplusAuctioneer.t.sol/SingleSettlementSurplusAuctioneerTest.json"
+        }
+      }
+    },
+    "src/test/single/SingleStabilityFeeTreasury.t.sol": {
+      "lastModificationDate": 1675706992280,
+      "contentHash": "071fa13a8f80e01bb7d24b4a71703c1e",
+      "sourceName": "src/test/single/SingleStabilityFeeTreasury.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "src/shared/BasicTokenAdapters.sol",
+        "src/shared/Coin.sol",
+        "src/single/SAFEEngine.sol",
+        "src/single/StabilityFeeTreasury.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleStabilityFeeTreasury.t.sol/Hevm.json"
+        },
+        "SingleStabilityFeeTreasuryTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleStabilityFeeTreasury.t.sol/SingleStabilityFeeTreasuryTest.json"
+        },
+        "Usr": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleStabilityFeeTreasury.t.sol/Usr.json"
+        }
+      }
+    },
+    "src/test/single/SingleStakingPoolIntegration.t.sol": {
+      "lastModificationDate": 1675706992280,
+      "contentHash": "dd3e4215898ca898e42e68969c71501b",
+      "sourceName": "src/test/single/SingleStakingPoolIntegration.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+        "lib/ds-token/lib/ds-stop/src/stop.sol",
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol",
+        "lib/ds-token/src/base.sol",
+        "lib/ds-token/src/delegate.sol",
+        "src/shared/BasicTokenAdapters.sol",
+        "src/shared/Coin.sol",
+        "src/shared/LinkedList.sol",
+        "src/single/AccountingEngine.sol",
+        "src/single/CollateralAuctionHouse.sol",
+        "src/single/DebtAuctionHouse.sol",
+        "src/single/LiquidationEngine.sol",
+        "src/single/OracleRelayer.sol",
+        "src/single/SAFEEngine.sol",
+        "src/single/SurplusAuctionHouse.sol",
+        "src/single/TaxCollector.sol",
+        "src/test/single/SingleCollateralAuctionHouse.t.sol",
+        "src/test/single/SingleDebtAuctionHouse.t.sol",
+        "src/test/single/SingleSAFEEngine.t.sol",
+        "src/test/single/SingleSurplusAuctionHouse.t.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleStakingPoolIntegration.t.sol/Hevm.json"
+        },
+        "MissingImplementationSystemStakingPool": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleStakingPoolIntegration.t.sol/MissingImplementationSystemStakingPool.json"
+        },
+        "ProtocolTokenAuthority": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleStakingPoolIntegration.t.sol/ProtocolTokenAuthority.json"
+        },
+        "RevertableSystemStakingPool": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleStakingPoolIntegration.t.sol/RevertableSystemStakingPool.json"
+        },
+        "SingleStakingPoolIntegrationTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleStakingPoolIntegration.t.sol/SingleStakingPoolIntegrationTest.json"
+        },
+        "ValidSystemStakingPool": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleStakingPoolIntegration.t.sol/ValidSystemStakingPool.json"
+        }
+      }
+    },
+    "src/test/single/SingleSurplusAuctionHouse.t.sol": {
+      "lastModificationDate": 1675706992280,
+      "contentHash": "13b3980440a2a6f67c667d4ec00e820a",
+      "sourceName": "src/test/single/SingleSurplusAuctionHouse.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-math/src/math.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-auth/src/auth.sol",
+        "lib/ds-token/lib/ds-stop/lib/ds-note/src/note.sol",
+        "lib/ds-token/lib/ds-stop/src/stop.sol",
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "lib/ds-token/lib/erc20/src/erc20.sol",
+        "lib/ds-token/src/base.sol",
+        "lib/ds-token/src/delegate.sol",
+        "src/shared/BasicTokenAdapters.sol",
+        "src/shared/Coin.sol",
+        "src/single/SAFEEngine.sol",
+        "src/single/SurplusAuctionHouse.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "GlobalSettlement": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSurplusAuctionHouse.t.sol/GlobalSettlement.json"
+        },
+        "GuyBurningSurplusAuction": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSurplusAuctionHouse.t.sol/GuyBurningSurplusAuction.json"
+        },
+        "GuyPostSurplusAuction": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSurplusAuctionHouse.t.sol/GuyPostSurplusAuction.json"
+        },
+        "GuyRecyclingSurplusAuction": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSurplusAuctionHouse.t.sol/GuyRecyclingSurplusAuction.json"
+        },
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSurplusAuctionHouse.t.sol/Hevm.json"
+        },
+        "SingleBurningSurplusAuctionHouseTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSurplusAuctionHouse.t.sol/SingleBurningSurplusAuctionHouseTest.json"
+        },
+        "SingleMixedStratSurplusAuctionHouseTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSurplusAuctionHouse.t.sol/SingleMixedStratSurplusAuctionHouseTest.json"
+        },
+        "SinglePostSettlementSurplusAuctionHouseTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSurplusAuctionHouse.t.sol/SinglePostSettlementSurplusAuctionHouseTest.json"
+        },
+        "SingleRecyclingSurplusAuctionHouseTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleSurplusAuctionHouse.t.sol/SingleRecyclingSurplusAuctionHouseTest.json"
+        }
+      }
+    },
+    "src/test/single/SingleTaxCollector.t.sol": {
+      "lastModificationDate": 1675706992281,
+      "contentHash": "5501e5f5a6742033cf852bfdf9ea38db",
+      "sourceName": "src/test/single/SingleTaxCollector.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "src/shared/LinkedList.sol",
+        "src/single/SAFEEngine.sol",
+        "src/single/TaxCollector.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "Hevm": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleTaxCollector.t.sol/Hevm.json"
+        },
+        "SAFEEngineLike": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleTaxCollector.t.sol/SAFEEngineLike.json"
+        },
+        "SingleTaxCollectorTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleTaxCollector.t.sol/SingleTaxCollectorTest.json"
+        }
+      }
+    },
+    "src/test/single/SingleTransferSAFECollateralAndDebt.t.sol": {
+      "lastModificationDate": 1675706992281,
+      "contentHash": "125e2a22467c2005e96adbf5566ac72c",
+      "sourceName": "src/test/single/SingleTransferSAFECollateralAndDebt.t.sol",
+      "solcConfig": {
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "metadata": {
+            "bytecodeHash": "ipfs",
+            "appendCBOR": true
+          },
+          "outputSelection": {
+            "*": {
+              "": [
+                "ast"
+              ],
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ]
+            }
+          },
+          "evmVersion": "london",
+          "libraries": {}
+        }
+      },
+      "imports": [
+        "lib/ds-token/lib/ds-test/src/test.sol",
+        "src/single/SAFEEngine.sol"
+      ],
+      "versionRequirement": "=0.6.7",
+      "artifacts": {
+        "SingleTransferSAFECollateralAndDebtTest": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleTransferSAFECollateralAndDebt.t.sol/SingleTransferSAFECollateralAndDebtTest.json"
+        },
+        "Usr": {
+          "0.6.7+commit.b8d736ae.Darwin.appleclang": "SingleTransferSAFECollateralAndDebt.t.sol/Usr.json"
+        }
+      }
+    }
+  }
+}
